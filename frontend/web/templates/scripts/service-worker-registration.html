@@ -280,7 +280,12 @@
                 // Signal post-update: Dexie DB was cleared, next load must re-sync reference data
                 // This flag is read by base.html DOMContentLoaded handler after module loading completes
                 localStorage.setItem('sw_post_update_sync', 'true');
-                console.log('[SW_UPDATE] ✅ Step 4/5: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration + sw_post_update_sync flags');
+                // Restore dexieActive flag so pwa-splash-screen.html does NOT trigger an extra
+                // syncReferenceData() on Load 1. Without this, pwa-splash-screen sees dexieActive=null
+                // (because localStorage was just cleared) and fires a redundant sync alongside
+                // the sw_post_update_sync sync in base.html, causing Dexie race conditions.
+                localStorage.setItem('dexieActive', 'true');
+                console.log('[SW_UPDATE] ✅ Step 4/5: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration + sw_post_update_sync + dexieActive flags');
 
                 // Set Cache API flag for SW to detect post-update mode
                 // This is more reliable than MessageChannel after unregister()
