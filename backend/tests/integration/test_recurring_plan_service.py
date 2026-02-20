@@ -74,6 +74,7 @@ async def test_generate_minimum_3_facts_with_occurrences_count_1(
         record_type="plan",
     )
 
+    assert test_user.id is not None
     plan = await service.create_recurring_plan(session, data, test_user.id)
 
     # Verify EXACTLY 1 fact was generated
@@ -133,6 +134,7 @@ async def test_generate_minimum_3_facts_with_early_end_date(
         record_type="plan",
     )
 
+    assert test_user.id is not None
     plan = await service.create_recurring_plan(session, data, test_user.id)
 
     # Verify EXACTLY 2 facts generated (today and today+1)
@@ -191,6 +193,7 @@ async def test_facts_have_recurring_plan_id(session: AsyncSession, test_user: Us
         record_type="plan",
     )
 
+    assert test_user.id is not None
     plan = await service.create_recurring_plan(session, data, test_user.id)
 
     # Verify facts generated
@@ -259,6 +262,7 @@ async def test_logging_during_generation(
         record_type="plan",
     )
 
+    assert test_user.id is not None
     plan = await service.create_recurring_plan(session, data, test_user.id)
 
     # Verify logs
