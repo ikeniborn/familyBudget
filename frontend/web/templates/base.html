@@ -563,8 +563,8 @@
 
             <!-- Dexie Status Indicator (Database Icon + Status Dot) -->
             <div id="dexie-indicator-wrapper"
-                 class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center hidden"
-                 data-tip="Локальная БД · нажмите 3× для диагностики">
+                 class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center hidden cursor-pointer"
+                 data-tip="Локальная БД · нажмите для диагностики">
                 <div class="relative flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-base-200 transition-colors">
                     <!-- Active State: Green Database Icon -->
                     <div id="dexie-icon-active" class="flex items-center gap-1.5">
@@ -652,7 +652,7 @@
             </div>
 
             <!-- Budget WebSocket Status Indicator (real-time sync status) -->
-            <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center cursor-pointer" data-tip="Онлайн синхронизация · нажмите 5× для диагностики">
+            <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center cursor-pointer" data-tip="Онлайн синхронизация · нажмите для диагностики">
                 <span class="badge badge-neutral badge-sm sm:badge-md" id="budget-sse-status-indicator" title="Статус онлайн синхронизации">
                     <span class="loading loading-ring loading-xs sm:loading-sm"></span>
                 </span>
@@ -1130,35 +1130,20 @@
     {% include 'scripts/push-bell-manager.html' %}
     {% include 'scripts/navbar-sync-badge.html' %}
 
-    <!-- WS Indicator: 5-click opens Dexie diagnostics -->
+    <!-- WS Indicator: single click opens diagnostics -->
     <script>
-    (function setupWSPentaClickDiagnostics() {
+    (function setupWSClickDiagnostics() {
         const wrapper = document.getElementById('budget-sse-status-wrapper');
         if (!wrapper) return;
-
-        const CLICK_RESET_TIMEOUT_MS = 800;
-        const PENTA_CLICK_COUNT = 5;
-        let clickCount = 0;
-        let clickTimer = null;
 
         wrapper.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            clickCount++;
-
-            console.debug('[WS_INDICATOR] click', clickCount, '/', PENTA_CLICK_COUNT);
-
-            if (clickCount === 1) {
-                clickTimer = setTimeout(function() { clickCount = 0; }, CLICK_RESET_TIMEOUT_MS);
-            } else if (clickCount === PENTA_CLICK_COUNT) {
-                if (clickTimer) clearTimeout(clickTimer);
-                clickCount = 0;
-                console.debug('[WS_INDICATOR] 5-click detected, opening Dexie diagnostics...');
-                if (typeof window.openDexieDiagnostic === 'function') {
-                    window.openDexieDiagnostic();
-                } else {
-                    console.error('[WS_INDICATOR] window.openDexieDiagnostic not available');
-                }
+            console.debug('[WS_INDICATOR] click detected, opening WS diagnostics...');
+            if (window.budgetWSClient && typeof window.budgetWSClient.showDiagnostics === 'function') {
+                window.budgetWSClient.showDiagnostics();
+            } else {
+                console.error('[WS_INDICATOR] window.budgetWSClient.showDiagnostics not available');
             }
         });
     })();
