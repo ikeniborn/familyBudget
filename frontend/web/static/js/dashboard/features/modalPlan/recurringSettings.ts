@@ -5,6 +5,9 @@
  * @module modalPlan/recurringSettings
  */
 
+import { getState, updateState } from '../../core/DashboardState';
+import { initReminderCalendarWidget } from '../addPlan/reminderSettings';
+
 declare const debugLog: (...args: any[]) => void;
 
 /**
@@ -59,6 +62,8 @@ export function togglePlanMode(modalId: string): void {
   } else if (selectedMode === 'reminder') {
     onetimeReminderSection.classList.remove('hidden');
     debugLog('[togglePlanMode] Reminder section shown');
+    // Initialize CalendarWidget for reminder date field
+    initReminderCalendarWidget(modalId);
   } else {
     debugLog('[togglePlanMode] Regular mode - no additional sections shown');
   }
@@ -147,7 +152,8 @@ export function updateYearlyFrequencyValue(modalId: string): void {
 }
 
 /**
- * Update duration fields based on duration type
+ * Update duration fields based on duration type.
+ * Also initializes/destroys CalendarWidget for end date field.
  */
 export function updateDurationFields(modalId: string): void {
   const form = document.getElementById(`form_${modalId}`) as HTMLFormElement;
@@ -167,6 +173,33 @@ export function updateDurationFields(modalId: string): void {
   } else if (durationTypeSelect.value === 'end_date') {
     occurrencesField.classList.add('hidden');
     endDateField.classList.remove('hidden');
+  }
+
+  // Initialize/destroy CalendarWidget for end date field
+  const endDateInput = document.getElementById(`recurring_end_date_${modalId}`) as HTMLInputElement | null;
+  if (durationTypeSelect.value === 'end_date' && endDateInput) {
+    // Initialize CalendarWidget when field becomes visible
+    const state = getState();
+    if (!state.recurringEndDateCalendarWidget && window.BudgetShared?.CalendarWidget) {
+      const widget = new window.BudgetShared.CalendarWidget({
+        inputElement: endDateInput,
+        mode: 'single',
+        minDate: new Date(),
+        onSelect: () => updateRecurringPreview(modalId),
+      });
+      updateState({ recurringEndDateCalendarWidget: widget });
+    }
+  } else {
+    // Destroy CalendarWidget when field is hidden
+    const state = getState();
+    if (state.recurringEndDateCalendarWidget) {
+      try {
+        state.recurringEndDateCalendarWidget.destroy();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      updateState({ recurringEndDateCalendarWidget: null });
+    }
   }
 
   updateRecurringPreview(modalId);
