@@ -43,18 +43,18 @@ async def test_generate_minimum_3_facts_with_occurrences_count_1(
 
     # Create dependencies
     article = Article(
-        code="TEST_RECURRING",
+        code="ART-1",
         name="Test Recurring Payment",
-        article_type="expense",
+        type="expense",
         parent_id=None,
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(article)
 
     financial_center = FinancialCenter(
-        code="TEST_FC",
+        code="CFO-1",
         name="Test Financial Center",
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(financial_center)
 
@@ -102,18 +102,18 @@ async def test_generate_minimum_3_facts_with_early_end_date(
 
     # Create dependencies
     article = Article(
-        code="TEST_RECURRING_END",
+        code="ART-2",
         name="Test Recurring with End Date",
-        article_type="expense",
+        type="expense",
         parent_id=None,
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(article)
 
     financial_center = FinancialCenter(
-        code="TEST_FC_END",
+        code="CFO-2",
         name="Test FC for End Date",
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(financial_center)
 
@@ -160,18 +160,18 @@ async def test_facts_have_recurring_plan_id(session: AsyncSession, test_user: Us
 
     # Create dependencies
     article = Article(
-        code="TEST_MONTHLY",
+        code="ART-3",
         name="Monthly Rent",
-        article_type="expense",
+        type="expense",
         parent_id=None,
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(article)
 
     financial_center = FinancialCenter(
-        code="TEST_FC_MONTHLY",
+        code="CFO-3",
         name="Main Account",
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(financial_center)
 
@@ -228,18 +228,18 @@ async def test_logging_during_generation(
 
     # Create dependencies
     article = Article(
-        code="TEST_LOGGING",
+        code="ART-4",
         name="Test Logging Plan",
-        article_type="expense",
+        type="expense",
         parent_id=None,
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(article)
 
     financial_center = FinancialCenter(
-        code="TEST_FC_LOG",
+        code="CFO-4",
         name="Test FC Logging",
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(financial_center)
 
