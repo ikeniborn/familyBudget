@@ -82,9 +82,11 @@ self.addEventListener('install', (event) => {
     (async () => {
       // Check if we're in post-update mode (skip caching)
       // Use Cache API flag instead of MessageChannel (more reliable after unregister)
+      // NOTE: caches.match() searches cached *responses* by URL, not named cache existence.
+      // Use caches.keys() to check for the presence of a named cache.
       try {
-        const updateModeCache = await caches.match('__sw_update_mode__');
-        if (updateModeCache) {
+        const isPostUpdate = (await caches.keys()).includes('__sw_update_mode__');
+        if (isPostUpdate) {
           console.log('[SW] ⏭️ Skipping cache creation (post-update mode)');
 
           // Clean up flag cache
