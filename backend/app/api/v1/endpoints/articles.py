@@ -91,10 +91,16 @@ async def create_article(
                 detail=f"Parent article with id={article_data.parent_id} not found"
             )
 
+    # Generate code for article (natural key, auto-generated, immutable after creation)
+    from backend.app.utils.code_generator import generate_code
+    generated_code = await generate_code(session, Article)
+
     # Create new article (SCD Type 1 - no versioning fields)
+    # financial_center_ids is handled separately (M2M relation, not a model field)
     article = Article(
-        **article_data.model_dump(),
+        **article_data.model_dump(exclude={"financial_center_ids"}),
         user_id=get_user_id_for_create(current_user),
+        code=generated_code,
     )
 
     session.add(article)
