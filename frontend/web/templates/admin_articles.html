@@ -93,7 +93,7 @@
                 <label class="label">
                     <span class="label-text">🏦 Счета</span>
                 </label>
-                <select id="create-financial-centers" name="financial_center_ids" multiple class="select select-bordered min-h-[80px] max-h-[150px] overflow-y-auto">
+                <select id="create-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[80px] max-h-[150px] overflow-y-auto">
                     <!-- Will be populated dynamically -->
                 </select>
                 <p class="text-sm text-base-content/60 mt-1">
@@ -156,7 +156,7 @@
                 <label class="label">
                     <span class="label-text">🏦 Счета</span>
                 </label>
-                <select id="edit-financial-centers" name="financial_center_ids" multiple class="select select-bordered min-h-[80px] max-h-[150px] overflow-y-auto">
+                <select id="edit-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[80px] max-h-[150px] overflow-y-auto">
                     <!-- Will be populated dynamically -->
                 </select>
                 <p class="text-sm text-base-content/60 mt-1">
@@ -249,7 +249,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const createType = document.getElementById('create-type');
     if (createType) {
         createType.addEventListener('change', function() {
-            populateParentSelect('create-parent', this.value);
+            populateParentSelect('create-parent', this.value, null, 1);
         });
     }
 });
@@ -669,7 +669,8 @@ function showCreateModal() {
     // Устанавливаем тип на основе фильтра, если он не 'all'
     const initialType = currentType !== 'all' ? currentType : 'expense';
     document.getElementById('create-type').value = initialType;
-    populateParentSelect('create-parent', initialType);
+    // maxLevel=1: показываем только уровень 1 и 2 как родители (не более 3 уровней вложенности)
+    populateParentSelect('create-parent', initialType, null, 1);
 }
 
 // Close create modal
@@ -681,7 +682,8 @@ function closeCreateModal() {
 }
 
 // Populate parent select dropdown
-function populateParentSelect(selectId, type, excludeArticleId = null) {
+// maxLevel: maximum depth of options shown (Infinity = no limit; 1 = root + 1 sub-level only)
+function populateParentSelect(selectId, type, excludeArticleId = null, maxLevel = Infinity) {
     const select = document.getElementById(selectId);
 
     // Clear existing options (except first)
@@ -695,14 +697,11 @@ function populateParentSelect(selectId, type, excludeArticleId = null) {
     // Build tree for proper ordering
     const tree = buildTree(sameType);
 
-    // Add options with hierarchy (max parent level = 1 for 3-level nesting limit)
+    // Add options with hierarchy
     function addOptions(nodes, level) {
         nodes.forEach(node => {
-            // Create visual tree structure with non-breaking spaces
-            // Using \u00A0 (non-breaking space) to prevent browser from collapsing whitespace
             let prefix = '';
             if (level > 0) {
-                // Each level adds 2 non-breaking spaces for indentation
                 prefix = '\u00A0\u00A0'.repeat(level - 1) + '└─\u00A0';
             }
 
@@ -710,16 +709,13 @@ function populateParentSelect(selectId, type, excludeArticleId = null) {
             option.value = node.id;
             option.textContent = prefix + node.name;
 
-            // Add visual indicator for parent categories
             if (node.children.length > 0) {
                 option.textContent += ' 📁';
             }
 
             select.appendChild(option);
 
-            // Max nesting = 3 levels: only show level 0 and level 1 as potential parents
-            // Level 2 nodes cannot have children (would exceed depth 3)
-            if (node.children.length > 0 && level < 1) {
+            if (node.children.length > 0 && level < maxLevel) {
                 addOptions(node.children, level + 1);
             }
         });

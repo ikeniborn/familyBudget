@@ -4757,7 +4757,7 @@ function renderRecurringPlansTable(plans) {
     const mobileHTML = `
         <div class="md:hidden space-y-2">
             <div class="flex items-center gap-2 pb-2 border-b border-base-300">
-                <input type="checkbox" class="checkbox checkbox-sm"
+                <input type="checkbox" class="checkbox checkbox-sm recurring-select-all-checkbox"
                     onchange="toggleSelectAllRecurringPlans(this.checked)"
                     title="Выбрать все">
                 <span class="text-sm text-base-content/70">Выбрать все</span>
@@ -4801,7 +4801,7 @@ function renderRecurringPlansTable(plans) {
                 <thead>
                     <tr>
                         <th class="w-12">
-                            <input type="checkbox" class="checkbox checkbox-sm"
+                            <input type="checkbox" class="checkbox checkbox-sm recurring-select-all-checkbox"
                                 onchange="toggleSelectAllRecurringPlans(this.checked)"
                                 title="Выбрать все">
                         </th>
@@ -4874,7 +4874,8 @@ function getFrequencyDisplayText(type, value) {
 }
 
 /**
- * Toggle selection of a single recurring plan
+ * Toggle selection of a single recurring plan.
+ * Syncs checkboxes across both mobile and desktop views.
  */
 function toggleRecurringPlanSelection(planId, isSelected) {
     console.log('[RECURRING_SELECT] Plan', planId, 'selected:', isSelected);
@@ -4885,18 +4886,24 @@ function toggleRecurringPlanSelection(planId, isSelected) {
         selectedRecurringPlanIds.delete(planId);
     }
 
+    // Sync all checkboxes for this plan (mobile card + desktop table row)
+    document.querySelectorAll(`.recurring-plan-checkbox[data-plan-id="${planId}"]`).forEach(cb => {
+        cb.checked = isSelected;
+    });
+
     console.log('[RECURRING_SELECT] Selected plans:', Array.from(selectedRecurringPlanIds));
     updateBatchDeleteRecurringPlansButtonState();
 }
 
 /**
- * Toggle select all recurring plans
+ * Toggle select all recurring plans.
+ * Syncs header checkboxes across both mobile and desktop views.
  */
 function toggleSelectAllRecurringPlans(selectAll) {
     console.log('[RECURRING_SELECT] Select all:', selectAll);
 
-    const checkboxes = document.querySelectorAll('.recurring-plan-checkbox');
-    checkboxes.forEach(checkbox => {
+    // Sync all plan checkboxes (both views)
+    document.querySelectorAll('.recurring-plan-checkbox').forEach(checkbox => {
         checkbox.checked = selectAll;
         const planId = parseInt(checkbox.dataset.planId);
         if (selectAll) {
@@ -4904,6 +4911,11 @@ function toggleSelectAllRecurringPlans(selectAll) {
         } else {
             selectedRecurringPlanIds.delete(planId);
         }
+    });
+
+    // Sync all "select all" header checkboxes (mobile + desktop)
+    document.querySelectorAll('.recurring-select-all-checkbox').forEach(cb => {
+        cb.checked = selectAll;
     });
 
     console.log('[RECURRING_SELECT] Selected plans:', Array.from(selectedRecurringPlanIds));

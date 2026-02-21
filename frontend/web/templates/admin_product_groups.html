@@ -416,7 +416,8 @@ function handleSearch(query) {
 // Show create modal
 function showCreateModal() {
     document.getElementById('create-form').reset();
-    populateParentSelect('create-parent', null);
+    // maxLevel=1: не более 3 уровней вложенности (корень + 2 уровня)
+    populateParentSelect('create-parent', null, 1);
     document.getElementById('create-modal').showModal();
 }
 
@@ -426,7 +427,8 @@ function closeCreateModal() {
 }
 
 // Populate parent select dropdown
-function populateParentSelect(selectId, currentGroupId) {
+// maxLevel: maximum depth of options shown (Infinity = no limit; 1 = root + 1 sub-level only)
+function populateParentSelect(selectId, currentGroupId, maxLevel = Infinity) {
     const select = document.getElementById(selectId);
     select.innerHTML = '<option value="">-- Корневой уровень --</option>';
 
@@ -434,17 +436,17 @@ function populateParentSelect(selectId, currentGroupId) {
     const available = productGroupsData.filter(g => {
         if (!g.is_active) return false; // Only show active groups
         if (currentGroupId && g.id === currentGroupId) return false; // Exclude self
-        // TODO: Exclude descendants (requires getSubtree API call)
         return true;
     });
 
     // Build tree for hierarchical display
     const tree = buildTree(available);
-    addTreeOptionsToSelect(select, tree, 0);
+    addTreeOptionsToSelect(select, tree, 0, maxLevel);
 }
 
-// Add tree options to select recursively (max nesting = 3: show only level 0 and level 1 as parents)
-function addTreeOptionsToSelect(select, nodes, level) {
+// Add tree options to select recursively
+// maxLevel: stop recursing at this depth (Infinity = show all; 1 = root + 1 sub-level)
+function addTreeOptionsToSelect(select, nodes, level, maxLevel = Infinity) {
     nodes.forEach(node => {
         const indent = '  '.repeat(level);
         const prefix = level > 0 ? '└─ ' : '';
@@ -453,10 +455,8 @@ function addTreeOptionsToSelect(select, nodes, level) {
         option.textContent = `${indent}${prefix}${node.name}`;
         select.appendChild(option);
 
-        // Only recurse into level 0 nodes so level 1 is shown but level 2 is not
-        // This ensures the created node won't exceed depth 3
-        if (node.children && node.children.length > 0 && level < 1) {
-            addTreeOptionsToSelect(select, node.children, level + 1);
+        if (node.children && node.children.length > 0 && level < maxLevel) {
+            addTreeOptionsToSelect(select, node.children, level + 1, maxLevel);
         }
     });
 }
