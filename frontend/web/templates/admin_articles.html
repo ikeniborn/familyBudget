@@ -93,7 +93,7 @@
                 <label class="label">
                     <span class="label-text">🏦 Счета</span>
                 </label>
-                <select id="create-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[100px]">
+                <select id="create-financial-centers" name="financial_center_ids" multiple class="select select-bordered min-h-[80px] max-h-[150px] overflow-y-auto">
                     <!-- Will be populated dynamically -->
                 </select>
                 <p class="text-sm text-base-content/60 mt-1">
@@ -156,7 +156,7 @@
                 <label class="label">
                     <span class="label-text">🏦 Счета</span>
                 </label>
-                <select id="edit-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[100px]">
+                <select id="edit-financial-centers" name="financial_center_ids" multiple class="select select-bordered min-h-[80px] max-h-[150px] overflow-y-auto">
                     <!-- Will be populated dynamically -->
                 </select>
                 <p class="text-sm text-base-content/60 mt-1">
@@ -695,7 +695,7 @@ function populateParentSelect(selectId, type, excludeArticleId = null) {
     // Build tree for proper ordering
     const tree = buildTree(sameType);
 
-    // Add options with hierarchy
+    // Add options with hierarchy (max parent level = 1 for 3-level nesting limit)
     function addOptions(nodes, level) {
         nodes.forEach(node => {
             // Create visual tree structure with non-breaking spaces
@@ -717,7 +717,9 @@ function populateParentSelect(selectId, type, excludeArticleId = null) {
 
             select.appendChild(option);
 
-            if (node.children.length > 0) {
+            // Max nesting = 3 levels: only show level 0 and level 1 as potential parents
+            // Level 2 nodes cannot have children (would exceed depth 3)
+            if (node.children.length > 0 && level < 1) {
                 addOptions(node.children, level + 1);
             }
         });

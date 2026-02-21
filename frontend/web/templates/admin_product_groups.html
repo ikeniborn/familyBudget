@@ -382,7 +382,7 @@ function renderTreeNodes(nodes, level) {
                 `;
             }
         }
-        const actionsCell = `<td class="space-x-1">${actions}</td>`;
+        const actionsCell = `<td><div class="flex items-center gap-1">${actions}</div></td>`;
 
         html += `
             <tr>
@@ -443,7 +443,7 @@ function populateParentSelect(selectId, currentGroupId) {
     addTreeOptionsToSelect(select, tree, 0);
 }
 
-// Add tree options to select recursively
+// Add tree options to select recursively (max nesting = 3: show only level 0 and level 1 as parents)
 function addTreeOptionsToSelect(select, nodes, level) {
     nodes.forEach(node => {
         const indent = '  '.repeat(level);
@@ -453,7 +453,9 @@ function addTreeOptionsToSelect(select, nodes, level) {
         option.textContent = `${indent}${prefix}${node.name}`;
         select.appendChild(option);
 
-        if (node.children && node.children.length > 0) {
+        // Only recurse into level 0 nodes so level 1 is shown but level 2 is not
+        // This ensures the created node won't exceed depth 3
+        if (node.children && node.children.length > 0 && level < 1) {
             addTreeOptionsToSelect(select, node.children, level + 1);
         }
     });

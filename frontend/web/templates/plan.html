@@ -71,8 +71,8 @@
                 </button>
             </div>
 
-            <div id="recurring-plans-table-container" class="overflow-x-auto">
-                <!-- Table populated by loadRecurringPlans() -->
+            <div id="recurring-plans-table-container">
+                <!-- Table/cards populated by loadRecurringPlans() -->
                 <div class="flex items-center justify-center py-8">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
@@ -4748,61 +4748,107 @@ function renderRecurringPlansTable(plans) {
 
     const container = document.getElementById('recurring-plans-table-container');
 
-    const tableHTML = `
-        <table class="table table-zebra table-sm w-full">
-            <thead>
-                <tr>
-                    <th class="w-12">
-                        <input
-                            type="checkbox"
-                            class="checkbox checkbox-sm"
-                            onchange="toggleSelectAllRecurringPlans(this.checked)"
-                            title="Выбрать все">
-                    </th>
-                    <th>Категория</th>
-                    <th>Счет</th>
-                    <th class="text-right">Сумма</th>
-                    <th>Периодичность</th>
-                    <th>Начало</th>
-                    <th>Окончание</th>
-                    <th class="text-center">Записей</th>
-                    <th class="text-center">Напоминание</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${plans.map(plan => `
-                    <tr>
-                        <td>
-                            <input
-                                type="checkbox"
-                                class="checkbox checkbox-sm recurring-plan-checkbox"
+    const formatAmount = (amount) =>
+        window.formatCurrency ? window.formatCurrency(amount) : Number(amount).toFixed(2);
+    const formatDate = (d) =>
+        d ? (window.DateFormatter ? window.DateFormatter.formatForDisplay(d) : d) : '—';
+
+    // Mobile cards (hidden on md+)
+    const mobileHTML = `
+        <div class="md:hidden space-y-2">
+            <div class="flex items-center gap-2 pb-2 border-b border-base-300">
+                <input type="checkbox" class="checkbox checkbox-sm"
+                    onchange="toggleSelectAllRecurringPlans(this.checked)"
+                    title="Выбрать все">
+                <span class="text-sm text-base-content/70">Выбрать все</span>
+            </div>
+            ${plans.map(plan => `
+                <div class="card bg-base-100 border border-base-300 shadow-sm">
+                    <div class="card-body p-3 space-y-2">
+                        <div class="flex items-start gap-3">
+                            <input type="checkbox"
+                                class="checkbox checkbox-sm recurring-plan-checkbox mt-0.5 shrink-0"
                                 data-plan-id="${plan.id}"
                                 onchange="toggleRecurringPlanSelection(${plan.id}, this.checked)">
-                        </td>
-                        <td>
-                            <div class="flex items-center gap-2">
-                                ${plan.article_icon || '📁'}
-                                <span>${plan.article_name || 'N/A'}</span>
+                            <div class="flex-1 min-w-0">
+                                <div class="font-medium truncate">${plan.article_icon || '📁'} ${plan.article_name || 'N/A'}</div>
+                                <div class="text-xs text-base-content/60">${plan.financial_center_name || 'N/A'}</div>
                             </div>
-                        </td>
-                        <td>${plan.financial_center_name || 'N/A'}</td>
-                        <td class="text-right font-mono ${plan.amount < 0 ? 'text-error' : 'text-success'}">
-                            ${window.formatCurrency ? window.formatCurrency(plan.amount) : Number(plan.amount).toFixed(2)}
-                        </td>
-                        <td>${getFrequencyDisplayText(plan.frequency_type, plan.frequency_value)}</td>
-                        <td>${window.DateFormatter ? window.DateFormatter.formatForDisplay(plan.start_date) : plan.start_date}</td>
-                        <td>${plan.end_date ? (window.DateFormatter ? window.DateFormatter.formatForDisplay(plan.end_date) : plan.end_date) : '—'}</td>
-                        <td class="text-center">${plan.total_occurrences || '∞'}</td>
-                        <td class="text-center">
-                            ${plan.enable_reminder ? `🔔 ${String(plan.reminder_hour).padStart(2, '0')}:${String(plan.reminder_minute).padStart(2, '0')}` : '—'}
-                        </td>
-                    </tr>
-                `).join('')}
-            </tbody>
-        </table>
+                            <div class="font-mono text-sm font-semibold shrink-0 ${plan.amount < 0 ? 'text-error' : 'text-success'}">
+                                ${formatAmount(plan.amount)}
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+                            <span class="text-base-content/60">Периодичность:</span>
+                            <span>${getFrequencyDisplayText(plan.frequency_type, plan.frequency_value)}</span>
+                            <span class="text-base-content/60">Начало:</span>
+                            <span>${formatDate(plan.start_date)}</span>
+                            ${plan.end_date ? `<span class="text-base-content/60">Окончание:</span><span>${formatDate(plan.end_date)}</span>` : ''}
+                            <span class="text-base-content/60">Записей:</span>
+                            <span>${plan.total_occurrences || '∞'}</span>
+                            ${plan.enable_reminder ? `<span class="text-base-content/60">Напоминание:</span><span>🔔 ${String(plan.reminder_hour).padStart(2, '0')}:${String(plan.reminder_minute).padStart(2, '0')}</span>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
     `;
 
-    container.innerHTML = tableHTML;
+    // Desktop table (hidden on mobile)
+    const desktopHTML = `
+        <div class="hidden md:block overflow-x-auto">
+            <table class="table table-zebra table-sm w-full">
+                <thead>
+                    <tr>
+                        <th class="w-12">
+                            <input type="checkbox" class="checkbox checkbox-sm"
+                                onchange="toggleSelectAllRecurringPlans(this.checked)"
+                                title="Выбрать все">
+                        </th>
+                        <th>Категория</th>
+                        <th>Счет</th>
+                        <th class="text-right">Сумма</th>
+                        <th>Периодичность</th>
+                        <th>Начало</th>
+                        <th>Окончание</th>
+                        <th class="text-center">Записей</th>
+                        <th class="text-center">Напоминание</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${plans.map(plan => `
+                        <tr>
+                            <td>
+                                <input type="checkbox"
+                                    class="checkbox checkbox-sm recurring-plan-checkbox"
+                                    data-plan-id="${plan.id}"
+                                    onchange="toggleRecurringPlanSelection(${plan.id}, this.checked)">
+                            </td>
+                            <td>
+                                <div class="flex items-center gap-2">
+                                    ${plan.article_icon || '📁'}
+                                    <span>${plan.article_name || 'N/A'}</span>
+                                </div>
+                            </td>
+                            <td>${plan.financial_center_name || 'N/A'}</td>
+                            <td class="text-right font-mono ${plan.amount < 0 ? 'text-error' : 'text-success'}">
+                                ${formatAmount(plan.amount)}
+                            </td>
+                            <td>${getFrequencyDisplayText(plan.frequency_type, plan.frequency_value)}</td>
+                            <td>${formatDate(plan.start_date)}</td>
+                            <td>${plan.end_date ? formatDate(plan.end_date) : '—'}</td>
+                            <td class="text-center">${plan.total_occurrences || '∞'}</td>
+                            <td class="text-center">
+                                ${plan.enable_reminder ? `🔔 ${String(plan.reminder_hour).padStart(2, '0')}:${String(plan.reminder_minute).padStart(2, '0')}` : '—'}
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    container.innerHTML = mobileHTML + desktopHTML;
 
     // Update button state
     updateBatchDeleteRecurringPlansButtonState();
