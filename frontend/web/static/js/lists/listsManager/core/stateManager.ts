@@ -289,10 +289,8 @@ export async function loadShoppingListItems(listId: number): Promise<void> {
   } catch (error) {
     console.error('[ListsManager] Error loading items:', error);
     showToast('Ошибка загрузки элементов', 'error');
-    // Preserve last known items on error — don't clear visible data on transient failures
-    if (getState().currentItems.length === 0) {
-      updateState({ currentItems: [] });
-    }
+    // On list switch: items were already cleared by switchToList — no stale data risk.
+    // On in-place reload (network restore): preserve last known items for continuity.
   }
 }
 
@@ -347,6 +345,7 @@ async function loadStoresAndGroups(): Promise<void> {
  * @param listId - Shopping list ID
  */
 export async function switchToList(listId: number): Promise<void> {
-  updateState({ currentListId: listId });
+  // Clear stale items from previous list immediately — prevents wrong items showing on load error
+  updateState({ currentListId: listId, currentItems: [] });
   await loadShoppingListItems(listId);
 }
