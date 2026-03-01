@@ -14,6 +14,7 @@ from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
     articles_router,
     auth_router,
+    p2p_router,
     budget_ws_router,
     cache_metrics_router,
     consent_router,
@@ -106,6 +107,9 @@ api_router.include_router(staging_router)
 
 # Transfers endpoints (Transfer Feature) ✅
 api_router.include_router(transfers_router)
+
+# P2P Sync endpoints (WebRTC peer-to-peer sync) ✅
+api_router.include_router(p2p_router)
 
 # Push Notification endpoints (PWA Offline Mode) ✅
 api_router.include_router(push_router)

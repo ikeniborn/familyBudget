@@ -1,0 +1,601 @@
+/**
+ * P2PUIController - Manages P2P sync UI state machine.
+ *
+ * States: idle → initiator | scanner → syncing → done | error
+ *
+ * iOS workarounds (R2):
+ * - Detects PWA standalone mode and shows "use Safari" warning
+ * - All QR screens include manual SDP copy-paste fallback
+ * - Camera permission denial falls back to paste mode
+ *
+ * @version 1.0.0
+ */
+
+import { P2PManager } from '../offline/p2p/P2PManager.js';
+import { P2PSignaling } from '../offline/p2p/P2PSignaling.js';
+import { P2PSyncProtocol } from '../offline/p2p/P2PSyncProtocol.js';
+import { P2PMerge } from '../offline/p2p/P2PMerge.js';
+
+const OFFER_TIMEOUT_SEC = 30;
+
+/**
+ * Detect iOS device.
+ * @returns {boolean}
+ */
+function isIOS() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+/**
+ * Detect PWA standalone mode (added to home screen).
+ * @returns {boolean}
+ */
+function isPWAStandalone() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true;
+}
+
+class P2PUIController {
+  constructor() {
+    this.manager = null;
+    this.signaling = null;
+    this.protocol = null;
+    this.merge = new P2PMerge();
+
+    this._cameraStream = null;
+    this._scannerInterval = null;
+    this._offerTimer = null;
+    this._offerPayload = null;
+    this._answerPayload = null;
+    this._modal = null;
+
+    // Expose globally for inline onclick handlers in templates
+    window.p2pUI = this;
+  }
+
+  /**
+   * Open the P2P sync modal with role selection.
+   * Call this from navbar button or sync menu.
+   */
+  async open() {
+    if (!this._checkWebRTCSupport()) return;
+    this._showModal();
+    this._renderRoleSelect();
+  }
+
+  /**
+   * Start as initiator: generate offer QR.
+   */
+  async startInitiator() {
+    this._showIosPwaWarning();
+    this._renderScreen('initiator');
+    this._initManager();
+
+    try {
+      const qrContainer = document.getElementById('p2p-qr-container');
+      const loadingEl = document.getElementById('p2p-qr-loading');
+
+      this._offerPayload = await this.signaling.displayOfferQR(qrContainer);
+      if (loadingEl) loadingEl.remove();
+
+      // Show manual text
+      const manualText = document.getElementById('p2p-manual-offer-text');
+      if (manualText) manualText.value = this._offerPayload;
+
+      // Show "scan answer" button after QR ready
+      const scanBtn = document.getElementById('p2p-goto-scan-btn');
+      if (scanBtn) scanBtn.classList.remove('hidden');
+
+      // Start offer expiry countdown
+      this._startOfferTimer();
+
+      console.debug('[P2PUIController] Offer QR displayed');
+    } catch (err) {
+      console.error('[P2PUIController] Failed to create offer:', err);
+      this._showError('Не удалось создать QR: ' + err.message);
+    }
+  }
+
+  /**
+   * Show scanner screen (initiator side, step 2).
+   */
+  showScanner() {
+    this._stopOfferTimer();
+    this._renderScreen('scanner-answer');
+    // Scanner in this context is for scanning the responder's answer QR
+    document.getElementById('p2p-scanner-subtitle')?.setAttribute('textContent', 'Сканируйте QR с ответного устройства');
+  }
+
+  /**
+   * Start as responder: scan initiator's offer QR.
+   */
+  async startResponder() {
+    this._showIosPwaWarning();
+    this._renderScreen('scanner');
+    this._initManager();
+    await this._startCamera();
+  }
+
+  /**
+   * Copy offer payload text to clipboard.
+   */
+  async copyOfferText() {
+    if (!this._offerPayload) return;
+    try {
+      await navigator.clipboard.writeText(this._offerPayload);
+      this._showToast('Код скопирован');
+    } catch {
+      this._showToast('Скопируйте текст вручную');
+    }
+  }
+
+  /**
+   * Copy answer payload text to clipboard.
+   */
+  async copyAnswerText() {
+    if (!this._answerPayload) return;
+    try {
+      await navigator.clipboard.writeText(this._answerPayload);
+      this._showToast('Ответный код скопирован');
+    } catch {
+      this._showToast('Скопируйте текст вручную');
+    }
+  }
+
+  /**
+   * Process pasted code (manual fallback for both offer and answer).
+   */
+  async processPastedCode() {
+    const input = document.getElementById('p2p-paste-input');
+    if (!input || !input.value.trim()) {
+      this._showToast('Вставьте код в поле');
+      return;
+    }
+    const code = input.value.trim();
+
+    try {
+      if (!this.manager) this._initManager();
+      // Determine if this is an offer or answer based on connection state
+      if (this.manager.state === 'idle' || this.manager.state === 'connecting') {
+        // Treat as offer → create answer
+        const answerPayload = await this.signaling.processScannedOffer(code);
+        this._answerPayload = answerPayload;
+        this._showAnswerQR(answerPayload);
+      } else {
+        // Treat as answer → complete connection
+        await this.signaling.processScannedAnswer(code);
+        this._waitForConnection();
+      }
+    } catch (err) {
+      console.error('[P2PUIController] processPastedCode error:', err);
+      this._showError('Неверный код: ' + err.message);
+    }
+  }
+
+  /**
+   * Request camera access (retry after denial).
+   */
+  async requestCamera() {
+    document.getElementById('p2p-camera-error')?.classList.add('hidden');
+    await this._startCamera();
+  }
+
+  /**
+   * Cancel sync and close modal.
+   */
+  cancel() {
+    this._stopScan();
+    this._stopOfferTimer();
+    if (this.manager) {
+      this.manager.cleanup();
+      this.manager = null;
+    }
+    this._closeModal();
+    console.debug('[P2PUIController] Sync cancelled');
+  }
+
+  /**
+   * Close status overlay after successful sync.
+   */
+  closeStatus() {
+    document.getElementById('p2p-status-overlay')?.classList.add('hidden');
+    this._closeModal();
+  }
+
+  // ── Private: initialization ──────────────────────────
+
+  _initManager() {
+    if (this.manager) this.manager.cleanup();
+    this.manager = new P2PManager();
+    this.signaling = new P2PSignaling(this.manager);
+    this.protocol = new P2PSyncProtocol(this.manager);
+
+    this.manager.onStateChange = (state) => {
+      console.debug('[P2PUIController] Manager state:', state);
+      if (state === 'connected') {
+        this._onConnected();
+      } else if (state === 'error') {
+        this._showError('Соединение прервано');
+      }
+    };
+  }
+
+  // ── Private: WebRTC support check ───────────────────
+
+  _checkWebRTCSupport() {
+    if (!window.RTCPeerConnection) {
+      this._showToast('P2P синхронизация не поддерживается в этом браузере');
+      return false;
+    }
+    return true;
+  }
+
+  // ── Private: iOS warnings ────────────────────────────
+
+  _showIosPwaWarning() {
+    if (isIOS() && isPWAStandalone()) {
+      const warn = document.getElementById('p2p-ios-pwa-warning');
+      if (warn) warn.classList.remove('hidden');
+    }
+  }
+
+  // ── Private: camera ──────────────────────────────────
+
+  async _startCamera() {
+    const video = document.getElementById('p2p-camera-video');
+    const errorEl = document.getElementById('p2p-camera-error');
+    const cameraWrapper = document.getElementById('p2p-camera-wrapper');
+
+    // Show iOS camera guidance if needed
+    if (isIOS()) {
+      document.getElementById('p2p-ios-camera-guidance')?.classList.remove('hidden');
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+      this._cameraStream = stream;
+      if (video) {
+        video.srcObject = stream;
+        await video.play();
+      }
+      if (errorEl) errorEl.classList.add('hidden');
+      this._startQRScan(video);
+    } catch (err) {
+      console.warn('[P2PUIController] Camera access denied:', err.message);
+      if (errorEl) errorEl.classList.remove('hidden');
+      if (cameraWrapper) cameraWrapper.style.display = 'none';
+      // Open manual paste fallback automatically
+      const pasteToggle = document.getElementById('p2p-manual-paste-toggle');
+      if (pasteToggle) pasteToggle.checked = true;
+    }
+  }
+
+  _stopCamera() {
+    if (this._cameraStream) {
+      this._cameraStream.getTracks().forEach(t => t.stop());
+      this._cameraStream = null;
+    }
+  }
+
+  // ── Private: QR scanning ─────────────────────────────
+
+  _startQRScan(videoEl) {
+    // Try to use BarcodeDetector API (Chrome 83+, Android Chrome)
+    if ('BarcodeDetector' in window) {
+      this._scanWithBarcodeDetector(videoEl);
+    } else {
+      // Fallback: canvas-based scan (slower, limited library)
+      this._scanWithCanvas(videoEl);
+    }
+  }
+
+  async _scanWithBarcodeDetector(videoEl) {
+    let detector;
+    try {
+      detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+    } catch {
+      this._scanWithCanvas(videoEl);
+      return;
+    }
+
+    this._scannerInterval = setInterval(async () => {
+      if (!videoEl || videoEl.readyState < 2) return;
+      try {
+        const barcodes = await detector.detect(videoEl);
+        if (barcodes.length > 0) {
+          clearInterval(this._scannerInterval);
+          this._stopCamera();
+          await this._handleScannedQR(barcodes[0].rawValue);
+        }
+      } catch {
+        // Continue scanning
+      }
+    }, 250);
+  }
+
+  _scanWithCanvas(videoEl) {
+    // Canvas-based QR scanning — requires jsQR library
+    // If jsQR not loaded, show manual paste fallback notice
+    if (!window.jsQR) {
+      console.warn('[P2PUIController] jsQR not available, showing paste fallback');
+      const pasteToggle = document.getElementById('p2p-manual-paste-toggle');
+      if (pasteToggle) pasteToggle.checked = true;
+      this._showToast('Сканирование недоступно — вставьте код вручную');
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    this._scannerInterval = setInterval(() => {
+      if (!videoEl || videoEl.readyState < 2) return;
+      canvas.width = videoEl.videoWidth;
+      canvas.height = videoEl.videoHeight;
+      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+      if (code) {
+        clearInterval(this._scannerInterval);
+        this._stopCamera();
+        this._handleScannedQR(code.data);
+      }
+    }, 200);
+  }
+
+  _stopScan() {
+    if (this._scannerInterval) {
+      clearInterval(this._scannerInterval);
+      this._scannerInterval = null;
+    }
+    this._stopCamera();
+  }
+
+  async _handleScannedQR(qrData) {
+    try {
+      if (!this.manager) this._initManager();
+      const state = this.manager.state;
+
+      if (state === 'idle' || state === 'connecting') {
+        // Responder: scanned initiator's offer
+        const answerPayload = await this.signaling.processScannedOffer(qrData);
+        this._answerPayload = answerPayload;
+        this._showAnswerQR(answerPayload);
+      } else if (state === 'connected' || state === 'connecting') {
+        // Initiator: scanned responder's answer
+        await this.signaling.processScannedAnswer(qrData);
+        this._waitForConnection();
+      }
+    } catch (err) {
+      console.error('[P2PUIController] QR scan processing error:', err);
+      this._showError('Ошибка обработки QR: ' + err.message);
+    }
+  }
+
+  _showAnswerQR(answerPayload) {
+    const section = document.getElementById('p2p-answer-qr-section');
+    const container = document.getElementById('p2p-answer-qr-container');
+    const manualText = document.getElementById('p2p-manual-answer-text');
+    if (section) section.classList.remove('hidden');
+    if (container && this.signaling) this.signaling.renderQR(container, answerPayload);
+    if (manualText) manualText.value = answerPayload;
+    this._waitForConnection();
+  }
+
+  // ── Private: connection lifecycle ───────────────────
+
+  _waitForConnection() {
+    // Manager's onStateChange will call _onConnected when connected
+    this._showStatusOverlay('connecting');
+  }
+
+  async _onConnected() {
+    console.debug('[P2PUIController] P2P connected — starting sync');
+    this._updateStatusOverlay('syncing');
+    this._stopScan();
+    this._stopOfferTimer();
+
+    try {
+      // Get pending facts from DataLayer
+      const dataLayer = window.dataLayer || window.DataLayer?.getInstance?.();
+      let pendingFacts = [];
+      if (dataLayer && typeof dataLayer.getPendingFactsForP2P === 'function') {
+        pendingFacts = await dataLayer.getPendingFactsForP2P();
+      } else {
+        console.warn('[P2PUIController] DataLayer.getPendingFactsForP2P not available');
+      }
+
+      // Get all local facts for merge comparison
+      let localFacts = [];
+      if (dataLayer && typeof dataLayer.getAllFactsForP2PMerge === 'function') {
+        localFacts = await dataLayer.getAllFactsForP2PMerge();
+      }
+
+      this._updateProgress(20, 'Отправляем данные...');
+
+      // Sync via protocol
+      const { sent, received } = await this.protocol.initiateSync(pendingFacts);
+
+      this._updateProgress(70, 'Объединяем данные...');
+
+      // Merge received facts
+      const mergeResult = await this.merge.mergeFacts(localFacts, received);
+
+      if (mergeResult.toAdd.length > 0 && dataLayer?.applyP2PSyncResult) {
+        await dataLayer.applyP2PSyncResult(mergeResult.toAdd);
+      }
+
+      this._updateProgress(100, 'Готово');
+      this._updateStatusStats(sent, received.length, mergeResult.toAdd.length, mergeResult.duplicates);
+      this._updateStatusOverlay('success');
+
+      // Auto-close after 3s
+      setTimeout(() => this.closeStatus(), 3000);
+
+    } catch (err) {
+      console.error('[P2PUIController] Sync error:', err);
+      this._showError(err.message);
+    } finally {
+      if (this.manager) {
+        this.manager.cleanup();
+        this.manager = null;
+      }
+    }
+  }
+
+  // ── Private: offer timer ─────────────────────────────
+
+  _startOfferTimer() {
+    let remaining = OFFER_TIMEOUT_SEC;
+    const timerEl = document.getElementById('p2p-offer-timer');
+    const progressEl = document.getElementById('p2p-offer-progress');
+
+    this._offerTimer = setInterval(() => {
+      remaining--;
+      if (timerEl) timerEl.textContent = remaining + 's';
+      if (progressEl) progressEl.value = Math.round((remaining / OFFER_TIMEOUT_SEC) * 100);
+      if (remaining <= 0) {
+        this._stopOfferTimer();
+        this._showError('Время истекло. Начните заново.');
+      }
+    }, 1000);
+  }
+
+  _stopOfferTimer() {
+    if (this._offerTimer) {
+      clearInterval(this._offerTimer);
+      this._offerTimer = null;
+    }
+  }
+
+  // ── Private: modal ───────────────────────────────────
+
+  _showModal() {
+    if (this._modal) return;
+
+    const wrapper = document.createElement('div');
+    wrapper.id = 'p2p-modal-wrapper';
+    wrapper.innerHTML = '<div id="p2p-modal-content" class="p-4"></div>';
+    document.body.appendChild(wrapper);
+    this._modal = wrapper;
+
+    // Close on backdrop click
+    wrapper.addEventListener('click', (e) => {
+      if (e.target === wrapper) this.cancel();
+    });
+  }
+
+  _closeModal() {
+    if (this._modal) {
+      this._modal.remove();
+      this._modal = null;
+    }
+  }
+
+  _renderRoleSelect() {
+    const content = document.getElementById('p2p-modal-content');
+    if (!content) return;
+    content.innerHTML = `
+      <div class="flex flex-col items-center gap-4 py-4">
+        <h3 class="text-lg font-bold">P2P Синхронизация</h3>
+        <p class="text-sm text-center text-base-content/60">
+          Синхронизируйте данные между устройствами без интернета через QR-коды
+        </p>
+        <div class="flex flex-col gap-3 w-full max-w-xs">
+          <button class="btn btn-primary" onclick="window.p2pUI?.startInitiator()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+            </svg>
+            Создать QR (отправить данные)
+          </button>
+          <button class="btn btn-outline" onclick="window.p2pUI?.startResponder()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+            </svg>
+            Сканировать QR (получить данные)
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>
+        </div>
+      </div>
+    `;
+  }
+
+  _renderScreen(screenName) {
+    const content = document.getElementById('p2p-modal-content');
+    if (!content) return;
+
+    // Inline screens (avoids extra fetch for offline usage)
+    if (screenName === 'initiator') {
+      content.innerHTML = document.getElementById('p2p-initiator-template')?.innerHTML
+        || '<div id="p2p-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-2xl"><div id="p2p-qr-loading"><span class="loading loading-ring loading-lg"></span></div></div><div class="flex gap-2 mt-4"><button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button><button id="p2p-goto-scan-btn" class="btn btn-primary btn-sm hidden" onclick="window.p2pUI?.showScanner()">Сканировать ответ →</button></div><div class="mt-2"><textarea id="p2p-manual-offer-text" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" readonly></textarea><button class="btn btn-xs btn-outline mt-1" onclick="window.p2pUI?.copyOfferText()">Скопировать</button></div>';
+    } else if (screenName === 'scanner' || screenName === 'scanner-answer') {
+      content.innerHTML = '<div class="flex flex-col items-center gap-4 py-2"><video id="p2p-camera-video" class="w-full max-w-xs rounded-xl" autoplay playsinline muted style="background:#000;aspect-ratio:1;object-fit:cover"></video><div id="p2p-camera-error" class="hidden"><p class="text-sm text-error">Камера недоступна</p><button class="btn btn-xs btn-outline" onclick="window.p2pUI?.requestCamera()">Повторить</button></div><div id="p2p-answer-qr-section" class="hidden w-full flex flex-col items-center"><div id="p2p-answer-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-xl"><span class="loading loading-ring loading-lg"></span></div><textarea id="p2p-manual-answer-text" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full mt-2" readonly></textarea><button class="btn btn-xs btn-outline mt-1" onclick="window.p2pUI?.copyAnswerText()">Скопировать ответ</button></div><div class="w-full max-w-xs"><p class="text-xs text-base-content/50 mb-1">Или вставьте код:</p><textarea id="p2p-paste-input" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" placeholder="Вставьте код..."></textarea><button class="btn btn-xs btn-primary mt-1 w-full" onclick="window.p2pUI?.processPastedCode()">Подключиться</button></div><button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button></div>';
+    }
+  }
+
+  // ── Private: status overlay ──────────────────────────
+
+  _showStatusOverlay(phase) {
+    const overlay = document.getElementById('p2p-status-overlay');
+    if (overlay) overlay.classList.remove('hidden');
+    this._updateStatusOverlay(phase);
+  }
+
+  _updateStatusOverlay(phase) {
+    const phases = ['connecting', 'syncing', 'success', 'error'];
+    phases.forEach(p => {
+      const el = document.getElementById('p2p-status-' + p);
+      if (el) el.classList.toggle('hidden', p !== phase);
+    });
+    const cancelBtn = document.getElementById('p2p-status-cancel-btn');
+    const closeBtn = document.getElementById('p2p-status-close-btn');
+    if (phase === 'success' || phase === 'error') {
+      cancelBtn?.classList.add('hidden');
+      closeBtn?.classList.remove('hidden');
+    } else {
+      cancelBtn?.classList.remove('hidden');
+      closeBtn?.classList.add('hidden');
+    }
+    if (phase === 'success') {
+      document.getElementById('p2p-sync-stats')?.classList.remove('hidden');
+    }
+  }
+
+  _updateProgress(pct, label) {
+    const bar = document.getElementById('p2p-progress-bar');
+    const lbl = document.getElementById('p2p-progress-label');
+    if (bar) bar.value = pct;
+    if (lbl) lbl.textContent = label;
+  }
+
+  _updateStatusStats(sent, received, merged, duplicates) {
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('p2p-stat-sent', sent);
+    set('p2p-stat-received', received);
+    set('p2p-stat-merged', merged);
+    set('p2p-stat-duplicates', duplicates);
+  }
+
+  _showError(message) {
+    const errMsg = document.getElementById('p2p-error-message');
+    if (errMsg) errMsg.textContent = message;
+    this._showStatusOverlay('error');
+    this._updateStatusOverlay('error');
+  }
+
+  // ── Private: toast ───────────────────────────────────
+
+  _showToast(message) {
+    if (window.showToast) {
+      window.showToast(message, 'info');
+    } else {
+      console.info('[P2PUIController]', message);
+    }
+  }
+}
+
+// Initialize singleton
+const p2pUIController = new P2PUIController();
+
+export { P2PUIController, p2pUIController };
