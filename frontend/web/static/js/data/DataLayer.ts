@@ -647,6 +647,17 @@ export class DataLayer {
       if (result.length === 0) {
         console.debug('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getShoppingListsFromAPI(filters);
+
+        // Cache API lists in Dexie so next access (including item FK lookup) works offline
+        if (apiResult.length > 0) {
+          try {
+            await pglite.getDB().shoppingLists.bulkPut(apiResult);
+            console.debug('[DATA_LAYER] Cached API lists in Dexie', { count: apiResult.length });
+          } catch (cacheError) {
+            console.warn('[DATA_LAYER] Failed to cache lists in Dexie', cacheError);
+          }
+        }
+
         performanceMonitor.trackAPICall('getShoppingLists', performance.now() - startTime);
         console.debug('[DATA_LAYER] API fallback returned', { count: apiResult.length });
         return apiResult;
@@ -846,8 +857,20 @@ export class DataLayer {
         // CRITICAL FIX: Ensure temp_id exists for all API items (for bulk delete compatibility)
         apiResult = apiResult.map(item => ({
           ...item,
-          temp_id: item.temp_id || `item_${item.id}_${Date.now()}`
+          temp_id: item.temp_id || `item_${item.id}_${Date.now()}`,
+          shopping_list_temp_id: item.shopping_list_temp_id || listTempId,
+          sync_status: item.sync_status || 'synced',
         }));
+
+        // Cache API items in Dexie so next offline access doesn't lose data
+        if (apiResult.length > 0) {
+          try {
+            await pglite.getDB().shoppingListItems.bulkPut(apiResult);
+            console.debug('[DATA_LAYER] Cached API items in Dexie', { count: apiResult.length });
+          } catch (cacheError) {
+            console.warn('[DATA_LAYER] Failed to cache API items in Dexie', cacheError);
+          }
+        }
 
         performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
         console.debug('[DATA_LAYER] API fallback returned', { count: apiResult.length });

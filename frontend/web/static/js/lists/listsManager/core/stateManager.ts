@@ -289,7 +289,10 @@ export async function loadShoppingListItems(listId: number): Promise<void> {
   } catch (error) {
     console.error('[ListsManager] Error loading items:', error);
     showToast('Ошибка загрузки элементов', 'error');
-    updateState({ currentItems: [] });
+    // Preserve last known items on error — don't clear visible data on transient failures
+    if (getState().currentItems.length === 0) {
+      updateState({ currentItems: [] });
+    }
   }
 }
 
