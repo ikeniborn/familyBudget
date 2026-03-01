@@ -696,11 +696,13 @@
         display: none;
     }
 
-    /* Keep ellipsis on narrow screens for better swipe UX */
+    /* Allow long names to wrap on mobile (swipe UX via indicator, not ellipsis) */
     .hierarchy-item-name {
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+        white-space: normal;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        overflow: visible;
+        text-overflow: unset;
     }
 
     /* Increase toggle button size for better touch targets on mobile */
@@ -738,6 +740,8 @@
         gap: 0.375rem;         /* Spacing between buttons */
         flex-shrink: 0;        /* Don't shrink buttons */
         margin-left: 1rem;     /* Space from quantity */
+        opacity: 1;            /* Ensure buttons are fully visible on hover */
+        visibility: visible;   /* Ensure visibility is not overridden */
     }
 
     /* CRITICAL FIX: Show edit/delete buttons on completed items (desktop only) */
