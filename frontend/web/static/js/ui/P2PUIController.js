@@ -55,12 +55,25 @@ class P2PUIController {
 
   /**
    * Open the P2P sync modal with role selection.
-   * Call this from navbar button or sync menu.
+   * Loads pending facts count to show actual sync status.
    */
   async open() {
     if (!this._checkWebRTCSupport()) return;
     this._showModal();
-    this._renderRoleSelect();
+    this._renderRoleSelect(null); // render immediately with loading state
+
+    // Load actual pending count async
+    try {
+      const dataLayer = window.dataLayer || window.DataLayer?.getInstance?.();
+      let pendingCount = 0;
+      if (dataLayer && typeof dataLayer.getPendingFactsForP2P === 'function') {
+        const pending = await dataLayer.getPendingFactsForP2P();
+        pendingCount = pending.length;
+      }
+      this._renderRoleSelect(pendingCount);
+    } catch {
+      this._renderRoleSelect(0);
+    }
   }
 
   /**
@@ -192,6 +205,9 @@ class P2PUIController {
       this.manager.cleanup();
       this.manager = null;
     }
+    // Hide status overlay if shown (e.g. cancelled during connecting phase)
+    const overlay = document.getElementById('p2p-status-overlay');
+    if (overlay) overlay.classList.add('hidden');
     this._closeModal();
     console.debug('[P2PUIController] Sync cancelled');
   }
@@ -390,6 +406,8 @@ class P2PUIController {
   // ── Private: connection lifecycle ───────────────────
 
   _waitForConnection() {
+    // Close modal so the status overlay (z-9500) is fully visible
+    this._closeModal();
     // Manager's onStateChange will call _onConnected when connected
     this._showStatusOverlay('connecting');
   }
@@ -497,30 +515,67 @@ class P2PUIController {
     }
   }
 
-  _renderRoleSelect() {
+  /**
+   * Render role selection screen.
+   * @param {number|null} pendingCount - null = loading state
+   */
+  _renderRoleSelect(pendingCount) {
     const content = document.getElementById('p2p-modal-content');
     if (!content) return;
+
+    const isLoading = pendingCount === null;
+    const hasPending = !isLoading && pendingCount > 0;
+
+    const statusBadge = isLoading
+      ? `<span class="loading loading-dots loading-xs"></span>`
+      : hasPending
+        ? `<span class="badge badge-warning badge-sm">${pendingCount} ожидают</span>`
+        : `<span class="badge badge-success badge-sm">Синхронизировано</span>`;
+
+    const pendingLabel = isLoading
+      ? `<span class="text-base-content/40 text-xs">Проверяем...</span>`
+      : hasPending
+        ? `<span class="text-warning text-xs font-medium">${pendingCount} ${pendingCount === 1 ? 'запись' : pendingCount < 5 ? 'записи' : 'записей'} не отправлено</span>`
+        : `<span class="text-success text-xs">Все данные синхронизированы</span>`;
+
     content.innerHTML = `
-      <div class="flex flex-col items-center gap-4 py-4">
-        <h3 class="text-lg font-bold">P2P Синхронизация</h3>
-        <p class="text-sm text-center text-base-content/60">
-          Синхронизируйте данные между устройствами без интернета через QR-коды
-        </p>
+      <div class="flex flex-col items-center gap-4 py-4 px-2">
+
+        <div class="text-center">
+          <h3 class="text-lg font-bold">P2P Синхронизация</h3>
+          <p class="text-xs text-base-content/50 mt-0.5">Без интернета · WebRTC · QR-коды</p>
+        </div>
+
+        <!-- Current status card -->
+        <div class="bg-base-200 rounded-xl px-4 py-3 w-full max-w-xs">
+          <div class="flex items-center justify-between">
+            <span class="text-sm text-base-content/60">Локальные данные</span>
+            ${statusBadge}
+          </div>
+          <div class="mt-1">${pendingLabel}</div>
+        </div>
+
+        <!-- Action buttons -->
         <div class="flex flex-col gap-3 w-full max-w-xs">
           <button class="btn btn-primary" onclick="window.p2pUI?.startInitiator()">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
             </svg>
-            Создать QR (отправить данные)
+            Создать QR
           </button>
+          <p class="text-xs text-center text-base-content/40 -mt-2">Показать этот экран другому устройству для сканирования</p>
+
           <button class="btn btn-outline" onclick="window.p2pUI?.startResponder()">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
             </svg>
-            Сканировать QR (получить данные)
+            Сканировать QR
           </button>
+          <p class="text-xs text-center text-base-content/40 -mt-2">Навести камеру на QR другого устройства</p>
+
           <button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>
         </div>
+
       </div>
     `;
   }

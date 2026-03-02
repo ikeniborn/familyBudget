@@ -532,9 +532,9 @@
                 </div>
             </div>
 
-            <!-- P2P Sync Button (shown when WebRTC available, hidden by default) -->
+            <!-- P2P Sync Button (mobile/tablet only, shown when WebRTC available) -->
             <div id="p2p-sync-btn-wrapper"
-                 class="tooltip tooltip-bottom hidden"
+                 class="tooltip tooltip-bottom hidden lg:!hidden"
                  data-tip="P2P синхронизация (без интернета)">
                 <button id="p2p-sync-btn"
                         class="btn btn-ghost btn-circle btn-sm sm:btn-md"
@@ -1143,6 +1143,7 @@
     {% include 'scripts/dexie-indicator-manager.html' %}
     {% include 'scripts/push-bell-manager.html' %}
     {% include 'scripts/navbar-sync-badge.html' %}
+    {% include 'p2p/p2p-status.html' %}
 
     <!-- WS Indicator: single click opens diagnostics -->
     <script>
