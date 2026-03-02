@@ -1,13 +1,15 @@
 /**
  * P2PSignaling - QR-code based SDP exchange for WebRTC signaling.
- * Uses existing vendor/qr-creator.js for QR rendering.
+ * Uses vendor/qr-creator.js for QR rendering (imported as ES module).
  * Includes manual SDP text fallback for iOS PWA permission denial (R2 mitigation).
  *
  * Protocol version prefix: 'P2P1:' in QR payload.
  * Payload format: P2P1:<base64(JSON({sdp, candidates}))>
  *
- * @version 1.0.0
+ * @version 1.1.0
  */
+
+import QrCreator from '/static/js/vendor/qr-creator.js';
 
 const QR_PAYLOAD_PREFIX = 'P2P1:';
 
@@ -49,16 +51,10 @@ function _fromBase64(b64) {
  * @param {string} data
  */
 function renderQR(element, data) {
-  if (!window.QrCreator) {
-    console.error('[P2PSignaling] QrCreator not available in window');
-    // Hide the QR container — the manual textarea fallback already shows the payload
-    element.style.display = 'none';
-    return;
-  }
   element.innerHTML = '';
   const canvas = document.createElement('canvas');
   element.appendChild(canvas);
-  window.QrCreator.render({
+  QrCreator.render({
     text: data,
     radius: 0.5,
     ecLevel: 'M',

@@ -587,9 +587,47 @@ class P2PUIController {
     // Inline screens (avoids extra fetch for offline usage)
     if (screenName === 'initiator') {
       content.innerHTML = document.getElementById('p2p-initiator-template')?.innerHTML
-        || '<div id="p2p-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-2xl"><div id="p2p-qr-loading"><span class="loading loading-ring loading-lg"></span></div></div><div class="flex gap-2 mt-4"><button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button><button id="p2p-goto-scan-btn" class="btn btn-primary btn-sm hidden" onclick="window.p2pUI?.showScanner()">Сканировать ответ →</button></div><div class="mt-2"><textarea id="p2p-manual-offer-text" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" readonly></textarea><button class="btn btn-xs btn-outline mt-1" onclick="window.p2pUI?.copyOfferText()">Скопировать</button></div>';
+        || [
+          '<div class="flex flex-col items-center gap-4 p-4 pb-8 w-full">',
+            '<div id="p2p-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-2xl">',
+              '<div id="p2p-qr-loading"><span class="loading loading-ring loading-lg"></span></div>',
+            '</div>',
+            '<div class="flex gap-2 w-full max-w-xs">',
+              '<button class="btn btn-ghost btn-sm flex-1" onclick="window.p2pUI?.cancel()">Отмена</button>',
+              '<button id="p2p-goto-scan-btn" class="btn btn-primary btn-sm flex-1 hidden" onclick="window.p2pUI?.showScanner()">Сканировать ответ →</button>',
+            '</div>',
+            '<div class="w-full max-w-xs">',
+              '<p class="text-xs text-base-content/50 mb-1">Или скопируйте код вручную:</p>',
+              '<textarea id="p2p-manual-offer-text" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" readonly></textarea>',
+              '<button class="btn btn-xs btn-outline mt-1 w-full" onclick="window.p2pUI?.copyOfferText()">Скопировать</button>',
+            '</div>',
+          '</div>',
+        ].join('');
     } else if (screenName === 'scanner' || screenName === 'scanner-answer') {
-      content.innerHTML = '<div class="flex flex-col items-center gap-4 py-2"><video id="p2p-camera-video" class="w-full max-w-xs rounded-xl" autoplay playsinline muted style="background:#000;aspect-ratio:1;object-fit:cover"></video><div id="p2p-camera-error" class="hidden"><p class="text-sm text-error">Камера недоступна</p><button class="btn btn-xs btn-outline" onclick="window.p2pUI?.requestCamera()">Повторить</button></div><div id="p2p-answer-qr-section" class="hidden w-full flex flex-col items-center"><div id="p2p-answer-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-xl"><span class="loading loading-ring loading-lg"></span></div><textarea id="p2p-manual-answer-text" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full mt-2" readonly></textarea><button class="btn btn-xs btn-outline mt-1" onclick="window.p2pUI?.copyAnswerText()">Скопировать ответ</button></div><div class="w-full max-w-xs"><p class="text-xs text-base-content/50 mb-1">Или вставьте код:</p><textarea id="p2p-paste-input" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" placeholder="Вставьте код..."></textarea><button class="btn btn-xs btn-primary mt-1 w-full" onclick="window.p2pUI?.processPastedCode()">Подключиться</button></div><button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button></div>';
+      content.innerHTML = [
+        '<div class="flex flex-col items-center gap-4 p-4 pb-8 w-full">',
+          '<video id="p2p-camera-video" class="w-full max-w-xs rounded-xl" autoplay playsinline muted style="background:#000;aspect-ratio:1;object-fit:cover"></video>',
+          '<div id="p2p-camera-error" class="hidden text-center">',
+            '<p class="text-sm text-error mb-1">Камера недоступна</p>',
+            '<button class="btn btn-xs btn-outline" onclick="window.p2pUI?.requestCamera()">Повторить</button>',
+          '</div>',
+          '<div id="p2p-answer-qr-section" class="hidden flex flex-col items-center gap-2 w-full">',
+            '<div id="p2p-answer-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-xl">',
+              '<span class="loading loading-ring loading-lg"></span>',
+            '</div>',
+            '<div class="w-full max-w-xs">',
+              '<textarea id="p2p-manual-answer-text" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" readonly></textarea>',
+              '<button class="btn btn-xs btn-outline mt-1 w-full" onclick="window.p2pUI?.copyAnswerText()">Скопировать ответ</button>',
+            '</div>',
+          '</div>',
+          '<div class="w-full max-w-xs">',
+            '<p class="text-xs text-base-content/50 mb-1">Или вставьте код:</p>',
+            '<textarea id="p2p-paste-input" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" placeholder="Вставьте код..."></textarea>',
+            '<button class="btn btn-xs btn-primary mt-1 w-full" onclick="window.p2pUI?.processPastedCode()">Подключиться</button>',
+          '</div>',
+          '<button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>',
+        '</div>',
+      ].join('');
     }
   }
 
