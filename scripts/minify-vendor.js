@@ -12,7 +12,8 @@ const JS_FILES = [
   'htmx.js',
   'choices.js',
   'echarts.js',
-  'qr-creator.js'
+  'qr-creator.js',
+  'jsqr.js',
 ];
 
 // Standalone JS files (not in vendor directory)

@@ -64,6 +64,7 @@
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.0.11",
     "husky": "^9.1.7",
+    "jsqr": "^1.4.0",
     "msw": "^2.12.7",
     "postcss": "8.4.47",
     "postcss-cli": "11.0.0",

@@ -16,7 +16,7 @@ import { P2PSignaling } from '../offline/p2p/P2PSignaling.js';
 import { P2PSyncProtocol } from '../offline/p2p/P2PSyncProtocol.js';
 import { P2PMerge } from '../offline/p2p/P2PMerge.js';
 
-const OFFER_TIMEOUT_SEC = 30;
+const OFFER_TIMEOUT_SEC = 120;
 
 /**
  * Detect iOS device.
@@ -247,32 +247,70 @@ class P2PUIController {
 
   /**
    * Decode QR from a captured photo file.
-   * Uses BarcodeDetector — available on iOS 17+ (Safari) and Chrome 83+.
+   * Primary: BarcodeDetector (iOS 17+ Safari, Chrome 83+).
+   * Fallback: jsQR (pure JS, loaded globally via vendor/jsqr.min.js).
    * @param {File} file
    */
   async _handlePhotoCapture(file) {
     try {
-      if (typeof BarcodeDetector === 'undefined') {
-        this._showToast('Сканирование QR не поддерживается — вставьте код вручную');
+      if (typeof BarcodeDetector !== 'undefined') {
+        // Native path — fast, no canvas needed
+        const bitmap = await createImageBitmap(file);
+        const detector = new BarcodeDetector({ formats: ['qr_code'] });
+        let barcodes;
+        try {
+          barcodes = await detector.detect(bitmap);
+        } finally {
+          bitmap.close();
+        }
+        if (barcodes.length > 0) {
+          await this._handleScannedQR(barcodes[0].rawValue);
+          return;
+        }
+        // BarcodeDetector found nothing — try jsQR before giving up
+      }
+
+      // jsQR fallback: draw photo to canvas → getImageData → decode
+      if (typeof window.jsQR === 'function') {
+        const result = await this._decodeWithJsQR(file);
+        if (result) {
+          await this._handleScannedQR(result);
+          return;
+        }
+        this._showToast('QR не распознан — попробуйте ещё раз');
         return;
       }
-      const bitmap = await createImageBitmap(file);
-      const detector = new BarcodeDetector({ formats: ['qr_code'] });
-      let barcodes;
-      try {
-        barcodes = await detector.detect(bitmap);
-      } finally {
-        bitmap.close();
-      }
-      if (barcodes.length > 0) {
-        await this._handleScannedQR(barcodes[0].rawValue);
-      } else {
-        this._showToast('QR не распознан — попробуйте ещё раз');
-      }
+
+      this._showToast('QR не распознан — вставьте код вручную');
     } catch (err) {
       console.error('[P2PUIController] Photo QR decode error:', err);
       this._showToast('Ошибка: ' + err.message);
     }
+  }
+
+  /**
+   * Decode QR from File using jsQR library via canvas.
+   * @param {File} file
+   * @returns {Promise<string|null>}
+   */
+  async _decodeWithJsQR(file) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+        resolve(code ? code.data : null);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
   }
 
   _stopScan() {
