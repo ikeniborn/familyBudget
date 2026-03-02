@@ -42,7 +42,6 @@ class P2PUIController {
     this.protocol = null;
     this.merge = new P2PMerge();
 
-    this._cameraStream = null;
     this._scannerInterval = null;
     this._offerTimer = null;
     this._offerPayload = null;
@@ -112,23 +111,18 @@ class P2PUIController {
   /**
    * Show scanner screen (initiator side, step 2).
    */
-  async showScanner() {
+  showScanner() {
     this._stopOfferTimer();
     this._renderScreen('scanner-answer');
-    // Scanner in this context is for scanning the responder's answer QR
-    const subtitle = document.getElementById('p2p-scanner-subtitle');
-    if (subtitle) subtitle.textContent = 'Сканируйте QR с ответного устройства';
-    await this._startCamera();
   }
 
   /**
    * Start as responder: scan initiator's offer QR.
    */
-  async startResponder() {
+  startResponder() {
     this._showIosPwaWarning();
     this._renderScreen('scanner');
     this._initManager();
-    await this._startCamera();
   }
 
   /**
@@ -185,14 +179,6 @@ class P2PUIController {
       console.error('[P2PUIController] processPastedCode error:', err);
       this._showError('Неверный код: ' + err.message);
     }
-  }
-
-  /**
-   * Request camera access (retry after denial).
-   */
-  async requestCamera() {
-    document.getElementById('p2p-camera-error')?.classList.add('hidden');
-    await this._startCamera();
   }
 
   /**
@@ -257,106 +243,21 @@ class P2PUIController {
     }
   }
 
-  // ── Private: camera ──────────────────────────────────
-
-  async _startCamera() {
-    const video = document.getElementById('p2p-camera-video');
-    const errorEl = document.getElementById('p2p-camera-error');
-    const cameraWrapper = document.getElementById('p2p-camera-wrapper');
-
-    // Show iOS camera guidance if needed
-    if (isIOS()) {
-      document.getElementById('p2p-ios-camera-guidance')?.classList.remove('hidden');
-    }
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false,
-      });
-      this._cameraStream = stream;
-      if (video) {
-        video.srcObject = stream;
-        await video.play();
-      }
-      if (errorEl) errorEl.classList.add('hidden');
-      this._startQRScan(video);
-    } catch (err) {
-      console.warn('[P2PUIController] Camera access denied:', err.message);
-      if (errorEl) errorEl.classList.remove('hidden');
-      if (cameraWrapper) cameraWrapper.style.display = 'none';
-      // Open manual paste fallback automatically
-      const pasteToggle = document.getElementById('p2p-manual-paste-toggle');
-      if (pasteToggle) pasteToggle.checked = true;
-    }
-  }
-
-  _stopCamera() {
-    if (this._cameraStream) {
-      this._cameraStream.getTracks().forEach(t => t.stop());
-      this._cameraStream = null;
-    }
-  }
-
-  // ── Private: QR scanning ─────────────────────────────
-
-  _startQRScan(videoEl) {
-    // Try to use BarcodeDetector API (Chrome 83+, Android Chrome)
-    if ('BarcodeDetector' in window) {
-      this._scanWithBarcodeDetector(videoEl);
-    } else {
-      // Fallback: canvas-based scan (slower, limited library)
-      this._scanWithCanvas(videoEl);
-    }
-  }
-
-  async _scanWithBarcodeDetector(videoEl) {
-    let detector;
-    try {
-      detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-    } catch {
-      this._scanWithCanvas(videoEl);
-      return;
-    }
-
-    // Capture video frame → canvas → ImageBitmap for reliable iOS Safari detection.
-    // Safari's BarcodeDetector doesn't reliably detect from live HTMLVideoElement.
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-
-    this._scannerInterval = setInterval(async () => {
-      if (!videoEl || videoEl.readyState < 2) return;
-      if (videoEl.videoWidth === 0 || videoEl.videoHeight === 0) return;
-      try {
-        canvas.width = videoEl.videoWidth;
-        canvas.height = videoEl.videoHeight;
-        ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-        const bitmap = await createImageBitmap(canvas);
-        const barcodes = await detector.detect(bitmap);
-        bitmap.close();
-        if (barcodes.length > 0) {
-          clearInterval(this._scannerInterval);
-          this._stopCamera();
-          await this._handleScannedQR(barcodes[0].rawValue);
-        }
-      } catch {
-        // Continue scanning
-      }
-    }, 300);
-  }
+  // ── Private: QR scanning (photo capture) ─────────────
 
   /**
-   * Decode QR from a photo file (iOS fallback via <input capture="environment">).
+   * Decode QR from a captured photo file.
+   * Uses BarcodeDetector — available on iOS 17+ (Safari) and Chrome 83+.
    * @param {File} file
    */
   async _handlePhotoCapture(file) {
     try {
-      if (!('BarcodeDetector' in window)) {
-        this._showToast('Обновите iOS до версии 17+ для сканирования QR');
+      if (typeof BarcodeDetector === 'undefined') {
+        this._showToast('Сканирование QR не поддерживается — вставьте код вручную');
         return;
       }
       const bitmap = await createImageBitmap(file);
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      const detector = new BarcodeDetector({ formats: ['qr_code'] });
       let barcodes;
       try {
         barcodes = await detector.detect(bitmap);
@@ -374,40 +275,11 @@ class P2PUIController {
     }
   }
 
-  _scanWithCanvas(videoEl) {
-    // Canvas-based QR scanning — requires jsQR library
-    // If jsQR not loaded, show manual paste fallback notice
-    if (!window.jsQR) {
-      console.warn('[P2PUIController] jsQR not available, showing paste fallback');
-      const pasteToggle = document.getElementById('p2p-manual-paste-toggle');
-      if (pasteToggle) pasteToggle.checked = true;
-      this._showToast('Сканирование недоступно — вставьте код вручную');
-      return;
-    }
-
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    this._scannerInterval = setInterval(() => {
-      if (!videoEl || videoEl.readyState < 2) return;
-      canvas.width = videoEl.videoWidth;
-      canvas.height = videoEl.videoHeight;
-      ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = window.jsQR(imageData.data, imageData.width, imageData.height);
-      if (code) {
-        clearInterval(this._scannerInterval);
-        this._stopCamera();
-        this._handleScannedQR(code.data);
-      }
-    }, 200);
-  }
-
   _stopScan() {
     if (this._scannerInterval) {
       clearInterval(this._scannerInterval);
       this._scannerInterval = null;
     }
-    this._stopCamera();
   }
 
   async _handleScannedQR(qrData) {
@@ -645,17 +517,16 @@ class P2PUIController {
         ].join('');
     } else if (screenName === 'scanner' || screenName === 'scanner-answer') {
       content.innerHTML = [
-        '<div class="flex flex-col items-center gap-4 p-4 pb-8 w-full">',
-          '<video id="p2p-camera-video" class="w-full max-w-xs rounded-xl" autoplay playsinline muted style="background:#000;aspect-ratio:1;object-fit:cover"></video>',
-          '<div id="p2p-camera-error" class="hidden text-center">',
-            '<p class="text-sm text-error mb-1">Камера недоступна</p>',
-            '<button class="btn btn-xs btn-outline" onclick="window.p2pUI?.requestCamera()">Повторить</button>',
+        '<div class="flex flex-col items-center gap-6 p-4 pb-8 w-full">',
+          // Primary: photo capture button
+          '<div class="flex flex-col items-center gap-2 w-full max-w-xs">',
+            '<p class="text-sm text-base-content/60 text-center">Сфотографируйте QR-код с экрана другого устройства</p>',
+            '<input type="file" id="p2p-photo-input" accept="image/*" capture="environment" class="hidden">',
+            '<button class="btn btn-primary w-full" onclick="document.getElementById(\'p2p-photo-input\').click()">',
+              'Сфотографировать QR',
+            '</button>',
           '</div>',
-          // Photo capture fallback (works on iOS when live scan fails)
-          '<input type="file" id="p2p-photo-input" accept="image/*" capture="environment" class="hidden">',
-          '<button class="btn btn-sm btn-outline w-full max-w-xs" onclick="document.getElementById(\'p2p-photo-input\').click()">',
-            'Сфотографировать QR',
-          '</button>',
+          // Answer QR section (shown after processing scanned offer)
           '<div id="p2p-answer-qr-section" class="hidden flex flex-col items-center gap-2 w-full">',
             '<div id="p2p-answer-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-xl">',
               '<span class="loading loading-ring loading-lg"></span>',
@@ -665,8 +536,9 @@ class P2PUIController {
               '<button class="btn btn-xs btn-outline mt-1 w-full" onclick="window.p2pUI?.copyAnswerText()">Скопировать ответ</button>',
             '</div>',
           '</div>',
+          // Paste fallback
           '<div class="w-full max-w-xs">',
-            '<p class="text-xs text-base-content/50 mb-1">Или вставьте код:</p>',
+            '<p class="text-xs text-base-content/50 mb-1">Или вставьте код вручную:</p>',
             '<textarea id="p2p-paste-input" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" placeholder="Вставьте код..."></textarea>',
             '<button class="btn btn-xs btn-primary mt-1 w-full" onclick="window.p2pUI?.processPastedCode()">Подключиться</button>',
           '</div>',
