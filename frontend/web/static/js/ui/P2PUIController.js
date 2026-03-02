@@ -151,6 +151,41 @@ class P2PUIController {
   }
 
   /**
+   * Share offer payload via Web Share API (AirDrop / native iOS share sheet).
+   */
+  async shareOfferText() {
+    await this._sharePayload(this._offerPayload, 'P2P Offer');
+  }
+
+  /**
+   * Share answer payload via Web Share API.
+   */
+  async shareAnswerText() {
+    await this._sharePayload(this._answerPayload, 'P2P Answer');
+  }
+
+  /**
+   * Share payload via Web Share API. Falls back to clipboard copy.
+   * @param {string|null} payload
+   * @param {string} title
+   */
+  async _sharePayload(payload, title) {
+    if (!payload) return;
+    try {
+      await navigator.share({ title, text: payload });
+    } catch (err) {
+      if (err.name === 'AbortError') return; // user dismissed share sheet
+      // Share not supported or failed — fall back to clipboard
+      try {
+        await navigator.clipboard.writeText(payload);
+        this._showToast('Код скопирован');
+      } catch {
+        this._showToast('Скопируйте текст вручную');
+      }
+    }
+  }
+
+  /**
    * Process pasted code (manual fallback for both offer and answer).
    */
   async processPastedCode() {
@@ -245,8 +280,8 @@ class P2PUIController {
 
   /**
    * Decode QR from a captured photo file.
-   * Primary: BarcodeDetector (iOS 17+ Safari, Chrome 83+).
-   * Fallback: jsQR (pure JS, loaded globally via vendor/jsqr.min.js).
+   * Primary: BarcodeDetector (Chrome 83+, Android WebView; NOT available on iOS Safari).
+   * Fallback: jsQR (pure JS, loaded globally via vendor/jsqr.min.js) — handles iOS.
    * @param {File} file
    */
   async _handlePhotoCapture(file) {
@@ -288,27 +323,30 @@ class P2PUIController {
 
   /**
    * Decode QR from File using jsQR library via canvas.
+   * Uses createImageBitmap with imageOrientation:'from-image' to auto-apply
+   * EXIF rotation (iOS camera writes JPEG rotated 90°; new Image() ignores it).
    * @param {File} file
    * @returns {Promise<string|null>}
    */
   async _decodeWithJsQR(file) {
-    return new Promise((resolve) => {
-      const img = new Image();
-      const url = URL.createObjectURL(file);
-      img.onload = () => {
-        URL.revokeObjectURL(url);
+    try {
+      // imageOrientation:'from-image' applies EXIF rotation before drawing
+      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      try {
         const canvas = document.createElement('canvas');
-        canvas.width = img.naturalWidth;
-        canvas.height = img.naturalHeight;
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
         const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(bitmap, 0, 0);
         const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
         const code = window.jsQR(imageData.data, imageData.width, imageData.height);
-        resolve(code ? code.data : null);
-      };
-      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
-      img.src = url;
-    });
+        return code ? code.data : null;
+      } finally {
+        bitmap.close();
+      }
+    } catch {
+      return null;
+    }
   }
 
   async _handleScannedQR(qrData) {
@@ -537,9 +575,14 @@ class P2PUIController {
               '<button id="p2p-goto-scan-btn" class="btn btn-primary btn-sm flex-1 hidden justify-center" onclick="window.p2pUI?.showScanner()">Сканировать ответ</button>',
             '</div>',
             '<div class="w-full max-w-xs">',
-              '<p class="text-xs text-base-content/50 mb-1">Или скопируйте код вручную:</p>',
+              '<p class="text-xs text-base-content/50 mb-1">Или передайте код вручную:</p>',
               '<textarea id="p2p-manual-offer-text" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" readonly></textarea>',
-              '<button class="btn btn-xs btn-outline mt-1 w-full" onclick="window.p2pUI?.copyOfferText()">Скопировать</button>',
+              '<div class="flex gap-1 mt-1">',
+                '<button class="btn btn-xs btn-outline flex-1" onclick="window.p2pUI?.copyOfferText()">Скопировать</button>',
+                navigator.share
+                  ? '<button class="btn btn-xs btn-primary flex-1" onclick="window.p2pUI?.shareOfferText()">Поделиться</button>'
+                  : '',
+              '</div>',
             '</div>',
           '</div>',
         ].join('');
@@ -561,7 +604,12 @@ class P2PUIController {
             '</div>',
             '<div class="w-full max-w-xs">',
               '<textarea id="p2p-manual-answer-text" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" readonly></textarea>',
-              '<button class="btn btn-xs btn-outline mt-1 w-full" onclick="window.p2pUI?.copyAnswerText()">Скопировать ответ</button>',
+              '<div class="flex gap-1 mt-1">',
+                '<button class="btn btn-xs btn-outline flex-1" onclick="window.p2pUI?.copyAnswerText()">Скопировать</button>',
+                navigator.share
+                  ? '<button class="btn btn-xs btn-primary flex-1" onclick="window.p2pUI?.shareAnswerText()">Поделиться</button>'
+                  : '',
+              '</div>',
             '</div>',
           '</div>',
           // Paste fallback

@@ -56,7 +56,7 @@ function renderQR(element, data) {
   element.appendChild(canvas);
   QrCreator.render({
     text: data,
-    radius: 0.5,
+    radius: 0,     // Square modules — more robust to JPEG compression artifacts
     ecLevel: 'L',  // Low ECC → fewer modules → each module larger → easier to scan
     fill: '#000000',
     back: '#ffffff',
