@@ -10,7 +10,6 @@
  */
 
 const QR_PAYLOAD_PREFIX = 'P2P1:';
-const ICE_WAIT_MS = 3000;
 
 /**
  * Encode UTF-8 string to base64 (Unicode-safe).
@@ -157,9 +156,8 @@ class P2PSignaling {
    */
   async displayOfferQR(containerElement) {
     const offerSdp = await this.manager.createOffer();
-    console.debug('[P2PSignaling] Waiting', ICE_WAIT_MS, 'ms for ICE candidates...');
-    await new Promise(resolve => setTimeout(resolve, ICE_WAIT_MS));
-    const candidates = this.manager._iceCandidates.slice();
+    console.debug('[P2PSignaling] Waiting for ICE candidates...');
+    const candidates = await this.manager.gatherICECandidates();
 
     const qrData = this.buildPayload(offerSdp, candidates);
     renderQR(containerElement, qrData);
@@ -181,8 +179,8 @@ class P2PSignaling {
       await this.manager.addICECandidates(candidates);
     }
 
-    await new Promise(resolve => setTimeout(resolve, ICE_WAIT_MS));
-    const localCandidates = this.manager._iceCandidates.slice();
+    console.debug('[P2PSignaling] Waiting for local ICE candidates (answer)...');
+    const localCandidates = await this.manager.gatherICECandidates();
 
     const answerPayload = this.buildPayload(answerSdp, localCandidates);
     console.debug('[P2PSignaling] Answer payload ready, length:', answerPayload.length);

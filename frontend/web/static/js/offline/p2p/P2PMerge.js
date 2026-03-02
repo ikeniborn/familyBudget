@@ -49,12 +49,11 @@ class P2PMerge {
     let conflicts = 0;
 
     for (const remote of remoteFacts) {
-      if (!remote.content_hash) {
-        remote.content_hash = await this.contentHash(remote);
-      }
+      // Compute hash without mutating the input object
+      const remoteHash = remote.content_hash || await this.contentHash(remote);
 
       // Duplicate by content hash — skip
-      if (localContentHashes.has(remote.content_hash)) {
+      if (localContentHashes.has(remoteHash)) {
         duplicates++;
         console.debug('[P2PMerge] Duplicate (content hash):', remote.temp_id);
         continue;
@@ -65,7 +64,7 @@ class P2PMerge {
       if (localMatch) {
         const winner = this.resolveConflict(localMatch, remote);
         if (winner === remote) {
-          toAdd.push({ ...remote, sync_status: 'pending' });
+          toAdd.push({ ...remote, content_hash: remoteHash, sync_status: 'pending' });
           console.debug('[P2PMerge] Conflict: remote wins (newer):', remote.temp_id);
         } else {
           console.debug('[P2PMerge] Conflict: local wins (newer):', remote.temp_id);
@@ -75,7 +74,7 @@ class P2PMerge {
       }
 
       // New fact — add
-      toAdd.push({ ...remote, sync_status: 'pending' });
+      toAdd.push({ ...remote, content_hash: remoteHash, sync_status: 'pending' });
     }
 
     console.debug('[P2PMerge] Result: toAdd=', toAdd.length, 'duplicates=', duplicates, 'conflicts=', conflicts);
