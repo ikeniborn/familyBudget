@@ -51,7 +51,8 @@ function _fromBase64(b64) {
 function renderQR(element, data) {
   if (!window.QrCreator) {
     console.error('[P2PSignaling] QrCreator not available in window');
-    element.textContent = data;
+    // Hide the QR container — the manual textarea fallback already shows the payload
+    element.style.display = 'none';
     return;
   }
   element.innerHTML = '';
