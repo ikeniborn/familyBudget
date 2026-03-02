@@ -594,7 +594,7 @@ class P2PUIController {
             '</div>',
             '<div class="flex gap-2 w-full max-w-xs">',
               '<button class="btn btn-ghost btn-sm flex-1" onclick="window.p2pUI?.cancel()">Отмена</button>',
-              '<button id="p2p-goto-scan-btn" class="btn btn-primary btn-sm flex-1 hidden" onclick="window.p2pUI?.showScanner()">Сканировать ответ →</button>',
+              '<button id="p2p-goto-scan-btn" class="btn btn-primary btn-sm flex-1 hidden justify-center" onclick="window.p2pUI?.showScanner()">Сканировать ответ</button>',
             '</div>',
             '<div class="w-full max-w-xs">',
               '<p class="text-xs text-base-content/50 mb-1">Или скопируйте код вручную:</p>',
