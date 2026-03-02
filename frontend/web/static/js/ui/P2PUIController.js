@@ -42,7 +42,6 @@ class P2PUIController {
     this.protocol = null;
     this.merge = new P2PMerge();
 
-    this._scannerInterval = null;
     this._offerTimer = null;
     this._offerPayload = null;
     this._answerPayload = null;
@@ -185,7 +184,6 @@ class P2PUIController {
    * Cancel sync and close modal.
    */
   cancel() {
-    this._stopScan();
     this._stopOfferTimer();
     if (this.manager) {
       this.manager.cleanup();
@@ -313,13 +311,6 @@ class P2PUIController {
     });
   }
 
-  _stopScan() {
-    if (this._scannerInterval) {
-      clearInterval(this._scannerInterval);
-      this._scannerInterval = null;
-    }
-  }
-
   async _handleScannedQR(qrData) {
     try {
       if (!this.manager) this._initManager();
@@ -365,7 +356,6 @@ class P2PUIController {
   async _onConnected() {
     console.debug('[P2PUIController] P2P connected — starting sync');
     this._updateStatusOverlay('syncing');
-    this._stopScan();
     this._stopOfferTimer();
 
     try {
