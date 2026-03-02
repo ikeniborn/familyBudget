@@ -99,11 +99,13 @@ class P2PUIController {
   /**
    * Show scanner screen (initiator side, step 2).
    */
-  showScanner() {
+  async showScanner() {
     this._stopOfferTimer();
     this._renderScreen('scanner-answer');
     // Scanner in this context is for scanning the responder's answer QR
-    document.getElementById('p2p-scanner-subtitle')?.setAttribute('textContent', 'Сканируйте QR с ответного устройства');
+    const subtitle = document.getElementById('p2p-scanner-subtitle');
+    if (subtitle) subtitle.textContent = 'Сканируйте QR с ответного устройства';
+    await this._startCamera();
   }
 
   /**
@@ -155,16 +157,16 @@ class P2PUIController {
 
     try {
       if (!this.manager) this._initManager();
-      // Determine if this is an offer or answer based on connection state
-      if (this.manager.state === 'idle' || this.manager.state === 'connecting') {
-        // Treat as offer → create answer
+      // Use _offerPayload presence to determine role (same logic as _handleScannedQR)
+      if (this._offerPayload) {
+        // Initiator: pasted text is the responder's answer
+        await this.signaling.processScannedAnswer(code);
+        this._waitForConnection();
+      } else {
+        // Responder: pasted text is the initiator's offer
         const answerPayload = await this.signaling.processScannedOffer(code);
         this._answerPayload = answerPayload;
         this._showAnswerQR(answerPayload);
-      } else {
-        // Treat as answer → complete connection
-        await this.signaling.processScannedAnswer(code);
-        this._waitForConnection();
       }
     } catch (err) {
       console.error('[P2PUIController] processPastedCode error:', err);
@@ -355,17 +357,19 @@ class P2PUIController {
   async _handleScannedQR(qrData) {
     try {
       if (!this.manager) this._initManager();
-      const state = this.manager.state;
 
-      if (state === 'idle' || state === 'connecting') {
-        // Responder: scanned initiator's offer
+      // Use _offerPayload presence to determine role:
+      // Initiator has _offerPayload set (just showed offer QR, now scanning answer).
+      // Responder has _offerPayload = null (scanning initiator's offer for the first time).
+      if (this._offerPayload) {
+        // Initiator: scanned responder's answer QR
+        await this.signaling.processScannedAnswer(qrData);
+        this._waitForConnection();
+      } else {
+        // Responder: scanned initiator's offer QR
         const answerPayload = await this.signaling.processScannedOffer(qrData);
         this._answerPayload = answerPayload;
         this._showAnswerQR(answerPayload);
-      } else if (state === 'connected' || state === 'connecting') {
-        // Initiator: scanned responder's answer
-        await this.signaling.processScannedAnswer(qrData);
-        this._waitForConnection();
       }
     } catch (err) {
       console.error('[P2PUIController] QR scan processing error:', err);
