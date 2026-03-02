@@ -1559,6 +1559,67 @@ export class DataLayer {
   resetPerformanceMetrics(): void {
     performanceMonitor.reset();
   }
+
+  // ── P2P Sync integration ─────────────────────────────────────────────────
+
+  /**
+   * Get pending facts for P2P sync (facts with sync_status='pending').
+   * Used by P2PUIController before initiating sync.
+   * @returns {Promise<LocalBudgetFact[]>}
+   */
+  async getPendingFactsForP2P(): Promise<LocalBudgetFact[]> {
+    try {
+      const pglite = await this.getDexie();
+      if (!pglite.isReady()) return [];
+      const db = pglite.getDB();
+      return await db.budgetFacts
+        .where('sync_status').equals('pending')
+        .toArray();
+    } catch (err) {
+      console.error('[DataLayer] getPendingFactsForP2P error:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Get all local facts for P2P merge comparison.
+   * Returns synced + pending facts (excludes deleted).
+   * @returns {Promise<LocalBudgetFact[]>}
+   */
+  async getAllFactsForP2PMerge(): Promise<LocalBudgetFact[]> {
+    try {
+      const pglite = await this.getDexie();
+      if (!pglite.isReady()) return [];
+      const db = pglite.getDB();
+      return await db.budgetFacts
+        .filter((f: LocalBudgetFact) => f.sync_status !== 'deleted')
+        .toArray();
+    } catch (err) {
+      console.error('[DataLayer] getAllFactsForP2PMerge error:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Apply P2P sync result: write merged facts to Dexie with sync_status='pending'.
+   * They will be synced to server by the regular sync loop.
+   * @param {LocalBudgetFact[]} mergedFacts
+   * @returns {Promise<number>} Count of applied facts
+   */
+  async applyP2PSyncResult(mergedFacts: LocalBudgetFact[]): Promise<number> {
+    if (!mergedFacts.length) return 0;
+    try {
+      const pglite = await this.getDexie();
+      if (!pglite.isReady()) throw new Error('Dexie not ready');
+      const db = pglite.getDB();
+      await db.budgetFacts.bulkPut(mergedFacts);
+      console.debug('[DataLayer] applyP2PSyncResult: applied', mergedFacts.length, 'facts');
+      return mergedFacts.length;
+    } catch (err) {
+      console.error('[DataLayer] applyP2PSyncResult error:', err);
+      throw err;
+    }
+  }
 }
 
 /**

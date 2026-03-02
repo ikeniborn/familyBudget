@@ -41,6 +41,7 @@ from backend.app.api.v1.endpoints.notifications import (
 from backend.app.api.v1.endpoints.product_groups import (
     router as product_groups_router,
 )
+from backend.app.api.v1.endpoints.p2p import router as p2p_router
 from backend.app.api.v1.endpoints.push import router as push_router
 from backend.app.api.v1.endpoints.recurring_plans import router as recurring_plans_router
 from backend.app.api.v1.endpoints.reminders import router as reminders_router
@@ -73,6 +74,7 @@ __all__ = [
     "import_templates_router",
     "notifications_router",
     "product_groups_router",
+    "p2p_router",
     "push_router",
     "recurring_plans_router",
     "reminders_router",

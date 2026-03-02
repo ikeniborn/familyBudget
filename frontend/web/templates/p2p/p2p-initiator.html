@@ -1,0 +1,66 @@
+{% raw %}
+<!-- P2P Sync: Initiator screen (QR display) -->
+<!-- Shown on the device that starts the sync session -->
+<div id="p2p-initiator-screen" class="flex flex-col items-center gap-4 p-4 w-full">
+
+  <!-- Header -->
+  <div class="text-center">
+    <h3 class="text-lg font-bold">P2P Синхронизация</h3>
+    <p class="text-sm text-base-content/60">Шаг 1 из 2: Покажите QR другому устройству</p>
+  </div>
+
+  <!-- iOS PWA warning -->
+  <div id="p2p-ios-pwa-warning" class="alert alert-warning text-sm hidden">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+    </svg>
+    <span>На iOS PWA используйте <strong>Safari браузер</strong>, а не «добавленное на экран» приложение</span>
+  </div>
+
+  <!-- QR Code container -->
+  <div id="p2p-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-2xl shadow-md" style="min-height:280px;min-width:280px;">
+    <!-- Loading state -->
+    <div id="p2p-qr-loading" class="flex flex-col items-center gap-2 text-base-content/50">
+      <span class="loading loading-ring loading-lg"></span>
+      <span class="text-xs">Генерируем QR...</span>
+    </div>
+    <!-- QR renders here via P2PUIController -->
+  </div>
+
+  <!-- Timeout indicator -->
+  <div class="flex items-center gap-2 text-sm text-base-content/50">
+    <span id="p2p-offer-timer" class="font-mono text-xs">30s</span>
+    <progress id="p2p-offer-progress" class="progress progress-primary w-32" value="100" max="100"></progress>
+  </div>
+
+  <!-- Manual SDP fallback -->
+  <div class="collapse collapse-arrow bg-base-200 w-full max-w-sm">
+    <input type="checkbox" />
+    <div class="collapse-title text-sm font-medium">Нет камеры? Скопируйте код вручную</div>
+    <div class="collapse-content">
+      <div class="flex flex-col gap-2">
+        <textarea id="p2p-manual-offer-text"
+          class="textarea textarea-bordered textarea-xs font-mono text-xs h-20 w-full"
+          readonly
+          placeholder="Код появится здесь..."></textarea>
+        <button id="p2p-copy-offer-btn" class="btn btn-xs btn-outline w-full" onclick="window.p2pUI?.copyOfferText()">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+          Скопировать
+        </button>
+        <p class="text-xs text-base-content/50">Вставьте этот текст на другом устройстве в поле «Вставить код»</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action buttons -->
+  <div class="flex gap-2 w-full max-w-sm">
+    <button class="btn btn-ghost btn-sm flex-1" onclick="window.p2pUI?.cancel()">Отмена</button>
+    <button id="p2p-goto-scan-btn" class="btn btn-primary btn-sm flex-1 hidden" onclick="window.p2pUI?.showScanner()">
+      Сканировать ответ →
+    </button>
+  </div>
+
+</div>
+{% endraw %}
