@@ -319,10 +319,21 @@ class P2PUIController {
       return;
     }
 
+    // Capture video frame → canvas → ImageBitmap for reliable iOS Safari detection.
+    // Safari's BarcodeDetector doesn't reliably detect from live HTMLVideoElement.
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
     this._scannerInterval = setInterval(async () => {
       if (!videoEl || videoEl.readyState < 2) return;
+      if (videoEl.videoWidth === 0 || videoEl.videoHeight === 0) return;
       try {
-        const barcodes = await detector.detect(videoEl);
+        canvas.width = videoEl.videoWidth;
+        canvas.height = videoEl.videoHeight;
+        ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+        const bitmap = await createImageBitmap(canvas);
+        const barcodes = await detector.detect(bitmap);
+        bitmap.close();
         if (barcodes.length > 0) {
           clearInterval(this._scannerInterval);
           this._stopCamera();
@@ -331,7 +342,32 @@ class P2PUIController {
       } catch {
         // Continue scanning
       }
-    }, 250);
+    }, 300);
+  }
+
+  /**
+   * Decode QR from a photo file (iOS fallback via <input capture="environment">).
+   * @param {File} file
+   */
+  async _handlePhotoCapture(file) {
+    try {
+      if (!('BarcodeDetector' in window)) {
+        this._showToast('Обновите iOS до версии 17+ для сканирования QR');
+        return;
+      }
+      const bitmap = await createImageBitmap(file);
+      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      const barcodes = await detector.detect(bitmap);
+      bitmap.close();
+      if (barcodes.length > 0) {
+        await this._handleScannedQR(barcodes[0].rawValue);
+      } else {
+        this._showToast('QR не распознан — попробуйте ещё раз');
+      }
+    } catch (err) {
+      console.error('[P2PUIController] Photo QR decode error:', err);
+      this._showToast('Ошибка: ' + err.message);
+    }
   }
 
   _scanWithCanvas(videoEl) {
@@ -611,6 +647,11 @@ class P2PUIController {
             '<p class="text-sm text-error mb-1">Камера недоступна</p>',
             '<button class="btn btn-xs btn-outline" onclick="window.p2pUI?.requestCamera()">Повторить</button>',
           '</div>',
+          // Photo capture fallback (works on iOS when live scan fails)
+          '<input type="file" id="p2p-photo-input" accept="image/*" capture="environment" class="hidden">',
+          '<button class="btn btn-sm btn-outline w-full max-w-xs" onclick="document.getElementById(\'p2p-photo-input\').click()">',
+            'Сфотографировать QR',
+          '</button>',
           '<div id="p2p-answer-qr-section" class="hidden flex flex-col items-center gap-2 w-full">',
             '<div id="p2p-answer-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-xl">',
               '<span class="loading loading-ring loading-lg"></span>',
@@ -628,6 +669,15 @@ class P2PUIController {
           '<button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>',
         '</div>',
       ].join('');
+
+      // Wire photo capture input
+      const photoInput = content.querySelector('#p2p-photo-input');
+      if (photoInput) {
+        photoInput.addEventListener('change', (e) => {
+          const file = e.target.files[0];
+          if (file) this._handlePhotoCapture(file);
+        });
+      }
     }
   }
 
