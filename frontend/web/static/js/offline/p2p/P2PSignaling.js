@@ -57,10 +57,10 @@ function renderQR(element, data) {
   QrCreator.render({
     text: data,
     radius: 0.5,
-    ecLevel: 'M',
+    ecLevel: 'L',  // Low ECC → fewer modules → each module larger → easier to scan
     fill: '#000000',
     back: '#ffffff',
-    size: 256,
+    size: 400,     // High-res canvas for Retina screens
   }, canvas);
 }
 
@@ -114,21 +114,52 @@ class P2PSignaling {
   }
 
   /**
+   * Strip verbose SDP lines not needed for DataChannel-only connections.
+   * @param {string} sdp
+   * @returns {string}
+   */
+  _stripSDP(sdp) {
+    return sdp.split('\r\n')
+      .filter(line =>
+        !line.startsWith('a=extmap') &&
+        !line.startsWith('a=msid-semantic') &&
+        !line.startsWith('a=ssrc') &&
+        !line.startsWith('a=rtcp-fb') &&
+        !line.startsWith('a=rtpmap') &&
+        !line.startsWith('a=fmtp') &&
+        line.trim() !== ''
+      )
+      .join('\r\n');
+  }
+
+  /**
    * Build QR payload with SDP + ICE candidates.
+   * Strips verbose SDP lines and keeps only host candidates (local network)
+   * to minimise QR payload size and maximise scan reliability.
    * @param {string} sdp
    * @param {RTCIceCandidate[]} candidates
    * @returns {string} QR-ready payload string
    */
   buildPayload(sdp, candidates) {
+    const strippedSdp = this._stripSDP(sdp);
+
+    // For local network sync, host candidates are sufficient.
+    // Excluding srflx/relay reduces payload by ~30-50%.
+    const hostCandidates = candidates.filter(c => {
+      const parts = c.candidate.split(' ');
+      return parts[7] === 'host';
+    });
+    const usedCandidates = hostCandidates.length > 0 ? hostCandidates : candidates;
+
     const payload = JSON.stringify({
-      sdp,
-      candidates: candidates.map(c => ({
+      sdp: strippedSdp,
+      candidates: usedCandidates.map(c => ({
         candidate: c.candidate,
         sdpMid: c.sdpMid,
         sdpMLineIndex: c.sdpMLineIndex,
       })),
     });
-    return this.compressSDP(payload);
+    return QR_PAYLOAD_PREFIX + _toBase64(payload);
   }
 
   /**
