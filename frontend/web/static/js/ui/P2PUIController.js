@@ -357,8 +357,12 @@ class P2PUIController {
       }
       const bitmap = await createImageBitmap(file);
       const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-      const barcodes = await detector.detect(bitmap);
-      bitmap.close();
+      let barcodes;
+      try {
+        barcodes = await detector.detect(bitmap);
+      } finally {
+        bitmap.close();
+      }
       if (barcodes.length > 0) {
         await this._handleScannedQR(barcodes[0].rawValue);
       } else {

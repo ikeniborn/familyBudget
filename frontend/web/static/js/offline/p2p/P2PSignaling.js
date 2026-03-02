@@ -73,35 +73,6 @@ class P2PSignaling {
   }
 
   /**
-   * Compress payload string for QR encoding.
-   * Strips verbose SDP lines if input is raw SDP, then base64-encodes.
-   * @param {string} rawStr - JSON string or raw SDP to compress
-   * @returns {string} 'P2P1:' + base64 string
-   */
-  compressSDP(rawStr) {
-    try {
-      // If input looks like SDP (not JSON), strip verbose lines to reduce QR size
-      if (!rawStr.startsWith('{')) {
-        const stripped = rawStr
-          .split('\r\n')
-          .filter(line =>
-            !line.startsWith('a=extmap') &&
-            !line.startsWith('a=msid-semantic') &&
-            !line.startsWith('a=ssrc') &&
-            !line.startsWith('a=rtcp-fb') &&
-            line.trim() !== ''
-          )
-          .join('\r\n');
-        return QR_PAYLOAD_PREFIX + _toBase64(stripped);
-      }
-      return QR_PAYLOAD_PREFIX + _toBase64(rawStr);
-    } catch (e) {
-      console.warn('[P2PSignaling] compressSDP encode error:', e.message);
-      return QR_PAYLOAD_PREFIX + btoa(rawStr);
-    }
-  }
-
-  /**
    * Decompress base64 QR payload back to string.
    * @param {string} compressed
    * @returns {string}
