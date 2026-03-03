@@ -5,6 +5,7 @@
  * Validates that received facts are correctly persisted to IndexedDB.
  */
 
+import { describe, it, expect } from 'vitest';
 import { P2PSyncProtocol } from '../../frontend/web/static/js/offline/p2p/P2PSyncProtocol.js';
 import { P2PMerge } from '../../frontend/web/static/js/offline/p2p/P2PMerge.js';
 
@@ -82,27 +83,8 @@ function makeFact(overrides = {}) {
 
 // ── Tests ────────────────────────────────────────────────
 
-async function runTests() {
-  let passed = 0;
-  let failed = 0;
-
-  async function test(name, fn) {
-    try {
-      await fn();
-      console.log('✅ PASS:', name);
-      passed++;
-    } catch (e) {
-      console.error('❌ FAIL:', name);
-      console.error('  ', e.message, e.stack?.split('\n')[1] || '');
-      failed++;
-    }
-  }
-
-  function assert(condition, msg) {
-    if (!condition) throw new Error(msg);
-  }
-
-  await test('Protocol: bidirectional fact exchange via mock DataChannel', async () => {
+describe('P2P DataLayer Integration', () => {
+  it('Protocol: bidirectional fact exchange via mock DataChannel', async () => {
     const { managerA, managerB } = createMockManagerPair();
     const protoA = new P2PSyncProtocol(managerA);
     const protoB = new P2PSyncProtocol(managerB);
@@ -116,13 +98,13 @@ async function runTests() {
       protoB.initiateSync(factsB),
     ]);
 
-    assert(resultA.sent === 3, `A should have sent 3 facts, got ${resultA.sent}`);
-    assert(resultB.sent === 2, `B should have sent 2 facts, got ${resultB.sent}`);
-    assert(resultA.received.length === 2, `A should have received 2 facts from B`);
-    assert(resultB.received.length === 3, `B should have received 3 facts from A`);
+    expect(resultA.sent).toBe(3);
+    expect(resultB.sent).toBe(2);
+    expect(resultA.received.length).toBe(2);
+    expect(resultB.received.length).toBe(3);
   });
 
-  await test('Merge: received facts applied to mock Dexie DB', async () => {
+  it('Merge: received facts applied to mock Dexie DB', async () => {
     const merge = new P2PMerge();
     const mockDB = createMockDB();
 
@@ -130,17 +112,17 @@ async function runTests() {
     const remoteFacts = [makeFact(), makeFact(), makeFact()]; // 3 new facts
 
     const mergeResult = await merge.mergeFacts(localFacts, remoteFacts);
-    assert(mergeResult.toAdd.length === 3, `Should add 3 facts, got ${mergeResult.toAdd.length}`);
+    expect(mergeResult.toAdd.length).toBe(3);
 
     const applied = await merge.applyMerge(mergeResult, () => mockDB);
-    assert(applied === 3, `Should apply 3 facts, got ${applied}`);
+    expect(applied).toBe(3);
 
     const stored = mockDB.budgetFacts.getAll();
-    assert(stored.length === 3, `DB should have 3 stored facts, got ${stored.length}`);
-    assert(stored.every(f => f.sync_status === 'pending'), 'All stored facts should have sync_status=pending');
+    expect(stored.length).toBe(3);
+    expect(stored.every(f => f.sync_status === 'pending')).toBe(true);
   });
 
-  await test('Merge: no duplicate facts after applying same remote twice', async () => {
+  it('Merge: no duplicate facts after applying same remote twice', async () => {
     const merge = new P2PMerge();
     const mockDB = createMockDB();
 
@@ -150,25 +132,21 @@ async function runTests() {
     const r1 = await merge.mergeFacts([], remoteFacts);
     await merge.applyMerge(r1, () => mockDB);
 
-    // Second sync with same fact (should be deduplicated)
+    // Re-compute content hashes for stored and remote facts
     const stored = mockDB.budgetFacts.getAll();
-    stored.forEach(f => { f.content_hash = f.content_hash; }); // already has hash from first merge
-
-    // Re-compute content hash for the stored facts
     for (const f of stored) {
       f.content_hash = await merge.contentHash(f);
     }
-    // Also compute for remote
     for (const f of remoteFacts) {
       f.content_hash = await merge.contentHash(f);
     }
 
     const r2 = await merge.mergeFacts(stored, remoteFacts);
-    assert(r2.toAdd.length === 0, 'Second sync should add 0 facts (duplicate)');
-    assert(r2.duplicates === 1, 'Should count 1 duplicate');
+    expect(r2.toAdd.length).toBe(0);
+    expect(r2.duplicates).toBe(1);
   });
 
-  await test('Protocol: empty facts list handled gracefully', async () => {
+  it('Protocol: empty facts list handled gracefully', async () => {
     const { managerA, managerB } = createMockManagerPair();
     const protoA = new P2PSyncProtocol(managerA);
     const protoB = new P2PSyncProtocol(managerB);
@@ -178,17 +156,9 @@ async function runTests() {
       protoB.initiateSync([]),
     ]);
 
-    assert(resultA.sent === 0, 'A sent 0 facts');
-    assert(resultB.sent === 0, 'B sent 0 facts');
-    assert(resultA.received.length === 0, 'A received 0 facts');
-    assert(resultB.received.length === 0, 'B received 0 facts');
+    expect(resultA.sent).toBe(0);
+    expect(resultB.sent).toBe(0);
+    expect(resultA.received.length).toBe(0);
+    expect(resultB.received.length).toBe(0);
   });
-
-  console.log(`\nResults: ${passed} passed, ${failed} failed`);
-  if (failed > 0) process.exit(1);
-}
-
-runTests().catch(err => {
-  console.error('Test suite error:', err);
-  process.exit(1);
 });

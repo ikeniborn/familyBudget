@@ -18,8 +18,9 @@ export default defineConfig({
       '**/dist/**',
       '**/cypress/**',
       '**/.{idea,git,cache,output,temp}/**',
-      '**/e2e/**',  // Exclude E2E tests (run with Playwright separately)
-      'tests/e2e/**'  // Exclude existing E2E directory
+      '**/e2e/**',      // Exclude E2E tests (run with Playwright separately)
+      'tests/e2e/**',   // Exclude existing E2E directory
+      'tests/manual/**' // Exclude manual checklists (not runnable by Vitest)
     ],
     coverage: {
       provider: 'v8',
