@@ -90,6 +90,8 @@ class P2PSignaling {
    * @returns {string}
    */
   _stripSDP(sdp) {
+    // RFC 4566 §5: SDP must end with CRLF — append '\r\n' after join.
+    // Without it, the last line (e.g. a=sctp-port:5000) is rejected by Firefox/WebKit.
     return sdp.split('\r\n')
       .filter(line =>
         !line.startsWith('a=extmap') &&
@@ -101,7 +103,7 @@ class P2PSignaling {
         !line.startsWith('a=max-message-size') &&
         line.trim() !== ''
       )
-      .join('\r\n');
+      .join('\r\n') + '\r\n';
   }
 
   /**

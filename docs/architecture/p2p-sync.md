@@ -204,9 +204,15 @@ P2P1:<base64(UTF-8(JSON({ sdp: "...", candidates: [{candidate, sdpMid, sdpMLineI
 - Only host ICE candidates included (local network sync); srflx/relay excluded to reduce payload size by ~30-50%
 - Typical payload: 800-1200 chars (fits in QR version 10, ~400x400px at 200dpi)
 
-> **Critical bug fix (2026-03-03):** Chrome 80+ adds `a=max-message-size:262144` to SDP.
+> **Bug fix (2026-03-03):** Chrome 80+ adds `a=max-message-size:262144` to SDP.
 > Firefox and Safari reject this line in `setRemoteDescription()` with `Invalid SDP line`.
 > Fix: added `a=max-message-size` to `_stripSDP()` filter in `P2PSignaling.js`.
+
+> **Bug fix (2026-03-03):** `_stripSDP()` was returning SDP without trailing `\r\n`.
+> RFC 4566 §5 requires each SDP line (including the last) to end with CRLF.
+> Without it, the last line (`a=sctp-port:5000`) was rejected by Firefox/WebKit with
+> `Failed to parse SessionDescription. a=sctp-port:5000 Invalid SDP line`.
+> Fix: `.join('\r\n') + '\r\n'` in `_stripSDP()` (`P2PSignaling.js`).
 
 ## QR Container — Responsive Layout
 

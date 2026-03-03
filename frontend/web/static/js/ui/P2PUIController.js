@@ -670,23 +670,29 @@ class P2PUIController {
    * @returns {Promise<string|null>}
    */
   async _decodeWithJsQR(file) {
+    // Try with EXIF rotation first (iOS 15+ / Chrome).
+    // If imageOrientation option is unsupported, fall back to plain createImageBitmap.
+    let bitmap;
     try {
-      // imageOrientation:'from-image' applies EXIF rotation before drawing
-      const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(bitmap, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = window.jsQR(imageData.data, imageData.width, imageData.height);
-        return code ? code.data : null;
-      } finally {
-        bitmap.close();
-      }
+      bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
     } catch {
-      return null;
+      try {
+        bitmap = await createImageBitmap(file);
+      } catch {
+        return null;
+      }
+    }
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = bitmap.width;
+      canvas.height = bitmap.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(bitmap, 0, 0);
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+      return code ? code.data : null;
+    } finally {
+      bitmap.close?.();
     }
   }
 
@@ -881,8 +887,8 @@ class P2PUIController {
 
           <div class="grid grid-cols-2 gap-2">
             <div class="flex flex-col gap-1">
-              <button class="btn btn-primary btn-sm" onclick="window.p2pUI?.startInitiator()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <button class="btn btn-primary btn-sm whitespace-nowrap" onclick="window.p2pUI?.startInitiator()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                 </svg>
                 Создать QR
@@ -891,8 +897,8 @@ class P2PUIController {
             </div>
 
             <div class="flex flex-col gap-1">
-              <button class="btn btn-secondary btn-sm" onclick="window.p2pUI?.startRelayInitiator()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <button class="btn btn-secondary btn-sm whitespace-nowrap" onclick="window.p2pUI?.startRelayInitiator()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
                 </svg>
                 Получить код
@@ -901,8 +907,8 @@ class P2PUIController {
             </div>
 
             <div class="flex flex-col gap-1">
-              <button class="btn btn-outline btn-sm" onclick="window.p2pUI?.startResponder()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <button class="btn btn-outline btn-sm whitespace-nowrap" onclick="window.p2pUI?.startResponder()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
                 </svg>
                 Сканировать QR
@@ -911,8 +917,8 @@ class P2PUIController {
             </div>
 
             <div class="flex flex-col gap-1">
-              <button class="btn btn-outline btn-sm" onclick="window.p2pUI?.startRelayResponder()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <button class="btn btn-outline btn-sm whitespace-nowrap" onclick="window.p2pUI?.startRelayResponder()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
                 </svg>
                 Ввести код
@@ -923,6 +929,8 @@ class P2PUIController {
 
           <button class="btn btn-ghost btn-sm mt-1" onclick="window.p2pUI?.cancel()">Отмена</button>
         </div>
+
+        ${isIOS() ? '<p class="text-xs text-center text-base-content/30 px-2">iOS: «Создать QR» и «Получить код» запрашивают доступ к микрофону — это нужно для P2P соединения по локальной сети</p>' : ''}
 
       </div>
     `;
