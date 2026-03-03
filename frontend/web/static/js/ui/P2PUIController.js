@@ -537,6 +537,7 @@ class P2PUIController {
     this._stopCameraScanning();
     this._stopOfferTimer();
     this._stopRelayPoll();
+    this._pendingAction = null;
     if (this.manager) {
       this.manager.cleanup();
       this.manager = null;
