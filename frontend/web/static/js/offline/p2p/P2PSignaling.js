@@ -98,6 +98,7 @@ class P2PSignaling {
         !line.startsWith('a=rtcp-fb') &&
         !line.startsWith('a=rtpmap') &&
         !line.startsWith('a=fmtp') &&
+        !line.startsWith('a=max-message-size') &&
         line.trim() !== ''
       )
       .join('\r\n');

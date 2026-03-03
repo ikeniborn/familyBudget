@@ -57,6 +57,10 @@ class P2PUIController {
     this._relayCode = null;
     this._relayPollTimer = null;
 
+    // Camera scanning state
+    this._cameraStream = null;
+    this._scanTimer = null;
+
     // Expose globally for inline onclick handlers in templates
     window.p2pUI = this;
 
@@ -461,6 +465,7 @@ class P2PUIController {
    * Cancel sync and close modal.
    */
   cancel() {
+    this._stopCameraScanning();
     this._stopOfferTimer();
     this._stopRelayPoll();
     if (this.manager) {
@@ -516,6 +521,99 @@ class P2PUIController {
     if (isIOS() && isPWAStandalone()) {
       const warn = document.getElementById('p2p-ios-pwa-warning');
       if (warn) warn.classList.remove('hidden');
+    }
+  }
+
+  // ── Private: live camera scanning ────────────────────
+
+  /**
+   * Start live camera stream and continuously scan for QR codes.
+   * Primary: BarcodeDetector (Chrome 83+, Android WebView).
+   * Fallback: jsQR (pure JS, iOS Safari).
+   * On permission denial shows the camera error state with a photo-fallback button.
+   * @param {HTMLVideoElement} videoEl
+   */
+  async _startCameraScanning(videoEl) {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      this._showCameraError();
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' },
+        audio: false,
+      });
+      // Guard: user may have cancelled while the permission dialog was open
+      if (!this._modal) {
+        stream.getTracks().forEach(t => t.stop());
+        return;
+      }
+      this._cameraStream = stream;
+      videoEl.srcObject = stream;
+
+      const useDetector = typeof BarcodeDetector !== 'undefined';
+      const detector = useDetector ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
+      const canvas = useDetector ? null : document.createElement('canvas');
+      const ctx = canvas ? canvas.getContext('2d') : null;
+      let busy = false;
+      let frameCount = 0;
+
+      const scan = async () => {
+        if (!this._cameraStream || !this._scanTimer) return;
+        if (videoEl.readyState < videoEl.HAVE_ENOUGH_DATA || busy) return;
+        frameCount++;
+        // BarcodeDetector: every tick (native, fast); jsQR: every 2nd tick (JS)
+        if (!detector && frameCount % 2 !== 0) return;
+        busy = true;
+        try {
+          let result = null;
+          if (detector) {
+            const codes = await detector.detect(videoEl);
+            if (codes.length > 0) result = codes[0].rawValue;
+          } else if (typeof window.jsQR === 'function') {
+            canvas.width = videoEl.videoWidth || 320;
+            canvas.height = videoEl.videoHeight || 240;
+            ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+            result = code?.data || null;
+          }
+          if (result && this._scanTimer) {
+            this._stopCameraScanning();
+            await this._handleScannedQR(result);
+          }
+        } catch { /* ignore individual frame errors */ }
+        busy = false;
+      };
+
+      // 200ms interval = 5fps — sufficient for steady QR, light on CPU
+      this._scanTimer = setInterval(scan, 200);
+    } catch (err) {
+      console.warn('[P2PUIController] Camera access denied:', err.message);
+      this._showCameraError();
+    }
+  }
+
+  /**
+   * Show camera error state and reveal the photo-fallback button.
+   */
+  _showCameraError() {
+    document.getElementById('p2p-camera-error')?.classList.remove('hidden');
+    const video = document.getElementById('p2p-camera-video');
+    if (video?.parentElement) video.parentElement.classList.add('hidden');
+  }
+
+  /**
+   * Stop live camera scanning and release the media stream.
+   */
+  _stopCameraScanning() {
+    if (this._scanTimer) {
+      clearInterval(this._scanTimer);
+      this._scanTimer = null;
+    }
+    if (this._cameraStream) {
+      this._cameraStream.getTracks().forEach(t => t.stop());
+      this._cameraStream = null;
     }
   }
 
@@ -616,6 +714,7 @@ class P2PUIController {
   }
 
   _showAnswerQR(answerPayload) {
+    this._stopCameraScanning();
     const section = document.getElementById('p2p-answer-qr-section');
     const container = document.getElementById('p2p-answer-qr-container');
     const manualText = document.getElementById('p2p-manual-answer-text');
@@ -628,6 +727,7 @@ class P2PUIController {
   // ── Private: connection lifecycle ───────────────────
 
   _waitForConnection() {
+    this._stopCameraScanning();
     // Close modal so the status overlay (z-9500) is fully visible
     this._closeModal();
     // Manager's onStateChange will call _onConnected when connected
@@ -858,18 +958,30 @@ class P2PUIController {
         ].join('');
     } else if (screenName === 'scanner' || screenName === 'scanner-answer') {
       content.innerHTML = [
-        '<div class="flex flex-col items-center gap-6 p-4 pb-8 w-full">',
-          // Primary: photo capture button
-          '<div class="flex flex-col items-center gap-2 w-full max-w-xs">',
-            '<p class="text-sm text-base-content/60 text-center">Сфотографируйте QR-код с экрана другого устройства</p>',
-            '<input type="file" id="p2p-photo-input" accept="image/*" capture="environment" class="hidden">',
-            '<button class="btn btn-primary w-full" onclick="document.getElementById(\'p2p-photo-input\').click()">',
-              'Сфотографировать QR',
-            '</button>',
+        '<div class="flex flex-col items-center gap-4 p-4 pb-8 w-full">',
+          // Live camera view
+          '<div id="p2p-camera-wrapper" class="relative w-full max-w-xs">',
+            '<div class="p2p-scanner-overlay rounded-xl overflow-hidden bg-black" style="aspect-ratio:1/1;position:relative">',
+              '<video id="p2p-camera-video" class="w-full h-full object-cover" autoplay playsinline muted></video>',
+              '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">',
+                '<div style="width:9rem;height:9rem;border:2px solid oklch(var(--p,65% 0.27 264)/0.85);border-radius:0.5rem"></div>',
+              '</div>',
+            '</div>',
+            // Camera error/fallback
+            '<div id="p2p-camera-error" class="hidden" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:oklch(var(--b2,100% 0 0));border-radius:0.75rem;gap:0.75rem;padding:1rem">',
+              '<svg xmlns="http://www.w3.org/2000/svg" style="width:2rem;height:2rem;color:oklch(var(--wa,80% 0.15 85))" fill="none" viewBox="0 0 24 24" stroke="currentColor">',
+                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>',
+              '</svg>',
+              '<p class="text-xs text-center text-base-content/60">Нет доступа к камере</p>',
+              '<button class="btn btn-xs btn-primary" onclick="document.getElementById(\'p2p-photo-input\').click()">Сфотографировать QR</button>',
+            '</div>',
           '</div>',
+          // Hidden file input (fallback)
+          '<input type="file" id="p2p-photo-input" accept="image/*" capture="environment" class="hidden">',
           // Answer QR section (shown after processing scanned offer)
           '<div id="p2p-answer-qr-section" class="hidden flex flex-col items-center gap-2 w-full">',
-            '<div id="p2p-answer-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-xl">',
+            '<div class="divider text-xs">Шаг 2: Покажите QR первому устройству</div>',
+            '<div id="p2p-answer-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-2xl shadow-md">',
               '<span class="loading loading-ring loading-lg"></span>',
             '</div>',
             '<div class="w-full max-w-xs">',
@@ -883,16 +995,23 @@ class P2PUIController {
             '</div>',
           '</div>',
           // Paste fallback
-          '<div class="w-full max-w-xs">',
-            '<p class="text-xs text-base-content/50 mb-1">Или вставьте код вручную:</p>',
-            '<textarea id="p2p-paste-input" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" placeholder="Вставьте код..."></textarea>',
-            '<button class="btn btn-xs btn-primary mt-1 w-full" onclick="window.p2pUI?.processPastedCode()">Подключиться</button>',
+          '<div class="collapse collapse-arrow bg-base-200 w-full max-w-xs">',
+            '<input type="checkbox">',
+            '<div class="collapse-title text-sm font-medium">Вставить код вручную</div>',
+            '<div class="collapse-content">',
+              '<textarea id="p2p-paste-input" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" placeholder="Вставьте код..."></textarea>',
+              '<button class="btn btn-xs btn-primary mt-1 w-full" onclick="window.p2pUI?.processPastedCode()">Подключиться</button>',
+            '</div>',
           '</div>',
           '<button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>',
         '</div>',
       ].join('');
 
-      // Wire photo capture input
+      // Start live camera scanning
+      const videoEl = content.querySelector('#p2p-camera-video');
+      if (videoEl) this._startCameraScanning(videoEl);
+
+      // Wire photo input fallback
       const photoInput = content.querySelector('#p2p-photo-input');
       if (photoInput) {
         photoInput.addEventListener('change', (e) => {
