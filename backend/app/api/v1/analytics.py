@@ -403,11 +403,6 @@ async def get_quick_stats_html(
     month_plan_data = {row.type: float(row.total) for row in month_plan_result.all()}
 
     # Calculate stats (separate income/expense and credit/debit)
-    today_data.get("income", 0.0)
-    today_data.get("expense", 0.0)
-    today_data.get("credit", 0.0)
-    today_data.get("debit", 0.0)
-
     month_income = month_data.get("income", 0.0)
     month_expense = month_data.get("expense", 0.0)
     month_credit = month_data.get("credit", 0.0)

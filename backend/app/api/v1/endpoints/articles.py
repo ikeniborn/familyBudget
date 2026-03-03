@@ -491,8 +491,6 @@ async def update_article(
     # Check if any fields actually changed
     changed, changed_fields = has_changes(old_article, update_data)
 
-    import logging
-    logger = logging.getLogger(__name__)
     logger.info(f"[ARTICLE UPDATE] article_id={article_id}, changed={changed}, changed_fields={changed_fields}, update_data={update_data}")
 
     if not changed and financial_center_ids is None:

@@ -86,7 +86,7 @@ async def get_bot_username() -> str | None:
 
         return username
 
-    except Exception:
+    except (httpx.HTTPError, ValueError):
         # Silently fail - username can be configured manually if needed
         return None
 
@@ -166,7 +166,7 @@ async def validate_telegram_user(telegram_id: int) -> bool:
 
         return True
 
-    except Exception:
+    except (httpx.HTTPError, ValueError):
         # Return False on any error (network, parsing, etc.)
         return False
 
@@ -294,7 +294,7 @@ async def fetch_telegram_user_info(telegram_id: int) -> dict[str, Any] | None:
 
         return user_info
 
-    except Exception:
+    except (httpx.HTTPError, ValueError, KeyError):
         # Return None on any error (network, parsing, etc.)
         return None
 

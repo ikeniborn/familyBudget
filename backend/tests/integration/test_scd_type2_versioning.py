@@ -276,9 +276,9 @@ async def test_article_versioning_code_change(auth_client: AsyncClient, admin_cl
 
     assert len(articles) == 2
 
-    codes = {a.code for a in articles}
-    assert "TRANS" in codes
-    assert "TRANSPORT" in codes
+    names = {a.name for a in articles}
+    assert "Transport" in names
+    assert "Transportation" in names
 
 
 @pytest.mark.asyncio

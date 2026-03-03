@@ -200,13 +200,13 @@ async def test_update_nonexistent_article(admin_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_delete_nonexistent_article(auth_client: AsyncClient):
+async def test_delete_nonexistent_article(admin_client: AsyncClient):
     """
     Test deleting article that doesn't exist.
 
     Expected: 404 Not Found
     """
-    response = await auth_client.delete("/api/v1/articles/99999")
+    response = await admin_client.delete("/api/v1/articles/99999")
 
     assert response.status_code == 404
 
