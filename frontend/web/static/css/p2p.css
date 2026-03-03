@@ -6,19 +6,21 @@
 
 /* ── QR Container ─────────────────────────────────────── */
 .p2p-qr-container {
-    width: 300px;
-    height: 300px;
+    width: min(300px, 100%);
+    aspect-ratio: 1 / 1;
+    height: auto;
     padding: 12px;
+    box-sizing: border-box;
     background: #ffffff;
     border-radius: 1rem;
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-    flex-shrink: 0;
+    flex-shrink: 1;
 }
 
 .p2p-qr-container canvas {
     display: block;
-    width: 276px !important;
-    height: 276px !important;
+    width: 100% !important;
+    height: auto !important; /* relies on canvas 1:1 intrinsic ratio; avoids flex height-100% ambiguity */
     image-rendering: pixelated; /* Keep QR crisp on high-DPI */
 }
 

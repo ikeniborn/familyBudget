@@ -4,6 +4,7 @@ Analytics API endpoints.
 Provides aggregated data for charts and dashboards.
 """
 import calendar as cal_module
+import html
 import logging
 from datetime import date, datetime, timedelta
 
@@ -814,7 +815,7 @@ async def get_account_balances_html(
 
     # Handle case: no active financial centers
     if not balances:
-        html = """
+        empty_html = """
         <div class="alert alert-info">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -823,15 +824,16 @@ async def get_account_balances_html(
         </div>
         """
         # Cache empty state too (TTL 30s)
-        await cache_service.set(cache_key, html, CacheTTL.DASHBOARD())
-        return html
+        await cache_service.set(cache_key, empty_html, CacheTTL.DASHBOARD())
+        return empty_html
 
     # Generate unified responsive cards
     balance_cards = ""
     for bal in balances:
+        _name = html.escape(bal['name'])
         balance_cards += f"""
         <div class="balance-card" data-movement="{bal['month_movement']:.2f}">
-            <div class="balance-title" title="{bal['name']}">{bal['name']}</div>
+            <div class="balance-title" title="{_name}">{_name}</div>
             <div>
                 <div class="balance-row">
                     <span class="balance-label">Начало</span>
@@ -850,7 +852,7 @@ async def get_account_balances_html(
             </div>
         </div>"""
 
-    html = f"""
+    result_html = f"""
     <style>
         /* === BALANCES: 5 Breakpoints Grid Layout (fixed like quick-stats) === */
         .balances-grid {{
@@ -966,9 +968,9 @@ async def get_account_balances_html(
     """
 
     # Cache the generated HTML (TTL 30s)
-    await cache_service.set(cache_key, html, CacheTTL.DASHBOARD())
+    await cache_service.set(cache_key, result_html, CacheTTL.DASHBOARD())
 
-    return html
+    return result_html
 
 
 @router.get("/plan-fact")

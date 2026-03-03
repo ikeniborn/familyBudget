@@ -185,13 +185,13 @@ async def test_get_nonexistent_fact(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_update_nonexistent_article(auth_client: AsyncClient):
+async def test_update_nonexistent_article(admin_client: AsyncClient):
     """
     Test updating article that doesn't exist.
 
     Expected: 404 Not Found
     """
-    response = await auth_client.put(
+    response = await admin_client.put(
         "/api/v1/articles/99999",
         json={"name": "Updated"},
     )
@@ -379,7 +379,7 @@ async def test_failed_fact_creation_leaves_no_partial_data(
 
 @pytest.mark.asyncio
 async def test_update_article_with_invalid_data_no_changes(
-    auth_client: AsyncClient, session: AsyncSession
+    auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession
 ):
     """
     Test that failed update doesn't modify article.
@@ -397,7 +397,7 @@ async def test_update_article_with_invalid_data_no_changes(
     article_id = response.json()["id"]
 
     # Try to update with invalid type
-    update_response = await auth_client.put(
+    update_response = await admin_client.put(
         f"/api/v1/articles/{article_id}",
         json={"type": "invalid_type"},
     )
@@ -502,7 +502,7 @@ async def test_delete_article_with_facts_still_works(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_concurrent_updates_to_same_article(auth_client: AsyncClient):
+async def test_concurrent_updates_to_same_article(auth_client: AsyncClient, admin_client: AsyncClient):
     """
     Test concurrent updates to same article (SCD Type 2 versioning handles this).
 
@@ -519,14 +519,14 @@ async def test_concurrent_updates_to_same_article(auth_client: AsyncClient):
     article_id = response.json()["id"]
 
     # First update
-    update1 = await auth_client.put(
+    update1 = await admin_client.put(
         f"/api/v1/articles/{article_id}",
         json={"name": "V2"},
     )
     assert update1.status_code == 200
 
     # Second update
-    update2 = await auth_client.put(
+    update2 = await admin_client.put(
         f"/api/v1/articles/{article_id}",
         json={"name": "V3"},
     )

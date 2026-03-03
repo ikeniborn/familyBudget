@@ -349,17 +349,17 @@ def validate_telegram_auth(data: dict[str, Any]) -> bool:
         - TASK-012: Telegram OAuth endpoint
         - TASK-026: Auth unit tests (validation required)
     """
-    # Step 1: Extract and remove hash from data
-    received_hash = data.pop("hash", None)
+    # Step 1: Extract hash without mutating the caller's dict
+    received_hash = data.get("hash")
 
     if received_hash is None:
         return False
 
-    # Step 2: Create data check string
+    # Step 2: Create data check string (exclude 'hash' key)
     # Format: "key=value\nkey=value\n..." (sorted by key)
     # All values must be strings
     data_check_string = "\n".join(
-        [f"{key}={value}" for key, value in sorted(data.items())]
+        [f"{key}={value}" for key, value in sorted(data.items()) if key != "hash"]
     )
 
     # Step 3: Compute secret key (SHA256 of bot token)

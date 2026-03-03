@@ -8,6 +8,10 @@
  * @version 1.0.0
  */
 
+// Module-level flag: getUserMedia for iOS ICE unblock is done at most once per page load.
+// Avoids repeated permission prompts when user opens multiple sync sessions.
+let _iceUnblockDone = false;
+
 const P2P_STUN_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
@@ -52,12 +56,15 @@ class P2PManager {
    */
   async getUnblockMediaStream() {
     if (!isIOS()) return;
+    if (_iceUnblockDone) return;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
       this._iceUnblockStream = stream;
       stream.getTracks().forEach(track => track.stop());
+      _iceUnblockDone = true;
       console.debug('[P2PManager] iOS ICE unblock: getUserMedia succeeded, tracks stopped');
     } catch (err) {
+      _iceUnblockDone = true; // don't retry on denial
       console.warn('[P2PManager] iOS ICE unblock: getUserMedia denied or unavailable:', err.message);
     }
   }
