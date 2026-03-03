@@ -72,7 +72,7 @@ frontend/web/templates/p2p/
 └── p2p-status.html      # Sync progress overlay
 
 frontend/web/static/css/
-└── p2p.css              # QR container, scanner overlay, modal styles
+└── p2p.css              # QR container (responsive, min(300px,100%)), scanner overlay, modal
 
 backend/app/api/v1/endpoints/
 └── p2p.py               # GET /api/v1/p2p/config (STUN servers, feature flags)
@@ -128,14 +128,38 @@ This breaks both the getUserMedia ICE workaround (R1) and QR scanning (R5).
 
 ---
 
-### R5: QR Scanning Camera Permission
+### R5: QR Scanning — Live Camera with Fallback
 
-**Problem:** QR scanning requires `getUserMedia({video: true})` which may be denied.
+**Problem:** Old implementation used `<input type="file" capture="environment">` (user takes
+photo → decode once). This means nothing happens if the photo decode fails silently.
 
-**Solution:** Manual SDP text paste (same as R2 fallback). The paste input is always
-visible in the scanner screen; the camera view is a progressive enhancement.
+**Solution:** Live camera stream with continuous scanning:
+1. `getUserMedia({ video: { facingMode: 'environment' }, audio: false })`
+2. Stream displayed in `<video>` element
+3. Every 200ms: decode current frame via `BarcodeDetector` (Chrome 83+/Android native) or `jsQR` (pure JS fallback)
+4. On successful decode: stop camera, call `_handleScannedQR(result)`
 
-**File:** `frontend/web/static/js/ui/P2PUIController.js:_startCamera()`
+**Cancel guard:** If user closes modal while getUserMedia permission dialog is open, the stream
+is stopped immediately after acquisition (`if (!this._modal) { stream.getTracks().forEach(t=>t.stop()); return; }`).
+
+**Fallback chain:**
+1. Live camera (BarcodeDetector or jsQR) — primary
+2. Manual SDP text paste (`<textarea>` always visible) — fallback for denied camera or iOS PWA
+
+**File:** `frontend/web/static/js/ui/P2PUIController.js:_startCameraScanning()`
+
+---
+
+### R6: iOS getUserMedia Called Only Once Per Page Load
+
+**Problem:** `getUnblockMediaStream()` (R1 fix) was called on every sync session open,
+generating repeated microphone permission prompts.
+
+**Solution:** Module-level flag `_iceUnblockDone` in `P2PManager.js`. Once set to `true`
+(either on success or on permission denial), `getUnblockMediaStream()` returns immediately
+on all subsequent calls within the same page load.
+
+**File:** `frontend/web/static/js/offline/p2p/P2PManager.js` (module scope, line ~13)
 
 ---
 
@@ -176,8 +200,35 @@ P2P1:<base64(UTF-8(JSON({ sdp: "...", candidates: [{candidate, sdpMid, sdpMLineI
 ```
 
 - Prefix `P2P1:` for version detection
-- SDP lines stripped: `a=extmap`, `a=msid-semantic`, `a=ssrc`, `a=rtcp-fb`
+- SDP lines stripped: `a=extmap`, `a=msid-semantic`, `a=ssrc`, `a=rtcp-fb`, `a=rtpmap`, `a=fmtp`, `a=max-message-size`
+- Only host ICE candidates included (local network sync); srflx/relay excluded to reduce payload size by ~30-50%
 - Typical payload: 800-1200 chars (fits in QR version 10, ~400x400px at 200dpi)
+
+> **Critical bug fix (2026-03-03):** Chrome 80+ adds `a=max-message-size:262144` to SDP.
+> Firefox and Safari reject this line in `setRemoteDescription()` with `Invalid SDP line`.
+> Fix: added `a=max-message-size` to `_stripSDP()` filter in `P2PSignaling.js`.
+
+## QR Container — Responsive Layout
+
+`.p2p-qr-container` uses CSS `min()` function to prevent overflow on small screens:
+
+```css
+.p2p-qr-container {
+    width: min(300px, 100%);  /* max 300px, but shrinks on narrow screens */
+    aspect-ratio: 1 / 1;      /* always square without fixed height */
+    height: auto;
+    padding: 12px;
+    box-sizing: border-box;
+}
+.p2p-qr-container canvas {
+    width: 100% !important;
+    height: auto !important;  /* relies on canvas intrinsic 1:1 ratio */
+    image-rendering: pixelated; /* keep QR crisp on Retina */
+}
+```
+
+Previous implementation used `width: 300px; height: 276px` which overflowed the modal
+on devices narrower than 340px and misaligned the canvas in flexbox with `align-items: center`.
 
 ## Troubleshooting
 

@@ -5,7 +5,7 @@ meta:
   version: "1.0.0"
   description: "Authentication and authorization API endpoints"
   created: "2025-11-01"
-  last_updated: "2026-01-21"
+  last_updated: "2026-03-03"
   status: "active"
   base_path: "/api/v1/auth"
   authentication_methods:
@@ -53,6 +53,13 @@ routes:
         detail: "User not found (must be created by admin first)"
     flow:
       $ref: "../flows/telegram-oauth.yaml"
+    security:
+      auth_date_expiration: "300 seconds (5 minutes) — requests older than 5 min are rejected"
+      hash_validation: |
+        HMAC-SHA256 over sorted key=value pairs (excluding 'hash' field).
+        validate_telegram_auth() uses data.get('hash') without mutating the caller's dict
+        (dict is NOT modified — 'hash' key is excluded via filter in sorted(), not via pop()).
+      implementation: "backend/app/services/telegram_auth.py:validate_telegram_auth()"
 
   # ---------------------------------------------------------------------------
   # TOKEN REFRESH
