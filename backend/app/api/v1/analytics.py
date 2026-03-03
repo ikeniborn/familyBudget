@@ -361,19 +361,6 @@ async def get_quick_stats_html(
     today = date.today()
     month_start = date(today.year, today.month, 1)
 
-    # Today's stats (FACTS ONLY - exclude plans)
-    # Shared family budget - NO user_id filter
-    today_query = select(
-        Article.type.label("type"),
-        func.sum(Fact.amount).label("total")
-    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.fact_date == today,
-        Fact.record_type == "fact"
-    ).group_by(Article.type)
-
-    today_result = await session.execute(today_query)
-    today_data = {row.type: float(row.total) for row in today_result.all()}
-
     # This month's stats (FACTS ONLY - exclude plans)
     # Shared family budget - NO user_id filter
     month_query = select(
