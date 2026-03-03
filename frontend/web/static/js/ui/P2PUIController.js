@@ -1,14 +1,19 @@
 /**
  * P2PUIController - Manages P2P sync UI state machine.
  *
- * States: idle → initiator | scanner → syncing → done | error
+ * States: idle → initiator | scanner | relay-initiator | relay-responder → syncing → done | error
  *
  * iOS workarounds (R2):
  * - Detects PWA standalone mode and shows "use Safari" warning
  * - All QR screens include manual SDP copy-paste fallback
  * - Camera permission denial falls back to paste mode
  *
- * @version 1.0.0
+ * Channels (R3):
+ * - QR scan: existing flow (fixed EXIF, jsQR fallback)
+ * - URL share: SDP encoded in URL hash, shared via AirDrop/Web Share
+ * - Relay code: 6-digit code via server relay (cross-platform iOS↔Android)
+ *
+ * @version 1.1.0
  */
 
 import { P2PManager } from '../offline/p2p/P2PManager.js';
@@ -17,6 +22,7 @@ import { P2PSyncProtocol } from '../offline/p2p/P2PSyncProtocol.js';
 import { P2PMerge } from '../offline/p2p/P2PMerge.js';
 
 const OFFER_TIMEOUT_SEC = 120;
+const RELAY_POLL_INTERVAL_MS = 2000;
 
 /**
  * Detect iOS device.
@@ -47,8 +53,15 @@ class P2PUIController {
     this._answerPayload = null;
     this._modal = null;
 
+    // Relay channel state
+    this._relayCode = null;
+    this._relayPollTimer = null;
+
     // Expose globally for inline onclick handlers in templates
     window.p2pUI = this;
+
+    // Check URL hash for incoming P2P payload (URL-share channel)
+    this._checkURLHash();
   }
 
   /**
@@ -71,6 +84,33 @@ class P2PUIController {
       this._renderRoleSelect(pendingCount);
     } catch {
       this._renderRoleSelect(0);
+    }
+
+    // Auto-handle pending URL-share payload
+    const pendingType = sessionStorage.getItem('p2p_pending_type');
+    if (pendingType === 'offer') {
+      sessionStorage.removeItem('p2p_pending_type');
+      await this.startResponder();
+      const payload = sessionStorage.getItem('p2p_pending_payload');
+      if (payload) {
+        sessionStorage.removeItem('p2p_pending_payload');
+        const input = document.getElementById('p2p-paste-input');
+        if (input) input.value = payload;
+        await this.processPastedCode();
+      }
+    } else if (pendingType === 'answer') {
+      sessionStorage.removeItem('p2p_pending_type');
+      const payload = sessionStorage.getItem('p2p_pending_payload');
+      if (payload) {
+        sessionStorage.removeItem('p2p_pending_payload');
+        if (!this.manager) this._initManager();
+        try {
+          await this.signaling.processScannedAnswer(payload);
+          this._waitForConnection();
+        } catch (err) {
+          this._showError('Неверный ответный код: ' + err.message);
+        }
+      }
     }
   }
 
@@ -151,36 +191,41 @@ class P2PUIController {
   }
 
   /**
-   * Share offer payload via Web Share API (AirDrop / native iOS share sheet).
+   * Share offer payload via Web Share API as a URL (AirDrop / native iOS share sheet).
+   * Recipient opens the link and the browser auto-detects the offer from the URL hash.
    */
   async shareOfferText() {
-    await this._sharePayload(this._offerPayload, 'P2P Offer');
+    const url = `${location.origin}${location.pathname}#p2p_offer=${encodeURIComponent(this._offerPayload)}`;
+    await this._sharePayload(url, 'P2P Синхронизация', true);
   }
 
   /**
-   * Share answer payload via Web Share API.
+   * Share answer payload via Web Share API as a URL.
    */
   async shareAnswerText() {
-    await this._sharePayload(this._answerPayload, 'P2P Answer');
+    const url = `${location.origin}${location.pathname}#p2p_answer=${encodeURIComponent(this._answerPayload)}`;
+    await this._sharePayload(url, 'P2P Ответ', true);
   }
 
   /**
    * Share payload via Web Share API. Falls back to clipboard copy.
    * @param {string|null} payload
    * @param {string} title
+   * @param {boolean} [isUrl=false] - true when payload is a URL (use url: field)
    */
-  async _sharePayload(payload, title) {
+  async _sharePayload(payload, title, isUrl = false) {
     if (!payload) return;
     try {
-      await navigator.share({ title, text: payload });
+      const shareData = isUrl ? { title, url: payload } : { title, text: payload };
+      await navigator.share(shareData);
     } catch (err) {
       if (err.name === 'AbortError') return; // user dismissed share sheet
       // Share not supported or failed — fall back to clipboard
       try {
         await navigator.clipboard.writeText(payload);
-        this._showToast('Код скопирован');
+        this._showToast('Ссылка скопирована');
       } catch {
-        this._showToast('Скопируйте текст вручную');
+        this._showToast('Скопируйте ссылку вручную');
       }
     }
   }
@@ -215,11 +260,209 @@ class P2PUIController {
     }
   }
 
+  // ── Relay channel (6-digit code, cross-platform) ─────
+
+  /**
+   * Start as relay initiator: create offer, POST to relay, show code.
+   */
+  async startRelayInitiator() {
+    this._showIosPwaWarning();
+    this._renderScreen('relay-code');
+    this._initManager();
+
+    try {
+      // Build offer payload by reusing displayOfferQR with a throwaway container
+      const tempEl = document.createElement('div');
+      this._offerPayload = await this.signaling.displayOfferQR(tempEl);
+      const res = await fetch('/api/v1/p2p/relay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: this._offerPayload }),
+      });
+      if (!res.ok) throw new Error('Сервер недоступен (' + res.status + ')');
+      const { code } = await res.json();
+      this._relayCode = code;
+
+      const codeEl = document.getElementById('p2p-relay-code-display');
+      if (codeEl) codeEl.textContent = code;
+
+      this._startRelayCountdown();
+      this._startRelayPoll(code);
+      console.debug('[P2PUIController] Relay offer created, code=', code);
+    } catch (err) {
+      console.error('[P2PUIController] startRelayInitiator error:', err);
+      this._showError('Не удалось создать код: ' + err.message);
+    }
+  }
+
+  /**
+   * Start as relay responder: show code entry screen.
+   */
+  startRelayResponder() {
+    this._showIosPwaWarning();
+    this._renderScreen('relay-enter');
+    this._initManager();
+  }
+
+  /**
+   * Submit entered relay code: fetch offer, build answer, POST answer.
+   */
+  async submitRelayCode() {
+    const input = document.getElementById('p2p-relay-input');
+    const code = input ? input.value.trim().toUpperCase() : '';
+    if (code.length !== 6) {
+      this._showToast('Код должен содержать 6 символов');
+      return;
+    }
+
+    try {
+      const offerRes = await fetch(`/api/v1/p2p/relay/${code}`);
+      if (offerRes.status === 404) {
+        this._showToast('Код не найден или истёк срок');
+        return;
+      }
+      if (!offerRes.ok) throw new Error('Ошибка сервера (' + offerRes.status + ')');
+
+      const offerData = await offerRes.json();
+      const answerPayload = await this.signaling.processScannedOffer(offerData.payload);
+      this._answerPayload = answerPayload;
+
+      const answerRes = await fetch(`/api/v1/p2p/relay/${code}/answer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload: answerPayload }),
+      });
+      if (!answerRes.ok) throw new Error('Не удалось отправить ответ (' + answerRes.status + ')');
+
+      console.debug('[P2PUIController] Relay answer sent for code=', code);
+      this._waitForConnection();
+    } catch (err) {
+      console.error('[P2PUIController] submitRelayCode error:', err);
+      this._showError('Ошибка: ' + err.message);
+    }
+  }
+
+  /**
+   * Poll for answer SDP at 2s interval.
+   * @param {string} code
+   */
+  _startRelayPoll(code) {
+    this._relayPollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/v1/p2p/relay/${code}/answer`);
+        if (res.status === 200) {
+          this._stopRelayPoll();
+          const data = await res.json();
+          await this.signaling.processScannedAnswer(data.payload);
+          this._waitForConnection();
+        } else if (res.status === 404) {
+          // Code expired
+          this._stopRelayPoll();
+          this._showError('Код истёк. Создайте новый.');
+        }
+        // 202 = still waiting, keep polling
+      } catch (err) {
+        console.warn('[P2PUIController] relay poll error:', err);
+      }
+    }, RELAY_POLL_INTERVAL_MS);
+  }
+
+  _stopRelayPoll() {
+    if (this._relayPollTimer) {
+      clearInterval(this._relayPollTimer);
+      this._relayPollTimer = null;
+    }
+  }
+
+  /**
+   * Start 120s countdown on relay-code screen.
+   */
+  _startRelayCountdown() {
+    let remaining = OFFER_TIMEOUT_SEC;
+    const timerEl = document.getElementById('p2p-relay-timer');
+    const progressEl = document.getElementById('p2p-relay-progress');
+
+    const tick = setInterval(() => {
+      remaining--;
+      if (timerEl) timerEl.textContent = remaining + 's';
+      if (progressEl) progressEl.value = Math.round((remaining / OFFER_TIMEOUT_SEC) * 100);
+      if (remaining <= 0) {
+        clearInterval(tick);
+        this._stopRelayPoll();
+        this._showError('Время истекло. Создайте новый код.');
+      }
+    }, 1000);
+    // Keep reference so cancel() can clean up
+    this._offerTimer = tick;
+  }
+
+  // ── URL hash channel ──────────────────────────────────
+
+  /**
+   * Check URL hash for incoming P2P payload (set by shareOfferText/shareAnswerText).
+   * Saves payload to sessionStorage and shows an unobtrusive banner.
+   * Called once at construction time.
+   */
+  _checkURLHash() {
+    const hash = location.hash;
+    const offerMatch = hash.match(/#p2p_offer=(.+)/);
+    const answerMatch = hash.match(/#p2p_answer=(.+)/);
+    if (!offerMatch && !answerMatch) return;
+
+    let payload;
+    try {
+      payload = decodeURIComponent((offerMatch || answerMatch)[1]);
+    } catch {
+      // Malformed URI component — silently ignore to avoid crashing the module
+      history.replaceState(null, '', location.pathname + location.search);
+      return;
+    }
+
+    sessionStorage.setItem('p2p_pending_payload', payload);
+    sessionStorage.setItem('p2p_pending_type', offerMatch ? 'offer' : 'answer');
+    history.replaceState(null, '', location.pathname + location.search);
+    this._showIncomingBanner(offerMatch ? 'offer' : 'answer');
+  }
+
+  /**
+   * Show a non-modal banner notifying about an incoming P2P payload.
+   * @param {'offer'|'answer'} type
+   */
+  _showIncomingBanner(type) {
+    if (document.getElementById('p2p-incoming-banner')) return;
+
+    const label = type === 'offer' ? 'P2P-запрос синхронизации' : 'P2P-ответ на синхронизацию';
+    const banner = document.createElement('div');
+    banner.id = 'p2p-incoming-banner';
+    banner.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[9600] '
+      + 'flex items-center gap-3 bg-primary text-primary-content '
+      + 'rounded-xl shadow-xl px-4 py-3 text-sm font-medium '
+      + 'animate-bounce-once max-w-sm w-[calc(100%-2rem)]';
+    banner.innerHTML = `
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-4 10h6a2 2 0 002-2v-8a2 2 0 00-2-2h-6a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+      </svg>
+      <span class="flex-1">Получен ${label}</span>
+      <button class="btn btn-xs btn-ghost text-primary-content"
+        onclick="document.getElementById('p2p-incoming-banner')?.remove(); window.p2pUI?.open()">
+        Открыть
+      </button>
+      <button class="btn btn-xs btn-ghost text-primary-content"
+        onclick="document.getElementById('p2p-incoming-banner')?.remove(); sessionStorage.removeItem('p2p_pending_payload'); sessionStorage.removeItem('p2p_pending_type');">
+        ✕
+      </button>
+    `;
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 30000);
+  }
+
   /**
    * Cancel sync and close modal.
    */
   cancel() {
     this._stopOfferTimer();
+    this._stopRelayPoll();
     if (this.manager) {
       this.manager.cleanup();
       this.manager = null;
@@ -534,24 +777,51 @@ class P2PUIController {
         </div>
 
         <!-- Action buttons -->
-        <div class="flex flex-col gap-3 w-full max-w-xs">
-          <button class="btn btn-primary" onclick="window.p2pUI?.startInitiator()">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-            </svg>
-            Создать QR
-          </button>
-          <p class="text-xs text-center text-base-content/40 -mt-2">Показать этот экран другому устройству для сканирования</p>
+        <div class="flex flex-col gap-2 w-full max-w-xs">
 
-          <button class="btn btn-outline" onclick="window.p2pUI?.startResponder()">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-            </svg>
-            Сканировать QR
-          </button>
-          <p class="text-xs text-center text-base-content/40 -mt-2">Навести камеру на QR другого устройства</p>
+          <div class="grid grid-cols-2 gap-2">
+            <div class="flex flex-col gap-1">
+              <button class="btn btn-primary btn-sm" onclick="window.p2pUI?.startInitiator()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                Создать QR
+              </button>
+              <p class="text-xs text-center text-base-content/40">Показать QR другому устройству</p>
+            </div>
 
-          <button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>
+            <div class="flex flex-col gap-1">
+              <button class="btn btn-secondary btn-sm" onclick="window.p2pUI?.startRelayInitiator()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+                </svg>
+                Получить код
+              </button>
+              <p class="text-xs text-center text-base-content/40">6-значный код для iOS↔Android</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <button class="btn btn-outline btn-sm" onclick="window.p2pUI?.startResponder()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                </svg>
+                Сканировать QR
+              </button>
+              <p class="text-xs text-center text-base-content/40">Навести камеру на QR</p>
+            </div>
+
+            <div class="flex flex-col gap-1">
+              <button class="btn btn-outline btn-sm" onclick="window.p2pUI?.startRelayResponder()">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+                </svg>
+                Ввести код
+              </button>
+              <p class="text-xs text-center text-base-content/40">Ввести код с другого устройства</p>
+            </div>
+          </div>
+
+          <button class="btn btn-ghost btn-sm mt-1" onclick="window.p2pUI?.cancel()">Отмена</button>
         </div>
 
       </div>
@@ -630,6 +900,50 @@ class P2PUIController {
           if (file) this._handlePhotoCapture(file);
         });
       }
+    } else if (screenName === 'relay-code') {
+      content.innerHTML = [
+        '<div class="flex flex-col items-center gap-5 p-4 pb-8 w-full">',
+          '<div class="text-center">',
+            '<p class="text-sm text-base-content/60 mb-1">Код для подключения</p>',
+            '<div id="p2p-relay-code-display" class="text-5xl font-mono font-bold tracking-[0.3em] text-primary py-3 px-4 bg-base-200 rounded-2xl select-all">',
+              '<span class="loading loading-dots loading-md"></span>',
+            '</div>',
+            '<p class="text-xs text-base-content/40 mt-2">Продиктуйте или покажите этот код другому устройству</p>',
+          '</div>',
+          '<div class="flex flex-col items-center gap-1 w-full max-w-xs">',
+            '<div class="flex items-center gap-2 text-sm text-base-content/50">',
+              '<span class="loading loading-ring loading-xs"></span>',
+              '<span>Ожидание подключения...</span>',
+            '</div>',
+            '<div class="flex items-center gap-2 w-full mt-1">',
+              '<progress id="p2p-relay-progress" class="progress progress-primary flex-1" value="100" max="100"></progress>',
+              '<span id="p2p-relay-timer" class="text-xs font-mono text-base-content/40 w-10 text-right">120s</span>',
+            '</div>',
+          '</div>',
+          '<button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>',
+        '</div>',
+      ].join('');
+    } else if (screenName === 'relay-enter') {
+      content.innerHTML = [
+        '<div class="flex flex-col items-center gap-5 p-4 pb-8 w-full">',
+          '<div class="text-center">',
+            '<h3 class="font-semibold text-base">Ввести код</h3>',
+            '<p class="text-xs text-base-content/50 mt-1">Введите 6-значный код с другого устройства</p>',
+          '</div>',
+          '<input id="p2p-relay-input" type="text" maxlength="6" autocomplete="off" autocapitalize="characters"',
+            ' spellcheck="false" inputmode="text"',
+            ' class="input input-bordered input-lg text-center font-mono tracking-[0.4em] uppercase w-full max-w-xs text-2xl"',
+            ' placeholder="XXXXXX"',
+            ' oninput="this.value=this.value.toUpperCase()">',
+          '<button class="btn btn-primary w-full max-w-xs" onclick="window.p2pUI?.submitRelayCode()">',
+            'Подключиться',
+          '</button>',
+          '<button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>',
+        '</div>',
+      ].join('');
+
+      // Auto-focus the input
+      setTimeout(() => document.getElementById('p2p-relay-input')?.focus(), 50);
     }
   }
 
