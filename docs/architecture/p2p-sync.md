@@ -163,6 +163,16 @@ on all subsequent calls within the same page load.
 
 ---
 
+## Known Issues Fixed
+
+| Issue | Root Cause | Fix |
+|-------|-----------|-----|
+| `a=sctp-port:5000 Invalid SDP line` | `_stripSDP()` missing trailing `\r\n` (RFC 4566) | `.join('\r\n') + '\r\n'` |
+| DataChannel not open on sync | Race: `peerConnection.onconnectionstatechange('connected')` fires before `datachannel.onopen` | Removed `setState('connected')` from `onconnectionstatechange`; only `datachannel.onopen` signals true connected |
+| Button text/icon overflow | DaisyUI `btn` uses `flex-wrap:wrap`; `height:2rem` clips wrapped content | Changed to `flex-col h-auto min-h-[4rem]` layout |
+| iOS camera permission on "Создать QR" | `getUserMedia({audio})` required for host ICE candidates; iOS shows generic media dialog | Added pre-permission explanation screen (`_renderIosMicWarning`) before triggering `getUserMedia` |
+| QR not found on iOS photo | `createImageBitmap(file, {imageOrientation:'from-image'})` throws on older iOS | Fallback to `createImageBitmap(file)` without option |
+
 ## Conflict Resolution
 
 Budget facts are **append-only** — conflicts are rare but handled:

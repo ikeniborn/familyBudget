@@ -61,6 +61,10 @@ class P2PUIController {
     this._cameraStream = null;
     this._scanTimer = null;
 
+    // iOS mic pre-permission flow
+    this._iosMicWarningShown = false;
+    this._pendingAction = null;
+
     // Expose globally for inline onclick handlers in templates
     window.p2pUI = this;
 
@@ -120,9 +124,21 @@ class P2PUIController {
 
   /**
    * Start as initiator: generate offer QR.
+   * On iOS, shows mic permission explanation before requesting access.
    */
   async startInitiator() {
     this._showIosPwaWarning();
+    if (isIOS() && !this._iosMicWarningShown) {
+      this._iosMicWarningShown = true;
+      this._pendingAction = () => this._proceedInitiator();
+      this._renderIosMicWarning();
+      return;
+    }
+    await this._proceedInitiator();
+  }
+
+  /** @private */
+  async _proceedInitiator() {
     this._renderScreen('initiator');
     this._initManager();
 
@@ -149,6 +165,47 @@ class P2PUIController {
       console.error('[P2PUIController] Failed to create offer:', err);
       this._showError('Не удалось создать QR: ' + err.message);
     }
+  }
+
+  /**
+   * Confirm iOS mic permission warning and proceed with pending action.
+   * Called from inline onclick in _renderIosMicWarning screen.
+   */
+  async confirmIosMic() {
+    const action = this._pendingAction;
+    this._pendingAction = null;
+    if (action) await action();
+  }
+
+  /**
+   * Render iOS microphone pre-permission explanation screen.
+   * Shows before getUserMedia({audio}) triggers the system prompt.
+   * @private
+   */
+  _renderIosMicWarning() {
+    const content = document.getElementById('p2p-modal-content');
+    if (!content) return;
+    content.innerHTML = `
+      <div class="flex flex-col items-center gap-5 p-6 text-center">
+        <div class="p-3 rounded-full bg-warning/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-7a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="font-semibold text-base">Доступ к микрофону</h3>
+          <p class="text-sm text-base-content/60 mt-2">
+            iOS требует разрешения на микрофон для установки P2P соединения по локальной сети.<br>
+            <span class="text-xs opacity-60">Звук не записывается и не передаётся.</span>
+          </p>
+        </div>
+        <button class="btn btn-primary w-full max-w-xs" onclick="window.p2pUI?.confirmIosMic()">
+          Разрешить и продолжить
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>
+      </div>
+    `;
   }
 
   /**
@@ -268,9 +325,21 @@ class P2PUIController {
 
   /**
    * Start as relay initiator: create offer, POST to relay, show code.
+   * On iOS, shows mic permission explanation before requesting access.
    */
   async startRelayInitiator() {
     this._showIosPwaWarning();
+    if (isIOS() && !this._iosMicWarningShown) {
+      this._iosMicWarningShown = true;
+      this._pendingAction = () => this._proceedRelayInitiator();
+      this._renderIosMicWarning();
+      return;
+    }
+    await this._proceedRelayInitiator();
+  }
+
+  /** @private */
+  async _proceedRelayInitiator() {
     this._renderScreen('relay-code');
     this._initManager();
 
@@ -887,51 +956,37 @@ class P2PUIController {
         <div class="flex flex-col gap-2 w-full max-w-xs">
 
           <div class="grid grid-cols-2 gap-2">
-            <div class="flex flex-col gap-1">
-              <button class="btn btn-primary btn-sm whitespace-nowrap" onclick="window.p2pUI?.startInitiator()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                </svg>
-                Создать QR
-              </button>
-              <p class="text-xs text-center text-base-content/40">Показать QR другому устройству</p>
-            </div>
+            <button class="btn btn-primary flex-col h-auto min-h-[4rem] py-2 gap-1 text-xs" onclick="window.p2pUI?.startInitiator()">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+              </svg>
+              <span class="leading-tight text-center">Создать QR</span>
+            </button>
 
-            <div class="flex flex-col gap-1">
-              <button class="btn btn-secondary btn-sm whitespace-nowrap" onclick="window.p2pUI?.startRelayInitiator()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
-                </svg>
-                Получить код
-              </button>
-              <p class="text-xs text-center text-base-content/40">6-значный код для iOS↔Android</p>
-            </div>
+            <button class="btn btn-secondary flex-col h-auto min-h-[4rem] py-2 gap-1 text-xs" onclick="window.p2pUI?.startRelayInitiator()">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
+              </svg>
+              <span class="leading-tight text-center">Получить код</span>
+            </button>
 
-            <div class="flex flex-col gap-1">
-              <button class="btn btn-outline btn-sm whitespace-nowrap" onclick="window.p2pUI?.startResponder()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                </svg>
-                Сканировать QR
-              </button>
-              <p class="text-xs text-center text-base-content/40">Навести камеру на QR</p>
-            </div>
+            <button class="btn btn-outline flex-col h-auto min-h-[4rem] py-2 gap-1 text-xs" onclick="window.p2pUI?.startResponder()">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+              </svg>
+              <span class="leading-tight text-center">Сканировать QR</span>
+            </button>
 
-            <div class="flex flex-col gap-1">
-              <button class="btn btn-outline btn-sm whitespace-nowrap" onclick="window.p2pUI?.startRelayResponder()">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-                </svg>
-                Ввести код
-              </button>
-              <p class="text-xs text-center text-base-content/40">Ввести код с другого устройства</p>
-            </div>
+            <button class="btn btn-outline flex-col h-auto min-h-[4rem] py-2 gap-1 text-xs" onclick="window.p2pUI?.startRelayResponder()">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
+              </svg>
+              <span class="leading-tight text-center">Ввести код</span>
+            </button>
           </div>
 
           <button class="btn btn-ghost btn-sm mt-1" onclick="window.p2pUI?.cancel()">Отмена</button>
         </div>
-
-        ${isIOS() ? '<p class="text-xs text-center text-base-content/30 px-2">iOS: «Создать QR» и «Получить код» запрашивают доступ к микрофону — это нужно для P2P соединения по локальной сети</p>' : ''}
 
       </div>
     `;

@@ -98,9 +98,10 @@ class P2PManager {
     this.peerConnection.onconnectionstatechange = () => {
       const cs = this.peerConnection.connectionState;
       console.debug('[P2PManager] Connection state:', cs);
-      if (cs === 'connected') {
-        this.setState('connected');
-      } else if (cs === 'failed' || cs === 'disconnected') {
+      // NOTE: 'connected' is intentionally NOT handled here.
+      // RTCPeerConnection reaches 'connected' before RTCDataChannel opens.
+      // True 'connected' is only emitted from datachannel.onopen (setupDataChannel).
+      if (cs === 'failed' || cs === 'disconnected') {
         this.setState('error');
         if (this.onError) this.onError(new Error('RTCPeerConnection ' + cs));
       } else if (cs === 'closed') {
