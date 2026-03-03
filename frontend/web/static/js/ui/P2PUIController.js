@@ -664,8 +664,9 @@ class P2PUIController {
 
   /**
    * Decode QR from File using jsQR library via canvas.
-   * Uses createImageBitmap with imageOrientation:'from-image' to auto-apply
-   * EXIF rotation (iOS camera writes JPEG rotated 90°; new Image() ignores it).
+   * Tries createImageBitmap with imageOrientation:'from-image' (iOS 15+ / Chrome)
+   * to auto-apply EXIF rotation. Falls back to plain createImageBitmap if the
+   * imageOrientation option is unsupported (older iOS Safari).
    * @param {File} file
    * @returns {Promise<string|null>}
    */
