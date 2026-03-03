@@ -192,7 +192,7 @@ async def test_user_versioning_name_change(client: AsyncClient, session: AsyncSe
 
 
 @pytest.mark.asyncio
-async def test_article_versioning_name_change(auth_client: AsyncClient, session: AsyncSession):
+async def test_article_versioning_name_change(auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession):
     """
     Test article versioning when name changes.
 
@@ -214,8 +214,8 @@ async def test_article_versioning_name_change(auth_client: AsyncClient, session:
     )
     article_id = create_response.json()["id"]
 
-    # Update article name
-    update_response = await auth_client.put(
+    # Update article name (admin-only operation)
+    update_response = await admin_client.put(
         f"/api/v1/articles/{article_id}",
         json={"name": "Food & Dining"},
     )
@@ -245,7 +245,7 @@ async def test_article_versioning_name_change(auth_client: AsyncClient, session:
 
 
 @pytest.mark.asyncio
-async def test_article_versioning_code_change(auth_client: AsyncClient, session: AsyncSession):
+async def test_article_versioning_code_change(auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession):
     """
     Test article versioning when code changes.
 
@@ -261,8 +261,8 @@ async def test_article_versioning_code_change(auth_client: AsyncClient, session:
     )
     article_id = create_response.json()["id"]
 
-    # Update name
-    update_response = await auth_client.put(
+    # Update name (admin-only operation)
+    update_response = await admin_client.put(
         f"/api/v1/articles/{article_id}",
         json={"name": "Transportation"},
     )
@@ -283,7 +283,7 @@ async def test_article_versioning_code_change(auth_client: AsyncClient, session:
 
 @pytest.mark.asyncio
 async def test_article_versioning_multiple_updates(
-    auth_client: AsyncClient, session: AsyncSession
+    auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession
 ):
     """
     Test article versioning with multiple sequential updates.
@@ -302,11 +302,11 @@ async def test_article_versioning_multiple_updates(
     )
     article_id = create_response.json()["id"]
 
-    # Update to V2
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    # Update to V2 (admin-only operation)
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
 
     # Update to V3
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
 
     # Verify three versions
     stmt = select(Article).where(Article.id == article_id)
@@ -490,7 +490,7 @@ async def test_fact_versioning_date_change(auth_client: AsyncClient, session: As
 
 @pytest.mark.asyncio
 async def test_historical_query_article_at_point_in_time(
-    auth_client: AsyncClient, session: AsyncSession
+    auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession
 ):
     """
     Test querying article data as it existed at a specific point in time.
@@ -514,8 +514,8 @@ async def test_historical_query_article_at_point_in_time(
     v1_article = result.scalar_one()
     t1 = v1_article.created_at
 
-    # Update to V2
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    # Update to V2 (admin-only operation)
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
 
     # Query at T1 (should return V1)
     stmt_historical = (
@@ -532,7 +532,7 @@ async def test_historical_query_article_at_point_in_time(
 
 @pytest.mark.asyncio
 async def test_current_query_always_returns_latest_version(
-    auth_client: AsyncClient, session: AsyncSession
+    auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession
 ):
     """
     Test that queries with is_current=True always return latest version.
@@ -550,9 +550,9 @@ async def test_current_query_always_returns_latest_version(
     )
     article_id = create_response.json()["id"]
 
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V4"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V4"})
 
     # Query current version
     stmt = select(Article).where(Article.id == article_id, Article.is_active)
@@ -612,7 +612,7 @@ async def test_soft_delete_creates_final_version(
 
 
 @pytest.mark.asyncio
-async def test_version_chain_no_gaps(auth_client: AsyncClient, session: AsyncSession):
+async def test_version_chain_no_gaps(auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession):
     """
     Test that version chains have no gaps (valid_to of V1 = valid_from of V2).
 
@@ -628,9 +628,9 @@ async def test_version_chain_no_gaps(auth_client: AsyncClient, session: AsyncSes
     )
     article_id = create_response.json()["id"]
 
-    # Multiple updates
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
+    # Multiple updates (admin-only operation)
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
 
     # Get all versions sorted by valid_from
     stmt = select(Article).where(Article.id == article_id).order_by(Article.valid_from)
@@ -648,7 +648,7 @@ async def test_version_chain_no_gaps(auth_client: AsyncClient, session: AsyncSes
 
 
 @pytest.mark.asyncio
-async def test_version_chain_ordered_by_time(auth_client: AsyncClient, session: AsyncSession):
+async def test_version_chain_ordered_by_time(auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession):
     """
     Test that versions are correctly ordered chronologically.
 
@@ -664,9 +664,9 @@ async def test_version_chain_ordered_by_time(auth_client: AsyncClient, session: 
     )
     article_id = create_response.json()["id"]
 
-    # Multiple updates
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
+    # Multiple updates (admin-only operation)
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
 
     # Get all versions
     stmt = select(Article).where(Article.id == article_id).order_by(Article.valid_from)
@@ -689,7 +689,7 @@ async def test_version_chain_ordered_by_time(auth_client: AsyncClient, session: 
 
 @pytest.mark.asyncio
 async def test_fact_references_current_article_version(
-    auth_client: AsyncClient, session: AsyncSession
+    auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession
 ):
     """
     Test that facts reference articles correctly even when article is versioned.
@@ -719,8 +719,8 @@ async def test_fact_references_current_article_version(
     )
     fact_id = fact_response.json()["id"]
 
-    # Update article
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    # Update article (admin-only operation)
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
 
     # Verify fact still accessible
     fact_get_response = await auth_client.get(f"/api/v1/facts/{fact_id}")

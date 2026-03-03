@@ -354,10 +354,8 @@ backend/.env.test
 
 .claude/sessions/
 # Claude Code Agent Workspace
-.claude/workspace
-
-# Claude Code Agent Workspace
 .claude/workspace/
+.claude/tools/
 
 # Sphinx build output
 docs/sphinx/_build/.doctrees/
