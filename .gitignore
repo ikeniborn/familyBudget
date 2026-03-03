@@ -352,10 +352,11 @@ frontend/web/static/sw.min.js.map
 frontend/web/static/sw.min.js.gz
 backend/.env.test
 
+# Claude Code Agent 
 .claude/sessions/
-# Claude Code Agent Workspace
 .claude/workspace/
 .claude/tools/
+.claude/code-review/
 
 # Sphinx build output
 docs/sphinx/_build/.doctrees/
