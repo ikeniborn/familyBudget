@@ -344,6 +344,14 @@ class P2PUIController {
   }
 
   async _onConnected() {
+    // Immediately null callbacks to prevent RTCPeerConnection close events
+    // (fired when peer closes connection after sync) from overwriting the
+    // sync result with a false 'Соединение прервано' error mid-await.
+    if (this.manager) {
+      this.manager.onStateChange = null;
+      this.manager.onError = null;
+    }
+
     console.debug('[P2PUIController] P2P connected — starting sync');
     this._updateStatusOverlay('syncing');
     this._stopOfferTimer();
