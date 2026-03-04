@@ -89,23 +89,6 @@ function _parseRelayPayload(encoded) {
 const OFFER_TIMEOUT_SEC = 120;
 const RELAY_POLL_INTERVAL_MS = 2000;
 
-/**
- * Detect iOS device.
- * @returns {boolean}
- */
-function isIOS() {
-  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
-/**
- * Detect PWA standalone mode (added to home screen).
- * @returns {boolean}
- */
-function isPWAStandalone() {
-  return window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true;
-}
-
 class P2PUIController {
   constructor() {
     this.manager = null;
