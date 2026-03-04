@@ -1,25 +1,90 @@
 /**
  * P2PUIController - Manages P2P sync UI state machine.
  *
- * States: idle → initiator | scanner | relay-initiator | relay-responder → syncing → done | error
+ * States: idle → relay-initiator | relay-responder → syncing → done | error
  *
- * iOS workarounds (R2):
- * - Detects PWA standalone mode and shows "use Safari" warning
- * - All QR screens include manual SDP copy-paste fallback
- * - Camera permission denial falls back to paste mode
- *
- * Channels (R3):
- * - QR scan: existing flow (fixed EXIF, jsQR fallback)
- * - URL share: SDP encoded in URL hash, shared via AirDrop/Web Share
+ * Channels:
  * - Relay code: 6-digit code via server relay (cross-platform iOS↔Android)
  *
- * @version 1.1.0
+ * @version 1.2.0
  */
 
 import { P2PManager } from '/static/js/offline/p2p/P2PManager.js?v=PLACEHOLDER';
-import { P2PSignaling } from '/static/js/offline/p2p/P2PSignaling.js?v=PLACEHOLDER';
 import { P2PSyncProtocol } from '/static/js/offline/p2p/P2PSyncProtocol.js?v=PLACEHOLDER';
 import { P2PMerge } from '/static/js/offline/p2p/P2PMerge.js?v=PLACEHOLDER';
+
+// ── SDP payload encoding helpers (relay transport) ───────────────────────────
+
+const RELAY_PAYLOAD_PREFIX = 'P2P1:';
+
+/**
+ * Encode UTF-8 string to base64 (Unicode-safe).
+ * @param {string} str
+ * @returns {string}
+ */
+function _toBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binStr = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binStr += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binStr);
+}
+
+/**
+ * Decode base64 to UTF-8 string (Unicode-safe).
+ * @param {string} b64
+ * @returns {string}
+ */
+function _fromBase64(b64) {
+  try {
+    const binStr = atob(b64);
+    const bytes = new Uint8Array(binStr.length);
+    for (let i = 0; i < binStr.length; i++) {
+      bytes[i] = binStr.charCodeAt(i);
+    }
+    return new TextDecoder().decode(bytes);
+  } catch {
+    return atob(b64);
+  }
+}
+
+/**
+ * Build encoded relay payload from SDP + ICE candidates.
+ * Format: P2P1:<base64(JSON({sdp, candidates}))>
+ * @param {string} sdp
+ * @param {RTCIceCandidate[]} candidates
+ * @returns {string}
+ */
+function _buildRelayPayload(sdp, candidates) {
+  const payload = JSON.stringify({
+    sdp,
+    candidates: candidates.map(c => ({
+      candidate: c.candidate,
+      sdpMid: c.sdpMid,
+      sdpMLineIndex: c.sdpMLineIndex,
+    })),
+  });
+  return RELAY_PAYLOAD_PREFIX + _toBase64(payload);
+}
+
+/**
+ * Parse encoded relay payload back to { sdp, candidates }.
+ * @param {string} encoded
+ * @returns {{ sdp: string, candidates: Array }}
+ */
+function _parseRelayPayload(encoded) {
+  if (!encoded.startsWith(RELAY_PAYLOAD_PREFIX)) {
+    throw new Error('Invalid relay payload: missing version prefix');
+  }
+  const raw = _fromBase64(encoded.slice(RELAY_PAYLOAD_PREFIX.length));
+  try {
+    const parsed = JSON.parse(raw);
+    return { sdp: parsed.sdp || raw, candidates: parsed.candidates || [] };
+  } catch {
+    return { sdp: raw, candidates: [] };
+  }
+}
 
 const OFFER_TIMEOUT_SEC = 120;
 const RELAY_POLL_INTERVAL_MS = 2000;
@@ -44,32 +109,19 @@ function isPWAStandalone() {
 class P2PUIController {
   constructor() {
     this.manager = null;
-    this.signaling = null;
     this.protocol = null;
     this.merge = new P2PMerge();
 
     this._offerTimer = null;
     this._offerPayload = null;
-    this._answerPayload = null;
     this._modal = null;
 
     // Relay channel state
     this._relayCode = null;
     this._relayPollTimer = null;
 
-    // Camera scanning state
-    this._cameraStream = null;
-    this._scanTimer = null;
-
-    // iOS mic pre-permission flow
-    this._iosMicWarningShown = false;
-    this._pendingAction = null;
-
     // Expose globally for inline onclick handlers in templates
     window.p2pUI = this;
-
-    // Check URL hash for incoming P2P payload (URL-share channel)
-    this._checkURLHash();
   }
 
   /**
@@ -93,88 +145,6 @@ class P2PUIController {
     } catch {
       this._renderRoleSelect(0);
     }
-
-    // Auto-handle pending URL-share payload
-    const pendingType = sessionStorage.getItem('p2p_pending_type');
-    if (pendingType === 'offer') {
-      sessionStorage.removeItem('p2p_pending_type');
-      await this.startResponder();
-      const payload = sessionStorage.getItem('p2p_pending_payload');
-      if (payload) {
-        sessionStorage.removeItem('p2p_pending_payload');
-        const input = document.getElementById('p2p-paste-input');
-        if (input) input.value = payload;
-        await this.processPastedCode();
-      }
-    } else if (pendingType === 'answer') {
-      sessionStorage.removeItem('p2p_pending_type');
-      const payload = sessionStorage.getItem('p2p_pending_payload');
-      if (payload) {
-        sessionStorage.removeItem('p2p_pending_payload');
-        if (!this.manager) this._initManager();
-        try {
-          await this.signaling.processScannedAnswer(payload);
-          this._waitForConnection();
-        } catch (err) {
-          this._showError('Неверный ответный код: ' + err.message);
-        }
-      }
-    }
-  }
-
-  /**
-   * Start as initiator: generate offer QR.
-   * On iOS, shows mic permission explanation before requesting access.
-   */
-  async startInitiator() {
-    this._showIosPwaWarning();
-    if (isIOS() && !this._iosMicWarningShown) {
-      this._iosMicWarningShown = true;
-      this._pendingAction = () => this._proceedInitiator();
-      this._renderIosMicWarning();
-      return;
-    }
-    await this._proceedInitiator();
-  }
-
-  /** @private */
-  async _proceedInitiator() {
-    this._renderScreen('initiator');
-    this._initManager();
-
-    try {
-      const qrContainer = document.getElementById('p2p-qr-container');
-      const loadingEl = document.getElementById('p2p-qr-loading');
-
-      this._offerPayload = await this.signaling.displayOfferQR(qrContainer);
-      if (loadingEl) loadingEl.remove();
-
-      // Show manual text
-      const manualText = document.getElementById('p2p-manual-offer-text');
-      if (manualText) manualText.value = this._offerPayload;
-
-      // Show "scan answer" button after QR ready
-      const scanBtn = document.getElementById('p2p-goto-scan-btn');
-      if (scanBtn) scanBtn.classList.remove('hidden');
-
-      // Start offer expiry countdown
-      this._startOfferTimer();
-
-      console.debug('[P2PUIController] Offer QR displayed');
-    } catch (err) {
-      console.error('[P2PUIController] Failed to create offer:', err);
-      this._showError('Не удалось создать QR: ' + err.message);
-    }
-  }
-
-  /**
-   * Confirm iOS mic permission warning and proceed with pending action.
-   * Called from inline onclick in _renderIosMicWarning screen.
-   */
-  async confirmIosMic() {
-    const action = this._pendingAction;
-    this._pendingAction = null;
-    if (action) await action();
   }
 
   /**
@@ -208,133 +178,12 @@ class P2PUIController {
     `;
   }
 
-  /**
-   * Show scanner screen (initiator side, step 2).
-   */
-  showScanner() {
-    this._stopOfferTimer();
-    this._renderScreen('scanner-answer');
-  }
-
-  /**
-   * Start as responder: scan initiator's offer QR.
-   */
-  startResponder() {
-    this._showIosPwaWarning();
-    this._renderScreen('scanner');
-    this._initManager();
-  }
-
-  /**
-   * Copy offer payload text to clipboard.
-   */
-  async copyOfferText() {
-    if (!this._offerPayload) return;
-    try {
-      await navigator.clipboard.writeText(this._offerPayload);
-      this._showToast('Код скопирован');
-    } catch {
-      this._showToast('Скопируйте текст вручную');
-    }
-  }
-
-  /**
-   * Copy answer payload text to clipboard.
-   */
-  async copyAnswerText() {
-    if (!this._answerPayload) return;
-    try {
-      await navigator.clipboard.writeText(this._answerPayload);
-      this._showToast('Ответный код скопирован');
-    } catch {
-      this._showToast('Скопируйте текст вручную');
-    }
-  }
-
-  /**
-   * Share offer payload via Web Share API as a URL (AirDrop / native iOS share sheet).
-   * Recipient opens the link and the browser auto-detects the offer from the URL hash.
-   */
-  async shareOfferText() {
-    const url = `${location.origin}${location.pathname}#p2p_offer=${encodeURIComponent(this._offerPayload)}`;
-    await this._sharePayload(url, 'P2P Синхронизация', true);
-  }
-
-  /**
-   * Share answer payload via Web Share API as a URL.
-   */
-  async shareAnswerText() {
-    const url = `${location.origin}${location.pathname}#p2p_answer=${encodeURIComponent(this._answerPayload)}`;
-    await this._sharePayload(url, 'P2P Ответ', true);
-  }
-
-  /**
-   * Share payload via Web Share API. Falls back to clipboard copy.
-   * @param {string|null} payload
-   * @param {string} title
-   * @param {boolean} [isUrl=false] - true when payload is a URL (use url: field)
-   */
-  async _sharePayload(payload, title, isUrl = false) {
-    if (!payload) return;
-    try {
-      const shareData = isUrl ? { title, url: payload } : { title, text: payload };
-      await navigator.share(shareData);
-    } catch (err) {
-      if (err.name === 'AbortError') return; // user dismissed share sheet
-      // Share not supported or failed — fall back to clipboard
-      try {
-        await navigator.clipboard.writeText(payload);
-        this._showToast('Ссылка скопирована');
-      } catch {
-        this._showToast('Скопируйте ссылку вручную');
-      }
-    }
-  }
-
-  /**
-   * Process pasted code (manual fallback for both offer and answer).
-   */
-  async processPastedCode() {
-    const input = document.getElementById('p2p-paste-input');
-    if (!input || !input.value.trim()) {
-      this._showToast('Вставьте код в поле');
-      return;
-    }
-    const code = input.value.trim();
-
-    try {
-      if (!this.manager) this._initManager();
-      // Use _offerPayload presence to determine role (same logic as _handleScannedQR)
-      if (this._offerPayload) {
-        // Initiator: pasted text is the responder's answer
-        await this.signaling.processScannedAnswer(code);
-        this._waitForConnection();
-      } else {
-        // Responder: pasted text is the initiator's offer
-        const answerPayload = await this.signaling.processScannedOffer(code);
-        this._answerPayload = answerPayload;
-        this._showAnswerQR(answerPayload);
-      }
-    } catch (err) {
-      console.error('[P2PUIController] processPastedCode error:', err);
-      this._showError('Неверный код: ' + err.message);
-    }
-  }
-
   // ── Relay channel (6-digit code, cross-platform) ─────
 
   /**
    * Start as relay initiator: create offer, POST to relay, show code.
-   * On iOS, shows mic permission explanation before requesting access.
    */
   async startRelayInitiator() {
-    this._showIosPwaWarning();
-    if (isIOS() && !this._iosMicWarningShown) {
-      this._iosMicWarningShown = true;
-      this._pendingAction = () => this._proceedRelayInitiator();
-      this._renderIosMicWarning();
-      return;
-    }
     await this._proceedRelayInitiator();
   }
 
@@ -344,9 +193,11 @@ class P2PUIController {
     this._initManager();
 
     try {
-      // Build offer payload by reusing displayOfferQR with a throwaway container
-      const tempEl = document.createElement('div');
-      this._offerPayload = await this.signaling.displayOfferQR(tempEl);
+      // Build offer payload using direct P2PManager calls (no QR dependency)
+      const offerSdp = await this.manager.createOffer();
+      const candidates = await this.manager.gatherICECandidates();
+      this._offerPayload = _buildRelayPayload(offerSdp, candidates);
+
       const res = await fetch('/api/v1/p2p/relay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -372,7 +223,6 @@ class P2PUIController {
    * Start as relay responder: show code entry screen.
    */
   startRelayResponder() {
-    this._showIosPwaWarning();
     this._renderScreen('relay-enter');
     this._initManager();
   }
@@ -397,8 +247,13 @@ class P2PUIController {
       if (!offerRes.ok) throw new Error('Ошибка сервера (' + offerRes.status + ')');
 
       const offerData = await offerRes.json();
-      const answerPayload = await this.signaling.processScannedOffer(offerData.payload);
-      this._answerPayload = answerPayload;
+      const { sdp: offerSdp, candidates: offerCandidates } = _parseRelayPayload(offerData.payload);
+      const answerSdp = await this.manager.createAnswer(offerSdp);
+      if (offerCandidates.length > 0) {
+        await this.manager.addICECandidates(offerCandidates);
+      }
+      const localCandidates = await this.manager.gatherICECandidates();
+      const answerPayload = _buildRelayPayload(answerSdp, localCandidates);
 
       const answerRes = await fetch(`/api/v1/p2p/relay/${code}/answer`, {
         method: 'POST',
@@ -426,7 +281,11 @@ class P2PUIController {
         if (res.status === 200) {
           this._stopRelayPoll();
           const data = await res.json();
-          await this.signaling.processScannedAnswer(data.payload);
+          const { sdp: answerSdp, candidates: answerCandidates } = _parseRelayPayload(data.payload);
+          await this.manager.setAnswer(answerSdp);
+          if (answerCandidates.length > 0) {
+            await this.manager.addICECandidates(answerCandidates);
+          }
           this._waitForConnection();
         } else if (res.status === 404) {
           // Code expired
@@ -534,10 +393,8 @@ class P2PUIController {
    * Cancel sync and close modal.
    */
   cancel() {
-    this._stopCameraScanning();
     this._stopOfferTimer();
     this._stopRelayPoll();
-    this._pendingAction = null;
     if (this.manager) {
       this.manager.cleanup();
       this.manager = null;
@@ -562,7 +419,6 @@ class P2PUIController {
   _initManager() {
     if (this.manager) this.manager.cleanup();
     this.manager = new P2PManager();
-    this.signaling = new P2PSignaling(this.manager);
     this.protocol = new P2PSyncProtocol(this.manager);
 
     this.manager.onStateChange = (state) => {
@@ -585,226 +441,9 @@ class P2PUIController {
     return true;
   }
 
-  // ── Private: iOS warnings ────────────────────────────
-
-  _showIosPwaWarning() {
-    if (isIOS() && isPWAStandalone()) {
-      const warn = document.getElementById('p2p-ios-pwa-warning');
-      if (warn) warn.classList.remove('hidden');
-    }
-  }
-
-  // ── Private: live camera scanning ────────────────────
-
-  /**
-   * Start live camera stream and continuously scan for QR codes.
-   * Primary: BarcodeDetector (Chrome 83+, Android WebView).
-   * Fallback: jsQR (pure JS, iOS Safari).
-   * On permission denial shows the camera error state with a photo-fallback button.
-   * @param {HTMLVideoElement} videoEl
-   */
-  async _startCameraScanning(videoEl) {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      this._showCameraError();
-      return;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' },
-        audio: false,
-      });
-      // Guard: user may have cancelled while the permission dialog was open
-      if (!this._modal) {
-        stream.getTracks().forEach(t => t.stop());
-        return;
-      }
-      this._cameraStream = stream;
-      videoEl.srcObject = stream;
-
-      const useDetector = typeof BarcodeDetector !== 'undefined';
-      const detector = useDetector ? new BarcodeDetector({ formats: ['qr_code'] }) : null;
-      const canvas = useDetector ? null : document.createElement('canvas');
-      const ctx = canvas ? canvas.getContext('2d') : null;
-      let busy = false;
-      let frameCount = 0;
-
-      const scan = async () => {
-        if (!this._cameraStream || !this._scanTimer) return;
-        if (videoEl.readyState < videoEl.HAVE_ENOUGH_DATA || busy) return;
-        frameCount++;
-        // BarcodeDetector: every tick (native, fast); jsQR: every 2nd tick (JS)
-        if (!detector && frameCount % 2 !== 0) return;
-        busy = true;
-        try {
-          let result = null;
-          if (detector) {
-            const codes = await detector.detect(videoEl);
-            if (codes.length > 0) result = codes[0].rawValue;
-          } else if (typeof window.jsQR === 'function') {
-            canvas.width = videoEl.videoWidth || 320;
-            canvas.height = videoEl.videoHeight || 240;
-            ctx.drawImage(videoEl, 0, 0, canvas.width, canvas.height);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = window.jsQR(imageData.data, imageData.width, imageData.height);
-            result = code?.data || null;
-          }
-          if (result && this._scanTimer) {
-            this._stopCameraScanning();
-            await this._handleScannedQR(result);
-          }
-        } catch { /* ignore individual frame errors */ }
-        busy = false;
-      };
-
-      // 200ms interval = 5fps — sufficient for steady QR, light on CPU
-      this._scanTimer = setInterval(scan, 200);
-    } catch (err) {
-      console.warn('[P2PUIController] Camera access denied:', err.message);
-      this._showCameraError();
-    }
-  }
-
-  /**
-   * Show camera error state and reveal the photo-fallback button.
-   */
-  _showCameraError() {
-    document.getElementById('p2p-camera-error')?.classList.remove('hidden');
-    const video = document.getElementById('p2p-camera-video');
-    if (video?.parentElement) video.parentElement.classList.add('hidden');
-  }
-
-  /**
-   * Stop live camera scanning and release the media stream.
-   */
-  _stopCameraScanning() {
-    if (this._scanTimer) {
-      clearInterval(this._scanTimer);
-      this._scanTimer = null;
-    }
-    if (this._cameraStream) {
-      this._cameraStream.getTracks().forEach(t => t.stop());
-      this._cameraStream = null;
-    }
-  }
-
-  // ── Private: QR scanning (photo capture) ─────────────
-
-  /**
-   * Decode QR from a captured photo file.
-   * Primary: BarcodeDetector (Chrome 83+, Android WebView; NOT available on iOS Safari).
-   * Fallback: jsQR (pure JS, loaded globally via vendor/jsqr.min.js) — handles iOS.
-   * @param {File} file
-   */
-  async _handlePhotoCapture(file) {
-    try {
-      if (typeof BarcodeDetector !== 'undefined') {
-        // Native path — fast, no canvas needed
-        const bitmap = await createImageBitmap(file);
-        const detector = new BarcodeDetector({ formats: ['qr_code'] });
-        let barcodes;
-        try {
-          barcodes = await detector.detect(bitmap);
-        } finally {
-          bitmap.close();
-        }
-        if (barcodes.length > 0) {
-          await this._handleScannedQR(barcodes[0].rawValue);
-          return;
-        }
-        // BarcodeDetector found nothing — try jsQR before giving up
-      }
-
-      // jsQR fallback: draw photo to canvas → getImageData → decode
-      if (typeof window.jsQR === 'function') {
-        const result = await this._decodeWithJsQR(file);
-        if (result) {
-          await this._handleScannedQR(result);
-          return;
-        }
-        this._showToast('QR не распознан — попробуйте ещё раз');
-        return;
-      }
-
-      this._showToast('QR не распознан — вставьте код вручную');
-    } catch (err) {
-      console.error('[P2PUIController] Photo QR decode error:', err);
-      this._showToast('Ошибка: ' + err.message);
-    }
-  }
-
-  /**
-   * Decode QR from File using jsQR library via canvas.
-   * Tries createImageBitmap with imageOrientation:'from-image' (iOS 15+ / Chrome)
-   * to auto-apply EXIF rotation. Falls back to plain createImageBitmap if the
-   * imageOrientation option is unsupported (older iOS Safari).
-   * @param {File} file
-   * @returns {Promise<string|null>}
-   */
-  async _decodeWithJsQR(file) {
-    // Try with EXIF rotation first (iOS 15+ / Chrome).
-    // If imageOrientation option is unsupported, fall back to plain createImageBitmap.
-    let bitmap;
-    try {
-      bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
-    } catch {
-      try {
-        bitmap = await createImageBitmap(file);
-      } catch {
-        return null;
-      }
-    }
-    try {
-      const canvas = document.createElement('canvas');
-      canvas.width = bitmap.width;
-      canvas.height = bitmap.height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(bitmap, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = window.jsQR(imageData.data, imageData.width, imageData.height);
-      return code ? code.data : null;
-    } finally {
-      bitmap.close?.();
-    }
-  }
-
-  async _handleScannedQR(qrData) {
-    try {
-      if (!this.manager) this._initManager();
-
-      // Use _offerPayload presence to determine role:
-      // Initiator has _offerPayload set (just showed offer QR, now scanning answer).
-      // Responder has _offerPayload = null (scanning initiator's offer for the first time).
-      if (this._offerPayload) {
-        // Initiator: scanned responder's answer QR
-        await this.signaling.processScannedAnswer(qrData);
-        this._waitForConnection();
-      } else {
-        // Responder: scanned initiator's offer QR
-        const answerPayload = await this.signaling.processScannedOffer(qrData);
-        this._answerPayload = answerPayload;
-        this._showAnswerQR(answerPayload);
-      }
-    } catch (err) {
-      console.error('[P2PUIController] QR scan processing error:', err);
-      this._showError('Ошибка обработки QR: ' + err.message);
-    }
-  }
-
-  _showAnswerQR(answerPayload) {
-    this._stopCameraScanning();
-    const section = document.getElementById('p2p-answer-qr-section');
-    const container = document.getElementById('p2p-answer-qr-container');
-    const manualText = document.getElementById('p2p-manual-answer-text');
-    if (section) section.classList.remove('hidden');
-    if (container && this.signaling) this.signaling.renderQR(container, answerPayload);
-    if (manualText) manualText.value = answerPayload;
-    this._waitForConnection();
-  }
-
   // ── Private: connection lifecycle ───────────────────
 
   _waitForConnection() {
-    this._stopCameraScanning();
     // Close modal so the status overlay (z-9500) is fully visible
     this._closeModal();
     // Manager's onStateChange will call _onConnected when connected
@@ -941,7 +580,7 @@ class P2PUIController {
 
         <div class="text-center">
           <h3 class="text-lg font-bold">P2P Синхронизация</h3>
-          <p class="text-xs text-base-content/50 mt-0.5">Без интернета · WebRTC · QR-коды</p>
+          <p class="text-xs text-base-content/50 mt-0.5">Синхронизация через 6-значный код</p>
         </div>
 
         <!-- Current status card -->
@@ -956,33 +595,25 @@ class P2PUIController {
         <!-- Action buttons -->
         <div class="flex flex-col gap-2 w-full max-w-xs">
 
-          <div class="grid grid-cols-2 gap-2">
-            <button class="btn btn-primary flex-col h-auto min-h-[4rem] py-2 gap-1 text-xs" onclick="window.p2pUI?.startInitiator()">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-              </svg>
-              <span class="leading-tight text-center">Создать QR</span>
-            </button>
-
-            <button class="btn btn-secondary flex-col h-auto min-h-[4rem] py-2 gap-1 text-xs" onclick="window.p2pUI?.startRelayInitiator()">
+          <div class="flex flex-col gap-2">
+            <button class="btn btn-primary flex-row h-auto min-h-[3.5rem] py-2 gap-3 text-sm justify-start px-4" onclick="window.p2pUI?.startRelayInitiator()">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
               </svg>
-              <span class="leading-tight text-center">Получить код</span>
+              <div class="flex flex-col items-start">
+                <span class="font-medium">Получить код</span>
+                <span class="text-xs opacity-70">Создать сессию и показать код</span>
+              </div>
             </button>
 
-            <button class="btn btn-outline flex-col h-auto min-h-[4rem] py-2 gap-1 text-xs" onclick="window.p2pUI?.startResponder()">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-              </svg>
-              <span class="leading-tight text-center">Сканировать QR</span>
-            </button>
-
-            <button class="btn btn-outline flex-col h-auto min-h-[4rem] py-2 gap-1 text-xs" onclick="window.p2pUI?.startRelayResponder()">
+            <button class="btn btn-outline flex-row h-auto min-h-[3.5rem] py-2 gap-3 text-sm justify-start px-4" onclick="window.p2pUI?.startRelayResponder()">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
               </svg>
-              <span class="leading-tight text-center">Ввести код</span>
+              <div class="flex flex-col items-start">
+                <span class="font-medium">Ввести код</span>
+                <span class="text-xs opacity-70">Подключиться по коду с другого устройства</span>
+              </div>
             </button>
           </div>
 
@@ -997,94 +628,7 @@ class P2PUIController {
     const content = document.getElementById('p2p-modal-content');
     if (!content) return;
 
-    // Inline screens (avoids extra fetch for offline usage)
-    if (screenName === 'initiator') {
-      content.innerHTML = document.getElementById('p2p-initiator-template')?.innerHTML
-        || [
-          '<div class="flex flex-col items-center gap-4 p-4 pb-8 w-full">',
-            '<div id="p2p-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-2xl">',
-              '<div id="p2p-qr-loading"><span class="loading loading-ring loading-lg"></span></div>',
-            '</div>',
-            '<div class="flex gap-2 w-full max-w-xs">',
-              '<button class="btn btn-ghost btn-sm flex-1" onclick="window.p2pUI?.cancel()">Отмена</button>',
-              '<button id="p2p-goto-scan-btn" class="btn btn-primary btn-sm flex-1 hidden justify-center" onclick="window.p2pUI?.showScanner()">Сканировать ответ</button>',
-            '</div>',
-            '<div class="w-full max-w-xs">',
-              '<p class="text-xs text-base-content/50 mb-1">Или передайте код вручную:</p>',
-              '<textarea id="p2p-manual-offer-text" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" readonly></textarea>',
-              '<div class="flex gap-1 mt-1">',
-                '<button class="btn btn-xs btn-outline flex-1" onclick="window.p2pUI?.copyOfferText()">Скопировать</button>',
-                navigator.share
-                  ? '<button class="btn btn-xs btn-primary flex-1" onclick="window.p2pUI?.shareOfferText()">Поделиться</button>'
-                  : '',
-              '</div>',
-            '</div>',
-          '</div>',
-        ].join('');
-    } else if (screenName === 'scanner' || screenName === 'scanner-answer') {
-      content.innerHTML = [
-        '<div class="flex flex-col items-center gap-4 p-4 pb-8 w-full">',
-          // Live camera view
-          '<div id="p2p-camera-wrapper" class="relative w-full max-w-xs">',
-            '<div class="p2p-scanner-overlay rounded-xl overflow-hidden bg-black" style="aspect-ratio:1/1;position:relative">',
-              '<video id="p2p-camera-video" class="w-full h-full object-cover" autoplay playsinline muted></video>',
-              '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">',
-                '<div style="width:9rem;height:9rem;border:2px solid oklch(var(--p,65% 0.27 264)/0.85);border-radius:0.5rem"></div>',
-              '</div>',
-            '</div>',
-            // Camera error/fallback
-            '<div id="p2p-camera-error" class="hidden" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:oklch(var(--b2,100% 0 0));border-radius:0.75rem;gap:0.75rem;padding:1rem">',
-              '<svg xmlns="http://www.w3.org/2000/svg" style="width:2rem;height:2rem;color:oklch(var(--wa,80% 0.15 85))" fill="none" viewBox="0 0 24 24" stroke="currentColor">',
-                '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>',
-              '</svg>',
-              '<p class="text-xs text-center text-base-content/60">Нет доступа к камере</p>',
-              '<button class="btn btn-xs btn-primary" onclick="document.getElementById(\'p2p-photo-input\').click()">Сфотографировать QR</button>',
-            '</div>',
-          '</div>',
-          // Hidden file input (fallback)
-          '<input type="file" id="p2p-photo-input" accept="image/*" capture="environment" class="hidden">',
-          // Answer QR section (shown after processing scanned offer)
-          '<div id="p2p-answer-qr-section" class="hidden flex flex-col items-center gap-2 w-full">',
-            '<div class="divider text-xs">Шаг 2: Покажите QR первому устройству</div>',
-            '<div id="p2p-answer-qr-container" class="p2p-qr-container flex items-center justify-center bg-white rounded-2xl shadow-md">',
-              '<span class="loading loading-ring loading-lg"></span>',
-            '</div>',
-            '<div class="w-full max-w-xs">',
-              '<textarea id="p2p-manual-answer-text" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" readonly></textarea>',
-              '<div class="flex gap-1 mt-1">',
-                '<button class="btn btn-xs btn-outline flex-1" onclick="window.p2pUI?.copyAnswerText()">Скопировать</button>',
-                navigator.share
-                  ? '<button class="btn btn-xs btn-primary flex-1" onclick="window.p2pUI?.shareAnswerText()">Поделиться</button>'
-                  : '',
-              '</div>',
-            '</div>',
-          '</div>',
-          // Paste fallback
-          '<div class="collapse collapse-arrow bg-base-200 w-full max-w-xs">',
-            '<input type="checkbox">',
-            '<div class="collapse-title text-sm font-medium">Вставить код вручную</div>',
-            '<div class="collapse-content">',
-              '<textarea id="p2p-paste-input" class="textarea textarea-bordered textarea-xs font-mono text-xs h-16 w-full" placeholder="Вставьте код..."></textarea>',
-              '<button class="btn btn-xs btn-primary mt-1 w-full" onclick="window.p2pUI?.processPastedCode()">Подключиться</button>',
-            '</div>',
-          '</div>',
-          '<button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>',
-        '</div>',
-      ].join('');
-
-      // Start live camera scanning
-      const videoEl = content.querySelector('#p2p-camera-video');
-      if (videoEl) this._startCameraScanning(videoEl);
-
-      // Wire photo input fallback
-      const photoInput = content.querySelector('#p2p-photo-input');
-      if (photoInput) {
-        photoInput.addEventListener('change', (e) => {
-          const file = e.target.files[0];
-          if (file) this._handlePhotoCapture(file);
-        });
-      }
-    } else if (screenName === 'relay-code') {
+    if (screenName === 'relay-code') {
       content.innerHTML = [
         '<div class="flex flex-col items-center gap-5 p-4 pb-8 w-full">',
           '<div class="text-center">',
