@@ -147,37 +147,6 @@ class P2PUIController {
     }
   }
 
-  /**
-   * Render iOS microphone pre-permission explanation screen.
-   * Shows before getUserMedia({audio}) triggers the system prompt.
-   * @private
-   */
-  _renderIosMicWarning() {
-    const content = document.getElementById('p2p-modal-content');
-    if (!content) return;
-    content.innerHTML = `
-      <div class="flex flex-col items-center gap-5 p-6 text-center">
-        <div class="p-3 rounded-full bg-warning/20">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-7a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z"/>
-          </svg>
-        </div>
-        <div>
-          <h3 class="font-semibold text-base">Доступ к микрофону</h3>
-          <p class="text-sm text-base-content/60 mt-2">
-            iOS требует разрешения на микрофон для установки P2P соединения по локальной сети.<br>
-            <span class="text-xs opacity-60">Звук не записывается и не передаётся.</span>
-          </p>
-        </div>
-        <button class="btn btn-primary w-full max-w-xs" onclick="window.p2pUI?.confirmIosMic()">
-          Разрешить и продолжить
-        </button>
-        <button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>
-      </div>
-    `;
-  }
-
   // ── Relay channel (6-digit code, cross-platform) ─────
 
   /**
@@ -328,67 +297,6 @@ class P2PUIController {
     this._offerTimer = tick;
   }
 
-  // ── URL hash channel ──────────────────────────────────
-
-  /**
-   * Check URL hash for incoming P2P payload (set by shareOfferText/shareAnswerText).
-   * Saves payload to sessionStorage and shows an unobtrusive banner.
-   * Called once at construction time.
-   */
-  _checkURLHash() {
-    const hash = location.hash;
-    const offerMatch = hash.match(/#p2p_offer=(.+)/);
-    const answerMatch = hash.match(/#p2p_answer=(.+)/);
-    if (!offerMatch && !answerMatch) return;
-
-    let payload;
-    try {
-      payload = decodeURIComponent((offerMatch || answerMatch)[1]);
-    } catch {
-      // Malformed URI component — silently ignore to avoid crashing the module
-      history.replaceState(null, '', location.pathname + location.search);
-      return;
-    }
-
-    sessionStorage.setItem('p2p_pending_payload', payload);
-    sessionStorage.setItem('p2p_pending_type', offerMatch ? 'offer' : 'answer');
-    history.replaceState(null, '', location.pathname + location.search);
-    this._showIncomingBanner(offerMatch ? 'offer' : 'answer');
-  }
-
-  /**
-   * Show a non-modal banner notifying about an incoming P2P payload.
-   * @param {'offer'|'answer'} type
-   */
-  _showIncomingBanner(type) {
-    if (document.getElementById('p2p-incoming-banner')) return;
-
-    const label = type === 'offer' ? 'P2P-запрос синхронизации' : 'P2P-ответ на синхронизацию';
-    const banner = document.createElement('div');
-    banner.id = 'p2p-incoming-banner';
-    banner.className = 'fixed top-4 left-1/2 -translate-x-1/2 z-[9600] '
-      + 'flex items-center gap-3 bg-primary text-primary-content '
-      + 'rounded-xl shadow-xl px-4 py-3 text-sm font-medium '
-      + 'animate-bounce-once max-w-sm w-[calc(100%-2rem)]';
-    banner.innerHTML = `
-      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-4 10h6a2 2 0 002-2v-8a2 2 0 00-2-2h-6a2 2 0 00-2 2v8a2 2 0 002 2z"/>
-      </svg>
-      <span class="flex-1">Получен ${label}</span>
-      <button class="btn btn-xs btn-ghost text-primary-content"
-        onclick="document.getElementById('p2p-incoming-banner')?.remove(); window.p2pUI?.open()">
-        Открыть
-      </button>
-      <button class="btn btn-xs btn-ghost text-primary-content"
-        onclick="document.getElementById('p2p-incoming-banner')?.remove(); sessionStorage.removeItem('p2p_pending_payload'); sessionStorage.removeItem('p2p_pending_type');">
-        ✕
-      </button>
-    `;
-    document.body.appendChild(banner);
-    setTimeout(() => banner.remove(), 30000);
-  }
-
   /**
    * Cancel sync and close modal.
    */
@@ -396,6 +304,8 @@ class P2PUIController {
     this._stopOfferTimer();
     this._stopRelayPoll();
     if (this.manager) {
+      this.manager.onStateChange = null;
+      this.manager.onError = null;
       this.manager.cleanup();
       this.manager = null;
     }
@@ -504,22 +414,6 @@ class P2PUIController {
   }
 
   // ── Private: offer timer ─────────────────────────────
-
-  _startOfferTimer() {
-    let remaining = OFFER_TIMEOUT_SEC;
-    const timerEl = document.getElementById('p2p-offer-timer');
-    const progressEl = document.getElementById('p2p-offer-progress');
-
-    this._offerTimer = setInterval(() => {
-      remaining--;
-      if (timerEl) timerEl.textContent = remaining + 's';
-      if (progressEl) progressEl.value = Math.round((remaining / OFFER_TIMEOUT_SEC) * 100);
-      if (remaining <= 0) {
-        this._stopOfferTimer();
-        this._showError('Время истекло. Начните заново.');
-      }
-    }, 1000);
-  }
 
   _stopOfferTimer() {
     if (this._offerTimer) {
@@ -722,7 +616,6 @@ class P2PUIController {
     const errMsg = document.getElementById('p2p-error-message');
     if (errMsg) errMsg.textContent = message;
     this._showStatusOverlay('error');
-    this._updateStatusOverlay('error');
   }
 
   // ── Private: toast ───────────────────────────────────
