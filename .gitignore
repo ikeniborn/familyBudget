@@ -202,6 +202,12 @@ frontend/web/static/css/*.min.css
 frontend/web/static/css/vendor/*.min.css
 frontend/shared/static/css/*.min.css
 
+# Intermediate JS translations from TypeScript compilation (build artifacts)
+# Source: *.ts → debugLog.ts compiles to debugLog.js (intermediate) + debugLog.min.js (final)
+frontend/shared/static/js/debugLog.js
+frontend/shared/static/js/debugLog.js.map
+frontend/shared/static/js/debugLog.ts.bak
+
 # Tailwind generated unminified CSS (intermediate build artifact)
 # This file is generated from tailwind.input.css and then minified to tailwind-daisyui.min.css
 frontend/web/static/css/tailwind-daisyui.css

@@ -106,7 +106,7 @@
     <link rel="stylesheet" href="/static/css/daisyui-overrides.min.css?v=PLACEHOLDER">
 
     <!-- Z-Index Variables - centralized z-index management (v11.0+) -->
-    <link rel="stylesheet" href="/static/css/z-index-variables.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/static/css/z-index-variables.min.css?v=PLACEHOLDER">
 
     <!-- Custom Styles (FAB Toolbar, Safe-Area, etc.) -->
     <link rel="stylesheet" href="/static/css/custom.min.css?v=PLACEHOLDER">
@@ -115,7 +115,7 @@
     <link rel="stylesheet" href="/static/css/loading-dots.min.css?v=PLACEHOLDER">
 
     <!-- P2P Sync UI styles (modal, QR scanner, status overlay) -->
-    <link rel="stylesheet" href="/static/css/p2p.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/static/css/p2p.min.css?v=PLACEHOLDER">
 
     <!-- Inline Custom Styles -->
     <style>
@@ -794,15 +794,12 @@
         </aside>
     </footer>
 
-    <!-- Debug logging utility (must load BEFORE budgetShared) -->
     {% if user %}
-    <script src="/shared/static/js/debugLog.js?v=PLACEHOLDER"></script>
-
     <!-- BudgetShared Bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
     <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
 
-    <!-- ✅ FIX 4: Shared reminder utilities -->
-    <script src="/shared/static/js/reminders.js?v=PLACEHOLDER"></script>
+    <!-- Shared reminder utilities -->
+    <script src="/shared/static/js/reminders.min.js?v=PLACEHOLDER"></script>
 
     <!-- User data for LogsCollector -->
     <script>
