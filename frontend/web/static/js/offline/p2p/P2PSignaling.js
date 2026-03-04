@@ -9,7 +9,7 @@
  * @version 1.1.0
  */
 
-import QrCreator from '/static/js/vendor/qr-creator.js';
+import QrCreator from '/static/js/vendor/qr-creator.js?v=PLACEHOLDER';
 
 const QR_PAYLOAD_PREFIX = 'P2P1:';
 

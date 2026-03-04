@@ -1573,7 +1573,7 @@
 
     <!-- P2P Sync: show button if WebRTC available -->
     <script type="module">
-        import { p2pUIController } from '/static/js/ui/P2PUIController.js';
+        import { p2pUIController } from '/static/js/ui/P2PUIController.js?v=PLACEHOLDER';
         // Show P2P button if RTCPeerConnection is supported and HTTPS
         const isHttps = location.protocol === 'https:' || location.hostname === 'localhost';
         if (typeof RTCPeerConnection !== 'undefined' && isHttps) {

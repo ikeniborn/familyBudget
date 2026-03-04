@@ -67,6 +67,9 @@ update_cache_versions() {
         "${repo_dir}/frontend/web/templates/2fa_setup.html"
         "${repo_dir}/frontend/web/templates/2fa_setup_login.html"
         "${repo_dir}/frontend/web/templates/settings.html"
+        # P2P JS modules (contain versioned sub-imports)
+        "${repo_dir}/frontend/web/static/js/ui/P2PUIController.js"
+        "${repo_dir}/frontend/web/static/js/offline/p2p/P2PSignaling.js"
     )
 
     local updated_count=0
@@ -162,6 +165,9 @@ check_cache_versions() {
         "${repo_dir}/frontend/web/templates/admin_cost_centers.html"
         "${repo_dir}/frontend/web/templates/admin_financial_centers.html"
         "${repo_dir}/frontend/web/templates/admin_users.html"
+        # P2P JS modules (contain versioned sub-imports)
+        "${repo_dir}/frontend/web/static/js/ui/P2PUIController.js"
+        "${repo_dir}/frontend/web/static/js/offline/p2p/P2PSignaling.js"
     )
 
     for file in "${files[@]}"; do

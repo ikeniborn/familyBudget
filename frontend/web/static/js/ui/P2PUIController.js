@@ -16,10 +16,10 @@
  * @version 1.1.0
  */
 
-import { P2PManager } from '../offline/p2p/P2PManager.js';
-import { P2PSignaling } from '../offline/p2p/P2PSignaling.js';
-import { P2PSyncProtocol } from '../offline/p2p/P2PSyncProtocol.js';
-import { P2PMerge } from '../offline/p2p/P2PMerge.js';
+import { P2PManager } from '/static/js/offline/p2p/P2PManager.js?v=PLACEHOLDER';
+import { P2PSignaling } from '/static/js/offline/p2p/P2PSignaling.js?v=PLACEHOLDER';
+import { P2PSyncProtocol } from '/static/js/offline/p2p/P2PSyncProtocol.js?v=PLACEHOLDER';
+import { P2PMerge } from '/static/js/offline/p2p/P2PMerge.js?v=PLACEHOLDER';
 
 const OFFER_TIMEOUT_SEC = 120;
 const RELAY_POLL_INTERVAL_MS = 2000;
