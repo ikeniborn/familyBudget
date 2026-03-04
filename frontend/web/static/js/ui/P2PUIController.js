@@ -850,14 +850,14 @@ class P2PUIController {
       this._updateStatusStats(sent, received.length, mergeResult.toAdd.length, mergeResult.duplicates);
       this._updateStatusOverlay('success');
 
-      // Auto-close after 3s
-      setTimeout(() => this.closeStatus(), 3000);
-
     } catch (err) {
       console.error('[P2PUIController] Sync error:', err);
       this._showError(err.message);
     } finally {
       if (this.manager) {
+        // Null callbacks before cleanup to prevent false error state on RTCPeerConnection close events
+        this.manager.onStateChange = null;
+        this.manager.onError = null;
         this.manager.cleanup();
         this.manager = null;
       }
