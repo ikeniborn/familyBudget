@@ -644,6 +644,41 @@ export class DexieManager {
   }
 
   /**
+   * Upload pending shopping lists and items to server
+   *
+   * Uploads all pending (unsynced) shopping lists and shopping list items to the server.
+   * This method is called before IndexedDB deletion during SW update (handleUpdateNow Step 2.3/5)
+   * to prevent loss of user-created shopping data that has not yet been synced.
+   *
+   * @returns Combined result with counts of uploaded and failed records
+   */
+  async uploadPendingShoppingData(): Promise<{
+    success: boolean;
+    listsUploaded: number;
+    itemsUploaded: number;
+    failed: number;
+  }> {
+    logger.debug('[DexieManager] uploadPendingShoppingData');
+    const { uploadPendingShoppingLists, uploadPendingShoppingOperations } = await import('./operations/shoppingSync');
+    const [listsResult, itemsResult] = await Promise.all([
+      uploadPendingShoppingLists(),
+      uploadPendingShoppingOperations()
+    ]);
+    const failed = listsResult.failed + itemsResult.failed;
+    logger.info('[DexieManager] ✅ Pending shopping data uploaded', {
+      listsUploaded: listsResult.uploaded,
+      itemsUploaded: itemsResult.uploaded,
+      failed
+    });
+    return {
+      success: failed === 0,
+      listsUploaded: listsResult.uploaded,
+      itemsUploaded: itemsResult.uploaded,
+      failed
+    };
+  }
+
+  /**
    * Sync articles from server
    * Wrapper for syncArticles operation
    *
