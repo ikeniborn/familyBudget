@@ -928,6 +928,7 @@ SAFE_TRANSFER_FIELDS = {
 SAFE_ITEM_FIELDS = {
     "id", "shopping_list_id", "product_name", "quantity", "unit",
     "is_completed", "store_id", "product_group_id", "sort_order",
+    "temp_id",  # Required for client-side deduplication (virtual id → server id swap)
 }
 
 SAFE_SHOPPING_LIST_FIELDS = {
