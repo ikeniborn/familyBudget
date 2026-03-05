@@ -89,6 +89,14 @@ function _parseRelayPayload(encoded) {
 const OFFER_TIMEOUT_SEC = 120;
 const RELAY_POLL_INTERVAL_MS = 2000;
 
+// Module-level flag: iOS mic warning acknowledged at most once per page load.
+// Avoids repeated warning when user opens multiple sync sessions.
+let _iosMicAcknowledged = false;
+
+function isIOS() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 class P2PUIController {
   constructor() {
     this.manager = null;
@@ -134,8 +142,13 @@ class P2PUIController {
 
   /**
    * Start as relay initiator: create offer, POST to relay, show code.
+   * On iOS: shows mic permission explanation first (iOS WebRTC R1 workaround).
    */
   async startRelayInitiator() {
+    if (isIOS() && !_iosMicAcknowledged) {
+      this._renderIosMicWarning('initiator');
+      return;
+    }
     await this._proceedRelayInitiator();
   }
 
@@ -173,10 +186,30 @@ class P2PUIController {
 
   /**
    * Start as relay responder: show code entry screen.
+   * On iOS: shows mic permission explanation first (iOS WebRTC R1 workaround).
    */
   startRelayResponder() {
+    if (isIOS() && !_iosMicAcknowledged) {
+      this._renderIosMicWarning('responder');
+      return;
+    }
     this._renderScreen('relay-enter');
     this._initManager();
+  }
+
+  /**
+   * Called when user confirms iOS mic permission request.
+   * Marks warning as acknowledged and proceeds with the selected role.
+   * @param {'initiator'|'responder'} role
+   */
+  async confirmIosMic(role) {
+    _iosMicAcknowledged = true;
+    if (role === 'initiator') {
+      await this._proceedRelayInitiator();
+    } else {
+      this._renderScreen('relay-enter');
+      this._initManager();
+    }
   }
 
   /**
@@ -411,6 +444,41 @@ class P2PUIController {
       clearInterval(this._offerTimer);
       this._offerTimer = null;
     }
+  }
+
+  // ── Private: iOS mic warning ─────────────────────────
+
+  /**
+   * Render iOS microphone permission explanation screen.
+   * iOS WebRTC requires getUserMedia({audio}) to gather host ICE candidates.
+   * No audio is recorded — mic is immediately stopped after permission granted.
+   * @param {'initiator'|'responder'} role - Role to continue after user confirms
+   * @private
+   */
+  _renderIosMicWarning(role) {
+    const content = document.getElementById('p2p-modal-content');
+    if (!content) return;
+    content.innerHTML = `
+      <div class="flex flex-col items-center gap-5 p-6 text-center">
+        <div class="p-3 rounded-full bg-warning/20">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-7a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z"/>
+          </svg>
+        </div>
+        <div>
+          <h3 class="font-semibold text-base">Нужен доступ к микрофону</h3>
+          <p class="text-sm text-base-content/70 mt-2">
+            iOS требует разрешения на микрофон для установки P2P соединения.<br>
+            <span class="text-xs text-base-content/50 mt-1 block">Звук не записывается и не передаётся — доступ нужен только для технической инициализации соединения.</span>
+          </p>
+        </div>
+        <button class="btn btn-primary w-full max-w-xs" onclick="window.p2pUI?.confirmIosMic('${role}')">
+          Разрешить и продолжить
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>
+      </div>
+    `;
   }
 
   // ── Private: modal ───────────────────────────────────
