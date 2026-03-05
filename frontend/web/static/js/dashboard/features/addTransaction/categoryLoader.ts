@@ -119,7 +119,7 @@ export async function loadFinancialCenters(targetSelectors?: string[]): Promise<
       // Get user ID for data layer queries
       const userId = await getCurrentUserId();
 
-      // Use DataLayer (PGlite-first with API fallback)
+      // Use DataLayer (Dexie-first with API fallback)
       centers = await dataLayer.getFinancialCenters(userId, true);
 
       if (centers.length === 0) {
@@ -290,7 +290,7 @@ export async function loadCostCenters(): Promise<void> {
     // Get user ID for data layer queries
     const userId = await getCurrentUserId();
 
-    // Use DataLayer (PGlite-first with API fallback)
+    // Use DataLayer (Dexie-first with API fallback)
     const centers: CostCenter[] = await dataLayer.getCostCenters(userId, null, true);
 
     // Save to state for filtering
@@ -379,7 +379,7 @@ export async function filterCostCenterDropdown(formSelector: string, financialCe
     // Get user ID for data layer queries
     const userId = await getCurrentUserId();
 
-    // Use DataLayer (PGlite-first with API fallback)
+    // Use DataLayer (Dexie-first with API fallback)
     const filteredCenters: CostCenter[] = await dataLayer.getCostCenters(userId, financialCenterId, true);
 
     filteredCenters.forEach(cc => {

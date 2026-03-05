@@ -8,7 +8,7 @@
  * Extracted from: frontend/web/static/js/lists/listsManager.ts lines 126-708
  *
  * Phase 3.2 (task-015): DataLayer Integration
- * Replaced direct API fetch with dataLayer (PGlite-first + API fallback)
+ * Replaced direct API fetch with dataLayer (Dexie-first + API fallback)
  */
 
 import { getState, updateState } from './ListsState';
@@ -49,7 +49,7 @@ declare global {
 }
 
 // ============================================================================
-// Type Converters (PGlite Local* types → State types)
+// Type Converters (Dexie Local* types → State types)
 // ============================================================================
 
 /**
@@ -71,7 +71,7 @@ function tempIdToVirtualId(tempId: string): number {
 /**
  * Convert LocalShoppingList (or ShoppingListWithStats) to ShoppingList
  *
- * Handles both PGlite records (without stats) and API responses (with stats).
+ * Handles both Dexie records (without stats) and API responses (with stats).
  *
  * CRITICAL FIX (Task #9): Generate temp_id if missing (backend doesn't return it yet)
  * This ensures Dexie queries work correctly when matching items by shopping_list_temp_id
@@ -95,9 +95,9 @@ function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): 
     temp_id,        // Preserve or generate temp_id for Dexie operations
     name: local.name,
     is_active: local.is_active,
-    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
-    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
-    // TODO (task-016): Normalize LocalShoppingList timestamp types to string at PGlite query layer
+    // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and Dexie (string)
+    // TODO (task-016): Normalize LocalShoppingList timestamp types to string at Dexie query layer
     created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString(),
     description: local.description || undefined,
@@ -115,20 +115,20 @@ function convertShoppingListItem(local: LocalShoppingListItem, listId: number): 
   return {
     id: local.id ?? tempIdToVirtualId(local.temp_id),
     list_id: listId,
-    temp_id: local.temp_id,         // Preserve PGlite temp_id for write operations (task-015 Phase 4)
+    temp_id: local.temp_id,         // Preserve Dexie temp_id for write operations (task-015 Phase 4)
     product_name: local.product_name,
     quantity: local.quantity,
     unit: local.unit,
     is_completed: local.is_completed,
     // DEFENSIVE: Handle both Date and string for nullable completed_at
-    // TODO (task-016): Normalize LocalShoppingListItem timestamp types to string at PGlite query layer
+    // TODO (task-016): Normalize LocalShoppingListItem timestamp types to string at Dexie query layer
     completed_at: local.completed_at
       ? (typeof local.completed_at === 'string' ? local.completed_at : local.completed_at.toISOString())
       : undefined,
     store_id: local.store_id,
     product_group_id: local.product_group_id,
-    notes: local.comment, // PGlite uses 'comment', UI uses 'notes'
-    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+    notes: local.comment, // Dexie uses 'comment', UI uses 'notes'
+    // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
     created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString(),
   };
@@ -142,9 +142,9 @@ function convertStore(local: LocalStore): Store {
     id: local.id,
     name: local.name,
     is_active: local.is_active,
-    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
-    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
-    // TODO (task-016): Normalize LocalStore.created_at type to string at PGlite query layer
+    // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and Dexie (string)
+    // TODO (task-016): Normalize LocalStore.created_at type to string at Dexie query layer
     created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     // updated_at is optional in State type
   };
@@ -159,9 +159,9 @@ function convertProductGroup(local: LocalProductGroup): ProductGroup {
     name: local.name,
     parent_id: local.parent_id,
     is_active: local.is_active,
-    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
-    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
-    // TODO (task-016): Normalize LocalProductGroup.created_at type to string at PGlite query layer
+    // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and Dexie (string)
+    // TODO (task-016): Normalize LocalProductGroup.created_at type to string at Dexie query layer
     created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     // updated_at is optional in State type
   };
@@ -239,7 +239,7 @@ export function isOnline(): boolean {
 // ============================================================================
 
 /**
- * Load all shopping lists (PGlite-first with API fallback)
+ * Load all shopping lists (Dexie-first with API fallback)
  *
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
@@ -253,7 +253,7 @@ export async function loadShoppingLists(): Promise<void> {
   }
 
   try {
-    // DataLayer automatically handles PGlite-first + API fallback
+    // DataLayer automatically handles Dexie-first + API fallback
     const localLists = await dataLayer.getShoppingLists({ is_active: true });
     const shoppingLists = localLists.map(convertShoppingList);
 
@@ -267,7 +267,7 @@ export async function loadShoppingLists(): Promise<void> {
 }
 
 /**
- * Load items for specific shopping list (PGlite-first with API fallback)
+ * Load items for specific shopping list (Dexie-first with API fallback)
  *
  * @param listId - Shopping list numeric ID
  *
@@ -298,7 +298,7 @@ export async function loadShoppingListItems(listId: number): Promise<void> {
  * Load stores and product groups for dropdowns
  */
 /**
- * Load stores (PGlite-first with API fallback)
+ * Load stores (Dexie-first with API fallback)
  * Used by CSVImporter after creating new stores
  */
 export async function loadStores(): Promise<void> {
@@ -314,7 +314,7 @@ export async function loadStores(): Promise<void> {
 }
 
 /**
- * Load product groups (PGlite-first with API fallback)
+ * Load product groups (Dexie-first with API fallback)
  * Used by CSVImporter after creating new product groups
  */
 export async function loadProductGroups(): Promise<void> {

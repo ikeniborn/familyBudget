@@ -1,7 +1,7 @@
 /**
  * Dashboard Facts Manager
  *
- * Provides PGlite-first queries for dashboard analytics with API fallback.
+ * Provides Dexie-first queries for dashboard analytics with API fallback.
  * Implements 3 core queries: Recent Facts, Quick Stats, Account Balances.
  *
  * Performance targets:
@@ -18,7 +18,7 @@ import type { QuickStats, AccountBalance, RecentFact } from '../types/analytics'
 declare const debugLog: (...args: any[]) => void;
 
 /**
- * PGlite query result types
+ * Dexie query result types
  */
 interface FactRow {
   id: number;
@@ -61,7 +61,7 @@ interface FinancialCenterRow {
 
 class DashboardFactsManager {
   /**
-   * Safely parse numeric value from PGlite query result
+   * Safely parse numeric value from Dexie query result
    * @param value - Number or string from query result
    * @returns Parsed float number
    */
@@ -133,11 +133,11 @@ class DashboardFactsManager {
 
         const duration = performance.now() - startTime;
         performanceMonitor.trackDexieCall('loadRecentFacts', duration);
-        debugLog(`[DASHBOARD] Recent facts from PGlite: ${duration.toFixed(1)}ms`);
+        debugLog(`[DASHBOARD] Recent facts from Dexie: ${duration.toFixed(1)}ms`);
 
         return this.mapRecentFacts(result.rows);
       } catch (err) {
-        console.error('[DASHBOARD] PGlite failed, fallback to API:', err);
+        console.error('[DASHBOARD] Dexie failed, fallback to API:', err);
       }
     }
 
@@ -221,11 +221,11 @@ class DashboardFactsManager {
 
         const duration = performance.now() - startTime;
         performanceMonitor.trackDexieCall('calculateQuickStats', duration);
-        debugLog(`[DASHBOARD] Quick stats from PGlite: ${duration.toFixed(1)}ms`);
+        debugLog(`[DASHBOARD] Quick stats from Dexie: ${duration.toFixed(1)}ms`);
 
         return this.mapQuickStats(todayResult.rows, monthResult.rows, monthPlanResult.rows);
       } catch (err) {
-        console.error('[DASHBOARD] PGlite failed, fallback to API:', err);
+        console.error('[DASHBOARD] Dexie failed, fallback to API:', err);
       }
     }
 
@@ -311,11 +311,11 @@ class DashboardFactsManager {
 
         const duration = performance.now() - startTime;
         performanceMonitor.trackDexieCall('loadAccountBalances', duration);
-        debugLog(`[DASHBOARD] Account balances from PGlite: ${duration.toFixed(1)}ms`);
+        debugLog(`[DASHBOARD] Account balances from Dexie: ${duration.toFixed(1)}ms`);
 
         return this.mapAccountBalances(fcsResult.rows, openingResult.rows, movementResult.rows);
       } catch (err) {
-        console.error('[DASHBOARD] PGlite failed, fallback to API:', err);
+        console.error('[DASHBOARD] Dexie failed, fallback to API:', err);
       }
     }
 
@@ -328,7 +328,7 @@ class DashboardFactsManager {
 
   /**
    * Initialize dashboard (parallel query execution)
-   * Replaces 3 separate HTMX API calls with single parallel PGlite call
+   * Replaces 3 separate HTMX API calls with single parallel Dexie call
    */
   async initDashboard(): Promise<{
     recentFacts: RecentFact[];
@@ -359,7 +359,7 @@ class DashboardFactsManager {
   // ============================================================================
 
   /**
-   * Map PGlite query results to RecentFact objects
+   * Map Dexie query results to RecentFact objects
    * @param rows - Raw query results from local_budget_facts
    * @returns Array of typed RecentFact objects
    */

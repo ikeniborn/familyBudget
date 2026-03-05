@@ -208,7 +208,7 @@ export async function loadUsers(): Promise<User[]> {
  */
 export async function loadArticles(): Promise<Article[]> {
   try {
-    // Use DataLayer (PGlite-first with API fallback)
+    // Use DataLayer (Dexie-first with API fallback)
     const articles = await dataLayer.getArticles() as unknown as Article[];
     return articles;
   } catch (error) {
@@ -230,7 +230,7 @@ export async function loadFinancialCenters(
     // Get user ID for data layer queries
     const userId = await getCurrentUserId();
 
-    // Use DataLayer (PGlite-first with API fallback)
+    // Use DataLayer (Dexie-first with API fallback)
     const centers = await dataLayer.getFinancialCenters(userId, includeGlobal) as unknown as FinancialCenter[];
     return centers;
   } catch (error) {
@@ -252,7 +252,7 @@ export async function loadCostCenters(
     // Get user ID for data layer queries
     const userId = await getCurrentUserId();
 
-    // Use DataLayer (PGlite-first with API fallback)
+    // Use DataLayer (Dexie-first with API fallback)
     const centers = await dataLayer.getCostCenters(userId, null, includeGlobal) as unknown as CostCenter[];
 
     return centers;

@@ -1,6 +1,6 @@
 /**
  * Budget Fact operations (CRUD + Queries)
- * Адаптация PGlite → Dexie.js
+ * Dexie.js implementation
  */
 
 import { db, toCents, fromCents } from '../core/database';

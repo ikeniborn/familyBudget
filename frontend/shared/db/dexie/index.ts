@@ -37,7 +37,7 @@ export function setDexieActive(active: boolean): void {
 
 /**
  * Get Dexie state (compatibility wrapper)
- * Возвращает DexieManager для backward compatibility с PGlite кодом
+ * Возвращает DexieManager для backward compatibility с Dexie кодом
  */
 export async function getState(): Promise<{ db: DexieManager | null }> {
   if (!isDexieActive()) {
@@ -51,7 +51,7 @@ export async function getState(): Promise<{ db: DexieManager | null }> {
 
 /**
  * Get Dexie feature flags (compatibility wrapper)
- * Возвращает настройки для backward compatibility с PGlite кодом
+ * Возвращает настройки для backward compatibility с Dexie кодом
  */
 export function getDexieFeatureFlags(): {
   autoSyncInterval: number;
@@ -64,7 +64,6 @@ export function getDexieFeatureFlags(): {
 }
 
 // Aliases for backward compatibility
-export const getPGliteFeatureFlags = getDexieFeatureFlags;
 export const isDexieEnabled = isDexieActive;
 export const setDexieEnabled = setDexieActive;
 

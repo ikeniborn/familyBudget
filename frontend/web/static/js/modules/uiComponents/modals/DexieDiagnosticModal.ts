@@ -147,18 +147,18 @@ export class DexieDiagnosticModal extends BaseModal {
 
     try {
       // getDexieManager() returns Promise due to window.Dexie Proxy
-      const pglite = await resolveDexieManager();
+      const dexie = await resolveDexieManager();
 
       // Wait for Dexie initialization (with timeout)
       const maxWaitMs = 30000; // 30 seconds (increased from 10)
       const startTime = Date.now();
       let attempts = 0;
-      while (!pglite.isReady() && (Date.now() - startTime) < maxWaitMs) {
+      while (!dexie.isReady() && (Date.now() - startTime) < maxWaitMs) {
         attempts++;
 
         // Check for initialization error at every iteration (early exit)
         try {
-          const diagnosticData = await pglite.getDiagnosticData();
+          const diagnosticData = await dexie.getDiagnosticData();
 
           // If initialization failed, exit immediately instead of waiting 30s
           if (diagnosticData.initializationStatus === 'error') {
@@ -174,10 +174,10 @@ export class DexieDiagnosticModal extends BaseModal {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
 
-      if (!pglite.isReady()) {
+      if (!dexie.isReady()) {
         let finalStatus;
         try {
-          finalStatus = await pglite.getDiagnosticData();
+          finalStatus = await dexie.getDiagnosticData();
         } catch (e) {
           finalStatus = { error: String(e) };
         }
@@ -197,11 +197,11 @@ export class DexieDiagnosticModal extends BaseModal {
         return;
       }
 
-      const baseData = await pglite.getDiagnosticData();
+      const baseData = await dexie.getDiagnosticData();
 
       // Load conflict metrics (task-009)
       try {
-        this.conflictMetrics = await pglite.getConflictMetrics();
+        this.conflictMetrics = await dexie.getConflictMetrics();
       } catch (error) {
         console.warn('[CONFLICT_METRICS] Failed to load conflict metrics', error);
         this.conflictMetrics = null;
@@ -210,7 +210,7 @@ export class DexieDiagnosticModal extends BaseModal {
       // Load sync metadata for Plans sync status check (v11.4.10+)
       let plansSyncMetadata;
       try {
-        plansSyncMetadata = await pglite.getSyncMetadata('recurring_plans');
+        plansSyncMetadata = await dexie.getSyncMetadata('recurring_plans');
       } catch (error) {
         console.warn('[SYNC_METADATA] Failed to load Plans sync metadata', error);
         plansSyncMetadata = undefined;

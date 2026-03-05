@@ -1,7 +1,7 @@
 /**
  * Data Layer - Unified API for reference data
  *
- * Provides abstraction over PGlite (offline) and REST API (online) data sources.
+ * Provides abstraction over Dexie (offline) and REST API (online) data sources.
  * Implements Dexie-first strategy with graceful fallback to API.
  *
  * @example
@@ -104,12 +104,12 @@ export class DataLayer {
   }
 
   /**
-   * NEW: Determine whether to use PGlite or API
+   * NEW: Determine whether to use Dexie or API
    *
-   * Returns true only if user ACTIVATED PGlite (opt-in).
+   * Returns true only if user ACTIVATED Dexie (opt-in).
    * By default (API-first), returns false.
    */
-  private shouldUsePGlite(): boolean {
+  private shouldUseDexie(): boolean {
     return isDexieActive();
   }
 
@@ -120,9 +120,9 @@ export class DataLayer {
   /**
    * Get articles with optional filters
    *
-   * NEW STRATEGY (API-First with Opt-In PGlite):
+   * NEW STRATEGY (API-First with Opt-In Dexie):
    * - By default: Use API (100% reliable)
-   * - If user activated PGlite: Use PGlite with API fallback
+   * - If user activated Dexie: Use Dexie with API fallback
    *
    * @param filters - Optional filters (user_id, type, parent_id, is_active)
    * @returns Array of articles
@@ -132,12 +132,12 @@ export class DataLayer {
 
     console.debug('[DATA_LAYER] getArticles', {
       filters,
-      usePGlite: this.shouldUsePGlite()
+      useDexie: this.shouldUseDexie()
     });
 
     try {
-      // API-FIRST: Use API if PGlite not activated
-      if (!this.shouldUsePGlite()) {
+      // API-FIRST: Use API if Dexie not activated
+      if (!this.shouldUseDexie()) {
         const result = await this.getArticlesFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getArticles', duration);
@@ -149,30 +149,30 @@ export class DataLayer {
         return result;
       }
 
-      // OPT-IN: User activated PGlite
-      const pglite = await this.getDexie();
+      // OPT-IN: User activated Dexie
+      const dexie = await this.getDexie();
 
       // Wait for readiness (max 5s)
-      if (!pglite.isReady()) {
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        if (!pglite.isReady()) {
-          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+        if (!dexie.isReady()) {
+          console.warn('[DATA_LAYER] Dexie timeout, using API fallback');
           const result = await this.getArticlesFromAPI(filters);
           performanceMonitor.trackAPICall('getArticles', performance.now() - startTime);
           return result;
         }
       }
 
-      // Query PGlite (or Dexie)
+      // Query Dexie (or Dexie)
       console.debug('[DATA_LAYER] Using Dexie');
-      const result = await pglite.queryArticles(filters);
+      const result = await dexie.queryArticles(filters);
       const duration = performance.now() - startTime;
 
-      // CRITICAL: Fallback на API если PGlite вернул пустой результат
+      // CRITICAL: Fallback на API если Dexie вернул пустой результат
       if (result.length === 0) {
         console.debug('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getArticlesFromAPI(filters);
@@ -183,7 +183,7 @@ export class DataLayer {
         // NEW: Cache articles in Dexie for future offline use
         if (apiResult.length > 0 && filters?.user_id !== undefined) {
           try {
-            const syncResult = await pglite.syncArticles(filters.user_id);
+            const syncResult = await dexie.syncArticles(filters.user_id);
             if (syncResult.success) {
               console.debug('[DATA_LAYER] Cached API articles in Dexie', { count: syncResult.count });
             }
@@ -257,9 +257,9 @@ export class DataLayer {
   /**
    * Get financial centers for a user
    *
-   * NEW STRATEGY (API-First with Opt-In PGlite):
+   * NEW STRATEGY (API-First with Opt-In Dexie):
    * - By default: Use API (100% reliable)
-   * - If user activated PGlite: Use PGlite with API fallback
+   * - If user activated Dexie: Use Dexie with API fallback
    *
    * @param userId - User ID
    * @param includeGlobal - Include global centers (default: true)
@@ -274,12 +274,12 @@ export class DataLayer {
     console.debug('[DATA_LAYER] getFinancialCenters', {
       userId,
       includeGlobal,
-      usePGlite: this.shouldUsePGlite()
+      useDexie: this.shouldUseDexie()
     });
 
     try {
-      // API-FIRST: Use API if PGlite not activated
-      if (!this.shouldUsePGlite()) {
+      // API-FIRST: Use API if Dexie not activated
+      if (!this.shouldUseDexie()) {
         const result = await this.getFinancialCentersFromAPI(includeGlobal);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getFinancialCenters', duration);
@@ -291,30 +291,30 @@ export class DataLayer {
         return result;
       }
 
-      // OPT-IN: User activated PGlite
-      const pglite = await this.getDexie();
+      // OPT-IN: User activated Dexie
+      const dexie = await this.getDexie();
 
       // Wait for readiness (max 5s)
-      if (!pglite.isReady()) {
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        if (!pglite.isReady()) {
-          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+        if (!dexie.isReady()) {
+          console.warn('[DATA_LAYER] Dexie timeout, using API fallback');
           const result = await this.getFinancialCentersFromAPI(includeGlobal);
           performanceMonitor.trackAPICall('getFinancialCenters', performance.now() - startTime);
           return result;
         }
       }
 
-      // Query PGlite (or Dexie)
+      // Query Dexie (or Dexie)
       console.debug('[DATA_LAYER] Using Dexie');
-      const result = await pglite.queryFinancialCenters(userId, true);
+      const result = await dexie.queryFinancialCenters(userId, true);
       const duration = performance.now() - startTime;
 
-      // CRITICAL: Fallback на API если PGlite вернул пустой результат
+      // CRITICAL: Fallback на API если Dexie вернул пустой результат
       if (result.length === 0) {
         console.debug('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getFinancialCentersFromAPI(includeGlobal);
@@ -325,7 +325,7 @@ export class DataLayer {
         // NEW: Cache financial centers in Dexie for future offline use
         if (apiResult.length > 0) {
           try {
-            const syncResult = await pglite.syncFinancialCenters(userId);
+            const syncResult = await dexie.syncFinancialCenters(userId);
             if (syncResult.success) {
               console.debug('[DATA_LAYER] Cached API financial centers in Dexie', { count: syncResult.count });
             }
@@ -339,9 +339,9 @@ export class DataLayer {
 
       performanceMonitor.trackDexieCall('getFinancialCenters', duration);
       performanceMonitor.trackCacheHit('getFinancialCenters', 'dexie');
-      console.debug('[DATA_LAYER] PGlite returned', {
+      console.debug('[DATA_LAYER] Dexie returned', {
         count: result.length,
-        source: 'PGlite',
+        source: 'Dexie',
         durationMs: duration.toFixed(2)
       });
       return result;
@@ -387,9 +387,9 @@ export class DataLayer {
   /**
    * Get cost centers for a user
    *
-   * NEW STRATEGY (API-First with Opt-In PGlite):
+   * NEW STRATEGY (API-First with Opt-In Dexie):
    * - By default: Use API (100% reliable)
-   * - If user activated PGlite: Use PGlite with API fallback
+   * - If user activated Dexie: Use Dexie with API fallback
    *
    * @param userId - User ID
    * @param financialCenterId - Optional financial center filter (null = no filter)
@@ -407,12 +407,12 @@ export class DataLayer {
       userId,
       financialCenterId,
       includeGlobal,
-      usePGlite: this.shouldUsePGlite()
+      useDexie: this.shouldUseDexie()
     });
 
     try {
-      // API-FIRST: Use API if PGlite not activated
-      if (!this.shouldUsePGlite()) {
+      // API-FIRST: Use API if Dexie not activated
+      if (!this.shouldUseDexie()) {
         const result = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getCostCenters', duration);
@@ -424,30 +424,30 @@ export class DataLayer {
         return result;
       }
 
-      // OPT-IN: User activated PGlite
-      const pglite = await this.getDexie();
+      // OPT-IN: User activated Dexie
+      const dexie = await this.getDexie();
 
       // Wait for readiness (max 5s)
-      if (!pglite.isReady()) {
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        if (!pglite.isReady()) {
-          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+        if (!dexie.isReady()) {
+          console.warn('[DATA_LAYER] Dexie timeout, using API fallback');
           const result = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
           performanceMonitor.trackAPICall('getCostCenters', performance.now() - startTime);
           return result;
         }
       }
 
-      // Query PGlite (or Dexie)
+      // Query Dexie (or Dexie)
       console.debug('[DATA_LAYER] Using Dexie');
-      const result = await pglite.queryFilteredCostCenters(userId, financialCenterId, includeGlobal);
+      const result = await dexie.queryFilteredCostCenters(userId, financialCenterId, includeGlobal);
       const duration = performance.now() - startTime;
 
-      // CRITICAL: Fallback на API если PGlite вернул пустой результат
+      // CRITICAL: Fallback на API если Dexie вернул пустой результат
       if (result.length === 0) {
         console.debug('[DATA_LAYER] Dexie returned empty, using API fallback');
         const apiResult = await this.getCostCentersFromAPI(financialCenterId, includeGlobal);
@@ -458,7 +458,7 @@ export class DataLayer {
         // NEW: Cache cost centers in Dexie for future offline use
         if (apiResult.length > 0) {
           try {
-            const syncResult = await pglite.syncCostCenters(userId);
+            const syncResult = await dexie.syncCostCenters(userId);
             if (syncResult.success) {
               console.debug('[DATA_LAYER] Cached API cost centers in Dexie', { count: syncResult.count });
             }
@@ -472,9 +472,9 @@ export class DataLayer {
 
       performanceMonitor.trackDexieCall('getCostCenters', duration);
       performanceMonitor.trackCacheHit('getCostCenters', 'dexie');
-      console.debug('[DATA_LAYER] PGlite returned', {
+      console.debug('[DATA_LAYER] Dexie returned', {
         count: result.length,
-        source: 'PGlite',
+        source: 'Dexie',
         durationMs: duration.toFixed(2)
       });
       return result;
@@ -533,28 +533,28 @@ export class DataLayer {
 
     try {
       // API-FIRST
-      if (!this.shouldUsePGlite()) {
+      if (!this.shouldUseDexie()) {
         const result = await this.getArticleHierarchyFromAPI(articleId);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getArticleHierarchy', duration);
         return result;
       }
 
-      // OPT-IN PGlite
-      const pglite = await this.getDexie();
-      if (!pglite.isReady()) {
+      // OPT-IN Dexie
+      const dexie = await this.getDexie();
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-        if (!pglite.isReady()) {
+        if (!dexie.isReady()) {
           const result = await this.getArticleHierarchyFromAPI(articleId);
           performanceMonitor.trackAPICall('getArticleHierarchy', performance.now() - startTime);
           return result;
         }
       }
 
-      const result = await pglite.queryArticleHierarchy(articleId);
+      const result = await dexie.queryArticleHierarchy(articleId);
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
@@ -603,19 +603,19 @@ export class DataLayer {
   /**
    * Get shopping lists with filters
    *
-   * NEW STRATEGY (API-First with Opt-In PGlite)
+   * NEW STRATEGY (API-First with Opt-In Dexie)
    */
   async getShoppingLists(filters?: ShoppingListFilters): Promise<ShoppingListWithStats[]> {
     const startTime = performance.now();
 
     console.debug('[DATA_LAYER] getShoppingLists', {
       filters,
-      usePGlite: this.shouldUsePGlite()
+      useDexie: this.shouldUseDexie()
     });
 
     try {
       // API-FIRST
-      if (!this.shouldUsePGlite()) {
+      if (!this.shouldUseDexie()) {
         const result = await this.getShoppingListsFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getShoppingLists', duration);
@@ -623,25 +623,25 @@ export class DataLayer {
         return result;
       }
 
-      // OPT-IN PGlite
-      const pglite = await this.getDexie();
+      // OPT-IN Dexie
+      const dexie = await this.getDexie();
 
-      if (!pglite.isReady()) {
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        if (!pglite.isReady()) {
-          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+        if (!dexie.isReady()) {
+          console.warn('[DATA_LAYER] Dexie timeout, using API fallback');
           const result = await this.getShoppingListsFromAPI(filters);
           performanceMonitor.trackAPICall('getShoppingLists', performance.now() - startTime);
           return result;
         }
       }
 
-      console.debug('[DATA_LAYER] Using PGlite');
-      const result = await pglite.queryShoppingLists(filters);
+      console.debug('[DATA_LAYER] Using Dexie');
+      const result = await dexie.queryShoppingLists(filters);
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
@@ -651,7 +651,7 @@ export class DataLayer {
         // Cache API lists in Dexie so next access (including item FK lookup) works offline
         if (apiResult.length > 0) {
           try {
-            await pglite.getDB().shoppingLists.bulkPut(apiResult);
+            await dexie.getDB().shoppingLists.bulkPut(apiResult);
             console.debug('[DATA_LAYER] Cached API lists in Dexie', { count: apiResult.length });
           } catch (cacheError) {
             console.warn('[DATA_LAYER] Failed to cache lists in Dexie', cacheError);
@@ -664,7 +664,7 @@ export class DataLayer {
       }
 
       performanceMonitor.trackDexieCall('getShoppingLists', duration);
-      console.debug('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
+      console.debug('[DATA_LAYER] Dexie returned', { count: result.length, source: 'Dexie', durationMs: duration.toFixed(2) });
       // Enrich Dexie results with stats computed from items (fixes missing total_items/completed_items)
       return await this.enrichShoppingListsWithStats(result);
 
@@ -748,7 +748,7 @@ export class DataLayer {
   /**
    * Get shopping list items with filters
    *
-   * NEW STRATEGY (API-First with Opt-In PGlite)
+   * NEW STRATEGY (API-First with Opt-In Dexie)
    */
   async getShoppingListItems(
     listId: number,
@@ -759,12 +759,12 @@ export class DataLayer {
     console.debug('[DATA_LAYER] getShoppingListItems', {
       listId,
       filters,
-      usePGlite: this.shouldUsePGlite()
+      useDexie: this.shouldUseDexie()
     });
 
     try {
       // API-FIRST
-      if (!this.shouldUsePGlite()) {
+      if (!this.shouldUseDexie()) {
         const result = await this.getShoppingListItemsFromAPI(listId, filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getShoppingListItems', duration);
@@ -772,27 +772,27 @@ export class DataLayer {
         return result;
       }
 
-      // OPT-IN PGlite
-      const pglite = await this.getDexie();
+      // OPT-IN Dexie
+      const dexie = await this.getDexie();
 
-      if (!pglite.isReady()) {
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        if (!pglite.isReady()) {
-          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+        if (!dexie.isReady()) {
+          console.warn('[DATA_LAYER] Dexie timeout, using API fallback');
           const result = await this.getShoppingListItemsFromAPI(listId, filters);
           performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
           return result;
         }
       }
 
-      console.debug('[DATA_LAYER] Using PGlite');
+      console.debug('[DATA_LAYER] Using Dexie');
 
       // Lookup list by numeric ID to get temp_id (for Dexie FK queries)
-      const list = await pglite.getDB().shoppingLists.where('id').equals(listId).first();
+      const list = await dexie.getDB().shoppingLists.where('id').equals(listId).first();
       if (!list || !list.temp_id) {
         console.warn('[DATA_LAYER] List not found in Dexie or missing temp_id, using API fallback');
         const result = await this.getShoppingListItemsFromAPI(listId, filters);
@@ -801,7 +801,7 @@ export class DataLayer {
       }
 
       const listTempId = list.temp_id;  // ← Use Dexie temp_id for FK query
-      let result = await pglite.queryShoppingListItems(listTempId);
+      let result = await dexie.queryShoppingListItems(listTempId);
       const duration = performance.now() - startTime;
 
       // Apply filters in-memory (client-side filtering)
@@ -865,7 +865,7 @@ export class DataLayer {
         // Cache API items in Dexie so next offline access doesn't lose data
         if (apiResult.length > 0) {
           try {
-            await pglite.getDB().shoppingListItems.bulkPut(apiResult);
+            await dexie.getDB().shoppingListItems.bulkPut(apiResult);
             console.debug('[DATA_LAYER] Cached API items in Dexie', { count: apiResult.length });
           } catch (cacheError) {
             console.warn('[DATA_LAYER] Failed to cache API items in Dexie', cacheError);
@@ -878,7 +878,7 @@ export class DataLayer {
       }
 
       performanceMonitor.trackDexieCall('getShoppingListItems', duration);
-      console.debug('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
+      console.debug('[DATA_LAYER] Dexie returned', { count: result.length, source: 'Dexie', durationMs: duration.toFixed(2) });
       return result;
 
     } catch (error) {
@@ -937,28 +937,28 @@ export class DataLayer {
 
     try {
       // API-FIRST
-      if (!this.shouldUsePGlite()) {
+      if (!this.shouldUseDexie()) {
         const result = await this.getStoresFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getStores', duration);
         return result;
       }
 
-      // OPT-IN PGlite
-      const pglite = await this.getDexie();
-      if (!pglite.isReady()) {
+      // OPT-IN Dexie
+      const dexie = await this.getDexie();
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-        if (!pglite.isReady()) {
+        if (!dexie.isReady()) {
           const result = await this.getStoresFromAPI(filters);
           performanceMonitor.trackAPICall('getStores', performance.now() - startTime);
           return result;
         }
       }
 
-      const result = await pglite.queryStores(filters);
+      const result = await dexie.queryStores(filters);
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
@@ -1014,28 +1014,28 @@ export class DataLayer {
 
     try {
       // API-FIRST
-      if (!this.shouldUsePGlite()) {
+      if (!this.shouldUseDexie()) {
         const result = await this.getProductGroupsFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getProductGroups', duration);
         return result;
       }
 
-      // OPT-IN PGlite
-      const pglite = await this.getDexie();
-      if (!pglite.isReady()) {
+      // OPT-IN Dexie
+      const dexie = await this.getDexie();
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-        if (!pglite.isReady()) {
+        if (!dexie.isReady()) {
           const result = await this.getProductGroupsFromAPI(filters);
           performanceMonitor.trackAPICall('getProductGroups', performance.now() - startTime);
           return result;
         }
       }
 
-      const result = await pglite.queryProductGroups(filters);
+      const result = await dexie.queryProductGroups(filters);
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
@@ -1100,19 +1100,19 @@ export class DataLayer {
   /**
    * Get budget facts with filters
    *
-   * NEW STRATEGY (API-First with Opt-In PGlite)
+   * NEW STRATEGY (API-First with Opt-In Dexie)
    */
   async getFacts(filters?: FactFilters): Promise<LocalBudgetFact[]> {
     const startTime = performance.now();
 
     console.debug('[DATA_LAYER] getFacts', {
       filters,
-      usePGlite: this.shouldUsePGlite()
+      useDexie: this.shouldUseDexie()
     });
 
     try {
       // API-FIRST
-      if (!this.shouldUsePGlite()) {
+      if (!this.shouldUseDexie()) {
         const result = await this.getFactsFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getFacts', duration);
@@ -1258,28 +1258,28 @@ export class DataLayer {
 
     try {
       // API-FIRST
-      if (!this.shouldUsePGlite()) {
+      if (!this.shouldUseDexie()) {
         const count = await this.getFactsCountFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getFactsCount', duration);
         return count;
       }
 
-      // OPT-IN PGlite
-      const pglite = await this.getDexie();
-      if (!pglite.isReady()) {
+      // OPT-IN Dexie
+      const dexie = await this.getDexie();
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
-        if (!pglite.isReady()) {
+        if (!dexie.isReady()) {
           const count = await this.getFactsCountFromAPI(filters);
           performanceMonitor.trackAPICall('getFactsCount', performance.now() - startTime);
           return count;
         }
       }
 
-      const facts = await pglite.queryFacts(filters);
+      const facts = await dexie.queryFacts(filters);
       const count = facts.length;
       const duration = performance.now() - startTime;
 
@@ -1354,7 +1354,7 @@ export class DataLayer {
   /**
    * Get recurring plans with filters
    *
-   * NEW STRATEGY (API-First with Opt-In PGlite)
+   * NEW STRATEGY (API-First with Opt-In Dexie)
    */
   async getRecurringPlans(filters?: RecurringPlanFilters): Promise<LocalRecurringPlan[]> {
     const startTime = performance.now();
@@ -1375,12 +1375,12 @@ export class DataLayer {
     console.debug('[DATA_LAYER] getRecurringPlans', {
       filters: syncFilters,
       syncPeriodMonths,
-      usePGlite: this.shouldUsePGlite()
+      useDexie: this.shouldUseDexie()
     });
 
     try {
       // API-FIRST
-      if (!this.shouldUsePGlite()) {
+      if (!this.shouldUseDexie()) {
         const result = await this.getRecurringPlansFromAPI(syncFilters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getRecurringPlans', duration);
@@ -1388,25 +1388,25 @@ export class DataLayer {
         return result;
       }
 
-      // OPT-IN PGlite
-      const pglite = await this.getDexie();
+      // OPT-IN Dexie
+      const dexie = await this.getDexie();
 
-      if (!pglite.isReady()) {
+      if (!dexie.isReady()) {
         const waitStartTime = Date.now();
-        while (!pglite.isReady() && (Date.now() - waitStartTime) < 5000) {
+        while (!dexie.isReady() && (Date.now() - waitStartTime) < 5000) {
           await new Promise(resolve => setTimeout(resolve, 100));
         }
 
-        if (!pglite.isReady()) {
-          console.warn('[DATA_LAYER] PGlite timeout, using API fallback');
+        if (!dexie.isReady()) {
+          console.warn('[DATA_LAYER] Dexie timeout, using API fallback');
           const result = await this.getRecurringPlansFromAPI(syncFilters);
           performanceMonitor.trackAPICall('getRecurringPlans', performance.now() - startTime);
           return result;
         }
       }
 
-      console.debug('[DATA_LAYER] Using PGlite');
-      const result = await pglite.queryRecurringPlans(syncFilters);
+      console.debug('[DATA_LAYER] Using Dexie');
+      const result = await dexie.queryRecurringPlans(syncFilters);
       const duration = performance.now() - startTime;
 
       if (result.length === 0) {
@@ -1420,7 +1420,7 @@ export class DataLayer {
         if (apiResult.length > 0) {
           try {
             // Use bulkAdd directly (no wrapper method exists)
-            await pglite.getDB().recurringPlans.bulkAdd(apiResult);
+            await dexie.getDB().recurringPlans.bulkAdd(apiResult);
             console.debug('[DATA_LAYER] Cached API recurring plans in Dexie', { count: apiResult.length });
           } catch (cacheError: unknown) {
             const errorMessage = cacheError instanceof Error ? cacheError.message : String(cacheError);
@@ -1433,7 +1433,7 @@ export class DataLayer {
       }
 
       performanceMonitor.trackDexieCall('getRecurringPlans', duration);
-      console.debug('[DATA_LAYER] PGlite returned', { count: result.length, source: 'PGlite', durationMs: duration.toFixed(2) });
+      console.debug('[DATA_LAYER] Dexie returned', { count: result.length, source: 'Dexie', durationMs: duration.toFixed(2) });
       return result;
 
     } catch (error) {
@@ -1547,7 +1547,7 @@ export class DataLayer {
   /**
    * Get performance statistics
    *
-   * @returns Performance stats comparing API and PGlite
+   * @returns Performance stats comparing API and Dexie
    */
   getPerformanceStats(): PerformanceStats {
     return performanceMonitor.getStats();
@@ -1569,9 +1569,9 @@ export class DataLayer {
    */
   async getPendingFactsForP2P(): Promise<LocalBudgetFact[]> {
     try {
-      const pglite = await this.getDexie();
-      if (!pglite.isReady()) return [];
-      const db = pglite.getDB();
+      const dexie = await this.getDexie();
+      if (!dexie.isReady()) return [];
+      const db = dexie.getDB();
       return await db.budgetFacts
         .where('sync_status').equals('pending')
         .toArray();
@@ -1588,9 +1588,9 @@ export class DataLayer {
    */
   async getAllFactsForP2PMerge(): Promise<LocalBudgetFact[]> {
     try {
-      const pglite = await this.getDexie();
-      if (!pglite.isReady()) return [];
-      const db = pglite.getDB();
+      const dexie = await this.getDexie();
+      if (!dexie.isReady()) return [];
+      const db = dexie.getDB();
       return await db.budgetFacts
         .filter((f: LocalBudgetFact) => f.sync_status !== 'deleted')
         .toArray();
@@ -1609,9 +1609,9 @@ export class DataLayer {
   async applyP2PSyncResult(mergedFacts: LocalBudgetFact[]): Promise<number> {
     if (!mergedFacts.length) return 0;
     try {
-      const pglite = await this.getDexie();
-      if (!pglite.isReady()) throw new Error('Dexie not ready');
-      const db = pglite.getDB();
+      const dexie = await this.getDexie();
+      if (!dexie.isReady()) throw new Error('Dexie not ready');
+      const db = dexie.getDB();
       await db.budgetFacts.bulkPut(mergedFacts);
       console.debug('[DataLayer] applyP2PSyncResult: applied', mergedFacts.length, 'facts');
       return mergedFacts.length;

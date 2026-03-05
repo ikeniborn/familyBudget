@@ -49,7 +49,7 @@ export function handleItemCreated(item: any): void {
   // Check if item already exists (avoid duplicates).
   // Extended deduplication: match by server id OR by temp_id when local item
   // has a virtual negative id (pending sync). This handles the race where:
-  // 1. createItem() writes to PGlite with id=null → convertShoppingListItem()
+  // 1. createItem() writes to Dexie with id=null → convertShoppingListItem()
   //    assigns a virtual negative id via tempIdToVirtualId(temp_id)
   // 2. WS event arrives with the real positive server id → old check
   //    (i.id === item.id) fails because virtual id ≠ server id → duplicate

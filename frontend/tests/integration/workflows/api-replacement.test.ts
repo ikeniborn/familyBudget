@@ -1,7 +1,7 @@
 /**
  * API Replacement Integration Tests (task-015 Phase 6)
  *
- * Tests for PGlite-first architecture with API fallback.
+ * Tests for Dexie-first architecture with API fallback.
  * Validates:
  * - Shopping Lists load/fallback/performance
  * - Facts load with filters/count/performance
@@ -17,9 +17,9 @@ import { performanceMonitor } from '../../../web/static/js/monitoring/Performanc
 
 describe('API Replacement Integration Tests', () => {
   beforeAll(async () => {
-    // Disable PGlite to test API fallback via MSW
-    localStorage.setItem('enablePGlite', 'false');
-    localStorage.setItem('pgliteActive', 'false'); // CRITICAL: shouldUsePGlite() checks this
+    // Disable Dexie to test API fallback via MSW
+    localStorage.setItem('enableDexie', 'false');
+    localStorage.setItem('dexieActive', 'false'); // CRITICAL: shouldUseDexie() checks this
 
     // Clear performance metrics
     performanceMonitor.reset();
@@ -36,7 +36,7 @@ describe('API Replacement Integration Tests', () => {
   });
 
   describe('Shopping Lists - API Fallback (MSW)', () => {
-    it('should load shopping lists from API when PGlite disabled', async () => {
+    it('should load shopping lists from API when Dexie disabled', async () => {
       // Act
       const lists = await dataLayer.getShoppingLists({ is_active: true });
 
@@ -69,7 +69,7 @@ describe('API Replacement Integration Tests', () => {
   });
 
   describe('Facts - API Fallback (MSW)', () => {
-    it('should load facts from API when PGlite disabled', async () => {
+    it('should load facts from API when Dexie disabled', async () => {
       // Arrange
       const filters = {
         record_type: 'fact' as const,
@@ -116,7 +116,7 @@ describe('API Replacement Integration Tests', () => {
   });
 
   describe('Recurring Plans - API Fallback (MSW)', () => {
-    it('should load recurring plans from API when PGlite disabled', async () => {
+    it('should load recurring plans from API when Dexie disabled', async () => {
       // Arrange
       const filters = { is_active: true };
 
@@ -144,8 +144,8 @@ describe('API Replacement Integration Tests', () => {
     });
   });
 
-  describe('Reference Data - PGlite-first Strategy', () => {
-    it('should load articles from PGlite', async () => {
+  describe('Reference Data - Dexie-first Strategy', () => {
+    it('should load articles from Dexie', async () => {
       // Act
       const articles = await dataLayer.getArticles();
 
@@ -154,7 +154,7 @@ describe('API Replacement Integration Tests', () => {
       expect(Array.isArray(articles)).toBe(true);
     });
 
-    it('should load financial centers from PGlite', async () => {
+    it('should load financial centers from Dexie', async () => {
       // Arrange
       const userId = 1;
 
@@ -166,7 +166,7 @@ describe('API Replacement Integration Tests', () => {
       expect(Array.isArray(centers)).toBe(true);
     });
 
-    it('should load cost centers from PGlite', async () => {
+    it('should load cost centers from Dexie', async () => {
       // Arrange
       const userId = 1;
 
@@ -181,9 +181,9 @@ describe('API Replacement Integration Tests', () => {
 
   describe('Performance Metrics - 80%+ API Reduction Target', () => {
     it.skip('should achieve 80%+ API reduction', async () => {
-      // SKIP: Requires PGlite to be enabled and populated with data
-      // This test validates PGlite-first strategy performance
-      // TODO: Enable when PGlite singleton mocking is implemented
+      // SKIP: Requires Dexie to be enabled and populated with data
+      // This test validates Dexie-first strategy performance
+      // TODO: Enable when Dexie singleton mocking is implemented
       // Act: Simulate typical user session
       await dataLayer.getArticles();
       await dataLayer.getFinancialCenters(1);
@@ -198,9 +198,9 @@ describe('API Replacement Integration Tests', () => {
       expect(stats.reductionPercent).toBeGreaterThanOrEqual(80);
     });
 
-    it.skip('should show faster PGlite queries vs API', async () => {
-      // SKIP: Performance comparison requires API requests, but all queries go through PGlite
-      // when PGlite is available, resulting in api.count = 0 and speedupFactor = 1
+    it.skip('should show faster Dexie queries vs API', async () => {
+      // SKIP: Performance comparison requires API requests, but all queries go through Dexie
+      // when Dexie is available, resulting in api.count = 0 and speedupFactor = 1
       // TODO: Mock API responses or force some queries to use API for realistic comparison
       // Act: Run multiple queries
       await dataLayer.getArticles();
@@ -209,12 +209,12 @@ describe('API Replacement Integration Tests', () => {
 
       // Assert
       const stats = performanceMonitor.getStats();
-      expect(stats.speedupFactor).toBeGreaterThan(1); // PGlite should be faster
-      expect(stats.pglite.avgDurationMs).toBeLessThan(stats.api.avgDurationMs || 100);
+      expect(stats.speedupFactor).toBeGreaterThan(1); // Dexie should be faster
+      expect(stats.dexie.avgDurationMs).toBeLessThan(stats.api.avgDurationMs || 100);
     });
 
     it.skip('should track bandwidth savings', async () => {
-      // SKIP: Requires PGlite to be enabled
+      // SKIP: Requires Dexie to be enabled
       // Act
       await dataLayer.getShoppingLists({ is_active: true });
       await dataLayer.getFacts({ record_type: 'fact', user_id: 1 });
@@ -229,7 +229,7 @@ describe('API Replacement Integration Tests', () => {
 
   describe('Module Breakdown - Detailed Performance Tracking', () => {
     it.skip('should classify shopping lists queries correctly', async () => {
-      // SKIP: Requires PGlite to be enabled
+      // SKIP: Requires Dexie to be enabled
       // Act
       await dataLayer.getShoppingLists({ is_active: true });
       await dataLayer.getStores();
@@ -237,41 +237,41 @@ describe('API Replacement Integration Tests', () => {
 
       // Assert
       const stats = performanceMonitor.getDetailedStats();
-      expect(stats.breakdown.shoppingLists.pglite).toBeGreaterThan(0);
+      expect(stats.breakdown.shoppingLists.dexie).toBeGreaterThan(0);
       expect(stats.breakdown.shoppingLists.reductionPercent).toBeGreaterThanOrEqual(0);
     });
 
     it.skip('should classify facts queries correctly', async () => {
-      // SKIP: Requires PGlite to be enabled
+      // SKIP: Requires Dexie to be enabled
       // Act
       await dataLayer.getFacts({ record_type: 'fact', user_id: 1 });
       await dataLayer.getFactsCount({ record_type: 'fact', user_id: 1 });
 
       // Assert
       const stats = performanceMonitor.getDetailedStats();
-      expect(stats.breakdown.facts.pglite).toBeGreaterThan(0);
+      expect(stats.breakdown.facts.dexie).toBeGreaterThan(0);
     });
 
     it.skip('should classify recurring plans queries correctly', async () => {
-      // SKIP: Requires PGlite to be enabled
+      // SKIP: Requires Dexie to be enabled
       // Act
       await dataLayer.getRecurringPlans({ is_active: true });
 
       // Assert
       const stats = performanceMonitor.getDetailedStats();
-      expect(stats.breakdown.recurringPlans.pglite).toBeGreaterThan(0);
+      expect(stats.breakdown.recurringPlans.dexie).toBeGreaterThan(0);
     });
   });
 
   describe('Error Handling - Graceful API Fallback', () => {
-    it.skip('should fallback to API when PGlite unavailable', async () => {
-      // SKIP: Mock pglite.isReady() doesn't affect dataLayer behavior
-      // dataLayer uses internal PGlite instance check, not pglite.isReady()
-      // TODO: Refactor dataLayer to use injectable PGlite instance or expose
-      // a method to temporarily disable PGlite for testing fallback scenarios
-      // Arrange: Mock PGlite as not ready
-      const originalIsReady = pglite.isReady;
-      pglite.isReady = () => false;
+    it.skip('should fallback to API when Dexie unavailable', async () => {
+      // SKIP: Mock dexie.isReady() doesn't affect dataLayer behavior
+      // dataLayer uses internal Dexie instance check, not dexie.isReady()
+      // TODO: Refactor dataLayer to use injectable Dexie instance or expose
+      // a method to temporarily disable Dexie for testing fallback scenarios
+      // Arrange: Mock Dexie as not ready
+      const originalIsReady = dexie.isReady;
+      dexie.isReady = () => false;
 
       // Act
       const articles = await dataLayer.getArticles();
@@ -283,7 +283,7 @@ describe('API Replacement Integration Tests', () => {
       expect(stats.api.count).toBeGreaterThan(0);
 
       // Cleanup
-      pglite.isReady = originalIsReady;
+      dexie.isReady = originalIsReady;
     });
   });
 });

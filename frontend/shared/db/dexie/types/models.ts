@@ -1,6 +1,6 @@
 /**
  * Data models for Dexie.js
- * ВАЖНО: Типы идентичны PGlite моделям для обеспечения совместимости
+ * ВАЖНО: Типы идентичны Dexie моделям для обеспечения совместимости
  * Phase 1: Reference Data (Articles, Financial Centers, Cost Centers)
  * Phase 2: Transactional Data (Budget Facts, Pending Operations, Sync Conflicts)
  * Phase 3: Shopping Lists

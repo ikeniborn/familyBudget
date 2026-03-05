@@ -235,7 +235,7 @@ const windowExports = {
   // Dexie operations (v11.4.12+)
   addItemToList,
 
-  // PGlite progress notifications (v10.1.38+)
+  // Dexie progress notifications (v10.1.38+)
   showDexieProgress,
   hideDexieProgress,
 
@@ -250,9 +250,9 @@ try {
     // (в отличие от Object.entries().forEach() который tree-shaking может удалить)
     Object.assign(window, windowExports);
 
-    // Backward compatibility aliases: PGlite → Dexie terminology
-    (window as any).showPGliteProgress = showDexieProgress;
-    (window as any).hidePGliteProgress = hideDexieProgress;
+    // Backward compatibility aliases: Dexie → Dexie terminology
+    (window as any).showDexieProgress = showDexieProgress;
+    (window as any).hideDexieProgress = hideDexieProgress;
 
     // Create window.listsManager object for backward compatibility
     // (used in onclick handlers: window.listsManager.showDetailView, toggleItemCompleted)

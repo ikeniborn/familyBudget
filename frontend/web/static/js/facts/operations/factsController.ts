@@ -616,8 +616,8 @@ export function renderFactsTable(facts: FactRow[]): void {
 export function renderFactRow(fact: FactRow): string {
     const BudgetShared = (window as any).BudgetShared;
 
-    // Convert fact.fact_date to string if needed (PGlite may return Date objects)
-    // Type assertion needed because PGlite runtime types may differ from interface
+    // Convert fact.fact_date to string if needed (Dexie may return Date objects)
+    // Type assertion needed because Dexie runtime types may differ from interface
     const dateValue: unknown = fact.fact_date;
     const dateString = typeof dateValue === 'string'
         ? dateValue
@@ -678,7 +678,7 @@ export function renderFactRow(fact: FactRow): string {
 export function renderFactMobileCard(fact: FactRow): string {
     const BudgetShared = (window as any).BudgetShared;
 
-    // Convert fact.fact_date to string if needed (PGlite may return Date objects)
+    // Convert fact.fact_date to string if needed (Dexie may return Date objects)
     const dateValue: unknown = fact.fact_date;
     const dateString = typeof dateValue === 'string'
         ? dateValue

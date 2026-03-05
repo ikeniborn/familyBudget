@@ -39,7 +39,7 @@ interface CreateTransferData {
 
 /**
  * Build FactFilters from current filter state
- * Converts UI filters to PGlite-compatible format
+ * Converts UI filters to Dexie-compatible format
  */
 function buildFactFilters(): FactFilters {
     const filters = getFilters();
@@ -63,7 +63,7 @@ function buildFactFilters(): FactFilters {
 
 /**
  * Convert LocalBudgetFact to BudgetFact
- * Note: Names (article_name, financial_center_name, etc.) are not available in PGlite
+ * Note: Names (article_name, financial_center_name, etc.) are not available in Dexie
  * TODO: Add client-side join with reference data in future
  */
 /**
@@ -90,7 +90,7 @@ function convertBudgetFact(local: LocalBudgetFact, maps?: EnrichmentMaps): Budge
 
     return {
         id: local.id || 0,
-        temp_id: local.temp_id,    // Preserve PGlite temp_id for write operations (task-015 Phase 4.4)
+        temp_id: local.temp_id,    // Preserve Dexie temp_id for write operations (task-015 Phase 4.4)
         fact_date: local.date, // Already YYYY-MM-DD
         article_id: local.article_id,
         article_name: article?.name || '',
@@ -104,8 +104,8 @@ function convertBudgetFact(local: LocalBudgetFact, maps?: EnrichmentMaps): Budge
         user_id: local.user_id,
         user_name: '', // User names not stored in reference data (multi-user shared facts)
         record_type: 'spend', // Default mapping from 'fact'
-        // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
-        // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
+        // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
+        // Runtime check provides backward compatibility with both API (Date) and Dexie (string)
         created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
         updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString()
     };
@@ -183,15 +183,15 @@ export async function loadFacts(): Promise<LoadFactsResponse> {
 }
 
 /**
- * Load facts count (PGlite-first with API fallback)
+ * Load facts count (Dexie-first with API fallback)
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
 export async function loadFactsCount(): Promise<number> {
     try {
-        // Build filters for PGlite
+        // Build filters for Dexie
         const factFilters = buildFactFilters();
 
-        // Get count via DataLayer (PGlite-first + API fallback)
+        // Get count via DataLayer (Dexie-first + API fallback)
         const total = await dataLayer.getFactsCount(factFilters);
 
         return total;
@@ -250,14 +250,14 @@ export async function getFact(factId: number): Promise<BudgetFact> {
 
 /**
  * Create new fact
- * PGlite-first with API fallback (task-015 Phase 4.4)
+ * Dexie-first with API fallback (task-015 Phase 4.4)
  */
 export async function createFact(data: CreateFactData): Promise<BudgetFact> {
-    const pglite = await getDexieManager();
+    const dexie = await getDexieManager();
 
     try {
-        // PGlite-first strategy
-        if (isDexieActive() && pglite.isReady()) {
+        // Dexie-first strategy
+        if (isDexieActive() && dexie.isReady()) {
             // Get user ID
             const userId = (window as any).offlineManager
                 ? await (window as any).offlineManager.getCurrentUserId()
@@ -268,7 +268,7 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
             }
 
             // Map CreateFactData to LocalBudgetFact format
-            const temp_id = await pglite.createFact({
+            const temp_id = await dexie.createFact({
                 user_id: userId,
                 article_id: data.article_id,
                 financial_center_id: data.financial_center_id,
@@ -283,7 +283,7 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
             });
 
 
-            // Return placeholder BudgetFact (UI will reload from PGlite)
+            // Return placeholder BudgetFact (UI will reload from Dexie)
             return {
                 id: 0,
                 temp_id,
@@ -333,13 +333,13 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
  * Helper: Find fact temp_id by server ID
  */
 async function findFactTempId(factId: number): Promise<string | null> {
-    const pglite = await getDexieManager();
-    if (!isDexieActive() || !pglite.isReady()) {
+    const dexie = await getDexieManager();
+    if (!isDexieActive() || !dexie.isReady()) {
         return null;
     }
 
     try {
-        const facts = await pglite.queryFacts({});
+        const facts = await dexie.queryFacts({});
         const fact = facts.find(f => f.id === factId);
         return fact?.temp_id || null;
     } catch (error) {
@@ -350,22 +350,22 @@ async function findFactTempId(factId: number): Promise<string | null> {
 
 /**
  * Update existing fact
- * PGlite-first with API fallback (task-015 Phase 4.4)
+ * Dexie-first with API fallback (task-015 Phase 4.4)
  */
 export async function updateFact(factId: number, data: UpdateFactData): Promise<BudgetFact> {
-    const pglite = await getDexieManager();
+    const dexie = await getDexieManager();
 
     try {
-        // PGlite-first strategy
-        if (isDexieActive() && pglite.isReady()) {
+        // Dexie-first strategy
+        if (isDexieActive() && dexie.isReady()) {
             // Find fact temp_id by server ID
             const temp_id = await findFactTempId(factId);
             if (!temp_id) {
-                throw new Error('Fact temp_id not found, cannot update via PGlite');
+                throw new Error('Fact temp_id not found, cannot update via Dexie');
             }
 
-            // Update in PGlite (auto-adds to pending queue)
-            await pglite.updateFact(temp_id, {
+            // Update in Dexie (auto-adds to pending queue)
+            await dexie.updateFact(temp_id, {
                 date: data.fact_date,
                 amount: data.amount,
                 article_id: data.article_id,
@@ -375,7 +375,7 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
             });
 
 
-            // Return placeholder (UI will reload from PGlite)
+            // Return placeholder (UI will reload from Dexie)
             return {
                 id: factId,
                 temp_id,
@@ -451,22 +451,22 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
 
 /**
  * Delete single fact
- * PGlite-first with API fallback (task-015 Phase 4.4)
+ * Dexie-first with API fallback (task-015 Phase 4.4)
  */
 export async function deleteFact(factId: number): Promise<void> {
-    const pglite = await getDexieManager();
+    const dexie = await getDexieManager();
 
     try {
-        // PGlite-first strategy
-        if (isDexieActive() && pglite.isReady()) {
+        // Dexie-first strategy
+        if (isDexieActive() && dexie.isReady()) {
             // Find fact temp_id by server ID
             const temp_id = await findFactTempId(factId);
             if (!temp_id) {
-                throw new Error('Fact temp_id not found, cannot delete via PGlite');
+                throw new Error('Fact temp_id not found, cannot delete via Dexie');
             }
 
-            // Delete in PGlite (soft delete, adds to pending queue)
-            await pglite.deleteFact(temp_id);
+            // Delete in Dexie (soft delete, adds to pending queue)
+            await dexie.deleteFact(temp_id);
             return;
         }
 

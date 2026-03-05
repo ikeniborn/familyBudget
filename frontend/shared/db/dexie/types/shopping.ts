@@ -1,5 +1,5 @@
 /**
- * Shopping Lists data models for PGlite Phase 3
+ * Shopping Lists data models for Dexie Phase 3
  * Reference Data (stores, product groups) + Transactional Data (lists, items)
  */
 

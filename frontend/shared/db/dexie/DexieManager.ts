@@ -1,8 +1,6 @@
 /**
  * DexieManager - Main interface for Dexie.js database
- * Replaces PGliteManager with IndexedDB backend
- *
- * ВАЖНО: API совместим с PGliteManager для seamless migration
+ * Offline-first database manager using Dexie.js / IndexedDB
  * Changes: SQL queries → Dexie.js Table operations
  */
 
