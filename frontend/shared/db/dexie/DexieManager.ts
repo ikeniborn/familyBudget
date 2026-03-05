@@ -65,6 +65,7 @@ export type ProgressCallback = (_current: number, _total: number) => void;
 export class DexieManager {
   private state: InitializationStatus = 'not_started';
   private db: FamilyBudgetDB | null = null;
+  private _uploadPendingPromise: Promise<{ success: boolean; listsUploaded: number; itemsUploaded: number; failed: number }> | null = null;
 
   /**
    * Initialize Dexie database
@@ -658,23 +659,36 @@ export class DexieManager {
     itemsUploaded: number;
     failed: number;
   }> {
-    logger.debug('[DexieManager] uploadPendingShoppingData');
-    const { uploadPendingShoppingLists, uploadPendingShoppingOperations } = await import('./operations/shoppingSync');
-    // Sequential: lists must be synced first so items can resolve list server IDs
-    const listsResult = await uploadPendingShoppingLists();
-    const itemsResult = await uploadPendingShoppingOperations();
-    const failed = listsResult.failed + itemsResult.failed;
-    logger.info('[DexieManager] ✅ Pending shopping data uploaded', {
-      listsUploaded: listsResult.uploaded,
-      itemsUploaded: itemsResult.uploaded,
-      failed
+    // Singleton promise: if upload is already in progress, return the same promise
+    // to prevent concurrent calls from sending duplicate POSTs for the same pending item
+    if (this._uploadPendingPromise) {
+      logger.debug('[DexieManager] uploadPendingShoppingData: reusing in-progress upload');
+      return this._uploadPendingPromise;
+    }
+
+    this._uploadPendingPromise = (async () => {
+      logger.debug('[DexieManager] uploadPendingShoppingData');
+      const { uploadPendingShoppingLists, uploadPendingShoppingOperations } = await import('./operations/shoppingSync');
+      // Sequential: lists must be synced first so items can resolve list server IDs
+      const listsResult = await uploadPendingShoppingLists();
+      const itemsResult = await uploadPendingShoppingOperations();
+      const failed = listsResult.failed + itemsResult.failed;
+      logger.info('[DexieManager] ✅ Pending shopping data uploaded', {
+        listsUploaded: listsResult.uploaded,
+        itemsUploaded: itemsResult.uploaded,
+        failed
+      });
+      return {
+        success: failed === 0,
+        listsUploaded: listsResult.uploaded,
+        itemsUploaded: itemsResult.uploaded,
+        failed
+      };
+    })().finally(() => {
+      this._uploadPendingPromise = null;
     });
-    return {
-      success: failed === 0,
-      listsUploaded: listsResult.uploaded,
-      itemsUploaded: itemsResult.uploaded,
-      failed
-    };
+
+    return this._uploadPendingPromise;
   }
 
   /**
