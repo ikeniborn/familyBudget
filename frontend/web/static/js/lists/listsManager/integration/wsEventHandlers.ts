@@ -46,11 +46,31 @@ export function handleItemCreated(item: any): void {
     return;
   }
 
-  // Check if item already exists (avoid duplicates)
-  const exists = state.currentItems.some(i => i.id === item.id);
-  if (exists) {
-    debugLog('[ListsManager] Item already exists, updating instead:', item.id);
-    handleItemUpdated(item);
+  // Check if item already exists (avoid duplicates).
+  // Extended deduplication: match by server id OR by temp_id when local item
+  // has a virtual negative id (pending sync). This handles the race where:
+  // 1. createItem() writes to PGlite with id=null → convertShoppingListItem()
+  //    assigns a virtual negative id via tempIdToVirtualId(temp_id)
+  // 2. WS event arrives with the real positive server id → old check
+  //    (i.id === item.id) fails because virtual id ≠ server id → duplicate
+  const existingIndex = state.currentItems.findIndex(
+    i => i.id === item.id ||
+         (item.temp_id && i.temp_id && i.temp_id === item.temp_id)
+  );
+
+  if (existingIndex !== -1) {
+    // Replace the pending virtual-id item with the server item so the id
+    // transitions from negative virtual → real positive without a full reload.
+    debugLog('[ListsManager] Replacing pending item with server item (temp_id match):', item.id, item.temp_id);
+    const newItems = [...state.currentItems];
+    newItems[existingIndex] = { ...newItems[existingIndex], ...item };
+    updateState({ currentItems: newItems });
+
+    // Re-render and update UI silently (no toast — user already sees the item)
+    renderCurrentView();
+    updateFABVisibility();
+    updateFABButtons();
+    updateItemsCache();
     return;
   }
 
