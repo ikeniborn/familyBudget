@@ -240,6 +240,29 @@
                 await Promise.all(cacheNames.map(name => caches.delete(name)));
                 console.log('[SW_UPDATE] ✅ Step 2/5: Cleared', cacheNames.length, 'caches');
 
+                // Step 2.3/5: Upload pending shopping data before DB deletion
+                // CRITICAL: Must run BEFORE close() and BEFORE indexedDB.deleteDatabase()
+                // Pending items (sync_status='pending') would be lost forever if DB is deleted first.
+                console.log('[SW_UPDATE] Step 2.3/5: Upload pending shopping data...');
+                try {
+                    const { getDexieManager: _getDexieManagerForUpload, uploadPendingShoppingLists, uploadPendingShoppingOperations } = await import('/shared/db/dexie.min.js?v=PLACEHOLDER');
+                    const dexieManagerForUpload = _getDexieManagerForUpload();
+
+                    if (dexieManagerForUpload && dexieManagerForUpload.isReady()) {
+                        const [listsResult, itemsResult] = await Promise.all([
+                            uploadPendingShoppingLists(),
+                            uploadPendingShoppingOperations()
+                        ]);
+                        console.log(`[SW_UPDATE] ✅ Step 2.3/5: Uploaded ${listsResult.uploaded} lists, ${itemsResult.uploaded} items (${listsResult.failed + itemsResult.failed} failed)`);
+                    } else {
+                        console.log('[SW_UPDATE] ℹ️ Step 2.3/5: Dexie not initialized, no pending shopping data to upload');
+                    }
+                } catch (e) {
+                    // Non-blocking: update continues even if upload fails
+                    // Items remain on server if they were previously synced; only truly pending local-only items may be lost
+                    console.warn('[SW_UPDATE] ⚠️ Step 2.3/5: Failed to upload pending shopping data (continuing update):', e.message);
+                }
+
                 // Step 2.5/5: Close Dexie connections
                 console.log('[SW_UPDATE] Step 2.5/5: Closing Dexie connections...');
                 try {
