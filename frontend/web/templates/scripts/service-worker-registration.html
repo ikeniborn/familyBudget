@@ -243,19 +243,20 @@
                 // Step 2.3/5: Upload pending shopping data before DB deletion
                 // CRITICAL: Must run BEFORE close() and BEFORE indexedDB.deleteDatabase()
                 // Pending items (sync_status='pending') would be lost forever if DB is deleted first.
+                // NOTE: dexie.min.js is IIFE format — import() returns {}. Use window.Dexie instead.
                 console.log('[SW_UPDATE] Step 2.3/5: Upload pending shopping data...');
                 try {
-                    const { getDexieManager: _getDexieManagerForUpload, uploadPendingShoppingLists, uploadPendingShoppingOperations } = await import('/shared/db/dexie.min.js?v=PLACEHOLDER');
-                    const dexieManagerForUpload = _getDexieManagerForUpload();
-
-                    if (dexieManagerForUpload && dexieManagerForUpload.isReady()) {
-                        const [listsResult, itemsResult] = await Promise.all([
-                            uploadPendingShoppingLists(),
-                            uploadPendingShoppingOperations()
-                        ]);
-                        console.log(`[SW_UPDATE] ✅ Step 2.3/5: Uploaded ${listsResult.uploaded} lists, ${itemsResult.uploaded} items (${listsResult.failed + itemsResult.failed} failed)`);
+                    const dexieMod = window.Dexie;
+                    if (dexieMod && typeof dexieMod.getDexieManager === 'function') {
+                        const dexieManagerForUpload = dexieMod.getDexieManager();
+                        if (dexieManagerForUpload && dexieManagerForUpload.isReady()) {
+                            const result = await dexieManagerForUpload.uploadPendingShoppingData();
+                            console.log(`[SW_UPDATE] ✅ Step 2.3/5: Uploaded ${result.listsUploaded} lists, ${result.itemsUploaded} items (${result.failed} failed)`);
+                        } else {
+                            console.log('[SW_UPDATE] ℹ️ Step 2.3/5: Dexie not initialized, no pending shopping data to upload');
+                        }
                     } else {
-                        console.log('[SW_UPDATE] ℹ️ Step 2.3/5: Dexie not initialized, no pending shopping data to upload');
+                        console.log('[SW_UPDATE] ℹ️ Step 2.3/5: window.Dexie not available, skipping upload');
                     }
                 } catch (e) {
                     // Non-blocking: update continues even if upload fails
@@ -264,11 +265,13 @@
                 }
 
                 // Step 2.5/5: Close Dexie connections
+                // NOTE: dexie.min.js is IIFE format — import() returns {}. Use window.Dexie instead.
                 console.log('[SW_UPDATE] Step 2.5/5: Closing Dexie connections...');
                 try {
-                    // Dynamic import to get DexieManager (same pattern as periodic pruning)
-                    const { getDexieManager } = await import('/shared/db/dexie.min.js?v=PLACEHOLDER');
-                    const dexieManager = getDexieManager();
+                    const dexieMod = window.Dexie;
+                    const dexieManager = dexieMod && typeof dexieMod.getDexieManager === 'function'
+                        ? dexieMod.getDexieManager()
+                        : null;
 
                     if (dexieManager && dexieManager.isReady()) {
                         await dexieManager.close();
