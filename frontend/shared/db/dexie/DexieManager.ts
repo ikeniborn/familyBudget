@@ -660,10 +660,9 @@ export class DexieManager {
   }> {
     logger.debug('[DexieManager] uploadPendingShoppingData');
     const { uploadPendingShoppingLists, uploadPendingShoppingOperations } = await import('./operations/shoppingSync');
-    const [listsResult, itemsResult] = await Promise.all([
-      uploadPendingShoppingLists(),
-      uploadPendingShoppingOperations()
-    ]);
+    // Sequential: lists must be synced first so items can resolve list server IDs
+    const listsResult = await uploadPendingShoppingLists();
+    const itemsResult = await uploadPendingShoppingOperations();
     const failed = listsResult.failed + itemsResult.failed;
     logger.info('[DexieManager] ✅ Pending shopping data uploaded', {
       listsUploaded: listsResult.uploaded,

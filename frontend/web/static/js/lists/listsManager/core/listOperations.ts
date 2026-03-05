@@ -133,6 +133,12 @@ export async function createItem(data: ItemData): Promise<any> {
       result = { tempId: temp_id, id: null };
       debugLog('[LIST_OPS] Item created in PGlite', { temp_id });
 
+      // Background upload: persist item to server before any cache reset
+      // Fire-and-forget — UI already reflects local state from Dexie
+      pglite.uploadPendingShoppingData().catch((err: unknown) => {
+        console.warn('[LIST_OPS] Background item upload failed:', err);
+      });
+
       // Reload items from PGlite (DataLayer now handles temp_id lookup internally)
       if (currentList.id) {
         await loadShoppingListItems(currentList.id);
