@@ -66,6 +66,17 @@ export function setupWindowExports(): void {
     // FAB toolbar compatibility (v10.1.11)
     window.openModalFact = openAddTransactionModal;
 
+    // FactsManager namespace: used by onclick handlers in rendered table rows
+    // BUG2 fix: showEditModal and deleteFact were missing, causing broken edit/delete buttons
+    window.FactsManager = {
+        showEditModal: (id: number) => showEditModal(id),
+        deleteFact: (id: number) => deleteFact(id),
+        toggleSelectAll: (checkbox: HTMLInputElement) => toggleSelectAll(checkbox),
+        getFilters: () => ({}),
+        getPagination: () => ({}),
+        getSelectedIds: () => new Set<number>(),
+    };
+
     // Transaction operations (delegated to external modules when available)
     window.saveTransaction = saveTransaction;
     window.saveTransfer = saveTransfer;
@@ -92,9 +103,16 @@ async function openCreateModal(): Promise<void> {
 
 /**
  * Open add transaction modal
+ * BUG2b fix: delegate to openModalFact (dashboard) if available to ensure
+ * proper tab setup and data loading; otherwise use direct modal open fallback.
  */
 async function openAddTransactionModal(): Promise<void> {
-    // Delegate to Dashboard module if available (has skeleton loader)
+    // Delegate to Dashboard.openModalFact if available (has full tab+data setup)
+    if (typeof window.openModalFact === 'function' && window.openModalFact !== openAddTransactionModal) {
+        return (window.openModalFact as () => void | Promise<void>)();
+    }
+
+    // Delegate to Dashboard module openAddTransactionModal if available
     if (window.Dashboard?.openAddTransactionModal) {
         return window.Dashboard.openAddTransactionModal();
     }
@@ -118,18 +136,46 @@ async function openAddTransactionModal(): Promise<void> {
 }
 
 /**
- * Open transfer modal
+ * Open transfer tab in modal_fact
+ * BUG2b fix: open modal_fact and switch to the transfer tab.
+ * When dashboard.min.js is loaded, delegate to Dashboard.openFactTransferModal
+ * which initialises the full tabbed modal properly.
  */
 async function openFactTransferModal(): Promise<void> {
-    // Delegate to openFactTransferModal if available (has skeleton loader)
-    if (window.openFactTransferModal && window.openFactTransferModal !== openFactTransferModal) {
-        return window.openFactTransferModal();
+    // Delegate to Dashboard.openFactTransferModal if available (has full tab+data setup)
+    if (window.Dashboard?.openFactTransferModal) {
+        return window.Dashboard.openFactTransferModal();
     }
 
-    // Fallback: simple modal open without skeleton
-    const modal = document.getElementById('modal_add_transfer') as HTMLDialogElement | null;
+    // Fallback: open modal_fact and switch to transfer tab
+    const modal = document.getElementById('modal_fact') as HTMLDialogElement | null;
     if (modal?.showModal) {
+        setTransactionDate(0);
         modal.showModal();
+
+        // Switch to transfer tab by checking the transfer radio input
+        const transferTabRadio = modal.querySelector('input[type="radio"][data-tab="transfer"]') as HTMLInputElement | null;
+        if (transferTabRadio) {
+            transferTabRadio.checked = true;
+            transferTabRadio.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // Show transfer tab content, hide transaction tab content
+        const transactionContent = modal.querySelector('.tab-content[data-tab="transaction"]') as HTMLElement | null;
+        const transferContent = modal.querySelector('.tab-content[data-tab="transfer"]') as HTMLElement | null;
+        if (transactionContent) transactionContent.classList.add('hidden');
+        if (transferContent) transferContent.classList.remove('hidden');
+
+        // Update hidden active_tab input
+        const activeTabInput = modal.querySelector('input[name="active_tab"]') as HTMLInputElement | null;
+        if (activeTabInput) activeTabInput.value = 'transfer';
+        return;
+    }
+
+    // Legacy fallback: try old transfer modal
+    const legacyModal = document.getElementById('modal_add_transfer') as HTMLDialogElement | null;
+    if (legacyModal?.showModal) {
+        legacyModal.showModal();
     } else {
         console.warn('[FactsManager] Transfer modal not found');
     }

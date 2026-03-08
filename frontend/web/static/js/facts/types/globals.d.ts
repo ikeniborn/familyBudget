@@ -49,11 +49,15 @@ declare global {
         // - openAddTransactionModal, openFactTransferModal
         // - saveTransaction, saveTransfer, setTransactionDate, loadFactHints
 
-        // Facts Manager state (read-only access)
+        // Facts Manager state and operations
         FactsManager?: {
             getFilters: () => any;
             getPagination: () => any;
             getSelectedIds: () => Set<number>;
+            // BUG2 fix: add missing methods used in renderFactRow/renderFactMobileCard
+            showEditModal?: (factId: number) => Promise<void> | void;
+            deleteFact?: (factId: number) => Promise<void> | void;
+            toggleSelectAll?: (checkbox: HTMLInputElement) => void;
         };
     }
 }
