@@ -120,8 +120,12 @@
     </div>
 </div>
 
-<!-- v9.0 Tabbed Modals -->
+<!-- v9.0 Tabbed Modals (legacy: modal_add_plan, new: modal_plan for FAB) -->
 {{ modal_plan('modal_add_plan') }}
+
+<!-- BUG3 fix: modal_plan is required by openModalPlan() which is called by FAB toolbar.
+     plan.html was using only modal_add_plan, causing FAB to open a non-existent modal. -->
+{{ modal_plan('modal_plan') }}
 
 <!-- Edit Plan Modal -->
 {{ edit_plan_modal('edit-modal') }}
