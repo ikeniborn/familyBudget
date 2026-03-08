@@ -176,7 +176,7 @@ async function loadTransferTabData(): Promise<void> {
       const fromCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_fact-tab-transfer select[name="from_article_id"]',
         {
-          type: 'expense', // FROM is always expense (debit)
+          type: 'debit', // FROM is always debit
           showLeafOnly: true,
           mode: 'create',
           onCategoryChange: (category: Category) => {
@@ -190,7 +190,7 @@ async function loadTransferTabData(): Promise<void> {
       const toCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_fact-tab-transfer select[name="to_article_id"]',
         {
-          type: 'income', // TO is always income (credit)
+          type: 'credit', // TO is always credit
           showLeafOnly: true,
           mode: 'create',
           onCategoryChange: (category: Category) => {
