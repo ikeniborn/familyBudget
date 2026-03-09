@@ -120,7 +120,8 @@ export function buildArticleTree(articles: Article[]): ArticleTreeNode[] {
         return {
             id: article.id,
             name: article.name,
-            record_type: article.record_type,
+            // API returns `type`, legacy may use `record_type` — support both
+            record_type: ((article as any).type || article.record_type) as 'expense' | 'income' | 'debit' | 'credit',
             parent_id: article.parent_id,
             level,
             path: article.path,

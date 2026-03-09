@@ -269,8 +269,9 @@ function groupArticlesByTypeForSelect(articles: any[]): any[] {
 
     const byType: Record<string, any[]> = {};
     articles.forEach(a => {
-        if (!byType[a.record_type]) byType[a.record_type] = [];
-        byType[a.record_type].push(a);
+        const articleType = a.type || a.record_type; // API returns `type`, legacy may use `record_type`
+        if (!byType[articleType]) byType[articleType] = [];
+        byType[articleType].push(a);
     });
 
     ['expense', 'income', 'debit', 'credit'].forEach(type => {
@@ -440,8 +441,9 @@ function populateCreateModalArticles(articles: any[]): void {
         articleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
 
         // Group articles by type for better UX
-        const expenseArticles = articles.filter(a => a.record_type === 'expense');
-        const incomeArticles = articles.filter(a => a.record_type === 'income');
+        // API returns `type` field, legacy may use `record_type` — support both
+        const expenseArticles = articles.filter(a => (a.type || a.record_type) === 'expense');
+        const incomeArticles = articles.filter(a => (a.type || a.record_type) === 'income');
 
         // Add expense articles
         if (expenseArticles.length > 0) {
@@ -475,7 +477,10 @@ function populateCreateModalArticles(articles: any[]): void {
     if (transferFromArticleSelect) {
         transferFromArticleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
         // Transfer from = expenses (debit)
-        const debitArticles = articles.filter(a => a.record_type === 'debit' || a.record_type === 'expense');
+        const debitArticles = articles.filter(a => {
+            const t = a.type || a.record_type;
+            return t === 'debit' || t === 'expense';
+        });
         debitArticles.forEach(article => {
             const option = document.createElement('option');
             option.value = String(article.id);
@@ -488,7 +493,10 @@ function populateCreateModalArticles(articles: any[]): void {
     if (transferToArticleSelect) {
         transferToArticleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
         // Transfer to = income (credit)
-        const creditArticles = articles.filter(a => a.record_type === 'credit' || a.record_type === 'income');
+        const creditArticles = articles.filter(a => {
+            const t = a.type || a.record_type;
+            return t === 'credit' || t === 'income';
+        });
         creditArticles.forEach(article => {
             const option = document.createElement('option');
             option.value = String(article.id);
