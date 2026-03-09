@@ -88,6 +88,9 @@ export function setupWindowExports(): void {
     window.setFactTransferDate = setFactTransferDateAction; // For modal_fact transfer tab date buttons
     window.loadFactHints = loadFactHintsWrapper;
     window.filterEditCostCenters = filterEditCostCenters;
+
+    // Save fact modal (modal_fact save button uses onclick="saveFactModal(this)")
+    window.saveFactModal = saveFactModalFacts;
 }
 
 // ============================================================================
@@ -501,4 +504,39 @@ function exportFilteredFacts(format: 'csv'): void {
  */
 async function createFact(event: Event): Promise<void> {
     await createFactAction(event);
+}
+
+// ============================================================================
+// Save Fact Modal
+// ============================================================================
+
+/**
+ * Save handler for modal_fact
+ * Called by onclick="saveFactModal(this)" on the Save button in modal_fact.html
+ * Routes to transfer save (transfers.min.js) or fact create based on active tab
+ */
+async function saveFactModalFacts(button: HTMLElement): Promise<void> {
+    if ((button as HTMLButtonElement).disabled) return;
+
+    const formId = (button as HTMLElement).dataset.formId || 'form_modal_fact';
+    const modalId = (button as HTMLElement).dataset.modalId || 'modal_fact';
+    const form = document.getElementById(formId) as HTMLFormElement;
+    if (!form) return;
+
+    const activeTabInput = form.querySelector<HTMLInputElement>('input[name="active_tab"]');
+    const activeTab = activeTabInput?.value || 'transaction';
+
+    if (activeTab === 'transfer') {
+        // Delegate to transfers.min.js
+        if (typeof (window as any).saveTransfer === 'function') {
+            (window as any).saveTransfer(button);
+        }
+    } else {
+        // Use facts controller createFact
+        const event = new Event('submit', { bubbles: true, cancelable: true });
+        await createFactAction(event);
+        // Close modal on success
+        const modal = document.getElementById(modalId) as HTMLDialogElement;
+        modal?.close();
+    }
 }

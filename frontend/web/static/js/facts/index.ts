@@ -74,6 +74,10 @@ import {
 } from './core/stateManager';
 import { factsLogger as logger } from './utilities/logger';
 
+/** CalendarWidget instances for modal_fact date inputs */
+let modalFactDateCalendar: any = null;
+let modalTransferDateCalendar: any = null;
+
 /**
  * Initialize Facts Manager
  * Called automatically on DOMContentLoaded
@@ -495,6 +499,63 @@ function populateCreateModalArticles(articles: any[]): void {
 }
 
 /**
+ * Initialize CalendarWidget instances for modal_fact date inputs
+ */
+function initModalFactCalendars(): void {
+    const CalendarWidget = (window as any).BudgetShared?.CalendarWidget;
+    if (!CalendarWidget) return;
+
+    if (modalFactDateCalendar) {
+        try { modalFactDateCalendar.destroy(); } catch (_) {}
+        modalFactDateCalendar = null;
+    }
+    if (modalTransferDateCalendar) {
+        try { modalTransferDateCalendar.destroy(); } catch (_) {}
+        modalTransferDateCalendar = null;
+    }
+
+    const factDateInput = document.querySelector<HTMLInputElement>(
+        '#modal_fact-tab-transaction input[name="fact_date"]'
+    );
+    if (factDateInput) {
+        modalFactDateCalendar = new CalendarWidget({ inputElement: factDateInput, mode: 'single' });
+    }
+
+    const transferDateInput = document.querySelector<HTMLInputElement>(
+        '#modal_fact-tab-transfer input[name="transfer_date"]'
+    );
+    if (transferDateInput) {
+        modalTransferDateCalendar = new CalendarWidget({ inputElement: transferDateInput, mode: 'single' });
+    }
+}
+
+/**
+ * Setup radio button change listeners for tab switching in modal_fact
+ */
+function setupModalFactTabSwitching(): void {
+    const modal = document.getElementById('modal_fact');
+    if (!modal) return;
+
+    const tabRadios = modal.querySelectorAll<HTMLInputElement>('input[type="radio"][data-tab]');
+    tabRadios.forEach(radio => {
+        if (radio.dataset.tabListenerAttached) return;
+        radio.dataset.tabListenerAttached = 'true';
+
+        radio.addEventListener('change', () => {
+            const activeTab = radio.dataset.tab;
+            if (!activeTab) return;
+
+            const activeTabInput = modal.querySelector<HTMLInputElement>('input[name="active_tab"]');
+            if (activeTabInput) activeTabInput.value = activeTab;
+
+            modal.querySelectorAll<HTMLElement>('.tab-content[data-tab]').forEach(content => {
+                content.classList.toggle('hidden', content.dataset.tab !== activeTab);
+            });
+        });
+    });
+}
+
+/**
  * Setup event listeners for modal_fact
  * Handles "Today" button, modal open events, etc.
  */
@@ -511,8 +572,12 @@ function setupModalFactListeners(): void {
             if (mutation.type === 'attributes' && mutation.attributeName === 'open') {
                 const target = mutation.target as HTMLDialogElement;
                 if (target.open) {
-                    // Modal opened - refresh dropdowns if needed
-                    logger.log(' Modal opened - dropdowns already populated');
+                    // Modal opened - initialize form
+                    setFactDate(0);                // Заполнить сегодняшнюю дату (transaction tab)
+                    setFactTransferDate(0);        // Заполнить сегодняшнюю дату (transfer tab)
+                    initModalFactCalendars();      // Создать иконки календаря
+                    setupModalFactTabSwitching();  // Включить переключение вкладок
+                    logger.log(' Modal opened - form initialized');
                 }
             }
         });

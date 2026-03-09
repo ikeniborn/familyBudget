@@ -43,6 +43,7 @@ declare global {
         createFact?: (event: Event) => Promise<void>;
         createTransfer?: (event: Event) => Promise<void>;
         filterEditCostCenters?: (financialCenterId: string) => Promise<void>;
+        saveFactModal?: (button: HTMLElement) => Promise<void>;
 
         // Note: These are declared in dashboard/types/globals.d.ts with compatible types:
         // - closeEditModal, deleteFact, deleteFromEditModal
