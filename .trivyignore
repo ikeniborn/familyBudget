@@ -126,6 +126,7 @@ CVE-2026-1299
 # Quarterly reviews:
 #   - CVE-2024-23342 (ecdsa), CVE-2023-45853 (zlib), CVE-2023-2953 (ldap)
 #   - CVE-2025-15366 (IMAP), CVE-2025-15367 (POP3), CVE-2025-8194 (tarfile)
+#   - CVE-2025-69534 (python-markdown DoS, not installed)
 #
 # Action items:
 # 1. Check Debian security tracker weekly for HIGH/CRITICAL CVE patches:
@@ -146,3 +147,17 @@ CVE-2026-1299
 # Action: Upgrade python-jose or pin cryptography>=46.0.5 when fix is stable
 # Review: Weekly (security patches)
 CVE-2026-26007
+
+# CVE-2025-69534: python-markdown DoS via malformed HTML-like sequences (HIGH)
+# Status: affected in Debian 12 (bookworm) - CVE published 2026-03-05, no DSA yet
+# Impact: AssertionError in html.parser.HTMLParser when parsing malformed Markdown → application crash (DoS)
+# CVSS: 8.2 (RedHat) / 5.5 (GHSA)
+# Package: libpython3.11-minimal, libpython3.11-stdlib, python3.11-minimal v3.11.2-6+deb12u6
+# Fixed in: python-markdown 3.8.1 (not yet available in Debian 12 bookworm)
+# Mitigation: Accept risk - python-markdown library is NOT installed in this image
+#   - Package absent from backend/requirements.txt
+#   - No import of markdown module in application code
+#   - Note: if markdown is added to requirements.txt in future, pin python-markdown>=3.8.1
+# Risk assessment: NEGLIGIBLE (vulnerable library not installed)
+# Next review: 2026-06-09 (quarterly)
+CVE-2025-69534
