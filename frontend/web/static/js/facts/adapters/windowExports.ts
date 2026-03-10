@@ -283,14 +283,18 @@ async function loadFactHintsWrapper(_category?: any): Promise<void> {
     if (!hintsContainer) return;
 
     try {
-        // Get form values
-        const form = document.getElementById('form_modal_add_transaction') as HTMLFormElement;
+        // modal_fact form (v10.x+) with fallback to legacy modal
+        const form = (
+            document.getElementById('form_modal_fact') ||
+            document.getElementById('form_modal_add_transaction')
+        ) as HTMLFormElement | null;
         if (!form) return;
 
         const formData = new FormData(form);
         const articleId = formData.get('article_id') as string;
         const factDate = formData.get('fact_date') as string;
-        const recordType = formData.get('record_type') as string;
+        // fact_type hidden (synced from record_type radio) — fallback to record_type
+        const recordType = (formData.get('fact_type') || formData.get('record_type')) as string;
         const financialCenterId = formData.get('financial_center_id') as string;
 
         if (!articleId || !factDate || !recordType) {

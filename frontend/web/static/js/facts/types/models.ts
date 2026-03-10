@@ -183,9 +183,11 @@ export interface SelectionState {
  */
 export interface CategoryTreeSelectState {
     allCategories: Article[];
-    createCategoryTreeSelect: any | null; // CategoryTreeSelect instance
-    editCategoryTreeSelect: any | null; // CategoryTreeSelect instance
-    editDateCalendar: any | null; // CalendarWidget instance
+    createCategoryTreeSelect: any | null;     // transaction tab instance
+    editCategoryTreeSelect: any | null;       // edit modal instance
+    editDateCalendar: any | null;             // CalendarWidget instance
+    createTransferFromTree: any | null;       // transfer tab FROM instance
+    createTransferToTree: any | null;         // transfer tab TO instance
 }
 
 /**

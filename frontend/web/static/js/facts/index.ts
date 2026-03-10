@@ -73,6 +73,11 @@ import {
     setAllCategories
 } from './core/stateManager';
 import { factsLogger as logger } from './utilities/logger';
+import {
+    initTransactionCategoryTree,
+    initTransferCategoryTrees,
+    updateTransactionCategoryTreeType
+} from './features/modalFact/categoryWidget';
 
 /** CalendarWidget instances for modal_fact date inputs */
 let modalFactDateCalendar: any = null;
@@ -567,6 +572,9 @@ function setupModalFactListeners(): void {
     // Setup "Today" buttons for date auto-fill
     setupTodayButtons();
 
+    // Setup record_type radio change listener — syncs fact_type hidden + updates category tree
+    setupTransactionTypeListener(modal);
+
     // Setup modal open event to refresh dropdowns
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
@@ -574,10 +582,15 @@ function setupModalFactListeners(): void {
                 const target = mutation.target as HTMLDialogElement;
                 if (target.open) {
                     // Modal opened - initialize form
-                    setFactDate(0);                // Заполнить сегодняшнюю дату (transaction tab)
-                    setFactTransferDate(0);        // Заполнить сегодняшнюю дату (transfer tab)
-                    initModalFactCalendars();      // Создать иконки календаря
-                    setupModalFactTabSwitching();  // Включить переключение вкладок
+                    setFactDate(0);                       // Дата transaction tab
+                    setFactTransferDate(0);               // Дата transfer tab
+                    initModalFactCalendars();             // CalendarWidget иконки
+                    setupModalFactTabSwitching();         // Radio tab switching
+                    initTransactionCategoryTree();        // ChoicesCategoryTree transaction
+                    // Transfer trees только когда dashboard.min.js не загружен
+                    if (!window.Dashboard?.openFactTransferModal) {
+                        initTransferCategoryTrees();
+                    }
                     logger.log(' Modal opened - form initialized');
                 }
             }
@@ -587,6 +600,20 @@ function setupModalFactListeners(): void {
     observer.observe(modal, {
         attributes: true,
         attributeFilter: ['open']
+    });
+}
+
+/**
+ * Listen for record_type radio changes to keep fact_type hidden and
+ * ChoicesCategoryTree in sync with the selected expense/income type.
+ * Uses event delegation on the modal element (attached once).
+ */
+function setupTransactionTypeListener(modal: HTMLElement): void {
+    modal.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        if (target.name === 'record_type' && target.type === 'radio') {
+            updateTransactionCategoryTreeType(target.value as 'expense' | 'income');
+        }
     });
 }
 
