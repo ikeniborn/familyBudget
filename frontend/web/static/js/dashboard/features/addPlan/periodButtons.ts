@@ -104,6 +104,62 @@ export function setupPlanPeriodButtons(): void {
   });
 }
 
+// ============================================================================
+// Transfer Period Buttons Setup
+// ============================================================================
+
+/**
+ * Set up transfer period buttons in plan_transfer_tab with month+year labels.
+ * Mirrors setupPlanPeriodButtons() but targets '#modal_plan-tab-transfer .transfer-period-btn'.
+ * Called from openModalPlan() after hideSkeleton().
+ */
+export function setupTransferPeriodButtons(): void {
+  const periodButtons = document.querySelectorAll('#modal_plan-tab-transfer .transfer-period-btn') as NodeListOf<HTMLButtonElement>;
+
+  const hiddenInput = document.querySelector('#modal_plan-tab-transfer input[name="transfer_plan_month"]') as HTMLInputElement | null;
+
+  if (periodButtons.length === 0) return;
+
+  if (!hiddenInput) return;
+
+  // Initialize button labels and data attributes (current month +0, +1, +2)
+  const today = new Date();
+  const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
+
+  periodButtons.forEach((btn) => {
+    const offset = parseInt(btn.dataset.offset || '0');
+    const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+    const label = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+    btn.textContent = label;
+    btn.dataset.year = String(date.getFullYear());
+    btn.dataset.month = String(date.getMonth() + 1).padStart(2, '0');
+  });
+
+  // Set value for first button (active by default)
+  const firstButton = periodButtons[0];
+  if (firstButton?.dataset.year && firstButton.dataset.month) {
+    hiddenInput.value = `${firstButton.dataset.year}-${firstButton.dataset.month}`;
+  }
+
+  // Click handlers (avoid duplicates)
+  periodButtons.forEach(button => {
+    if (button.dataset.listenerAttached === 'true') return;
+
+    button.addEventListener('click', function() {
+      periodButtons.forEach(btn => btn.classList.remove('btn-active'));
+      this.classList.add('btn-active');
+
+      const year = this.dataset.year;
+      const month = this.dataset.month;
+      hiddenInput.value = `${year}-${month}`;
+
+      debugLog('Selected transfer plan period:', hiddenInput.value);
+    });
+
+    button.dataset.listenerAttached = 'true';
+  });
+}
+
 /**
  * Set up handlers for plan type buttons (income/expense)
  */

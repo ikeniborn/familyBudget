@@ -10,7 +10,7 @@ import { getState, updateState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
 import { setupRecurringListeners } from './recurringSettings';
 import { setupPlanTypeToggle } from './typeToggle';
-import { setupPlanPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
+import { setupPlanPeriodButtons, setupTransferPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
 import type { Category } from '../../types/dashboard';
 
@@ -457,6 +457,7 @@ export async function openModalPlan(): Promise<void> {
 
     // Setup period buttons AFTER skeleton hidden
     setupPlanPeriodButtons();
+    setupTransferPeriodButtons();
 
     // Reset to transaction tab (default)
     switchTab('transaction');
