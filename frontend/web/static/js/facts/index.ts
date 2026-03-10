@@ -76,6 +76,7 @@ import { factsLogger as logger } from './utilities/logger';
 import {
     initTransactionCategoryTree,
     initTransferCategoryTrees,
+    destroyCategoryTrees,
     updateTransactionCategoryTreeType
 } from './features/modalFact/categoryWidget';
 
@@ -592,6 +593,11 @@ function setupModalFactListeners(): void {
                         initTransferCategoryTrees();
                     }
                     logger.log(' Modal opened - form initialized');
+                } else {
+                    // Modal closed - destroy Choices instances so next open starts fresh
+                    // Prevents "Choices already initialised" double-init error
+                    destroyCategoryTrees();
+                    logger.log(' Modal closed - category trees destroyed');
                 }
             }
         });

@@ -12,6 +12,7 @@ import { setupRecurringListeners } from './recurringSettings';
 import { setupPlanTypeToggle } from './typeToggle';
 import { setupPlanPeriodButtons, setupTransferPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
+import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
@@ -149,6 +150,9 @@ async function loadTransactionTabData(): Promise<void> {
         planCategoryTreeSelect: planCategoryTree
       });
 
+      // Mobile/tablet: shift modal up when dropdown opens
+      setupMobileModalPositioning(planCategoryTree, 'modal_plan');
+
       debugLog('[ModalPlan] CategoryTreeSelect instance created');
     } else {
       debugLog('[ModalPlan] BudgetShared.ChoicesCategoryTree not available');
@@ -216,7 +220,11 @@ async function loadTransferTabData(): Promise<void> {
         planTransferToCategoryTree: toCategoryTree
       });
 
-      // 5. Setup FC change listeners for transfer hints
+      // 5. Mobile/tablet: shift modal up when transfer dropdowns open
+      setupMobileModalPositioning(fromCategoryTree, 'modal_plan');
+      setupMobileModalPositioning(toCategoryTree, 'modal_plan');
+
+      // 6. Setup FC change listeners for transfer hints
       setupTransferFCListeners();
 
       debugLog('[ModalPlan] Transfer CategoryTreeSelect instances created');
@@ -520,6 +528,23 @@ export function closeModalPlan(): void {
   // Clear form
   const form = document.getElementById('form_modal_plan') as HTMLFormElement;
   form?.reset();
+
+  // Destroy ChoicesCategoryTree instances so next open starts fresh
+  // Prevents "Choices already initialised" double-init error on re-open
+  const state = getState();
+  if (state.planCategoryTreeSelect) {
+    try { state.planCategoryTreeSelect.destroy(); } catch (_) {}
+    updateState({ planCategoryTreeSelect: null });
+  }
+  if (state.planTransferFromCategoryTree || state.planTransferToCategoryTree) {
+    if (state.planTransferFromCategoryTree) {
+      try { state.planTransferFromCategoryTree.destroy(); } catch (_) {}
+    }
+    if (state.planTransferToCategoryTree) {
+      try { state.planTransferToCategoryTree.destroy(); } catch (_) {}
+    }
+    updateState({ planTransferFromCategoryTree: null, planTransferToCategoryTree: null });
+  }
 
   // Clear tab cache
   clearTabCache();

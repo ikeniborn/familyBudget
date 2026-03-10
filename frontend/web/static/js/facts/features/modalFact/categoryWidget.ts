@@ -15,56 +15,12 @@ import {
     getCreateTransferToTree,
     setCreateTransferToTree
 } from '../../core/stateManager';
+import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
 
 const TRANSACTION_ARTICLE_SELECTOR = '#modal_fact-tab-transaction select[name="article_id"]';
-const FROM_ARTICLE_SELECTOR = '#modal_fact-tab-transfer select[name="from_article_id"]';
-const TO_ARTICLE_SELECTOR = '#modal_fact-tab-transfer select[name="to_article_id"]';
-const MODAL_FACT_SELECTOR = '#modal_fact';
-
-// ============================================================================
-// Modal Positioning
-// ============================================================================
-
-/**
- * Attach showDropdown/hideDropdown listeners to a ChoicesCategoryTree instance
- * to dynamically reposition the modal to the top when a dropdown is open.
- *
- * When the Choices.js dropdown opens on mobile (PWA), the modal shifts upward
- * so the dropdown list is visible above the virtual keyboard.
- * After the dropdown closes, the modal returns to center.
- *
- * Uses Choices.js native events 'showDropdown' / 'hideDropdown' fired on
- * the original <select> element (instance.element).
- *
- * Pattern: frontend/web/static/js/lists/listsManager/ui/modalManager.ts line 678
- */
-function setupModalPositioning(instance: any, modalSelector: string): void {
-    if (!instance?.element) return;
-
-    // Guard against duplicate listeners
-    if (instance.element.dataset.modalPositioningAttached === 'true') return;
-
-    const modal = document.querySelector<HTMLDialogElement>(modalSelector);
-    if (!modal) return;
-
-    // Target modal-box directly: CSS Grid auto-margins override align-items on the
-    // parent dialog, so items-start on <dialog> is ineffective when modal-box has my-auto.
-    // Directly setting margin-top:0 on modal-box moves it to the top of the screen.
-    const modalBox = modal.querySelector<HTMLElement>('.modal-box');
-    if (!modalBox) return;
-
-    instance.element.addEventListener('showDropdown', () => {
-        modalBox.style.marginTop = '0';
-        modalBox.style.marginBottom = 'auto';
-    });
-
-    instance.element.addEventListener('hideDropdown', () => {
-        modalBox.style.marginTop = '';
-        modalBox.style.marginBottom = '';
-    });
-
-    instance.element.dataset.modalPositioningAttached = 'true';
-}
+const FROM_ARTICLE_SELECTOR        = '#modal_fact-tab-transfer select[name="from_article_id"]';
+const TO_ARTICLE_SELECTOR          = '#modal_fact-tab-transfer select[name="to_article_id"]';
+const MODAL_FACT_SELECTOR          = '#modal_fact';
 
 // ============================================================================
 // Transaction Tab
@@ -116,7 +72,7 @@ export function initTransactionCategoryTree(): void {
     setCreateCategoryTreeSelect(instance);
 
     // PWA: reposition modal to top when dropdown opens to keep list visible
-    setupModalPositioning(instance, MODAL_FACT_SELECTOR);
+    setupMobileModalPositioning(instance, MODAL_FACT_SELECTOR);
 }
 
 /**
@@ -172,7 +128,7 @@ export function initTransferCategoryTrees(): void {
         );
         setCreateTransferFromTree(fromInstance);
         // PWA: reposition modal to top when dropdown opens
-        setupModalPositioning(fromInstance, MODAL_FACT_SELECTOR);
+        setupMobileModalPositioning(fromInstance, MODAL_FACT_SELECTOR);
     }
 
     // TO tree — credit category
@@ -187,7 +143,7 @@ export function initTransferCategoryTrees(): void {
         );
         setCreateTransferToTree(toInstance);
         // PWA: reposition modal to top when dropdown opens
-        setupModalPositioning(toInstance, MODAL_FACT_SELECTOR);
+        setupMobileModalPositioning(toInstance, MODAL_FACT_SELECTOR);
     }
 }
 
