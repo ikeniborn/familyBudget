@@ -62,11 +62,24 @@
                 <label class="label">
                     <span class="label-text">🏦 Счета</span>
                 </label>
-                <select id="create-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[100px]">
-                    <!-- Will be populated dynamically -->
-                </select>
+                <div class="border border-base-300 rounded-lg p-2 bg-base-100">
+                    <div id="create-fc-tags" class="flex flex-wrap gap-1 mb-2 min-h-[20px]"></div>
+                    <div class="relative">
+                        <input type="text"
+                               id="create-fc-search"
+                               placeholder="Поиск счёта..."
+                               class="input input-bordered input-sm w-full"
+                               autocomplete="off"
+                               oninput="renderFCDropdown('create', this.value)"
+                               onfocus="showFCDropdown('create')"
+                               onblur="hideFCDropdown('create')" />
+                        <div id="create-fc-dropdown"
+                             class="hidden absolute z-20 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-[150px] overflow-y-auto">
+                        </div>
+                    </div>
+                </div>
                 <p class="text-sm text-base-content/60 mt-1">
-                    Не выбрано = МЗ доступно для всех счетов. Удерживайте Ctrl для выбора нескольких.
+                    Не выбрано = МЗ доступно для всех счетов.
                 </p>
             </div>
             <div class="modal-action">
@@ -102,11 +115,24 @@
                 <label class="label">
                     <span class="label-text">🏦 Счета</span>
                 </label>
-                <select id="edit-financial-centers" name="financial_center_ids" multiple class="select select-bordered h-auto min-h-[100px]">
-                    <!-- Will be populated dynamically -->
-                </select>
+                <div class="border border-base-300 rounded-lg p-2 bg-base-100">
+                    <div id="edit-fc-tags" class="flex flex-wrap gap-1 mb-2 min-h-[20px]"></div>
+                    <div class="relative">
+                        <input type="text"
+                               id="edit-fc-search"
+                               placeholder="Поиск счёта..."
+                               class="input input-bordered input-sm w-full"
+                               autocomplete="off"
+                               oninput="renderFCDropdown('edit', this.value)"
+                               onfocus="showFCDropdown('edit')"
+                               onblur="hideFCDropdown('edit')" />
+                        <div id="edit-fc-dropdown"
+                             class="hidden absolute z-20 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-[150px] overflow-y-auto">
+                        </div>
+                    </div>
+                </div>
                 <p class="text-sm text-base-content/60 mt-1">
-                    Не выбрано = МЗ доступно для всех счетов. Удерживайте Ctrl для выбора нескольких.
+                    Не выбрано = МЗ доступно для всех счетов.
                 </p>
             </div>
             <!-- Modal Actions (Cancel/Save + Mobile Delete) -->
@@ -189,7 +215,7 @@ async function loadCenters() {
     }
 }
 
-// Load financial centers for multiselect
+// Load financial centers for tag input
 async function loadFinancialCenters() {
     try {
         const response = await fetch('/api/v1/financial-centers', {
@@ -198,28 +224,88 @@ async function loadFinancialCenters() {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const data = await response.json();
         financialCentersData = data.financial_centers || [];
-        populateFinancialCenterSelect('create-financial-centers', []);
-        populateFinancialCenterSelect('edit-financial-centers', []);
+        initFCTagInput('create', []);
+        initFCTagInput('edit', []);
     } catch (error) {
         console.error('Error loading financial centers:', error);
     }
 }
 
-// Populate financial center multiselect
+// ---- FC Tag Input component ----
+const fcTagState = {};
+
+function escapeHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function initFCTagInput(prefix, selectedIds) {
+    fcTagState[prefix] = (selectedIds || []).map(id => parseInt(id, 10));
+    renderFCTags(prefix);
+    renderFCDropdown(prefix, '');
+}
+
+function renderFCTags(prefix) {
+    const container = document.getElementById(`${prefix}-fc-tags`);
+    if (!container) return;
+    const ids = fcTagState[prefix] || [];
+    if (ids.length === 0) { container.innerHTML = ''; return; }
+    container.innerHTML = ids.map(id => {
+        const fc = financialCentersData.find(f => parseInt(f.id, 10) === id);
+        const name = escapeHtml(fc ? fc.name : `#${id}`);
+        return `<span class="badge badge-primary gap-1 text-xs">${name}<button type="button" class="btn btn-xs btn-circle btn-ghost min-h-0 h-4 w-4 p-0 leading-none" onclick="removeFCTag('${prefix}', ${id})">✕</button></span>`;
+    }).join('');
+}
+
+function renderFCDropdown(prefix, query) {
+    const list = document.getElementById(`${prefix}-fc-dropdown`);
+    if (!list) return;
+    const ids = fcTagState[prefix] || [];
+    const q = (query || '').toLowerCase();
+    const filtered = financialCentersData.filter(fc =>
+        !ids.includes(parseInt(fc.id, 10)) && fc.name.toLowerCase().includes(q)
+    );
+    if (filtered.length === 0) {
+        list.innerHTML = '<div class="px-3 py-2 text-sm text-base-content/50">Ничего не найдено</div>';
+    } else {
+        list.innerHTML = filtered.map(fc =>
+            `<div class="px-3 py-2 cursor-pointer hover:bg-base-200 text-sm" onmousedown="addFCTag('${prefix}', ${parseInt(fc.id, 10)})">${escapeHtml(fc.name)}</div>`
+        ).join('');
+    }
+}
+
+function addFCTag(prefix, id) {
+    if (!fcTagState[prefix]) fcTagState[prefix] = [];
+    if (!fcTagState[prefix].includes(id)) fcTagState[prefix].push(id);
+    renderFCTags(prefix);
+    const search = document.getElementById(`${prefix}-fc-search`);
+    if (search) search.value = '';
+    renderFCDropdown(prefix, '');
+}
+
+function removeFCTag(prefix, id) {
+    if (fcTagState[prefix]) fcTagState[prefix] = fcTagState[prefix].filter(i => i !== id);
+    renderFCTags(prefix);
+    renderFCDropdown(prefix, document.getElementById(`${prefix}-fc-search`)?.value || '');
+}
+
+function showFCDropdown(prefix) {
+    const d = document.getElementById(`${prefix}-fc-dropdown`);
+    if (d) d.classList.remove('hidden');
+}
+
+function hideFCDropdown(prefix) {
+    const d = document.getElementById(`${prefix}-fc-dropdown`);
+    if (d) setTimeout(() => d.classList.add('hidden'), 150);
+}
+
+function getFCSelectedIds(prefix) {
+    return fcTagState[prefix] || [];
+}
+
+// Legacy alias
 function populateFinancialCenterSelect(selectId, selectedIds) {
-    const select = document.getElementById(selectId);
-    if (!select) return;
-    select.innerHTML = '';
-
-    const normalizedSelectedIds = (selectedIds || []).map(id => parseInt(id, 10));
-
-    financialCentersData.forEach(fc => {
-        const option = document.createElement('option');
-        option.value = fc.id;
-        option.textContent = fc.name;
-        option.selected = normalizedSelectedIds.includes(parseInt(fc.id, 10));
-        select.appendChild(option);
-    });
+    const prefix = selectId.replace('-financial-centers', '');
+    initFCTagInput(prefix, selectedIds);
 }
 
 // Get FC names label for table
@@ -402,6 +488,7 @@ function showCreateModal() {
 function closeCreateModal() {
     document.getElementById('create-modal').close();
     document.getElementById('create-form').reset();
+    initFCTagInput('create', []);
 }
 
 // Create cost center
@@ -409,9 +496,7 @@ async function createCenter(event) {
     event.preventDefault();
 
     const formData = new FormData(event.target);
-    const fcSelect = document.getElementById('create-financial-centers');
-    const financialCenterIds = Array.from(fcSelect.selectedOptions)
-        .map(opt => parseInt(opt.value));
+    const financialCenterIds = getFCSelectedIds('create');
 
     const data = {
         name: formData.get('name'),
@@ -454,9 +539,9 @@ function showEditModal(centerId) {
     document.getElementById('edit-name').value = center.name;
     document.getElementById('edit-description').value = center.description || '';
 
-    // Populate financial centers multiselect
+    // Populate financial centers tag input
     const fcIds = center.financial_center_ids || [];
-    populateFinancialCenterSelect('edit-financial-centers', fcIds);
+    initFCTagInput('edit', fcIds);
 
     document.getElementById('edit-modal').showModal();
 }
@@ -506,9 +591,7 @@ async function updateCenter(event) {
 
     const formData = new FormData(event.target);
     const centerId = formData.get('id');
-    const fcSelect = document.getElementById('edit-financial-centers');
-    const financialCenterIds = Array.from(fcSelect.selectedOptions)
-        .map(opt => parseInt(opt.value));
+    const financialCenterIds = getFCSelectedIds('edit');
 
     const data = {
         name: formData.get('name'),
