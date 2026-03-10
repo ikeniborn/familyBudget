@@ -66,7 +66,7 @@ export interface FactRow {
 export interface Article {
     id: number;
     name: string;
-    record_type: 'expense' | 'income' | 'debit' | 'credit';
+    type: 'expense' | 'income' | 'debit' | 'credit';
     parent_id: number | null;
     user_id: number;
     level: number; // Hierarchy depth
@@ -236,7 +236,7 @@ export interface ExportFactsOptions {
 export interface ArticleTreeNode {
     id: number;
     name: string;
-    record_type: 'expense' | 'income' | 'debit' | 'credit';
+    type: 'expense' | 'income' | 'debit' | 'credit';
     parent_id: number | null;
     level: number;
     path: string;

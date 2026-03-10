@@ -120,8 +120,7 @@ export function buildArticleTree(articles: Article[]): ArticleTreeNode[] {
         return {
             id: article.id,
             name: article.name,
-            // API returns `type`, legacy may use `record_type` — support both
-            record_type: ((article as any).type || article.record_type) as 'expense' | 'income' | 'debit' | 'credit',
+            type: article.type,
             parent_id: article.parent_id,
             level,
             path: article.path,
@@ -167,8 +166,8 @@ export function groupArticlesByType(articles: Article[]): ArticleTreeNode[] {
     };
 
     flatNodes.forEach(node => {
-        if (groupedByType[node.record_type]) {
-            groupedByType[node.record_type].push(node);
+        if (groupedByType[node.type]) {
+            groupedByType[node.type].push(node);
         }
     });
 
