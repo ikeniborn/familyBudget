@@ -6,7 +6,7 @@
  */
 
 import { setupTabListeners, clearTabCache, switchTab } from './tabManager';
-import { getState } from '../../core/DashboardState';
+import { getState, updateState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
 import { setupTransactionTypeToggle } from './typeToggle';
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
@@ -636,6 +636,24 @@ export function closeModalFact(): void {
   if (transferDateCalendar) {
     try { transferDateCalendar.destroy(); } catch (_) {}
     transferDateCalendar = null;
+  }
+
+  // Destroy ChoicesCategoryTree instances so next open starts fresh
+  // Prevents "Choices already initialised" double-init error on re-open
+  // Mirrors the pattern from closeModalPlan()
+  const state = getState();
+  if (state.transactionCategoryTreeSelect) {
+    try { state.transactionCategoryTreeSelect.destroy(); } catch (_) {}
+    updateState({ transactionCategoryTreeSelect: null });
+  }
+  if (state.factTransferFromCategoryTree || state.factTransferToCategoryTree) {
+    if (state.factTransferFromCategoryTree) {
+      try { state.factTransferFromCategoryTree.destroy(); } catch (_) {}
+    }
+    if (state.factTransferToCategoryTree) {
+      try { state.factTransferToCategoryTree.destroy(); } catch (_) {}
+    }
+    updateState({ factTransferFromCategoryTree: null, factTransferToCategoryTree: null });
   }
 
   // Clear form

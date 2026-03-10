@@ -587,7 +587,14 @@ function setupModalFactListeners(): void {
                     setFactTransferDate(0);               // Дата transfer tab
                     initModalFactCalendars();             // CalendarWidget иконки
                     setupModalFactTabSwitching();         // Radio tab switching
-                    initTransactionCategoryTree();        // ChoicesCategoryTree transaction
+                    // Transaction tree только когда dashboard.min.js не загружен
+                    // Prevents "Choices already initialised" error when both
+                    // facts.min.js and dashboard.min.js are loaded on dashboard page:
+                    // dashboard openModalFact() also calls loadTransactionCategories()
+                    // which creates ChoicesCategoryTree on the same element.
+                    if (!window.Dashboard?.openModalFact) {
+                        initTransactionCategoryTree();    // ChoicesCategoryTree transaction
+                    }
                     // Transfer trees только когда dashboard.min.js не загружен
                     if (!window.Dashboard?.openFactTransferModal) {
                         initTransferCategoryTrees();
