@@ -369,3 +369,4 @@ docs/sphinx/_build/.doctrees/
 
 # PII proxy audit logs (auto-added by iclaude PII proxy)
 .claude/pii/
+.claude/plans/
