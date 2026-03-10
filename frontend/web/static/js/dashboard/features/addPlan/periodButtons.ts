@@ -187,8 +187,8 @@ export function setupPlanTypeButtons(): void {
       // Reload only plan categories with new type
       debugLog('Plan type changed to:', this.dataset.type);
 
-      if (window.Dashboard?.loadPlanCategories) {
-        window.Dashboard.loadPlanCategories();
+      if ((window as any).Dashboard?.loadPlanCategories) {
+        (window as any).Dashboard.loadPlanCategories();
       }
     });
 
