@@ -198,6 +198,20 @@ export function resetState(): void {
       // Ignore cleanup errors
     }
   }
+  if (state.factTransferFromCategoryTree) {
+    try {
+      state.factTransferFromCategoryTree.destroy();
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+  }
+  if (state.factTransferToCategoryTree) {
+    try {
+      state.factTransferToCategoryTree.destroy();
+    } catch (e) {
+      // Ignore cleanup errors
+    }
+  }
   if (state.editDateCalendar) {
     try {
       state.editDateCalendar.destroy();
