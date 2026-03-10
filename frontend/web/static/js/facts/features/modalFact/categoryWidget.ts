@@ -47,12 +47,20 @@ function setupModalPositioning(instance: any, modalSelector: string): void {
     const modal = document.querySelector<HTMLDialogElement>(modalSelector);
     if (!modal) return;
 
+    // Target modal-box directly: CSS Grid auto-margins override align-items on the
+    // parent dialog, so items-start on <dialog> is ineffective when modal-box has my-auto.
+    // Directly setting margin-top:0 on modal-box moves it to the top of the screen.
+    const modalBox = modal.querySelector<HTMLElement>('.modal-box');
+    if (!modalBox) return;
+
     instance.element.addEventListener('showDropdown', () => {
-        modal.classList.add('items-start');
+        modalBox.style.marginTop = '0';
+        modalBox.style.marginBottom = 'auto';
     });
 
     instance.element.addEventListener('hideDropdown', () => {
-        modal.classList.remove('items-start');
+        modalBox.style.marginTop = '';
+        modalBox.style.marginBottom = '';
     });
 
     instance.element.dataset.modalPositioningAttached = 'true';
