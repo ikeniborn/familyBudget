@@ -64,6 +64,18 @@ CVE-2026-24882
 # Next review: 2026-03-03 (weekly check)
 CVE-2026-24515
 
+# CVE-2026-25210: libexpat integer overflow in buffer reallocation (HIGH)
+# Status: affected in Debian 12 (bookworm) - CVE published 2026-01-30, fixed in libexpat 2.7.4
+# Impact: Information disclosure and data integrity issues via integer overflow in doContent()
+# CVSS: 7.8 (NVD) / 6.9 (RedHat) - requires local access (AV:L), low privileges (PR:L)
+# Package: libexpat1 v2.5.0-1+deb12u2
+# Fixed in: libexpat 2.7.4 (not yet available in Debian 12 bookworm)
+# Mitigation: Accept risk temporarily - application uses XML only as transitive dependency
+#   - No direct XML file uploads accepted from users
+#   - Exploitability reduced by local-access-only requirement (AV:L)
+# Next review: 2026-04-11 (monthly check for Debian security update)
+CVE-2026-25210
+
 # CVE-2025-13836: cpython excessive read buffering DoS in http.client (CRITICAL)
 # Status: Pending fix in Debian 12 (bookworm) - CVE published 2025-12-XX
 # Impact: DoS via excessive read buffering in http.client module
@@ -119,10 +131,10 @@ CVE-2025-8194
 CVE-2026-1299
 
 # ============================================================================
-# Review Schedule (Updated 2026-02-03)
+# Review Schedule (Updated 2026-03-11)
 # ============================================================================
 # Weekly reviews: CVE-2025-13836, CVE-2026-24515, CVE-2026-1299 (HIGH/CRITICAL risk)
-# Monthly reviews: CVE-2025-7458, CVE-2026-0861, CVE-2026-24882 (recent CVEs)
+# Monthly reviews: CVE-2025-7458, CVE-2026-0861, CVE-2026-24882, CVE-2026-25210 (libexpat)
 # Quarterly reviews:
 #   - CVE-2024-23342 (ecdsa), CVE-2023-45853 (zlib), CVE-2023-2953 (ldap)
 #   - CVE-2025-15366 (IMAP), CVE-2025-15367 (POP3), CVE-2025-8194 (tarfile)
