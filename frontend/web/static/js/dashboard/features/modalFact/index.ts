@@ -10,6 +10,7 @@ import { getState, updateState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
 import { setupTransactionTypeToggle } from './typeToggle';
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
+import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
@@ -207,7 +208,11 @@ async function loadTransferTabData(): Promise<void> {
         factTransferToCategoryTree: toCategoryTree
       });
 
-      // 5. Setup FC change listeners for transfer hints
+      // 5. Mobile/tablet: shift modal up when transfer dropdowns open
+      setupMobileModalPositioning(fromCategoryTree, 'modal_fact');
+      setupMobileModalPositioning(toCategoryTree, 'modal_fact');
+
+      // 6. Setup FC change listeners for transfer hints
       setupTransferFCListeners();
 
       debugLog('[ModalFact] Transfer CategoryTreeSelect instances created');
@@ -539,6 +544,12 @@ export async function openModalFact(): Promise<void> {
 
     // Hide skeleton
     hideSkeleton();
+
+    // Mobile/tablet: shift modal up when category dropdown opens
+    const { transactionCategoryTreeSelect } = getState();
+    if (transactionCategoryTreeSelect) {
+      setupMobileModalPositioning(transactionCategoryTreeSelect, 'modal_fact');
+    }
 
     // Setup transaction type toggle listeners
     setupTransactionTypeToggle();
