@@ -580,6 +580,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Sync .trivyignore from branch HEAD
+        run: |
+          # On rerun or when SHA is older than latest push, ensure .trivyignore
+          # reflects the current branch HEAD (not the SHA that triggered the run)
+          git fetch origin ${{ github.ref_name }} --depth=1
+          git checkout origin/${{ github.ref_name }} -- .trivyignore
+          echo "Using .trivyignore from origin/${{ github.ref_name }} HEAD"
+
       - name: Read VERSION
         id: version
         run: |
