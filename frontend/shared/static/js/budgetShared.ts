@@ -681,7 +681,7 @@ class DateFormatter {
    * DateFormatter.getBrowserTimezone()
    * // => 'Europe/Moscow'
    */
-  static getBrowserTimezone() {
+  static getBrowserTimezone(): string {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
   }
 }
@@ -1744,7 +1744,7 @@ class ChoicesCategoryTree {
      * @param {boolean} options.showInactive - Include archived categories (default: false)
      * @returns {Promise<void>}
      */
-    static async preloadCategories(options: any = {}) {
+    static async preloadCategories(options: any = {}): Promise<void> {
         const apiBaseUrl = options.apiBaseUrl || '/api/v1';
         const showInactive = options.showInactive || false;
 
@@ -2063,7 +2063,7 @@ class ChoicesCategoryTree {
      *
      * @returns {Promise<void>} Resolves when initialization is complete
      */
-    async waitForReady() {
+    async waitForReady(): Promise<void> {
         // If already initialized, return immediately
         if (this.categoryMap && this.categoryMap.size > 0 &&
             this.choices && this.choices._store?.choices.length > 0) {
@@ -2712,7 +2712,7 @@ class ChoicesCategoryTree {
      *
      * @returns {Object|null} Selected category or null
      */
-    getSelectedCategory() {
+    getSelectedCategory(): any | null {
         const categoryId = this.element ? parseInt((this.element as HTMLSelectElement).value) : NaN;
         return categoryId ? this.categoryMap.get(categoryId) : null;
     }
@@ -2738,7 +2738,7 @@ class ChoicesCategoryTree {
      *
      * @returns {Array} Array of selected category objects
      */
-    getSelectedCategories() {
+    getSelectedCategories(): any[] {
         if (!this.choices || !this.options.multiple) {
             // Single mode - return array with one item or empty
             const cat = this.getSelectedCategory();
