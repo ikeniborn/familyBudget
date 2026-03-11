@@ -19,6 +19,14 @@ const DESKTOP_BREAKPOINT = 1024;  // px — above this: never shift
 const DROPDOWN_MIN_HEIGHT = 280;  // px — minimum vertical space needed below select
 
 /**
+ * WeakSet of already-registered instances.
+ * Guards against duplicate listeners when setupMobileModalPositioning is called
+ * more than once for the same instance object.
+ * WeakSet allows GC to collect destroyed instances automatically.
+ */
+const _registeredInstances = new WeakSet<object>();
+
+/**
  * Decide at the moment of showDropdown whether to shift the modal.
  * Re-evaluated on every open so it reacts to window resize between opens.
  */
@@ -36,19 +44,21 @@ export function shouldShiftModal(selectElement: HTMLElement): boolean {
  * Attach Choices.js showDropdown/hideDropdown listeners to a ChoicesCategoryTree
  * instance to dynamically reposition the modal on mobile/tablet.
  *
- * Guard: uses dataset.mobilePositioningAttached to prevent duplicate listeners
- * across multiple modal opens (instance persists, DOM element persists).
+ * Guard: uses WeakSet keyed by instance object to prevent duplicate listeners.
+ * Each new instance (created after modal close+reopen) is treated independently,
+ * so the guard does not block re-registration on subsequent opens.
  *
  * @param instance      ChoicesCategoryTree instance (must expose .element)
- * @param modalSelector CSS selector for the <dialog> element
+ * @param modalId       id attribute of the <dialog> element (without leading #)
  */
-export function setupMobileModalPositioning(instance: any, modalSelector: string): void {
+export function setupMobileModalPositioning(instance: any, modalId: string): void {
     if (!instance?.element) return;
 
-    // Guard against duplicate listeners on the same element
-    if (instance.element.dataset.mobilePositioningAttached === 'true') return;
+    // Guard against duplicate listeners for the same JS instance object
+    if (_registeredInstances.has(instance)) return;
 
-    const modal = document.querySelector<HTMLDialogElement>(modalSelector);
+    // modalId is the bare id value (e.g. 'modal_fact'), prepend # for querySelector
+    const modal = document.querySelector<HTMLDialogElement>(`#${modalId}`);
     if (!modal) return;
 
     // Target .modal-box directly — inline style overrides class-based margins
@@ -67,5 +77,5 @@ export function setupMobileModalPositioning(instance: any, modalSelector: string
         modalBox.style.marginBottom = '';
     });
 
-    instance.element.dataset.mobilePositioningAttached = 'true';
+    _registeredInstances.add(instance);
 }
