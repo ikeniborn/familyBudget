@@ -359,14 +359,12 @@ frontend/web/static/sw.min.js.gz
 backend/.env.test
 
 # Claude Code Agent 
-.claude/sessions/
 .claude/workspace/
 .claude/tools/
 .claude/code-review/
+.claude/plans/
+.claude/.current-session
 
 # Sphinx build output
 docs/sphinx/_build/.doctrees/
 
-# PII proxy audit logs (auto-added by iclaude PII proxy)
-.claude/pii/
-.claude/plans/
