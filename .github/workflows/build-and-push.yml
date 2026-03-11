@@ -15,6 +15,7 @@ on:
       - 'scripts/**'
       - 'package.json'
       - 'package-lock.json'
+      - '.trivyignore'
   workflow_dispatch:
     inputs:
       custom_tag:
@@ -50,6 +51,7 @@ jobs:
     outputs:
       version_changed: ${{ steps.check.outputs.changed }}
       current_version: ${{ steps.read.outputs.VERSION }}
+      trivyignore_changed: ${{ steps.check.outputs.trivyignore_changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -73,9 +75,18 @@ jobs:
               echo "⚠ VERSION not changed, build may create duplicate tags"
             fi
 
+            # Check if .trivyignore changed (triggers security re-scan without image rebuild)
+            if git diff HEAD~1 HEAD -- .trivyignore | grep -q "^[+-]"; then
+              echo "trivyignore_changed=true" >> $GITHUB_OUTPUT
+              echo "✓ .trivyignore changed — security re-scan needed"
+            else
+              echo "trivyignore_changed=false" >> $GITHUB_OUTPUT
+            fi
+
           # Для tags и manual
           else
             echo "changed=true" >> $GITHUB_OUTPUT
+            echo "trivyignore_changed=false" >> $GITHUB_OUTPUT
             echo "✓ Skipping VERSION check for tag/manual trigger"
           fi
 
@@ -571,7 +582,11 @@ jobs:
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: |
       always() &&
-      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      (
+        needs.check-version.outputs.version_changed == 'true' ||
+        needs.check-version.outputs.trivyignore_changed == 'true' ||
+        github.event_name == 'workflow_dispatch'
+      ) &&
       needs.image-build-push.result == 'success'
     permissions:
       contents: read
@@ -603,7 +618,6 @@ jobs:
           echo "Using image tag: $TAG"
 
       - name: Run Trivy scanner (backend)
-        if: needs.image-build-push.outputs.backend_built == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }}
@@ -615,7 +629,6 @@ jobs:
           trivyignores: '.trivyignore'
 
       - name: Generate vulnerability summary (backend)
-        if: needs.image-build-push.outputs.backend_built == 'true'
         run: |
           echo "## 🔒 Security Scan: Backend" >> $GITHUB_STEP_SUMMARY
           docker run --rm \
@@ -629,7 +642,6 @@ jobs:
         continue-on-error: true
 
       - name: Check HIGH/CRITICAL vulnerabilities (backend)
-        if: needs.image-build-push.outputs.backend_built == 'true'
         run: |
           echo "🔍 Checking for HIGH/CRITICAL vulnerabilities in backend image (with .trivyignore exceptions)..."
 
@@ -654,7 +666,6 @@ jobs:
           fi
 
       - name: Upload Trivy results (backend)
-        if: needs.image-build-push.outputs.backend_built == 'true'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-backend.sarif'
