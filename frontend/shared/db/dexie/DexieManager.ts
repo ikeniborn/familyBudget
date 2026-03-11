@@ -1003,9 +1003,20 @@ export class DexieManager {
     // Calculate actual DB size (approximate)
     const dbSize = await calculateDatabaseSize();
 
+    // Get actual last sync timestamp from syncMetadata (most recent across all entities)
+    const allMetadata = await this.getDB().syncMetadata.toArray();
+    const mostRecentSync = allMetadata.reduce<Date | null>((latest, meta) => {
+      if (!meta.last_sync_timestamp) return latest;
+      const t = meta.last_sync_timestamp instanceof Date
+        ? meta.last_sync_timestamp
+        : new Date(meta.last_sync_timestamp as unknown as string);
+      return !latest || t > latest ? t : latest;
+    }, null);
+    const lastSyncTimestamp = mostRecentSync ? mostRecentSync.toISOString() : 'never';
+
     return {
       initializationStatus: this.state,
-      lastSyncTimestamp: new Date().toISOString(),
+      lastSyncTimestamp,
       isEnabled: true,
       isInitialized: this.state === 'ready',
       dbSize,

@@ -2204,6 +2204,10 @@ class ChoicesCategoryTree {
             searchEnabled: true,
             searchPlaceholderValue: 'Поиск категории...',
             placeholder: true,
+            // Always open dropdown downward (for modal usage with mobileModalPositioning)
+            // Choices.js 'auto' fires showDropdown AFTER computing direction, making
+            // mobileModalPositioning.ts modal-shift too late to affect dropdown direction.
+            position: 'bottom',
             // Different placeholder for single/multiple modes
             placeholderValue: this.options.multiple
                 ? ''  // Пустой placeholder для multi-select

@@ -7,6 +7,7 @@
 import { refreshUIAfterPlanSave } from '../../shared/utils/uiRefresh';
 import { extractRecurringSettings, extractReminderSettings } from './recurringSettings';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
+import { getDexieManager, isDexieActive, mapAPIFactToLocal, toCents, db } from '@db/dexie';
 
 /**
  * Save plan transaction
@@ -68,10 +69,39 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
   // POST to appropriate endpoint based on plan mode
   if (recurringSettings) {
     // Recurring plan → /api/v1/recurring-plans
-    await postAPI('/api/v1/recurring-plans', planData, 'SavePlanModal');
+    const responseData = await postAPI<any>('/api/v1/recurring-plans', planData, 'SavePlanModal');
+
+    // Write recurring plan to Dexie immediately
+    if (isDexieActive()) {
+      try {
+        const manager = getDexieManager();
+        if (manager.isReady()) {
+          await db.recurringPlans.put({
+            ...responseData,
+            amount: toCents(responseData.amount),
+            synced_at: new Date()
+          });
+        }
+      } catch (dexieError) {
+        console.warn('[SavePlanModal] Failed to write recurring plan to Dexie (non-critical):', dexieError);
+      }
+    }
   } else {
     // One-time plan (regular/reminder) → /api/v1/facts
-    await postAPI('/api/v1/facts', planData, 'SavePlanModal');
+    const responseData = await postAPI<any>('/api/v1/facts', planData, 'SavePlanModal');
+
+    // Write one-time plan to Dexie immediately
+    if (isDexieActive()) {
+      try {
+        const manager = getDexieManager();
+        if (manager.isReady()) {
+          const localFact = mapAPIFactToLocal(responseData);
+          await db.budgetFacts.put({ ...localFact, amount: toCents(localFact.amount) });
+        }
+      } catch (dexieError) {
+        console.warn('[SavePlanModal] Failed to write plan to Dexie (non-critical):', dexieError);
+      }
+    }
   }
 
   // Update UI

@@ -6,6 +6,7 @@
 
 import { refreshUIAfterFactSave } from '../../shared/utils/uiRefresh';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
+import { getDexieManager, isDexieActive, mapAPIFactToLocal, toCents, db } from '@db/dexie';
 
 /**
  * Save fact transaction
@@ -34,7 +35,20 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
 
   try {
     // POST /api/v1/facts
-    await postAPI('/api/v1/facts', data, 'SaveFactModal');
+    const responseData = await postAPI<any>('/api/v1/facts', data, 'SaveFactModal');
+
+    // Write to local Dexie DB immediately after successful API call
+    if (isDexieActive()) {
+      try {
+        const manager = getDexieManager();
+        if (manager.isReady()) {
+          const localFact = mapAPIFactToLocal(responseData);
+          await db.budgetFacts.put({ ...localFact, amount: toCents(localFact.amount) });
+        }
+      } catch (dexieError) {
+        console.warn('[SaveFactModal] Failed to write to Dexie (non-critical):', dexieError);
+      }
+    }
 
     // Update UI
     await refreshUIAfterFactSave();

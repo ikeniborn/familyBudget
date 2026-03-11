@@ -126,6 +126,7 @@ import { logger as dexieLogger } from './utils/logger';
 export { logger } from './utils/logger';
 export { fetchWithTimeout } from './utils/fetchWithTimeout';
 export { generateUUID, calculateContentHash } from './utils/hash';
+export { mapAPIFactToLocal, mapLocalFactToAPI } from './utils/apiMapper';
 export {
   validateArticle,
   validateFact,
