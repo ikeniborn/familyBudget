@@ -25,6 +25,7 @@ import {
     goToNextPage
 } from '../operations/factsController';
 import { setFactDate as setFactDateAction, setFactTransferDate as setFactTransferDateAction } from '../index';
+import { initTransferCategoryTrees } from '../features/modalFact/categoryWidget';
 
 // Window interface declarations are in:
 // - facts/types/globals.d.ts (facts-specific functions)
@@ -154,6 +155,9 @@ async function openFactTransferModal(): Promise<void> {
     const modal = document.getElementById('modal_fact') as HTMLDialogElement | null;
     if (modal?.showModal) {
         setTransactionDate(0);
+        // Initialize category trees BEFORE showModal so user never sees plain <select>
+        // (MutationObserver will be a no-op due to existing instance guards)
+        await initTransferCategoryTrees();
         modal.showModal();
 
         // Switch to transfer tab by checking the transfer radio input

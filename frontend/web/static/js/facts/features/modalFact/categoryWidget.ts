@@ -108,7 +108,7 @@ function syncFactTypeHidden(type: string): void {
  * Called on modal open only when dashboard.min.js is not loaded
  * (i.e., Dashboard.openFactTransferModal is unavailable).
  */
-export function initTransferCategoryTrees(): void {
+export async function initTransferCategoryTrees(): Promise<void> {
     const ChoicesCategoryTree = (window as any).BudgetShared?.ChoicesCategoryTree;
     if (!ChoicesCategoryTree) return;
 
@@ -127,6 +127,8 @@ export function initTransferCategoryTrees(): void {
             }
         );
         setCreateTransferFromTree(fromInstance);
+        // Wait for async init (API fetch) before showing modal
+        await fromInstance.waitForReady();
         // PWA: reposition modal to top when dropdown opens
         setupMobileModalPositioning(fromInstance, MODAL_FACT_SELECTOR);
     }
@@ -142,6 +144,8 @@ export function initTransferCategoryTrees(): void {
             }
         );
         setCreateTransferToTree(toInstance);
+        // Wait for async init (API fetch) before showing modal
+        await toInstance.waitForReady();
         // PWA: reposition modal to top when dropdown opens
         setupMobileModalPositioning(toInstance, MODAL_FACT_SELECTOR);
     }

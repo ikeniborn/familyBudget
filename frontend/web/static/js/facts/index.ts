@@ -596,8 +596,11 @@ function setupModalFactListeners(): void {
                         initTransactionCategoryTree();    // ChoicesCategoryTree transaction
                     }
                     // Transfer trees только когда dashboard.min.js не загружен
+                    // Note: async init, errors are non-fatal (tree will be ready on next open)
                     if (!window.Dashboard?.openFactTransferModal) {
-                        initTransferCategoryTrees();
+                        initTransferCategoryTrees().catch((err) => {
+                            logger.warn(' Transfer category trees init error (non-fatal):', err);
+                        });
                     }
                     logger.log(' Modal opened - form initialized');
                 } else {
