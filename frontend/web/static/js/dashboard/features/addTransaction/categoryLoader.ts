@@ -216,7 +216,6 @@ function setupFinancialCenterListeners(): void {
 
       // CRITICAL: Stop event propagation to prevent global listeners from interfering
       e.stopPropagation();
-      e.stopImmediatePropagation();
 
       // Enable or disable Category and Cost Location based on account selection
       if (!fcId) {
@@ -265,7 +264,6 @@ function setupFinancialCenterListeners(): void {
       }
 
       e.stopPropagation();
-      e.stopImmediatePropagation();
 
       // Enable or disable Category and Cost Location based on account selection
       if (!fcId) {

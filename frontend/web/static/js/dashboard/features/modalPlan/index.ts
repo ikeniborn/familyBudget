@@ -322,7 +322,7 @@ async function loadPlanTransferHints(direction: 'from' | 'to'): Promise<void> {
     }
 
     const articleType = direction === 'from' ? 'expense' : 'income';
-    const url = `/api/v1/hints/plan-hints?period=${period}&article_id=${categoryId}&article_type=${articleType}&financial_center_id=${fcId}`;
+    const url = `/api/v1/analytics/plan-hints?period=${period}&article_id=${categoryId}&article_type=${articleType}&financial_center_id=${fcId}`;
 
     const response = await fetch(url);
 

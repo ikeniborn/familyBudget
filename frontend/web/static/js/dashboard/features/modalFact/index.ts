@@ -102,13 +102,13 @@ async function loadTransactionTabData(): Promise<void> {
     !isCacheValid(state.dropdownCache.financialCenters) ||
     !isCacheValid(state.dropdownCache.costCenters);
 
+  // Import existing functions from addTransaction module
+  const { loadTransactionCategories, loadFinancialCenters, loadCostCenters, enableDisableCategoryAndCostCenter } = await import(
+    '../addTransaction/categoryLoader'
+  );
+
   if (needsRefresh) {
     debugLog('[ModalFact] Loading transaction data...');
-
-    // Import existing functions from addTransaction module
-    const { loadTransactionCategories, loadFinancialCenters, loadCostCenters } = await import(
-      '../addTransaction/categoryLoader'
-    );
 
     // Load financial centers FIRST (now with built-in retry logic)
     await loadFinancialCenters();
@@ -124,6 +124,13 @@ async function loadTransactionTabData(): Promise<void> {
     debugLog('[ModalFact] Transaction data loaded');
   } else {
     debugLog('[ModalFact] Using cached transaction data');
+    // Ensure category tree is recreated if destroyed (e.g., after modal close/reopen)
+    const currentState = getState();
+    if (!currentState.transactionCategoryTreeSelect) {
+      await loadTransactionCategories();
+      // Disable category until account is selected (mirrors loadFinancialCenters() initial state)
+      enableDisableCategoryAndCostCenter(null, 'fact');
+    }
   }
 
   // Setup financial center change listener for transaction hints
@@ -140,12 +147,12 @@ function setupTransactionFCListener(): void {
     '#modal_fact-tab-transaction select[name="financial_center_id"]'
   );
 
-  if (fcSelect && !fcSelect.dataset.listenerAttached) {
+  if (fcSelect && !fcSelect.dataset.transactionHintsListenerAttached) {
     fcSelect.addEventListener('change', () => {
       loadFactTransactionHints();
     });
-    fcSelect.dataset.listenerAttached = 'true';
-    debugLog('[ModalFact] Transaction FC listener attached');
+    fcSelect.dataset.transactionHintsListenerAttached = 'true';
+    debugLog('[ModalFact] Transaction FC hints listener attached');
   }
 }
 
@@ -316,7 +323,7 @@ async function loadFactTransferHints(direction: 'from' | 'to'): Promise<void> {
     }
 
     const articleType = direction === 'from' ? 'expense' : 'income';
-    const url = `/api/v1/hints/fact-hints?fact_date=${factDate}&article_id=${categoryId}&article_type=${articleType}&financial_center_id=${fcId}`;
+    const url = `/api/v1/analytics/fact-hints?fact_date=${factDate}&article_id=${categoryId}&article_type=${articleType}&financial_center_id=${fcId}`;
 
     const response = await fetch(url);
 
