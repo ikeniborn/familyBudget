@@ -34,8 +34,8 @@ export async function saveFactTransfer(form: HTMLFormElement): Promise<void> {
     description: formData.get('description') || null
   };
 
-  // POST /api/v1/admin/transfers
-  await postAPI('/api/v1/admin/transfers', data, 'SaveFactModal');
+  // POST /api/v1/transfers
+  await postAPI('/api/v1/transfers', data, 'SaveFactModal');
 
   // Update UI
   await refreshUIAfterFactSave();
