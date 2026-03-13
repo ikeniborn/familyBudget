@@ -481,11 +481,12 @@
                     } else {
                         // Disable Category and Cost Location and clear values
                         if (categoryTreeSelect) {
-                            categoryTreeSelect.disable(); // use Choices.js API for visual update
+                            categoryTreeSelect.clearSelection(); // clear Choices.js active items + element.value
+                            categoryTreeSelect.disable();        // visually disable via Choices.js API
                         } else if (categorySelect) {
                             categorySelect.setAttribute('disabled', 'disabled');
+                            categorySelect.value = '';
                         }
-                        if (categorySelect) { categorySelect.value = ''; }
                         formState.categoryId = null;
                         if (costCenterSelect) {
                             costCenterSelect.setAttribute('disabled', 'disabled');
@@ -612,10 +613,11 @@
 
             // Clear selected category and re-disable (no account selected after reset)
             const categorySelect = document.getElementById('category-select');
-            categorySelect.value = '';
             if (categoryTreeSelect) {
-                categoryTreeSelect.disable(); // use Choices.js API for visual update
+                categoryTreeSelect.clearSelection(); // clear Choices.js active items + element.value
+                categoryTreeSelect.disable();        // visually disable via Choices.js API
             } else {
+                categorySelect.value = '';
                 categorySelect.setAttribute('disabled', 'disabled');
             }
 

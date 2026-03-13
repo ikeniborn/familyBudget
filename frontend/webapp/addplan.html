@@ -642,11 +642,12 @@
                     } else {
                         // Disable Category and Cost Location and clear values
                         if (categoryTreeSelect) {
-                            categoryTreeSelect.disable(); // use Choices.js API for visual update
+                            categoryTreeSelect.clearSelection(); // clear Choices.js active items + element.value
+                            categoryTreeSelect.disable();        // visually disable via Choices.js API
                         } else if (categorySelect) {
                             categorySelect.setAttribute('disabled', 'disabled');
+                            categorySelect.value = '';
                         }
-                        if (categorySelect) { categorySelect.value = ''; }
                         formState.categoryId = null;
                         if (costCenterSelect) {
                             costCenterSelect.setAttribute('disabled', 'disabled');

@@ -372,7 +372,12 @@ function enableDisableCategoryAndCostCenter(fcId: number | null, modalType?: 'fa
   if (!modalType || modalType === 'fact') {
     const tree = state.transactionCategoryTreeSelect;
     if (tree) {
-      isEnabled ? tree.enable() : tree.disable();
+      if (isEnabled) {
+        tree.enable();
+      } else {
+        tree.clearSelection(); // clears Choices.js active items + element.value
+        tree.disable();
+      }
     } else {
       // Widget not yet initialised — fall back to native attribute
       const el = document.querySelector('#modal_fact-tab-transaction select[name="article_id"]') as HTMLSelectElement | null;
@@ -384,7 +389,12 @@ function enableDisableCategoryAndCostCenter(fcId: number | null, modalType?: 'fa
   if (!modalType || modalType === 'plan') {
     const tree = state.planCategoryTreeSelect;
     if (tree) {
-      isEnabled ? tree.enable() : tree.disable();
+      if (isEnabled) {
+        tree.enable();
+      } else {
+        tree.clearSelection();
+        tree.disable();
+      }
     } else {
       const el = document.querySelector('#modal_plan-tab-transaction select[name="article_id"]') as HTMLSelectElement | null;
       if (el) {
