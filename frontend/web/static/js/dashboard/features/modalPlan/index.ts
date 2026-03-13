@@ -224,6 +224,12 @@ async function loadTransferTabData(): Promise<void> {
       setupMobileModalPositioning(fromCategoryTree, 'modal_plan');
       setupMobileModalPositioning(toCategoryTree, 'modal_plan');
 
+      // 5b. Initial state: disable FROM/TO category trees until account is selected
+      fromCategoryTree.clearSelection();
+      fromCategoryTree.disable();
+      toCategoryTree.clearSelection();
+      toCategoryTree.disable();
+
       // 6. Setup FC change listeners for transfer hints
       setupTransferFCListeners();
 
@@ -247,6 +253,17 @@ function setupTransferFCListeners(): void {
 
   if (fromFcSelect && !fromFcSelect.dataset.listenerAttached) {
     fromFcSelect.addEventListener('change', () => {
+      const state = getState();
+      const fromTree = state.planTransferFromCategoryTree;
+      const fcId = fromFcSelect.value ? parseInt(fromFcSelect.value) : null;
+      if (fromTree) {
+        if (!fcId) {
+          fromTree.clearSelection();
+          fromTree.disable();
+        } else {
+          fromTree.enable();
+        }
+      }
       loadPlanTransferHints('from');
     });
     fromFcSelect.dataset.listenerAttached = 'true';
@@ -254,6 +271,17 @@ function setupTransferFCListeners(): void {
 
   if (toFcSelect && !toFcSelect.dataset.listenerAttached) {
     toFcSelect.addEventListener('change', () => {
+      const state = getState();
+      const toTree = state.planTransferToCategoryTree;
+      const fcId = toFcSelect.value ? parseInt(toFcSelect.value) : null;
+      if (toTree) {
+        if (!fcId) {
+          toTree.clearSelection();
+          toTree.disable();
+        } else {
+          toTree.enable();
+        }
+      }
       loadPlanTransferHints('to');
     });
     toFcSelect.dataset.listenerAttached = 'true';

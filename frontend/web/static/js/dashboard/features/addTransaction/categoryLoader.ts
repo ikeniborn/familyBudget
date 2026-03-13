@@ -364,7 +364,7 @@ export async function loadCostCenters(): Promise<void> {
  * @param fcId - selected financial center ID (null means no account selected)
  * @param modalType - 'fact' | 'plan' | null (null means apply to both)
  */
-function enableDisableCategoryAndCostCenter(fcId: number | null, modalType?: 'fact' | 'plan' | null): void {
+export function enableDisableCategoryAndCostCenter(fcId: number | null, modalType?: 'fact' | 'plan' | null): void {
   const isEnabled = fcId !== null && fcId !== undefined;
   const state = getState();
 
