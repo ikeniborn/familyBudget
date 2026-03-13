@@ -20,7 +20,7 @@ import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioni
 const TRANSACTION_ARTICLE_SELECTOR = '#modal_fact-tab-transaction select[name="article_id"]';
 const FROM_ARTICLE_SELECTOR        = '#modal_fact-tab-transfer select[name="from_article_id"]';
 const TO_ARTICLE_SELECTOR          = '#modal_fact-tab-transfer select[name="to_article_id"]';
-const MODAL_FACT_SELECTOR          = '#modal_fact';
+const MODAL_FACT_ID                = 'modal_fact'; // bare id for setupMobileModalPositioning (no leading #)
 
 // ============================================================================
 // Transaction Tab
@@ -72,7 +72,7 @@ export function initTransactionCategoryTree(): void {
     setCreateCategoryTreeSelect(instance);
 
     // PWA: reposition modal to top when dropdown opens to keep list visible
-    setupMobileModalPositioning(instance, MODAL_FACT_SELECTOR);
+    setupMobileModalPositioning(instance, MODAL_FACT_ID);
 }
 
 /**
@@ -130,7 +130,7 @@ export async function initTransferCategoryTrees(): Promise<void> {
         // Wait for async init (API fetch) before showing modal
         await fromInstance.waitForReady();
         // PWA: reposition modal to top when dropdown opens
-        setupMobileModalPositioning(fromInstance, MODAL_FACT_SELECTOR);
+        setupMobileModalPositioning(fromInstance, MODAL_FACT_ID);
     }
 
     // TO tree — credit category
@@ -147,7 +147,7 @@ export async function initTransferCategoryTrees(): Promise<void> {
         // Wait for async init (API fetch) before showing modal
         await toInstance.waitForReady();
         // PWA: reposition modal to top when dropdown opens
-        setupMobileModalPositioning(toInstance, MODAL_FACT_SELECTOR);
+        setupMobileModalPositioning(toInstance, MODAL_FACT_ID);
     }
 }
 
