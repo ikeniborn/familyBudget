@@ -192,6 +192,9 @@ export async function loadFinancialCenters(targetSelectors?: string[]): Promise<
 
   // Add change listeners to filter categories AND cost centers when account changes
   setupFinancialCenterListeners();
+
+  // Initial state: disable Category and Cost Location until account is selected
+  enableDisableCategoryAndCostCenter(null);
 }
 
 /**
@@ -215,6 +218,11 @@ function setupFinancialCenterListeners(): void {
       e.stopPropagation();
       e.stopImmediatePropagation();
 
+      // Enable or disable Category and Cost Location based on account selection
+      if (!fcId) {
+        enableDisableCategoryAndCostCenter(null, 'fact');
+      }
+
       const state = getState();
 
       // Filter categories by selected FC
@@ -224,6 +232,11 @@ function setupFinancialCenterListeners(): void {
 
       // Filter cost centers by selected FC
       await filterCostCenterDropdown('#modal_fact-tab-transaction', fcId);
+
+      // Enable Category and Cost Location after filtering when account is selected
+      if (fcId) {
+        enableDisableCategoryAndCostCenter(fcId, 'fact');
+      }
 
       // Small delay to allow DOM to settle (mobile browser optimization)
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -254,6 +267,11 @@ function setupFinancialCenterListeners(): void {
       e.stopPropagation();
       e.stopImmediatePropagation();
 
+      // Enable or disable Category and Cost Location based on account selection
+      if (!fcId) {
+        enableDisableCategoryAndCostCenter(null, 'plan');
+      }
+
       const state = getState();
 
       // Filter categories by selected FC
@@ -263,6 +281,11 @@ function setupFinancialCenterListeners(): void {
 
       // Filter cost centers by selected FC
       await filterCostCenterDropdown('#modal_plan-tab-transaction', fcId);
+
+      // Enable Category and Cost Location after filtering when account is selected
+      if (fcId) {
+        enableDisableCategoryAndCostCenter(fcId, 'plan');
+      }
 
       // Small delay to allow DOM to settle
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -329,6 +352,53 @@ export async function loadCostCenters(): Promise<void> {
     // Don't show error toast since cost center is optional
     debugLog('Cost centers error is non-critical');
   }
+}
+
+/**
+ * Enable or disable Category and Cost Location selects based on account selection.
+ * @param fcId - selected financial center ID (null means no account selected)
+ * @param modalType - 'fact' | 'plan' | null (null means apply to both)
+ */
+function enableDisableCategoryAndCostCenter(fcId: number | null, modalType?: 'fact' | 'plan' | null): void {
+  const isEnabled = fcId !== null && fcId !== undefined;
+
+  const selectors: { category: string; costCenter: string }[] = [];
+
+  if (!modalType || modalType === 'fact') {
+    selectors.push({
+      category: '#modal_fact-tab-transaction select[name="article_id"]',
+      costCenter: '#modal_fact-tab-transaction select[name="cost_center_id"]',
+    });
+  }
+  if (!modalType || modalType === 'plan') {
+    selectors.push({
+      category: '#modal_plan-tab-transaction select[name="article_id"]',
+      costCenter: '#modal_plan-tab-transaction select[name="cost_center_id"]',
+    });
+  }
+
+  selectors.forEach(({ category, costCenter }) => {
+    const categorySelect = document.querySelector(category) as HTMLSelectElement | null;
+    const costCenterSelect = document.querySelector(costCenter) as HTMLSelectElement | null;
+
+    if (categorySelect) {
+      if (isEnabled) {
+        categorySelect.removeAttribute('disabled');
+      } else {
+        categorySelect.setAttribute('disabled', 'disabled');
+        categorySelect.value = '';
+      }
+    }
+
+    if (costCenterSelect) {
+      if (isEnabled) {
+        costCenterSelect.removeAttribute('disabled');
+      } else {
+        costCenterSelect.setAttribute('disabled', 'disabled');
+        costCenterSelect.value = '';
+      }
+    }
+  });
 }
 
 /**
