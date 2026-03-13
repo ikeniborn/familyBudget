@@ -356,47 +356,56 @@ export async function loadCostCenters(): Promise<void> {
 
 /**
  * Enable or disable Category and Cost Location selects based on account selection.
+ *
+ * Category (article_id) is wrapped by ChoicesCategoryTree — must use widget's
+ * .disable()/.enable() so Choices.js updates its visual state (is-disabled class).
+ * Cost center (cost_center_id) is a plain select — native setAttribute works.
+ *
  * @param fcId - selected financial center ID (null means no account selected)
  * @param modalType - 'fact' | 'plan' | null (null means apply to both)
  */
 function enableDisableCategoryAndCostCenter(fcId: number | null, modalType?: 'fact' | 'plan' | null): void {
   const isEnabled = fcId !== null && fcId !== undefined;
+  const state = getState();
 
-  const selectors: { category: string; costCenter: string }[] = [];
-
+  // --- Category (ChoicesCategoryTree widget) ---
   if (!modalType || modalType === 'fact') {
-    selectors.push({
-      category: '#modal_fact-tab-transaction select[name="article_id"]',
-      costCenter: '#modal_fact-tab-transaction select[name="cost_center_id"]',
-    });
-  }
-  if (!modalType || modalType === 'plan') {
-    selectors.push({
-      category: '#modal_plan-tab-transaction select[name="article_id"]',
-      costCenter: '#modal_plan-tab-transaction select[name="cost_center_id"]',
-    });
-  }
-
-  selectors.forEach(({ category, costCenter }) => {
-    const categorySelect = document.querySelector(category) as HTMLSelectElement | null;
-    const costCenterSelect = document.querySelector(costCenter) as HTMLSelectElement | null;
-
-    if (categorySelect) {
-      if (isEnabled) {
-        categorySelect.removeAttribute('disabled');
-      } else {
-        categorySelect.setAttribute('disabled', 'disabled');
-        categorySelect.value = '';
+    const tree = state.transactionCategoryTreeSelect;
+    if (tree) {
+      isEnabled ? tree.enable() : tree.disable();
+    } else {
+      // Widget not yet initialised — fall back to native attribute
+      const el = document.querySelector('#modal_fact-tab-transaction select[name="article_id"]') as HTMLSelectElement | null;
+      if (el) {
+        if (isEnabled) { el.removeAttribute('disabled'); } else { el.setAttribute('disabled', 'disabled'); el.value = ''; }
       }
     }
-
-    if (costCenterSelect) {
-      if (isEnabled) {
-        costCenterSelect.removeAttribute('disabled');
-      } else {
-        costCenterSelect.setAttribute('disabled', 'disabled');
-        costCenterSelect.value = '';
+  }
+  if (!modalType || modalType === 'plan') {
+    const tree = state.planCategoryTreeSelect;
+    if (tree) {
+      isEnabled ? tree.enable() : tree.disable();
+    } else {
+      const el = document.querySelector('#modal_plan-tab-transaction select[name="article_id"]') as HTMLSelectElement | null;
+      if (el) {
+        if (isEnabled) { el.removeAttribute('disabled'); } else { el.setAttribute('disabled', 'disabled'); el.value = ''; }
       }
+    }
+  }
+
+  // --- Cost center (plain select, no Choices.js wrapper) ---
+  const costCenterSelectors: string[] = [];
+  if (!modalType || modalType === 'fact') costCenterSelectors.push('#modal_fact-tab-transaction select[name="cost_center_id"]');
+  if (!modalType || modalType === 'plan') costCenterSelectors.push('#modal_plan-tab-transaction select[name="cost_center_id"]');
+
+  costCenterSelectors.forEach(selector => {
+    const el = document.querySelector(selector) as HTMLSelectElement | null;
+    if (!el) return;
+    if (isEnabled) {
+      el.removeAttribute('disabled');
+    } else {
+      el.setAttribute('disabled', 'disabled');
+      el.value = '';
     }
   });
 }

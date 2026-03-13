@@ -35,6 +35,8 @@ export interface CategoryTreeSelectInstance {
   getSelectedCategory(): Category | null;
   clearSelection(): void;
   setSelectedCategory(categoryId: number, maxRetries?: number, retryDelay?: number): Promise<void>;
+  disable(): void;
+  enable(): void;
   destroy(): void;
   options: CategoryTreeSelectOptions;
 }

@@ -473,22 +473,25 @@
                         // Update category filter based on selected FC
                         if (categoryTreeSelect) {
                             await categoryTreeSelect.updateFinancialCenter(fcId);
+                            categoryTreeSelect.enable(); // use Choices.js API for visual update
+                        } else if (categorySelect) {
+                            categorySelect.removeAttribute('disabled');
                         }
-                        // Enable Category and Cost Location
-                        if (categorySelect) categorySelect.removeAttribute('disabled');
                         if (costCenterSelect) costCenterSelect.removeAttribute('disabled');
                     } else {
                         // Disable Category and Cost Location and clear values
-                        if (categorySelect) {
+                        if (categoryTreeSelect) {
+                            categoryTreeSelect.disable(); // use Choices.js API for visual update
+                        } else if (categorySelect) {
                             categorySelect.setAttribute('disabled', 'disabled');
-                            categorySelect.value = '';
-                            formState.categoryId = null;
                         }
+                        if (categorySelect) { categorySelect.value = ''; }
+                        formState.categoryId = null;
                         if (costCenterSelect) {
                             costCenterSelect.setAttribute('disabled', 'disabled');
                             costCenterSelect.value = '';
-                            formState.costCenterId = null;
                         }
+                        formState.costCenterId = null;
                     }
 
                     app.ui.hapticLight();
@@ -610,7 +613,11 @@
             // Clear selected category and re-disable (no account selected after reset)
             const categorySelect = document.getElementById('category-select');
             categorySelect.value = '';
-            categorySelect.setAttribute('disabled', 'disabled');
+            if (categoryTreeSelect) {
+                categoryTreeSelect.disable(); // use Choices.js API for visual update
+            } else {
+                categorySelect.setAttribute('disabled', 'disabled');
+            }
 
             // Clear selected financial center and cost center, re-disable cost center
             document.getElementById('financial-center').value = '';

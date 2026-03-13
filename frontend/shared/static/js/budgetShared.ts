@@ -2483,6 +2483,34 @@ class ChoicesCategoryTree {
     }
 
     /**
+     * Disable the category selector.
+     * Delegates to Choices.js .disable() which adds is-disabled CSS class and
+     * sets pointer-events:none — the native select disabled attribute alone
+     * does not update the custom Choices.js UI.
+     * Falls back to native setAttribute if Choices.js is not yet initialized.
+     */
+    disable() {
+        if (this.choices) {
+            this.choices.disable();
+        } else if (this.element) {
+            this.element.setAttribute('disabled', 'disabled');
+        }
+    }
+
+    /**
+     * Enable the category selector.
+     * Delegates to Choices.js .enable() which removes is-disabled CSS class.
+     * Falls back to native removeAttribute if Choices.js is not yet initialized.
+     */
+    enable() {
+        if (this.choices) {
+            this.choices.enable();
+        } else if (this.element) {
+            this.element.removeAttribute('disabled');
+        }
+    }
+
+    /**
      * Destroy component and cleanup.
      */
     destroy() {
