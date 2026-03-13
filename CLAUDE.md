@@ -5,6 +5,7 @@ This file provides guidance to Claude Code when working with code in this reposi
 **NEVER**: 
 - Edit CLAUDE.md. Only user can add or delete tgis file.
 - Delete volume docker. Only after approve user.
+- Никогда не запускай сборку на сервере. Все изменения доставляются на сервер через cicd после обновления VERSION. Автоматически подымается версия на один шаг в рамках патча major.minor.patch (0.0.1>0.0.2)
 
 ## Project Overview
 
