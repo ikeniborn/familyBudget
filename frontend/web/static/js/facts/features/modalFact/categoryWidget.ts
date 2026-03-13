@@ -20,6 +20,8 @@ import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioni
 const TRANSACTION_ARTICLE_SELECTOR = '#modal_fact-tab-transaction select[name="article_id"]';
 const FROM_ARTICLE_SELECTOR        = '#modal_fact-tab-transfer select[name="from_article_id"]';
 const TO_ARTICLE_SELECTOR          = '#modal_fact-tab-transfer select[name="to_article_id"]';
+const FROM_FC_SELECTOR             = '#modal_fact-tab-transfer select[name="from_financial_center_id"]';
+const TO_FC_SELECTOR               = '#modal_fact-tab-transfer select[name="to_financial_center_id"]';
 const MODAL_FACT_ID                = 'modal_fact'; // bare id for setupMobileModalPositioning (no leading #)
 
 // ============================================================================
@@ -129,6 +131,9 @@ export async function initTransferCategoryTrees(): Promise<void> {
         setCreateTransferFromTree(fromInstance);
         // Wait for async init (API fetch) before showing modal
         await fromInstance.waitForReady();
+        // Initial state: disabled until FC is selected (mirrors dashboard behaviour)
+        fromInstance.clearSelection();
+        fromInstance.disable();
         // PWA: reposition modal to top when dropdown opens
         setupMobileModalPositioning(fromInstance, MODAL_FACT_ID);
     }
@@ -146,8 +151,56 @@ export async function initTransferCategoryTrees(): Promise<void> {
         setCreateTransferToTree(toInstance);
         // Wait for async init (API fetch) before showing modal
         await toInstance.waitForReady();
+        // Initial state: disabled until FC is selected (mirrors dashboard behaviour)
+        toInstance.clearSelection();
+        toInstance.disable();
         // PWA: reposition modal to top when dropdown opens
         setupMobileModalPositioning(toInstance, MODAL_FACT_ID);
+    }
+
+    // Setup FC change listeners to enable/disable category trees
+    setupTransferFCListeners();
+}
+
+/**
+ * Setup FC change listeners for transfer tab.
+ * Enables/disables category trees when a financial center is selected.
+ * Mirrors dashboard/features/modalFact/index.ts#setupTransferFCListeners().
+ */
+function setupTransferFCListeners(): void {
+    const fromFcSelect = document.querySelector<HTMLSelectElement>(FROM_FC_SELECTOR);
+    const toFcSelect   = document.querySelector<HTMLSelectElement>(TO_FC_SELECTOR);
+
+    if (fromFcSelect && !fromFcSelect.dataset.listenerAttached) {
+        fromFcSelect.addEventListener('change', () => {
+            const fromTree = getCreateTransferFromTree();
+            const fcId = fromFcSelect.value ? parseInt(fromFcSelect.value) : null;
+            if (fromTree) {
+                if (!fcId) {
+                    fromTree.clearSelection();
+                    fromTree.disable();
+                } else {
+                    fromTree.enable();
+                }
+            }
+        });
+        fromFcSelect.dataset.listenerAttached = 'true';
+    }
+
+    if (toFcSelect && !toFcSelect.dataset.listenerAttached) {
+        toFcSelect.addEventListener('change', () => {
+            const toTree = getCreateTransferToTree();
+            const fcId = toFcSelect.value ? parseInt(toFcSelect.value) : null;
+            if (toTree) {
+                if (!fcId) {
+                    toTree.clearSelection();
+                    toTree.disable();
+                } else {
+                    toTree.enable();
+                }
+            }
+        });
+        toFcSelect.dataset.listenerAttached = 'true';
     }
 }
 
