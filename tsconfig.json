@@ -1,0 +1,52 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+
+    "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+
+    "declaration": false,
+    "sourceMap": true,
+    "removeComments": false,
+    "noEmit": true,
+
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@web/*": ["frontend/web/static/js/*"],
+      "@webapp/*": ["frontend/webapp/static/js/*"],
+      "@shared/*": ["frontend/shared/static/js/*"],
+      "@components/*": ["frontend/web/static/js/modules/uiComponents/*"],
+      "@db/*": ["frontend/shared/db/*"]
+    }
+  },
+
+  "include": [
+    "frontend/web/static/js/**/*.ts",
+    "frontend/webapp/static/js/**/*.ts",
+    "frontend/shared/static/js/**/*.ts",
+    "frontend/shared/db/**/*.ts",
+    "types/**/*.d.ts"
+  ],
+
+  "exclude": [
+    "node_modules",
+    "frontend/**/vendor",
+    "frontend/**/*.min.js",
+    "frontend/**/*.temp.js",
+    "frontend/**/dist",
+    "frontend/**/*.bundle.js",
+    ".nvm-isolated"
+  ]
+}
