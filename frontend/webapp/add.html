@@ -607,13 +607,16 @@
             document.getElementById('description').value = '';
             document.getElementById('description-counter').textContent = '0 / 200';
 
-            // Clear selected category
+            // Clear selected category and re-disable (no account selected after reset)
             const categorySelect = document.getElementById('category-select');
             categorySelect.value = '';
+            categorySelect.setAttribute('disabled', 'disabled');
 
-            // Clear selected financial center and cost center
+            // Clear selected financial center and cost center, re-disable cost center
             document.getElementById('financial-center').value = '';
-            document.getElementById('cost-center').value = '';
+            const costCenterSelect = document.getElementById('cost-center');
+            costCenterSelect.value = '';
+            costCenterSelect.setAttribute('disabled', 'disabled');
 
             // Clear errors
             document.getElementById('amount-error').textContent = '';
