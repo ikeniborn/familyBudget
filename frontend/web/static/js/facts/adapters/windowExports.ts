@@ -542,9 +542,44 @@ async function saveFactModalFacts(button: HTMLElement): Promise<void> {
 
     try {
         if (activeTab === 'transfer') {
-            // Lazy-load and call saveFactTransfer directly
-            const { saveFactTransfer } = await import('../../dashboard/features/modalFact/saveTransfer');
-            await saveFactTransfer(form);
+            // Inline transfer save logic (avoids cross-module dynamic import issues in IIFE bundle)
+            const transferTab = form.querySelector('[data-tab="transfer"]') as HTMLElement;
+            const amountInput = transferTab?.querySelector('input[name="amount"]') as HTMLInputElement;
+            const descriptionInput = transferTab?.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+            const formData = new FormData(form);
+
+            const displayDate = formData.get('transfer_date') as string;
+            const BudgetShared = (window as any).BudgetShared;
+            const apiDate = BudgetShared?.DateFormatter.formatForAPI(displayDate);
+            if (!apiDate) throw new Error('Failed to convert date to API format');
+
+            const parseIntOrNull = (v: FormDataEntryValue | null): number | null => {
+                if (!v) return null;
+                const n = parseInt(v as string);
+                return isNaN(n) ? null : n;
+            };
+
+            const data = {
+                record_type: 'fact',
+                transfer_date: apiDate,
+                from_financial_center_id: parseIntOrNull(formData.get('from_financial_center_id'))!,
+                to_financial_center_id: parseIntOrNull(formData.get('to_financial_center_id'))!,
+                from_article_id: parseIntOrNull(formData.get('from_article_id')),
+                to_article_id: parseIntOrNull(formData.get('to_article_id')),
+                amount: parseFloat(amountInput?.value || '0'),
+                description: descriptionInput?.value || null
+            };
+
+            const response = await fetch('/api/v1/transfers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
         } else {
             // Use facts controller createFact
             const event = new Event('submit', { bubbles: true, cancelable: true });
