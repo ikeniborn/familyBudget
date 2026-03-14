@@ -534,17 +534,38 @@ async function saveFactModalFacts(button: HTMLElement): Promise<void> {
     const activeTabInput = form.querySelector<HTMLInputElement>('input[name="active_tab"]');
     const activeTab = activeTabInput?.value || 'transaction';
 
-    if (activeTab === 'transfer') {
-        // Delegate to transfers.min.js
-        if (typeof (window as any).saveTransfer === 'function') {
-            (window as any).saveTransfer(button);
+    // Set button loading state
+    const btn = button as HTMLButtonElement;
+    btn.disabled = true;
+    const origText = btn.innerHTML;
+    btn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Сохранение...';
+
+    try {
+        if (activeTab === 'transfer') {
+            // Lazy-load and call saveFactTransfer directly
+            const { saveFactTransfer } = await import('../../dashboard/features/modalFact/saveTransfer');
+            await saveFactTransfer(form);
+        } else {
+            // Use facts controller createFact
+            const event = new Event('submit', { bubbles: true, cancelable: true });
+            await createFactAction(event);
         }
-    } else {
-        // Use facts controller createFact
-        const event = new Event('submit', { bubbles: true, cancelable: true });
-        await createFactAction(event);
+
         // Close modal on success
         const modal = document.getElementById(modalId) as HTMLDialogElement;
         modal?.close();
+
+        // Show success toast
+        if (typeof (window as any).showToast === 'function') {
+            (window as any).showToast('Факт сохранён', 'success');
+        }
+    } catch (error) {
+        console.error('[FactsManager] Error saving:', error);
+        if (typeof (window as any).showToast === 'function') {
+            (window as any).showToast('Ошибка сохранения', 'error');
+        }
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
     }
 }

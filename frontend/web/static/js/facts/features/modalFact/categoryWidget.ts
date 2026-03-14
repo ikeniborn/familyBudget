@@ -18,6 +18,8 @@ import {
 import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
 
 const TRANSACTION_ARTICLE_SELECTOR = '#modal_fact-tab-transaction select[name="article_id"]';
+const TRANSACTION_FC_SELECTOR      = '#modal_fact-tab-transaction select[name="financial_center_id"]';
+const TRANSACTION_CC_SELECTOR      = '#modal_fact-tab-transaction select[name="cost_center_id"]';
 const FROM_ARTICLE_SELECTOR        = '#modal_fact-tab-transfer select[name="from_article_id"]';
 const TO_ARTICLE_SELECTOR          = '#modal_fact-tab-transfer select[name="to_article_id"]';
 const FROM_FC_SELECTOR             = '#modal_fact-tab-transfer select[name="from_financial_center_id"]';
@@ -73,8 +75,14 @@ export function initTransactionCategoryTree(): void {
 
     setCreateCategoryTreeSelect(instance);
 
+    // Initial state: disabled until FC is selected (mirrors dashboard behaviour)
+    instance.disable();
+
     // PWA: reposition modal to top when dropdown opens to keep list visible
     setupMobileModalPositioning(instance, MODAL_FACT_ID);
+
+    // Setup FC change listener to enable/disable category and cost center
+    setupTransactionFCListener();
 }
 
 /**
@@ -99,6 +107,47 @@ function syncFactTypeHidden(type: string): void {
         '#modal_fact-tab-transaction input[name="fact_type"]'
     ) as HTMLInputElement | null;
     if (hiddenInput) hiddenInput.value = type;
+}
+
+/**
+ * Setup FC change listener for transaction tab.
+ * Enables/disables category tree and cost center when a financial center is selected.
+ * Mirrors dashboard/features/addTransaction/categoryLoader.ts#setupFinancialCenterListeners().
+ */
+function setupTransactionFCListener(): void {
+    const fcSelect = document.querySelector<HTMLSelectElement>(TRANSACTION_FC_SELECTOR);
+    if (!fcSelect || fcSelect.dataset.listenerAttached) return;
+
+    fcSelect.addEventListener('change', () => {
+        const fcId = fcSelect.value ? parseInt(fcSelect.value) : null;
+        const tree = getCreateCategoryTreeSelect();
+        const ccSelect = document.querySelector<HTMLSelectElement>(TRANSACTION_CC_SELECTOR);
+
+        if (fcId) {
+            // Enable category tree
+            if (tree) {
+                tree.enable();
+                if (tree.updateFinancialCenter) {
+                    tree.updateFinancialCenter(fcId);
+                }
+            }
+            // Enable cost center select
+            if (ccSelect) ccSelect.removeAttribute('disabled');
+        } else {
+            // Disable category tree
+            if (tree) {
+                tree.clearSelection();
+                tree.disable();
+            }
+            // Disable cost center select
+            if (ccSelect) {
+                ccSelect.value = '';
+                ccSelect.setAttribute('disabled', 'disabled');
+            }
+        }
+    });
+
+    fcSelect.dataset.listenerAttached = 'true';
 }
 
 // ============================================================================
