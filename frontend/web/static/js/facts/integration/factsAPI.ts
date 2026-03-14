@@ -19,7 +19,7 @@ import type {
     LocalFinancialCenter,
     LocalCostCenter
 } from '@db/dexie';
-import { getDexieManager, isDexieActive } from '@db/dexie';
+import { getDexieManager, isDexieActive, mapAPIFactToLocal } from '@db/dexie';
 
 // ============================================================================
 // Types
@@ -269,7 +269,25 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
             throw new Error(error.detail || `HTTP error! status: ${response.status}`);
         }
 
-        return await response.json();
+        const createdFact = await response.json();
+
+        // Sync Dexie cache: insert new fact so loadFacts() sees it immediately
+        // Without this, Dexie returns stale data and the new fact won't appear
+        if (isDexieActive()) {
+            try {
+                const dexie = await getDexieManager();
+                if (dexie.isReady()) {
+                    const localFact = mapAPIFactToLocal(createdFact);
+                    await dexie.bulkUpdateFacts([localFact]);
+                    console.debug('[FACTS_API] Synced new fact to Dexie cache', { id: createdFact.id });
+                }
+            } catch (cacheError) {
+                // Non-critical: fact is on server, cache miss just means stale UI until refresh
+                console.warn('[FACTS_API] Failed to sync to Dexie cache:', cacheError);
+            }
+        }
+
+        return createdFact;
     } catch (error) {
         console.error('[FACTS_API] Error creating fact:', error);
         throw error;
