@@ -98,7 +98,8 @@ async function uploadShoppingItem(item: LocalShoppingListItem): Promise<void> {
     product_group_id: item.product_group_id,
     position: item.position,
     is_completed: item.is_completed,
-    completed_at: item.completed_at
+    completed_at: item.completed_at,
+    temp_id: item.temp_id,
   };
 
   const response = await fetchWithTimeout(endpoint, {

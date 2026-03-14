@@ -582,8 +582,10 @@ async function saveFactModalFacts(button: HTMLElement): Promise<void> {
             }
         } else {
             // Use facts controller createFact
-            const event = new Event('submit', { bubbles: true, cancelable: true });
-            await createFactAction(event);
+            // Dispatch event on form so event.target === form (required for FormData)
+            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+            Object.defineProperty(submitEvent, 'target', { value: form, writable: false });
+            await createFactAction(submitEvent);
         }
 
         // Close modal on success

@@ -309,6 +309,9 @@ async def create_shopping_list_item(
 
     # Broadcast SSE event to all connected clients
     response = ShoppingListItemResponse.model_validate(item)
+    # Propagate client temp_id for WS deduplication (prevents duplicate rendering)
+    if item_data.temp_id:
+        response.temp_id = item_data.temp_id
     try:
         ws = _get_ws_broadcast()
         await ws.broadcast_item_created(item_data=response.model_dump(mode="json"))
