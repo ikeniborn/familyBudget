@@ -20,6 +20,7 @@ import type {
     LocalCostCenter
 } from '@db/dexie';
 import { getDexieManager, isDexieActive } from '@db/dexie';
+import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 // ============================================================================
 // Types
@@ -258,14 +259,8 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
     try {
         // Dexie-first strategy
         if (isDexieActive() && dexie.isReady()) {
-            // Get user ID
-            const userId = (window as any).offlineManager
-                ? await (window as any).offlineManager.getCurrentUserId()
-                : null;
-
-            if (!userId) {
-                throw new Error('User ID not available');
-            }
+            // Get user ID via standardized helper (fallback chain: userData → currentUser → API)
+            const userId = await getCurrentUserId();
 
             // Map CreateFactData to LocalBudgetFact format
             const temp_id = await dexie.createFact({
