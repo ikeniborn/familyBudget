@@ -20,7 +20,6 @@ import type {
     LocalCostCenter
 } from '@db/dexie';
 import { getDexieManager, isDexieActive } from '@db/dexie';
-import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 // ============================================================================
 // Types
@@ -250,57 +249,14 @@ export async function getFact(factId: number): Promise<BudgetFact> {
 // ============================================================================
 
 /**
- * Create new fact
- * Dexie-first with API fallback (task-015 Phase 4.4)
+ * Create new fact via API
+ * API-first: sends directly to server for reliable persistence
  */
 export async function createFact(data: CreateFactData): Promise<BudgetFact> {
-    const dexie = await getDexieManager();
-
     try {
-        // Dexie-first strategy
-        if (isDexieActive() && dexie.isReady()) {
-            // Get user ID via standardized helper (fallback chain: userData → currentUser → API)
-            const userId = await getCurrentUserId();
-
-            // Map CreateFactData to LocalBudgetFact format
-            const temp_id = await dexie.createFact({
-                user_id: userId,
-                article_id: data.article_id,
-                financial_center_id: data.financial_center_id,
-                cost_center_id: data.cost_center_id || null,
-                date: data.fact_date,
-                amount: data.amount,
-                record_type: data.record_type,
-                comment: data.description,
-                transfer_group_id: null,
-                is_transfer: false,
-                sync_hash: null
-            });
-
-
-            // Return placeholder BudgetFact (UI will reload from Dexie)
-            return {
-                id: 0,
-                temp_id,
-                fact_date: data.fact_date,
-                article_id: data.article_id,
-                article_name: '',
-                article_type: data.fact_type,
-                financial_center_id: data.financial_center_id,
-                financial_center_name: '',
-                cost_center_id: data.cost_center_id || null,
-                cost_center_name: null,
-                amount: data.amount,
-                description: data.description,
-                user_id: userId,
-                user_name: '',
-                record_type: 'spend',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            };
-        }
-
-        // Fallback to direct API
+        // API-first strategy: always send to server for reliable persistence
+        // Dexie-first was causing data loss (fact saved to IndexedDB only,
+        // never synced to server, disappeared on page reload)
         const response = await fetch('/api/v1/facts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

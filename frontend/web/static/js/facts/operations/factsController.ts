@@ -276,8 +276,6 @@ export async function createFact(event: Event): Promise<void> {
 
         await createFn(createData);
 
-        showToast('Факт успешно создан', 'success');
-
         // Close modal (if AdminFactsCommon available)
         if (window.AdminFactsCommon?.closeCreateModal) {
             window.AdminFactsCommon.closeCreateModal();
@@ -287,8 +285,7 @@ export async function createFact(event: Event): Promise<void> {
         await loadFacts();
     } catch (error) {
         logger.error(' Error creating fact:', error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        showToast(`Ошибка создания: ${errorMessage}`, 'error');
+        throw error; // Propagate to caller (saveFactModalFacts) for unified toast handling
     }
 }
 

@@ -588,7 +588,8 @@ async function saveFactModalFacts(button: HTMLElement): Promise<void> {
             await createFactAction(submitEvent);
         }
 
-        // Close modal on success
+        // Reset form and close modal on success
+        form.reset();
         const modal = document.getElementById(modalId) as HTMLDialogElement;
         modal?.close();
 
