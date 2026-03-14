@@ -22,6 +22,11 @@ export async function saveFactTransfer(form: HTMLFormElement): Promise<void> {
     throw new Error('Failed to convert date to API format');
   }
 
+  // Get values from transfer tab fields (form has duplicate field names across tabs)
+  const transferTab = form.querySelector('[data-tab="transfer"]') as HTMLElement;
+  const amountInput = transferTab?.querySelector('input[name="amount"]') as HTMLInputElement;
+  const descriptionInput = transferTab?.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+
   // Build request data
   const data = {
     record_type: 'fact',
@@ -30,8 +35,8 @@ export async function saveFactTransfer(form: HTMLFormElement): Promise<void> {
     to_financial_center_id: parseIntOrNull(formData.get('to_financial_center_id'))!,
     from_article_id: parseIntOrNull(formData.get('from_article_id')),
     to_article_id: parseIntOrNull(formData.get('to_article_id')),
-    amount: parseFloat(formData.get('amount') as string),
-    description: formData.get('description') || null
+    amount: parseFloat(amountInput?.value || '0'),
+    description: descriptionInput?.value || null
   };
 
   // POST /api/v1/transfers
