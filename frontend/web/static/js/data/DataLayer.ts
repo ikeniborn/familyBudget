@@ -22,8 +22,7 @@
  * @module data/DataLayer
  */
 
-import { getDexieManager, DexieManager, db as dexieDb } from '@db/dexie';
-import { isDexieActive } from '@db/dexie';
+import { getDexieManager, DexieManager, db as dexieDb, isDexieActive, mapAPIFactToLocal } from '@db/dexie';
 import { performanceMonitor } from '../monitoring/PerformanceMonitor';
 import type { PerformanceStats } from '../monitoring/PerformanceMonitor';
 import type {
@@ -45,7 +44,6 @@ import type {
   FactFilters,
   RecurringPlanFilters
 } from '@db/dexie';
-import { mapAPIFactToLocal } from '@db/dexie/utils/apiMapper';
 import { factsManager } from '../dashboard/features/factsManager';
 import type {
   ArticleListResponse,
