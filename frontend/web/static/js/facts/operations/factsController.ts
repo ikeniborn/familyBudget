@@ -298,6 +298,20 @@ export async function createFact(event: Event): Promise<void> {
  * Phase 2 fix: Load fact from API instead of cache
  */
 export async function showEditModal(factId: number): Promise<void> {
+    const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
+    const skeleton = document.getElementById('edit-loading-skeleton');
+    const formFields = document.getElementById('edit-form-fields');
+
+    if (!modal?.showModal) {
+        logger.error('Edit modal not found');
+        return;
+    }
+
+    // Show modal immediately with skeleton
+    if (skeleton) skeleton.classList.remove('hidden');
+    if (formFields) formFields.classList.add('hidden');
+    modal.showModal();
+
     try {
         // Import dynamically to avoid circular dependency
         const { getFact } = await import('../integration/factsAPI');
@@ -308,21 +322,21 @@ export async function showEditModal(factId: number): Promise<void> {
 
         if (!fact) {
             showToast('Факт не найден', 'error');
+            modal.close();
             return;
         }
 
         // Populate edit modal
         populateEditModal(fact, getBudgetShared());
 
-        // Show modal
-        const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
-        if (modal?.showModal) {
-            modal.showModal();
-        }
+        // Hide skeleton, show form
+        if (skeleton) skeleton.classList.add('hidden');
+        if (formFields) formFields.classList.remove('hidden');
     } catch (error) {
         logger.error(' Error showing edit modal:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка: ${errorMessage}`, 'error');
+        modal.close();
     }
 }
 
@@ -575,7 +589,7 @@ export function renderFactsTable(facts: FactRow[]): void {
                 <thead>
                     <tr>
                         <th><input type="checkbox" class="checkbox checkbox-sm" onclick="window.FactsManager?.toggleSelectAll?.(this)"></th>
-                        <th>#</th>
+                        <th>ID</th>
                         <th>📅 Дата</th>
                         <th>📁 Категория</th>
                         <th>💵 Сумма</th>
@@ -733,9 +747,9 @@ export function renderFactMobileCard(fact: FactRow): string {
                 <span class="flex-1 font-medium truncate">${articleName}</span>
                 <span class="${amountClass} font-bold whitespace-nowrap">${amountFormatted}</span>
             </div>
-            <!-- Line 2: ID • Date • Account • Description -->
+            <!-- Line 2: Date • Account • Description -->
             <div class="text-xs text-base-content/60 mt-1 truncate">
-                #${fact.id} • ${shortDate} • ${financialCenter} • ${description}
+                ${shortDate} • ${financialCenter} • ${description}
             </div>
         </div>
     `;

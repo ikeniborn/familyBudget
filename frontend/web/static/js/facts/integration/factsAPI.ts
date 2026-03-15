@@ -73,6 +73,7 @@ interface EnrichmentMaps {
     articles: Map<number, LocalArticle>;
     financialCenters: Map<number, LocalFinancialCenter>;
     costCenters: Map<number, LocalCostCenter>;
+    users: Map<number, { id: number; name: string }>;
 }
 
 /**
@@ -87,6 +88,7 @@ function convertBudgetFact(local: LocalBudgetFact, maps?: EnrichmentMaps): Budge
     const article = maps?.articles.get(local.article_id);
     const fc = maps?.financialCenters.get(local.financial_center_id || 0);
     const cc = local.cost_center_id && maps ? maps.costCenters.get(local.cost_center_id) : null;
+    const user = maps?.users.get(local.user_id);
 
     return {
         id: local.id || 0,
@@ -102,7 +104,7 @@ function convertBudgetFact(local: LocalBudgetFact, maps?: EnrichmentMaps): Budge
         amount: Number(local.amount),
         description: local.comment,
         user_id: local.user_id,
-        user_name: '', // User names not stored in reference data (multi-user shared facts)
+        user_name: user?.name || '',
         record_type: 'spend', // Default mapping from 'fact'
         // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
         // Runtime check provides backward compatibility with both API (Date) and Dexie (string)
@@ -155,11 +157,16 @@ async function loadEnrichmentMaps(userId: number): Promise<EnrichmentMaps> {
         dataLayer.getCostCenters(userId, null, true)
     ]);
 
+    // Load cached users for user_name enrichment
+    const { getCachedUsers } = await import('../core/stateManager');
+    const cachedUsers = getCachedUsers();
+
     // Create lookup maps for O(1) access during conversion
     return {
         articles: new Map(articles.map(a => [a.id, a])),
         financialCenters: new Map(financialCenters.map(fc => [fc.id, fc])),
-        costCenters: new Map(costCenters.map(cc => [cc.id, cc]))
+        costCenters: new Map(costCenters.map(cc => [cc.id, cc])),
+        users: new Map(cachedUsers.map(u => [u.id, { id: u.id, name: u.name }]))
     };
 }
 
