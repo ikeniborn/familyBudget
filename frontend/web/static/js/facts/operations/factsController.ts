@@ -22,12 +22,12 @@ import { factsControllerLogger as logger } from '../utilities/logger';
  * Load facts with current filters and pagination
  * Post-TypeScript Migration: Client-side rendering (removed HTMX partials)
  */
-export async function loadFacts(): Promise<void> {
+export async function loadFacts(options?: { forceAPI?: boolean }): Promise<void> {
     try {
-        logger.log('Loading facts...');
+        logger.log('Loading facts...', options?.forceAPI ? '(forceAPI)' : '');
 
-        // Get facts data from API
-        const { facts, total } = await loadFactsWithCount();
+        // Get facts data (forceAPI bypasses Dexie cache for guaranteed fresh data)
+        const { facts, total } = await loadFactsWithCount(options);
 
         logger.log(`Loaded ${facts.length} facts (total: ${total})`);
 
@@ -145,8 +145,8 @@ export async function deleteFact(factId: number): Promise<void> {
 
         showToast('Факт успешно удален', 'success');
 
-        // Reload facts
-        await loadFacts();
+        // Reload facts from API (bypass Dexie cache)
+        await loadFacts({ forceAPI: true });
     } catch (error) {
         logger.error(' Error deleting fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -213,8 +213,8 @@ export async function updateFact(event: Event): Promise<void> {
         // Close modal
         closeEditModal();
 
-        // Reload facts
-        await loadFacts();
+        // Reload facts from API (bypass Dexie cache)
+        await loadFacts({ forceAPI: true });
     } catch (error) {
         logger.error(' Error updating fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -281,8 +281,8 @@ export async function createFact(event: Event): Promise<void> {
             window.AdminFactsCommon.closeCreateModal();
         }
 
-        // Reload facts
-        await loadFacts();
+        // Reload facts from API (bypass Dexie cache to guarantee fresh data)
+        await loadFacts({ forceAPI: true });
     } catch (error) {
         logger.error(' Error creating fact:', error);
         throw error; // Propagate to caller (saveFactModalFacts) for unified toast handling
@@ -462,8 +462,8 @@ export async function batchDelete(): Promise<void> {
             'success'
         );
 
-        // Reload facts
-        await loadFacts();
+        // Reload facts from API (bypass Dexie cache)
+        await loadFacts({ forceAPI: true });
     } catch (error) {
         logger.error(' Error batch deleting:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);

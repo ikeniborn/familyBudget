@@ -142,18 +142,20 @@ async function loadEnrichmentMaps(userId: number): Promise<EnrichmentMaps> {
  * Load facts (Dexie-first with API fallback)
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
-export async function loadFacts(): Promise<LoadFactsResponse> {
+export async function loadFacts(options?: { forceAPI?: boolean }): Promise<LoadFactsResponse> {
     try {
-        // Build filters for Dexie
+        // Build filters
         const factFilters = buildFactFilters();
 
-        // Load all facts via DataLayer (Dexie-first + API fallback)
-        const localFacts = await dataLayer.getFacts(factFilters);
+        // Load facts: forceAPI bypasses Dexie cache (used after create/update to guarantee fresh data)
+        const localFacts = options?.forceAPI
+            ? await dataLayer.getFactsFromAPI(factFilters)
+            : await dataLayer.getFacts(factFilters);
 
-        // Convert to UI types with enrichment (if Dexie active)
+        // Convert to UI types with enrichment (if Dexie active and not forced API)
         let allFacts: BudgetFact[];
 
-        if (isDexieActive() && localFacts.length > 0) {
+        if (!options?.forceAPI && isDexieActive() && localFacts.length > 0) {
             // Load reference data for client-side join
             const userId = localFacts[0].user_id;
             const enrichmentMaps = await loadEnrichmentMaps(userId);
@@ -205,12 +207,12 @@ export async function loadFactsCount(): Promise<number> {
  * Load facts and count in parallel
  * Returns both results for single API call optimization
  */
-export async function loadFactsWithCount(): Promise<{
+export async function loadFactsWithCount(options?: { forceAPI?: boolean }): Promise<{
     facts: BudgetFact[];
     total: number;
 }> {
     const [factsResponse, total] = await Promise.all([
-        loadFacts(),
+        loadFacts(options),
         loadFactsCount()
     ]);
 

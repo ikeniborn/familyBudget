@@ -1207,7 +1207,7 @@ export class DataLayer {
    * @param filters - Optional filters
    * @returns Array of budget facts
    */
-  private async getFactsFromAPI(filters?: FactFilters): Promise<LocalBudgetFact[]> {
+  async getFactsFromAPI(filters?: FactFilters): Promise<LocalBudgetFact[]> {
     const params = new URLSearchParams();
     params.set('limit', '1000');
 
