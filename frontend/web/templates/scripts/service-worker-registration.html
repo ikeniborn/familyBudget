@@ -224,6 +224,29 @@
             }
 
             try {
+                // Step 0.5/5: Put active SW into passthrough mode
+                console.log('[SW_UPDATE] Step 0.5/5: Entering update mode...');
+                const controller = navigator.serviceWorker.controller;
+                if (controller) {
+                    try {
+                        await new Promise((resolve) => {
+                            const messageChannel = new MessageChannel();
+                            const timeout = setTimeout(() => {
+                                console.warn('[SW_UPDATE] enterUpdateMode timeout');
+                                resolve();
+                            }, 3000);
+                            messageChannel.port1.onmessage = () => {
+                                clearTimeout(timeout);
+                                console.log('[SW_UPDATE] ✅ Step 0.5/5: SW in update mode');
+                                resolve();
+                            };
+                            controller.postMessage({ action: 'enterUpdateMode' }, [messageChannel.port2]);
+                        });
+                    } catch (e) {
+                        console.warn('[SW_UPDATE] ⚠️ Step 0.5/5:', e.message);
+                    }
+                }
+
                 // Step 1/5: Unregister Service Worker
                 console.log('[SW_UPDATE] Step 1/5: Unregister SW...');
                 const registration = await navigator.serviceWorker.getRegistration();
@@ -363,7 +386,7 @@
                 // Reload current page (hard reload with cache bust)
                 // User session preserved - JWT tokens in httpOnly cookies (access_token, refresh_token)
                 console.log('[SW_UPDATE] Reloading current page...');
-                window.location.reload(true);
+                window.location.reload();
 
             } catch (error) {
                 console.error('[SW_UPDATE] ❌ ERROR:', error);
@@ -581,24 +604,26 @@
             }
         })();
 
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
             // Check if SW registration was blocked by skip flag
             if (window.__SW_REGISTRATION_BLOCKED) {
                 console.log('[SW] ⏭️ Skipping SW registration (blocked at page load)');
                 localStorage.removeItem(SW_SKIP_REGISTRATION_KEY);
                 delete window.__SW_REGISTRATION_BLOCKED;
 
-                // Clear any remaining caches (safety measure)
-                caches.keys().then(names => {
+                // Clear any remaining caches (safety measure) - awaited for reliability
+                try {
+                    const names = await caches.keys();
                     if (names.length > 0) {
                         console.log('[SW] 🗑️ Clearing remaining caches:', names);
-                        Promise.all(names.map(name => caches.delete(name)))
-                            .then(() => console.log('[SW] ✅ All remaining caches cleared'))
-                            .catch(err => console.warn('[SW] ⚠️ Cache cleanup error:', err));
+                        await Promise.all(names.map(name => caches.delete(name)));
+                        console.log('[SW] ✅ All remaining caches cleared');
                     } else {
                         console.log('[SW] ✅ Cache Storage is empty');
                     }
-                }).catch(err => console.warn('[SW] ⚠️ Failed to read caches:', err));
+                } catch (err) {
+                    console.warn('[SW] ⚠️ Cache cleanup error:', err);
+                }
 
                 return; // Skip SW registration
             }

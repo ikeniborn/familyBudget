@@ -104,7 +104,7 @@ function convertBudgetFact(local: LocalBudgetFact, maps?: EnrichmentMaps): Budge
         amount: Number(local.amount),
         description: local.comment,
         user_id: local.user_id,
-        user_name: user?.name || '',
+        user_name: (local as any).user_name || user?.name || '',
         record_type: 'spend', // Default mapping from 'fact'
         // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
         // Runtime check provides backward compatibility with both API (Date) and Dexie (string)
@@ -166,7 +166,7 @@ async function loadEnrichmentMaps(userId: number): Promise<EnrichmentMaps> {
         articles: new Map(articles.map(a => [a.id, a])),
         financialCenters: new Map(financialCenters.map(fc => [fc.id, fc])),
         costCenters: new Map(costCenters.map(cc => [cc.id, cc])),
-        users: new Map(cachedUsers.map(u => [u.id, { id: u.id, name: u.name }]))
+        users: new Map(cachedUsers.map(u => [u.id, { id: u.id, name: u.display_name || u.first_name || u.username || u.last_name || `User ${u.id}` }]))
     };
 }
 
@@ -196,8 +196,8 @@ export async function loadFacts(options?: { forceAPI?: boolean }): Promise<LoadF
             const enrichmentMaps = await loadEnrichmentMaps(userId);
             allFacts = localFacts.map(fact => convertBudgetFact(fact, enrichmentMaps));
         } else {
-            // Fallback (empty result or Dexie inactive)
-            allFacts = localFacts.map(fact => convertBudgetFact(fact));
+            // Fallback: Dexie inactive — API data with API field names
+            allFacts = localFacts.map(fact => convertAPIFact(fact as any));
         }
 
         // Client-side pagination

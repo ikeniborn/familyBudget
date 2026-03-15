@@ -99,11 +99,15 @@ export interface CostCenter {
 
 /**
  * User model
+ * Matches API /api/v1/users response (UserResponse schema)
  */
 export interface User {
     id: number;
-    name: string;
-    email: string;
+    first_name?: string;
+    last_name?: string;
+    username?: string;
+    display_name?: string;
+    email?: string;
 }
 
 /**

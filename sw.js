@@ -17,6 +17,7 @@
 
 // Debug mode (включить только для отладки)
 const DEBUG = false;
+let updateMode = false;
 
 // Cache version - автоматически заменяется в CI/CD через cache busting
 // Формат: X.Y.Z semantic versioning (совпадает с VERSION file)
@@ -331,6 +332,9 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Update mode: stop caching, let all requests pass through to network
+  if (updateMode) return;
+
   // Игнорируем non-GET requests
   if (request.method !== 'GET') {
     return;
@@ -486,6 +490,14 @@ self.addEventListener('message', (event) => {
 
   if (event.data.action === 'skipWaiting') {
     self.skipWaiting();
+  }
+
+  if (event.data.action === 'enterUpdateMode') {
+    updateMode = true;
+    console.log('[SW] Entered update mode - fetch passthrough enabled');
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ type: 'UPDATE_MODE_ACK' });
+    }
   }
 
   // Запрос текущей версии SW

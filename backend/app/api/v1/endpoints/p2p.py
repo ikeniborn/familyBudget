@@ -16,10 +16,11 @@ import secrets
 import string
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
 
 from backend.app.core.auth import get_current_user
+from backend.app.middleware.rate_limiter import limiter
 from backend.app.models.user import User
 from backend.app.services.redis_service import get_redis
 
@@ -87,7 +88,8 @@ async def get_p2p_config(
 
 
 @router.post("/relay", status_code=201)
-async def create_relay_offer(body: RelayOfferRequest) -> dict[str, str]:
+@limiter.limit("10/minute")
+async def create_relay_offer(request: Request, body: RelayOfferRequest) -> dict[str, str]:
     """
     Store offer SDP under a generated 6-character code in Redis (TTL 120s).
     Returns { code } to display on the initiator device.
@@ -102,7 +104,8 @@ async def create_relay_offer(body: RelayOfferRequest) -> dict[str, str]:
 
 
 @router.get("/relay/{code}")
-async def get_relay_offer(code: str) -> dict[str, Any]:
+@limiter.limit("30/minute")
+async def get_relay_offer(request: Request, code: str) -> dict[str, Any]:
     """
     Retrieve the offer SDP for the given relay code.
     Returns 404 if the code is unknown or expired.
@@ -118,7 +121,8 @@ async def get_relay_offer(code: str) -> dict[str, Any]:
 
 
 @router.post("/relay/{code}/answer", status_code=200)
-async def post_relay_answer(code: str, body: RelayAnswerRequest) -> dict[str, str]:
+@limiter.limit("10/minute")
+async def post_relay_answer(request: Request, code: str, body: RelayAnswerRequest) -> dict[str, str]:
     """
     Store the answer SDP for the given relay code in Redis (TTL 120s).
     Returns 404 if the offer code is unknown (expired or wrong code).
@@ -136,7 +140,8 @@ async def post_relay_answer(code: str, body: RelayAnswerRequest) -> dict[str, st
 
 
 @router.get("/relay/{code}/answer")
-async def get_relay_answer(code: str, response: Response) -> dict[str, Any]:
+@limiter.limit("30/minute")
+async def get_relay_answer(request: Request, code: str, response: Response) -> dict[str, Any]:
     """
     Poll for the answer SDP.
     Returns 200 + answer when available, 202 while still waiting.
