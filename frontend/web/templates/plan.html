@@ -5709,7 +5709,7 @@ window.budgetWSClient.on('plan_created', async (data) => {
     // Если текущие фильтры соответствуют новому плану - обновить таблицу
     if (shouldReloadOnPlanCreated(data)) {
         await loadFacts(); // Перезагрузить таблицу
-        showToast('success', '✅ Добавлена новая плановая запись');
+        showToast('Сохранено', 'success');
     }
 });
 
@@ -5719,7 +5719,7 @@ window.budgetWSClient.on('plan_updated', async (data) => {
 
     // Всегда перезагружать таблицу (план мог изменить видимость из-за фильтров)
     await loadFacts();
-    showToast('info', '🔄 Плановая запись обновлена');
+    showToast('🔄 Плановая запись обновлена', 'info');
 });
 
 // План удален
@@ -5728,7 +5728,7 @@ window.budgetWSClient.on('plan_deleted', async (data) => {
 
     // Перезагрузить таблицу
     await loadFacts();
-    showToast('warning', '🗑️ Плановая запись удалена');
+    showToast('🗑️ Плановая запись удалена', 'warning');
 });
 
 // Регламентный план создан (генерирует несколько фактов)
@@ -5737,7 +5737,7 @@ window.budgetWSClient.on('recurring_plan_created', async (data) => {
 
     // Перезагрузить таблицу (появилось несколько новых записей)
     await loadFacts();
-    showToast('success', `✅ Регламентный платеж создан (${data.facts_generated || '?'} записей)`);
+    showToast(`Регламентный платеж создан (${data.facts_generated || '?'} записей)`, 'success');
 });
 
 // Регламентный план обновлен
@@ -5746,7 +5746,7 @@ window.budgetWSClient.on('recurring_plan_updated', async (data) => {
 
     // Перезагрузить таблицу (план мог изменить видимость)
     await loadFacts();
-    showToast('info', '🔄 Регламентный платеж обновлён');
+    showToast('🔄 Регламентный платеж обновлён', 'info');
 });
 
 // Регламентный план удален
@@ -5755,7 +5755,7 @@ window.budgetWSClient.on('recurring_plan_deleted', async (data) => {
 
     // Перезагрузить таблицу
     await loadFacts();
-    showToast('warning', '🗑️ Регламентный платеж удалён');
+    showToast('🗑️ Регламентный платеж удалён', 'warning');
 });
 
 // Новые факты сгенерированы scheduler job (hourly)
@@ -5766,7 +5766,7 @@ window.budgetWSClient.on('recurring_plan_facts_generated', async (data) => {
     await loadFacts();
 
     if (data.facts_count > 0) {
-        showToast('info', `🔄 Сгенерировано ${data.facts_count} новых записей по регламентным платежам`);
+        showToast(`🔄 Сгенерировано ${data.facts_count} новых записей по регламентным платежам`, 'info');
     }
 });
 
