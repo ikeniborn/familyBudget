@@ -575,12 +575,15 @@ export function renderFactsTable(facts: FactRow[]): void {
                 <thead>
                     <tr>
                         <th><input type="checkbox" class="checkbox checkbox-sm" onclick="window.FactsManager?.toggleSelectAll?.(this)"></th>
+                        <th>#</th>
                         <th>📅 Дата</th>
                         <th>📁 Категория</th>
                         <th>💵 Сумма</th>
                         <th>🏦 Счет</th>
                         <th>💼 МЗ</th>
                         <th>📝 Комментарий</th>
+                        <th>👤 Пользователь</th>
+                        <th>🔄 Обновлено</th>
                         <th>⚙️ Действия</th>
                     </tr>
                 </thead>
@@ -644,15 +647,37 @@ export function renderFactRow(fact: FactRow): string {
         ? TableFormatters.truncateText(commentText, 40)  // Already escaped
         : '—';
 
+    // Format updated_at date
+    const updatedAtValue: unknown = fact.updated_at;
+    let updatedAtFormatted = '—';
+    if (updatedAtValue) {
+        const updatedAtStr = typeof updatedAtValue === 'string'
+            ? updatedAtValue
+            : (updatedAtValue instanceof Date ? updatedAtValue.toISOString() : String(updatedAtValue));
+        // Extract date part and format DD.MM.YYYY HH:MM
+        const updatedDate = new Date(updatedAtStr);
+        if (!isNaN(updatedDate.getTime())) {
+            const dd = String(updatedDate.getDate()).padStart(2, '0');
+            const mm = String(updatedDate.getMonth() + 1).padStart(2, '0');
+            const yyyy = updatedDate.getFullYear();
+            const hh = String(updatedDate.getHours()).padStart(2, '0');
+            const min = String(updatedDate.getMinutes()).padStart(2, '0');
+            updatedAtFormatted = `${dd}.${mm}.${yyyy} ${hh}:${min}`;
+        }
+    }
+
     return `
         <tr>
             <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="${fact.id}"></td>
+            <td class="text-base-content/50 text-xs">${fact.id}</td>
             <td>${escapeHtml(dateFormatted)}</td>
             <td><span class="${articleColorClass}">${articleName}</span></td>
             <td class="${articleColorClass} font-bold">${amountFormatted}</td>
             <td class="max-w-xs truncate" title="${fact.financial_center_name}">${financialCenterName}</td>
             <td class="max-w-xs truncate" title="${fact.cost_center_name || ''}">${costCenterName}</td>
             <td class="max-w-xs truncate" title="${commentText || ''}">${comment}</td>
+            <td class="text-xs whitespace-nowrap">${escapeHtml(fact.user_name ?? '—')}</td>
+            <td class="text-xs text-base-content/50 whitespace-nowrap">${escapeHtml(updatedAtFormatted)}</td>
             <td>
                 <div class="flex gap-1">
                     <button class="btn btn-xs btn-primary gap-1" onclick="window.FactsManager?.showEditModal?.(${fact.id})">✏️</button>
@@ -708,9 +733,9 @@ export function renderFactMobileCard(fact: FactRow): string {
                 <span class="flex-1 font-medium truncate">${articleName}</span>
                 <span class="${amountClass} font-bold whitespace-nowrap">${amountFormatted}</span>
             </div>
-            <!-- Line 2: Date • Account • Description -->
+            <!-- Line 2: ID • Date • Account • Description -->
             <div class="text-xs text-base-content/60 mt-1 truncate">
-                ${shortDate} • ${financialCenter} • ${description}
+                #${fact.id} • ${shortDate} • ${financialCenter} • ${description}
             </div>
         </div>
     `;

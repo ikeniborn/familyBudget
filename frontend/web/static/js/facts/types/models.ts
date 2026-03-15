@@ -58,6 +58,8 @@ export interface FactRow {
     amount?: number; // BudgetFact field
     fact_comment?: string | null; // API field (alternative to description)
     description?: string | null; // BudgetFact field
+    user_name?: string; // User who created the record
+    updated_at?: string; // ISO datetime
 }
 
 /**
