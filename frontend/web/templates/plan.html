@@ -2175,8 +2175,9 @@ function renderFactsTable(facts) {
                         <th>💼 МЗ</th>
                         <th>📁 Категория</th>
                         <th>💵 Сумма</th>
-                        <th>📝 Описание</th>
+                        <th>📝 Комментарий</th>
                         <th>👤 Пользователь</th>
+                        <th>🕐 Обновлено</th>
                         <th class="text-center" title="Напоминание">🔔</th>
                         <th class="text-center" title="Регламентный платеж">🔄</th>
                         <th class="text-center" title="Создано offline">☁️</th>
@@ -2223,6 +2224,7 @@ function renderFactsTable(facts) {
                 <td class="${articleColorClass} font-bold">${formatDesktopAmount(fact.amount, fact.article_type)}</td>
                 <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
                 <td>${fact.user_name || '—'}</td>
+                <td class="text-xs text-base-content/60">${fact.updated_at ? BudgetShared.DateFormatter.formatForDisplay(fact.updated_at.split('T')[0]) : '—'}</td>
                 <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">🔔</span>' : ''}</td>
                 <td class="text-center">${fact.recurring_plan_id ? '<span class="text-secondary" title="Регламентный платеж">🔄</span>' : ''}</td>
                 <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
@@ -2356,6 +2358,30 @@ async function showEditModal(factId) {
 
     console.log('[SHOW_EDIT_MODAL] Fact found:', fact);
 
+    // Show modal immediately with skeleton
+    const modal = document.getElementById('edit-modal');
+    const skeleton = document.getElementById('edit-loading-skeleton');
+    const formFields = document.getElementById('edit-form-fields');
+
+    if (!modal) {
+        console.error('[SHOW_EDIT_MODAL] CRITICAL: Modal element not found! #edit-modal');
+        return;
+    }
+
+    if (skeleton) skeleton.classList.remove('hidden');
+    if (formFields) formFields.classList.add('hidden');
+    modal.showModal();
+
+    // Handle backdrop clicks
+    if (!modal.dataset.backdropHandlerAdded) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.close();
+            }
+        });
+        modal.dataset.backdropHandlerAdded = 'true';
+    }
+
     // Fill basic fields
     document.getElementById('edit-id').value = fact.id;
     document.getElementById('edit-amount').value = parseFloat(fact.amount);
@@ -2424,30 +2450,6 @@ async function showEditModal(factId) {
         console.log('[EDIT MODAL] Record type is FACT');
     } else {
         console.warn('[EDIT MODAL] Unknown record_type:', fact.record_type);
-    }
-
-    // ✅ OPTIMIZATION: Show modal immediately (don't wait for recurring plan fetch)
-    console.log('[SHOW_EDIT_MODAL] Opening modal...');
-    const modal = document.getElementById('edit-modal');
-
-    if (!modal) {
-        console.error('[SHOW_EDIT_MODAL] CRITICAL: Modal element not found! #edit-modal');
-        return;
-    }
-
-    console.log('[SHOW_EDIT_MODAL] Modal element found, calling showModal()');
-    modal.showModal();
-    console.log('[SHOW_EDIT_MODAL] Modal opened successfully');
-
-    // ✅ FIX: Handle backdrop clicks explicitly (moved up for immediate modal opening)
-    if (!modal.dataset.backdropHandlerAdded) {
-        modal.addEventListener('click', (e) => {
-            // Close only if click is directly on dialog (backdrop area)
-            if (e.target === modal) {
-                modal.close();
-            }
-        });
-        modal.dataset.backdropHandlerAdded = 'true';
     }
 
     // ✅ OPTIMIZATION: Check if this is recurring plan before fetching
@@ -2698,6 +2700,10 @@ async function showEditModal(factId) {
             reminderStatusBadge.classList.remove('hidden');
         }
     }
+
+    // Hide skeleton, show form fields
+    if (skeleton) skeleton.classList.add('hidden');
+    if (formFields) formFields.classList.remove('hidden');
 }
 
 // Close edit modal
