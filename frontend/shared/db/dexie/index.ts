@@ -126,7 +126,8 @@ import { logger as dexieLogger } from './utils/logger';
 export { logger } from './utils/logger';
 export { fetchWithTimeout } from './utils/fetchWithTimeout';
 export { generateUUID, calculateContentHash } from './utils/hash';
-export { mapAPIFactToLocal, mapLocalFactToAPI } from './utils/apiMapper';
+import { mapAPIFactToLocal, mapLocalFactToAPI } from './utils/apiMapper';
+export { mapAPIFactToLocal, mapLocalFactToAPI };
 export {
   validateArticle,
   validateFact,
@@ -249,6 +250,7 @@ type DexieWithUtilities = typeof Dexie & {
   initializeDatabaseInBackground: typeof initializeDatabaseInBackground;
   isReady: typeof isReady;
   getDiagnosticData: typeof getDiagnosticData;
+  mapAPIFactToLocal: typeof mapAPIFactToLocal;
 };
 
 declare global {
@@ -306,6 +308,8 @@ if (typeof window !== 'undefined') {
       initializeDatabaseInBackground,
       isReady,
       getDiagnosticData,
+      // API ↔ Dexie mapping (used by facts.min.js for cache sync after API-first create)
+      mapAPIFactToLocal,
     });
 
     // Export Dexie class (with utilities attached) to window
