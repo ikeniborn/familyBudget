@@ -111,6 +111,31 @@ function convertBudgetFact(local: LocalBudgetFact, maps?: EnrichmentMaps): Budge
     };
 }
 
+/**
+ * Convert API fact response directly to BudgetFact
+ * Used when forceAPI bypasses Dexie — API already provides all name fields
+ */
+function convertAPIFact(apiFact: Record<string, any>): BudgetFact {
+    return {
+        id: apiFact.id || 0,
+        fact_date: apiFact.fact_date,
+        article_id: apiFact.article_id,
+        article_name: apiFact.article_name || '',
+        article_type: apiFact.article_type || 'expense',
+        financial_center_id: apiFact.financial_center_id || 0,
+        financial_center_name: apiFact.financial_center_name || '',
+        cost_center_id: apiFact.cost_center_id || null,
+        cost_center_name: apiFact.cost_center_name || null,
+        amount: Number(apiFact.amount),
+        description: apiFact.description,
+        user_id: apiFact.user_id,
+        user_name: apiFact.user_name || '',
+        record_type: apiFact.record_type === 'fact' ? 'spend' : apiFact.record_type || 'spend',
+        created_at: typeof apiFact.created_at === 'string' ? apiFact.created_at : apiFact.created_at?.toISOString?.() || '',
+        updated_at: typeof apiFact.updated_at === 'string' ? apiFact.updated_at : apiFact.updated_at?.toISOString?.() || ''
+    };
+}
+
 // ============================================================================
 // Load Facts
 // ============================================================================
@@ -152,18 +177,19 @@ export async function loadFacts(options?: { forceAPI?: boolean }): Promise<LoadF
             ? await dataLayer.getFactsFromAPI(factFilters)
             : await dataLayer.getFacts(factFilters);
 
-        // Convert to UI types with enrichment (if Dexie active and not forced API)
+        // Convert to UI types
         let allFacts: BudgetFact[];
 
-        if (!options?.forceAPI && isDexieActive() && localFacts.length > 0) {
-            // Load reference data for client-side join
+        if (options?.forceAPI) {
+            // API returns full data with names — map directly to BudgetFact
+            allFacts = (localFacts as any[]).map(fact => convertAPIFact(fact));
+        } else if (isDexieActive() && localFacts.length > 0) {
+            // Dexie path: client-side join with reference data
             const userId = localFacts[0].user_id;
             const enrichmentMaps = await loadEnrichmentMaps(userId);
-
-            // Convert with enrichment (single pass - O(n))
             allFacts = localFacts.map(fact => convertBudgetFact(fact, enrichmentMaps));
         } else {
-            // No enrichment needed (API provides full data or empty result)
+            // Fallback (empty result or Dexie inactive)
             allFacts = localFacts.map(fact => convertBudgetFact(fact));
         }
 
