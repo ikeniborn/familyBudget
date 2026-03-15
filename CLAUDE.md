@@ -54,3 +54,8 @@ Family Budget is a family budget management system with Telegram bot and web int
 ## Git requests
 - Only create requets to test branch from dev/* branches 
 
+## UXUI
+
+- Все решения по веб функционалльности должны тестироваться для мобильных, планшетов, десктопов
+- Веб должен поддерживать PWA и браузерную версию для Yandex Browser, Chrome, Safary 14+
+
