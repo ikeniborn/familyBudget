@@ -591,10 +591,10 @@ export function renderFactsTable(facts: FactRow[]): void {
                         <th><input type="checkbox" class="checkbox checkbox-sm" onclick="window.FactsManager?.toggleSelectAll?.(this)"></th>
                         <th>ID</th>
                         <th>📅 Дата</th>
-                        <th>📁 Категория</th>
-                        <th>💵 Сумма</th>
                         <th>🏦 Счет</th>
                         <th>💼 МЗ</th>
+                        <th>📁 Категория</th>
+                        <th>💵 Сумма</th>
                         <th>📝 Комментарий</th>
                         <th>👤 Пользователь</th>
                         <th>🔄 Обновлено</th>
@@ -685,10 +685,10 @@ export function renderFactRow(fact: FactRow): string {
             <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="${fact.id}"></td>
             <td class="text-base-content/50 text-xs">${fact.id}</td>
             <td>${escapeHtml(dateFormatted)}</td>
-            <td><span class="${articleColorClass}">${articleName}</span></td>
-            <td class="${articleColorClass} font-bold">${amountFormatted}</td>
             <td class="max-w-xs truncate" title="${fact.financial_center_name}">${financialCenterName}</td>
             <td class="max-w-xs truncate" title="${fact.cost_center_name || ''}">${costCenterName}</td>
+            <td><span class="${articleColorClass}">${articleName}</span></td>
+            <td class="${articleColorClass} font-bold">${amountFormatted}</td>
             <td class="max-w-xs truncate" title="${commentText || ''}">${comment}</td>
             <td class="text-xs whitespace-nowrap">${escapeHtml(fact.user_name ?? '—')}</td>
             <td class="text-xs text-base-content/50 whitespace-nowrap">${escapeHtml(updatedAtFormatted)}</td>
