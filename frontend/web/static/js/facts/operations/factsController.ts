@@ -687,7 +687,7 @@ export function renderFactRow(fact: FactRow): string {
             <td>${escapeHtml(dateFormatted)}</td>
             <td class="max-w-xs truncate" title="${fact.financial_center_name}">${financialCenterName}</td>
             <td class="max-w-xs truncate" title="${fact.cost_center_name || ''}">${costCenterName}</td>
-            <td><span class="${articleColorClass}">${articleName}</span></td>
+            <td>${articleName}</td>
             <td class="${articleColorClass} font-bold">${amountFormatted}</td>
             <td class="max-w-xs truncate" title="${commentText || ''}">${comment}</td>
             <td class="text-xs whitespace-nowrap">${escapeHtml(fact.user_name ?? '—')}</td>
