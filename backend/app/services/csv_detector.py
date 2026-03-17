@@ -147,7 +147,7 @@ def detect_delimiter(text: str, sample_lines: int = 5) -> tuple[str, float]:
                 # Penalize inconsistent column counts
                 delimiter_scores[delimiter] = 0.1
 
-        except Exception:
+        except (ValueError, IndexError, csv.Error):
             delimiter_scores[delimiter] = 0.0
 
     # Find best delimiter

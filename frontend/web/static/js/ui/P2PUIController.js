@@ -456,6 +456,7 @@ class P2PUIController {
    * @private
    */
   _renderIosMicWarning(role) {
+    if (role !== 'initiator' && role !== 'responder') return;
     const content = document.getElementById('p2p-modal-content');
     if (!content) return;
     content.innerHTML = `

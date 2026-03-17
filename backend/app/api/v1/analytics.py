@@ -35,6 +35,182 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
 
+# ==================== Helper Functions for HTML Formatting ====================
+
+
+def _format_money_mobile(amount: float) -> str:
+    """Format money with abbreviations for mobile: 1k, 1M, etc."""
+    abs_amount = abs(amount)
+    sign = "-" if amount < 0 else ""
+    if abs_amount >= 1_000_000:
+        val = abs_amount / 1_000_000
+        return f"{sign}{val:.1f}M".rstrip('0').rstrip('.')
+    elif abs_amount >= 1_000:
+        val = abs_amount / 1_000
+        return f"{sign}{val:.1f}k".rstrip('0').rstrip('.')
+    return f"{sign}{int(abs_amount)}"
+
+
+def _format_money_desktop(amount: float) -> str:
+    """Format money with thousand separators for desktop."""
+    abs_amount = abs(amount)
+    sign = "-" if amount < 0 else ""
+    return f"{sign}{int(abs_amount):,}".replace(',', ' ')
+
+
+def _format_pct(pct: float) -> str:
+    return f"{pct:.1f}%"
+
+
+def _get_pct_color(pct: float) -> str:
+    if pct >= 95.0:
+        return "text-success"
+    elif pct >= 80.0:
+        return "text-warning"
+    return "text-error"
+
+
+def _get_balance_color(balance: float) -> str:
+    if balance > 0:
+        return "text-success"
+    elif balance < 0:
+        return "text-error"
+    return "text-base-content"
+
+
+_VALID_STAT_CSS_CLASSES = frozenset({"text-success", "text-error", "text-info", "text-warning"})
+
+
+def _render_stat_card(title: str, plan: float, fact: float, pct: float, fact_color: str) -> str:
+    """Render one stat card HTML (income/expense/credit/debit)."""
+    title = html.escape(title)
+    if fact_color not in _VALID_STAT_CSS_CLASSES:
+        fact_color = ""
+    return f"""
+        <div class="stat-card">
+            <div class="stat-title">{title}</div>
+            <div class="stat-rows">
+                <div class="stat-row">
+                    <span class="stat-label">План</span>
+                    <span class="stat-value">
+                        <span class="mobile-value">{_format_money_mobile(plan)}</span>
+                        <span class="desktop-value">{_format_money_desktop(plan)}</span>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Факт</span>
+                    <span class="stat-value {fact_color}">
+                        <span class="mobile-value">{_format_money_mobile(fact)}</span>
+                        <span class="desktop-value">{_format_money_desktop(fact)}</span>
+                    </span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Исп.%</span>
+                    <span class="stat-pct {_get_pct_color(pct)}">{_format_pct(pct)}</span>
+                </div>
+            </div>
+        </div>"""
+
+
+def _render_balance_card(bal: dict) -> str:
+    """Render one balance card HTML for a financial center."""
+    _name = html.escape(bal['name'])
+    return f"""
+        <div class="balance-card" data-movement="{bal['month_movement']:.2f}">
+            <div class="balance-title" title="{_name}">{_name}</div>
+            <div>
+                <div class="balance-row">
+                    <span class="balance-label">Начало</span>
+                    <span class="balance-value {_get_balance_color(bal['opening_balance'])}">
+                        <span class="mobile-value">{_format_money_mobile(bal['opening_balance'])}</span>
+                        <span class="desktop-value">{_format_money_desktop(bal['opening_balance'])}</span>
+                    </span>
+                </div>
+                <div class="balance-row balance-divider">
+                    <span class="balance-label">Текущий</span>
+                    <span class="balance-value font-bold {_get_balance_color(bal['current_balance'])}">
+                        <span class="mobile-value">{_format_money_mobile(bal['current_balance'])}</span>
+                        <span class="desktop-value">{_format_money_desktop(bal['current_balance'])}</span>
+                    </span>
+                </div>
+            </div>
+        </div>"""
+
+
+async def _compute_month_movements(
+    session: AsyncSession, month_start: date, today: date
+) -> dict[int, float]:
+    """Query net income-expense movements per financial center for the current month."""
+    query = select(
+        Fact.financial_center_id,
+        (
+            func.sum(case((Article.type.in_(["income", "credit"]), Fact.amount), else_=0)) -
+            func.sum(case((Article.type.in_(["expense", "debit"]), Fact.amount), else_=0))
+        ).label("balance")
+    ).select_from(Fact).join(
+        Article, Fact.article_id == Article.id
+    ).where(
+        Fact.fact_date >= month_start,
+        Fact.fact_date <= today,
+        Fact.record_type == "fact",
+        Fact.financial_center_id.is_not(None)
+    ).group_by(Fact.financial_center_id)
+
+    result = await session.execute(query)
+    return {row.financial_center_id: float(row.balance) for row in result.all()}
+
+
+async def _query_account_balances(session: AsyncSession) -> list[dict]:
+    """Query financial centers and compute opening/current balances.
+
+    Note: imports inside function to avoid circular dependency with balance_aggregation_service.
+    """
+    from backend.app.models.financial_center import FinancialCenter
+    from backend.app.services.balance_aggregation_service import get_opening_balances_bulk
+
+    today = date.today()
+    current_month_start = date(today.year, today.month, 1)
+
+    # Step 1: Get all active Financial Centers
+    fc_query = select(FinancialCenter).where(
+        FinancialCenter.is_active
+    ).order_by(FinancialCenter.name)
+
+    fc_result = await session.execute(fc_query)
+    financial_centers = fc_result.scalars().all()
+
+    # Step 2: Calculate opening balance (ALL transactions BEFORE current month)
+    fc_ids = [fc.id for fc in financial_centers]
+    opening_balances_decimal = await get_opening_balances_bulk(
+        session=session,
+        year=today.year,
+        month=today.month,
+        financial_center_ids=fc_ids
+    )
+    opening_balances = {fc_id: float(balance) for fc_id, balance in opening_balances_decimal.items()}
+
+    # Step 3: Calculate CURRENT month movements (from month start to today)
+    month_movements = await _compute_month_movements(session, current_month_start, today)
+
+    # Step 4: Combine results
+    balances = []
+    for fc in financial_centers:
+        opening = opening_balances.get(fc.id, 0.0)
+        movement = month_movements.get(fc.id, 0.0)
+        current = opening + movement
+
+        balances.append({
+            "id": fc.id,
+            "name": fc.name,
+            "opening_balance": opening,
+            "current_balance": current,
+            "is_negative": current < 0,
+            "month_movement": abs(current - opening)
+        })
+
+    return balances
+
+
 # ==================== Helper Functions for Plan-Fact Analysis ====================
 
 
@@ -339,30 +515,10 @@ async def get_quick_stats(
     }
 
 
-@router.get("/quick-stats-html", response_class=HTMLResponse)
-async def get_quick_stats_html(
-    current_user: CurrentUser,
-    session: AsyncSession = Depends(get_session)
-) -> str:
-    """
-    Get quick statistics for dashboard (HTML formatted).
-
-    Returns today's and current month's income/expense summary as HTML.
-    Uses DaisyUI stats components for beautiful display.
-
-    Caching: TTL 30s, invalidated on any fact CRUD.
-    """
-    # Check cache first
-    cache_key = str(CacheKey.quick_stats())
-    cached_html = await cache_service.get(cache_key)
-    if cached_html is not None:
-        return cached_html
-
-    today = date.today()
-    month_start = date(today.year, today.month, 1)
-
-    # This month's stats (FACTS ONLY - exclude plans)
-    # Shared family budget - NO user_id filter
+async def _query_month_fact_plan_stats(
+    session: AsyncSession, month_start: date, today: date
+) -> tuple[dict[str, float], dict[str, float]]:
+    """Query current month fact and plan totals grouped by article type."""
     month_query = select(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
@@ -375,298 +531,316 @@ async def get_quick_stats_html(
     month_result = await session.execute(month_query)
     month_data = {row.type: float(row.total) for row in month_result.all()}
 
-    # This month's PLANS (for plan-fact comparison)
-    # Shared family budget - NO user_id filter
+    month_end = date(today.year, today.month, cal_module.monthrange(today.year, today.month)[1])
     month_plan_query = select(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= month_start,
-        Fact.fact_date <= date(today.year, today.month, cal_module.monthrange(today.year, today.month)[1]),
+        Fact.fact_date <= month_end,
         Fact.record_type == "plan"
     ).group_by(Article.type)
 
     month_plan_result = await session.execute(month_plan_query)
     month_plan_data = {row.type: float(row.total) for row in month_plan_result.all()}
 
-    # Calculate stats (separate income/expense and credit/debit)
-    month_income = month_data.get("income", 0.0)
-    month_expense = month_data.get("expense", 0.0)
-    month_credit = month_data.get("credit", 0.0)
-    month_debit = month_data.get("debit", 0.0)
+    return month_data, month_plan_data
 
-    # Calculate PLAN stats for current month (separate income/expense and credit/debit)
-    month_plan_income = month_plan_data.get("income", 0.0)
-    month_plan_expense = month_plan_data.get("expense", 0.0)
-    month_plan_credit = month_plan_data.get("credit", 0.0)
-    month_plan_debit = month_plan_data.get("debit", 0.0)
 
-    # Calculate plan execution percentage (with division by zero protection)
-    plan_execution_income_pct = (month_income / month_plan_income * 100.0) if month_plan_income > 0 else 0.0
-    plan_execution_expense_pct = (month_expense / month_plan_expense * 100.0) if month_plan_expense > 0 else 0.0
-    plan_execution_credit_pct = (month_credit / month_plan_credit * 100.0) if month_plan_credit > 0 else 0.0
-    plan_execution_debit_pct = (month_debit / month_plan_debit * 100.0) if month_plan_debit > 0 else 0.0
+def _calc_plan_execution(fact: float, plan: float) -> float:
+    """Calculate plan execution percentage with division by zero protection."""
+    return (fact / plan * 100.0) if plan > 0 else 0.0
 
-    # Format money for mobile - with abbreviations: 1k, 1M, etc.
-    def format_money_mobile(amount: float) -> str:
-        abs_amount = abs(amount)
-        sign = "-" if amount < 0 else ""
-        if abs_amount >= 1_000_000:
-            val = abs_amount / 1_000_000
-            return f"{sign}{val:.1f}M".rstrip('0').rstrip('.')
-        elif abs_amount >= 1_000:
-            val = abs_amount / 1_000
-            return f"{sign}{val:.1f}k".rstrip('0').rstrip('.')
-        return f"{sign}{int(abs_amount)}"
 
-    # Format money for desktop - full amounts with thousand separators
-    def format_money_desktop(amount: float) -> str:
-        abs_amount = abs(amount)
-        sign = "-" if amount < 0 else ""
-        # Use space as thousand separator (e.g., 1 234 567)
-        return f"{sign}{int(abs_amount):,}".replace(',', ' ')
+def _build_quick_stat_cards(
+    month_data: dict[str, float], month_plan_data: dict[str, float]
+) -> str:
+    """Build HTML stat cards for quick stats dashboard."""
+    types = [
+        ("income", "💰 Доходы", "text-success"),
+        ("expense", "💸 Расходы", "text-error"),
+        ("credit", "➕ Пополнение", "text-info"),
+        ("debit", "➖ Списание", "text-warning"),
+    ]
+    cards = []
+    for type_key, label, css_class in types:
+        fact_val = month_data.get(type_key, 0.0)
+        plan_val = month_plan_data.get(type_key, 0.0)
+        pct = _calc_plan_execution(fact_val, plan_val)
+        cards.append(_render_stat_card(label, plan_val, fact_val, pct, css_class))
+    return "".join(cards)
 
-    # Format percentage
-    def format_pct(pct: float) -> str:
-        return f"{pct:.1f}%"
 
-    # Get color class for percentage (green >= 95%, yellow 80-94%, red < 80%)
-    def get_pct_color(pct: float) -> str:
-        if pct >= 95.0:
-            return "text-success"
-        elif pct >= 80.0:
-            return "text-warning"
-        else:
-            return "text-error"
-
-    # Generate HTML - unified responsive Grid layout (5 breakpoints)
-    html = f"""
-    <style>
+def _get_quick_stats_css() -> str:
+    """Return CSS for quick stats grid (5 breakpoints)."""
+    return """
         /* === QUICK STATS: 5 Breakpoints Grid Layout === */
-        .stats-grid {{
+        .stats-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 0.5rem;
-        }}
-        .stat-card {{
+        }
+        .stat-card {
             background: oklch(var(--b2));
             border-radius: 0.5rem;
             padding: 0.5rem 0.625rem;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
             border: 1px solid oklch(var(--b3));
-        }}
-        .stat-title {{
+        }
+        .stat-title {
             font-weight: 600;
             font-size: 0.8125rem;
             margin-bottom: 0.25rem;
             display: flex;
             align-items: center;
             gap: 0.25rem;
-        }}
-        .stat-rows {{
+        }
+        .stat-rows {
             display: flex;
             flex-direction: column;
             gap: 0;
-        }}
-        .stat-row {{
+        }
+        .stat-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 0.375rem;
             white-space: nowrap;
             height: 1.125rem;
-        }}
-        .stat-label {{
+        }
+        .stat-label {
             font-size: 0.6875rem;
             opacity: 0.6;
             flex-shrink: 0;
-        }}
-        .stat-value {{
+        }
+        .stat-value {
             font-size: 0.8125rem;
             font-weight: 600;
             overflow: hidden;
             text-overflow: ellipsis;
-        }}
-        .stat-pct {{
+        }
+        .stat-pct {
             font-size: 0.6875rem;
             font-weight: 700;
-        }}
+        }
         /* Mobile/Desktop value toggle */
-        .mobile-value {{ display: inline; }}
-        .desktop-value {{ display: none; }}
+        .mobile-value { display: inline; }
+        .desktop-value { display: none; }
 
         /* Breakpoint: <375px (XS) - 1 column */
-        @media (max-width: 374px) {{
-            .stats-grid {{
+        @media (max-width: 374px) {
+            .stats-grid {
                 grid-template-columns: 1fr;
                 gap: 0.375rem;
-            }}
-            .stat-card {{ padding: 0.375rem 0.5rem; }}
-            .stat-title {{ font-size: 0.75rem; }}
-            .stat-label {{ font-size: 0.625rem; }}
-            .stat-value {{ font-size: 0.75rem; }}
-            .stat-pct {{ font-size: 0.625rem; }}
-        }}
+            }
+            .stat-card { padding: 0.375rem 0.5rem; }
+            .stat-title { font-size: 0.75rem; }
+            .stat-label { font-size: 0.625rem; }
+            .stat-value { font-size: 0.75rem; }
+            .stat-pct { font-size: 0.625rem; }
+        }
 
         /* Breakpoint: 375-479px (SM) - 2 columns */
-        @media (min-width: 375px) and (max-width: 479px) {{
-            .stats-grid {{
+        @media (min-width: 375px) and (max-width: 479px) {
+            .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 0.5rem;
-            }}
-        }}
+            }
+        }
 
         /* Breakpoint: 480-767px (MD) - 2 columns, larger fonts */
-        @media (min-width: 480px) and (max-width: 767px) {{
-            .stats-grid {{
+        @media (min-width: 480px) and (max-width: 767px) {
+            .stats-grid {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 0.75rem;
-            }}
-            .stat-card {{ padding: 0.625rem 0.75rem; }}
-            .stat-title {{ font-size: 0.875rem; }}
-            .stat-label {{ font-size: 0.75rem; }}
-            .stat-value {{ font-size: 0.875rem; }}
-            .stat-pct {{ font-size: 0.75rem; }}
-        }}
+            }
+            .stat-card { padding: 0.625rem 0.75rem; }
+            .stat-title { font-size: 0.875rem; }
+            .stat-label { font-size: 0.75rem; }
+            .stat-value { font-size: 0.875rem; }
+            .stat-pct { font-size: 0.75rem; }
+        }
 
         /* Breakpoint: 768-1023px (LG) - 4 columns, desktop values */
-        @media (min-width: 768px) and (max-width: 1023px) {{
-            .mobile-value {{ display: none; }}
-            .desktop-value {{ display: inline; }}
-            .stats-grid {{
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .mobile-value { display: none; }
+            .desktop-value { display: inline; }
+            .stats-grid {
                 grid-template-columns: repeat(4, 1fr);
                 gap: 0.75rem;
-            }}
-            .stat-card {{ padding: 0.625rem 0.75rem; }}
-            .stat-title {{ font-size: 0.9375rem; }}
-            .stat-label {{ font-size: 0.75rem; }}
-            .stat-value {{ font-size: 0.9375rem; }}
-            .stat-pct {{ font-size: 0.75rem; }}
-        }}
+            }
+            .stat-card { padding: 0.625rem 0.75rem; }
+            .stat-title { font-size: 0.9375rem; }
+            .stat-label { font-size: 0.75rem; }
+            .stat-value { font-size: 0.9375rem; }
+            .stat-pct { font-size: 0.75rem; }
+        }
 
         /* Breakpoint: >=1024px (XL) - 4 columns, full desktop */
-        @media (min-width: 1024px) {{
-            .mobile-value {{ display: none; }}
-            .desktop-value {{ display: inline; }}
-            .stats-grid {{
+        @media (min-width: 1024px) {
+            .mobile-value { display: none; }
+            .desktop-value { display: inline; }
+            .stats-grid {
                 grid-template-columns: repeat(4, 1fr);
                 gap: 1rem;
-            }}
-            .stat-card {{ padding: 0.75rem 1rem; }}
-            .stat-title {{ font-size: 1rem; }}
-            .stat-label {{ font-size: 0.8125rem; }}
-            .stat-value {{ font-size: 1rem; }}
-            .stat-pct {{ font-size: 0.8125rem; }}
-        }}
-    </style>
+            }
+            .stat-card { padding: 0.75rem 1rem; }
+            .stat-title { font-size: 1rem; }
+            .stat-label { font-size: 0.8125rem; }
+            .stat-value { font-size: 1rem; }
+            .stat-pct { font-size: 0.8125rem; }
+        }
+    """
 
+
+@router.get("/quick-stats-html", response_class=HTMLResponse)
+async def get_quick_stats_html(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session)
+) -> str:
+    """Get quick statistics for dashboard (HTML formatted). Caching: TTL 30s."""
+    cache_key = str(CacheKey.quick_stats())
+    cached_html = await cache_service.get(cache_key)
+    if cached_html is not None:
+        return cached_html
+
+    today = date.today()
+    month_start = date(today.year, today.month, 1)
+
+    month_data, month_plan_data = await _query_month_fact_plan_stats(session, month_start, today)
+    stat_cards = _build_quick_stat_cards(month_data, month_plan_data)
+
+    result_html = f"""
+    <style>{_get_quick_stats_css()}</style>
     <div class="stats-grid">
-        <!-- Доходы -->
-        <div class="stat-card">
-            <div class="stat-title">💰 Доходы</div>
-            <div class="stat-rows">
-                <div class="stat-row">
-                    <span class="stat-label">План</span>
-                    <span class="stat-value">
-                        <span class="mobile-value">{format_money_mobile(month_plan_income)}</span>
-                        <span class="desktop-value">{format_money_desktop(month_plan_income)}</span>
-                    </span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Факт</span>
-                    <span class="stat-value text-success">
-                        <span class="mobile-value">{format_money_mobile(month_income)}</span>
-                        <span class="desktop-value">{format_money_desktop(month_income)}</span>
-                    </span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Исп.%</span>
-                    <span class="stat-pct {get_pct_color(plan_execution_income_pct)}">{format_pct(plan_execution_income_pct)}</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Расходы -->
-        <div class="stat-card">
-            <div class="stat-title">💸 Расходы</div>
-            <div class="stat-rows">
-                <div class="stat-row">
-                    <span class="stat-label">План</span>
-                    <span class="stat-value">
-                        <span class="mobile-value">{format_money_mobile(month_plan_expense)}</span>
-                        <span class="desktop-value">{format_money_desktop(month_plan_expense)}</span>
-                    </span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Факт</span>
-                    <span class="stat-value text-error">
-                        <span class="mobile-value">{format_money_mobile(month_expense)}</span>
-                        <span class="desktop-value">{format_money_desktop(month_expense)}</span>
-                    </span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Исп.%</span>
-                    <span class="stat-pct {get_pct_color(plan_execution_expense_pct)}">{format_pct(plan_execution_expense_pct)}</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Пополнение -->
-        <div class="stat-card">
-            <div class="stat-title">➕ Пополнение</div>
-            <div class="stat-rows">
-                <div class="stat-row">
-                    <span class="stat-label">План</span>
-                    <span class="stat-value">
-                        <span class="mobile-value">{format_money_mobile(month_plan_credit)}</span>
-                        <span class="desktop-value">{format_money_desktop(month_plan_credit)}</span>
-                    </span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Факт</span>
-                    <span class="stat-value text-info">
-                        <span class="mobile-value">{format_money_mobile(month_credit)}</span>
-                        <span class="desktop-value">{format_money_desktop(month_credit)}</span>
-                    </span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Исп.%</span>
-                    <span class="stat-pct {get_pct_color(plan_execution_credit_pct)}">{format_pct(plan_execution_credit_pct)}</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Списание -->
-        <div class="stat-card">
-            <div class="stat-title">➖ Списание</div>
-            <div class="stat-rows">
-                <div class="stat-row">
-                    <span class="stat-label">План</span>
-                    <span class="stat-value">
-                        <span class="mobile-value">{format_money_mobile(month_plan_debit)}</span>
-                        <span class="desktop-value">{format_money_desktop(month_plan_debit)}</span>
-                    </span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Факт</span>
-                    <span class="stat-value text-warning">
-                        <span class="mobile-value">{format_money_mobile(month_debit)}</span>
-                        <span class="desktop-value">{format_money_desktop(month_debit)}</span>
-                    </span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Исп.%</span>
-                    <span class="stat-pct {get_pct_color(plan_execution_debit_pct)}">{format_pct(plan_execution_debit_pct)}</span>
-                </div>
-            </div>
-        </div>
+{stat_cards}
     </div>
     """
 
-    # Cache the generated HTML (TTL 30s)
-    await cache_service.set(cache_key, html, CacheTTL.DASHBOARD())
+    await cache_service.set(cache_key, result_html, CacheTTL.DASHBOARD())
+    return result_html
 
-    return html
+
+_BALANCES_EMPTY_HTML = """
+<div class="alert alert-info">
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <span>Нет активных счетов</span>
+</div>
+"""
+
+
+def _get_balances_css() -> str:
+    """Return CSS for balances grid (5 breakpoints)."""
+    return """
+        /* === BALANCES: 5 Breakpoints Grid Layout (fixed like quick-stats) === */
+        .balances-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+        .balance-card {
+            background: oklch(var(--b2));
+            border-radius: 0.5rem;
+            padding: 0.5rem 0.625rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid oklch(var(--b3));
+        }
+        .balance-title {
+            font-weight: 600;
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .balance-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            gap: 0.25rem;
+            white-space: nowrap;
+            line-height: 1.2;
+        }
+        .balance-label {
+            font-size: 0.625rem;
+            opacity: 0.6;
+            flex-shrink: 0;
+        }
+        .balance-value {
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .balance-divider {
+            border-top: 1px solid oklch(var(--b3));
+            margin-top: 0.25rem;
+            padding-top: 0.25rem;
+        }
+        /* Mobile/Desktop value toggle */
+        .mobile-value { display: inline; }
+        .desktop-value { display: none; }
+
+        /* Breakpoint: <375px (XS) - 1 column */
+        @media (max-width: 374px) {
+            .balances-grid {
+                grid-template-columns: 1fr;
+                gap: 0.375rem;
+            }
+            .balance-card { padding: 0.375rem 0.5rem; }
+            .balance-title { font-size: 0.6875rem; }
+            .balance-label { font-size: 0.5625rem; }
+            .balance-value { font-size: 0.6875rem; }
+        }
+
+        /* Breakpoint: 375-479px (SM) - 2 columns */
+        @media (min-width: 375px) and (max-width: 479px) {
+            .balances-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.5rem;
+            }
+        }
+
+        /* Breakpoint: 480-767px (MD) - 2 columns */
+        @media (min-width: 480px) and (max-width: 767px) {
+            .balances-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }
+            .balance-card { padding: 0.625rem 0.75rem; }
+            .balance-title { font-size: 0.8125rem; }
+            .balance-label { font-size: 0.6875rem; }
+            .balance-value { font-size: 0.8125rem; }
+        }
+
+        /* Breakpoint: 768-1023px (LG) - 4 columns, desktop values */
+        @media (min-width: 768px) and (max-width: 1023px) {
+            .mobile-value { display: none; }
+            .desktop-value { display: inline; }
+            .balances-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 0.75rem;
+            }
+            .balance-card { padding: 0.625rem 0.75rem; }
+            .balance-title { font-size: 0.875rem; }
+            .balance-label { font-size: 0.75rem; }
+            .balance-value { font-size: 0.875rem; }
+        }
+
+        /* Breakpoint: >=1024px (XL) - 4 columns, full desktop */
+        @media (min-width: 1024px) {
+            .mobile-value { display: none; }
+            .desktop-value { display: inline; }
+            .balances-grid {
+                grid-template-columns: repeat(4, 1fr);
+                gap: 1rem;
+            }
+            .balance-card { padding: 0.75rem 1rem; }
+            .balance-title { font-size: 0.9375rem; }
+            .balance-label { font-size: 0.75rem; }
+            .balance-value { font-size: 0.9375rem; }
+        }
+    """
 
 
 @router.get("/account-balances-html", response_class=HTMLResponse)
@@ -674,284 +848,28 @@ async def get_account_balances_html(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session)
 ) -> str:
-    """
-    Get account balances for all Financial Centers (HTML formatted).
-
-    Logic (example: today is Dec 13, 2025):
-    - Opening balance: CUMULATIVE balance at end of previous month (all transactions before Dec 1)
-    - Month movement: movements for CURRENT MONTH to date (Dec 1-13)
-    - Current balance: Opening + Movement
-
-    Only shows active Financial Centers (is_active=True).
-    Shared family budget - all users see all accounts.
-
-    Caching: TTL 30s, invalidated on any fact CRUD or FC changes.
-    """
-    # Check cache first
+    """Get account balances for all Financial Centers (HTML). Caching: TTL 30s."""
     cache_key = str(CacheKey.account_balances())
     cached_html = await cache_service.get(cache_key)
     if cached_html is not None:
         return cached_html
 
-    from backend.app.models.financial_center import FinancialCenter
+    balances = await _query_account_balances(session)
 
-    today = date.today()
-    current_month_start = date(today.year, today.month, 1)
-
-    # Step 1: Get all active Financial Centers
-    fc_query = select(FinancialCenter).where(
-        FinancialCenter.is_active
-    ).order_by(FinancialCenter.name)
-
-    fc_result = await session.execute(fc_query)
-    financial_centers = fc_result.scalars().all()
-
-    # Step 2: Calculate opening balance (ALL transactions BEFORE current month)
-    # Uses aggregate table if available (fast path), falls back to full scan if not
-    # Formula: (income + credit) - (expense + debit)
-    # Example: if today is Dec 13, this retrieves closing balance of November
-    from backend.app.services.balance_aggregation_service import get_opening_balances_bulk
-
-    fc_ids = [fc.id for fc in financial_centers]
-    opening_balances_decimal = await get_opening_balances_bulk(
-        session=session,
-        year=today.year,
-        month=today.month,
-        financial_center_ids=fc_ids
-    )
-    # Convert Decimal to float for compatibility with existing code
-    opening_balances = {fc_id: float(balance) for fc_id, balance in opening_balances_decimal.items()}
-
-    # Step 3: Calculate CURRENT month movements (from month start to today)
-    # Formula: (income + credit) - (expense + debit)
-    # Example: if today is Dec 13, this calculates movements for Dec 1-13
-    month_movements_query = select(
-        Fact.financial_center_id,
-        (
-            func.sum(case((Article.type.in_(["income", "credit"]), Fact.amount), else_=0)) -
-            func.sum(case((Article.type.in_(["expense", "debit"]), Fact.amount), else_=0))
-        ).label("balance")
-    ).select_from(Fact).join(
-        Article, Fact.article_id == Article.id
-    ).where(
-        Fact.fact_date >= current_month_start,
-        Fact.fact_date <= today,
-        Fact.record_type == "fact",
-        Fact.financial_center_id.is_not(None)
-    ).group_by(Fact.financial_center_id)
-
-    movements_result = await session.execute(month_movements_query)
-    month_movements = {row.financial_center_id: float(row.balance) for row in movements_result.all()}
-
-    # Step 4: Combine results
-    # current_balance = opening (cumulative to end of prev month) + movements (current month to today)
-    # Example: if today is Dec 13:
-    #   opening = cumulative balance from all time until Nov 30
-    #   movement = Dec 1-13 movements
-    #   current = opening + movement
-    balances = []
-    for fc in financial_centers:
-        opening = opening_balances.get(fc.id, 0.0)  # Cumulative balance until end of previous month
-        movement = month_movements.get(fc.id, 0.0)   # Current month movements to today
-        current = opening + movement  # Total current balance
-
-        balances.append({
-            "id": fc.id,
-            "name": fc.name,
-            "opening_balance": opening,
-            "current_balance": current,
-            "is_negative": current < 0,
-            "month_movement": abs(current - opening)  # для сортировки на мобильных (collapsible)
-        })
-
-    # Format money for mobile - with abbreviations: 1k, 1M, etc.
-    def format_money_mobile(amount: float) -> str:
-        abs_amount = abs(amount)
-        sign = "-" if amount < 0 else ""
-        if abs_amount >= 1_000_000:
-            val = abs_amount / 1_000_000
-            return f"{sign}{val:.1f}M".rstrip('0').rstrip('.')
-        elif abs_amount >= 1_000:
-            val = abs_amount / 1_000
-            return f"{sign}{val:.1f}k".rstrip('0').rstrip('.')
-        return f"{sign}{int(abs_amount)}"
-
-    # Format money for desktop - full amounts with thousand separators
-    def format_money_desktop(amount: float) -> str:
-        abs_amount = abs(amount)
-        sign = "-" if amount < 0 else ""
-        # Use space as thousand separator (e.g., 1 234 567)
-        return f"{sign}{int(abs_amount):,}".replace(',', ' ')
-
-    # Get color class based on balance sign
-    def get_balance_color(balance: float) -> str:
-        if balance > 0:
-            return "text-success"
-        elif balance < 0:
-            return "text-error"
-        else:
-            return "text-base-content"
-
-    # Generate HTML - responsive design
-    # Desktop: adaptive grid layout (1-4 columns), Mobile: 2-column grid
-
-    # Handle case: no active financial centers
     if not balances:
-        empty_html = """
-        <div class="alert alert-info">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-            </svg>
-            <span>Нет активных счетов</span>
-        </div>
-        """
-        # Cache empty state too (TTL 30s)
-        await cache_service.set(cache_key, empty_html, CacheTTL.DASHBOARD())
-        return empty_html
+        await cache_service.set(cache_key, _BALANCES_EMPTY_HTML, CacheTTL.DASHBOARD())
+        return _BALANCES_EMPTY_HTML
 
-    # Generate unified responsive cards
-    balance_cards = ""
-    for bal in balances:
-        _name = html.escape(bal['name'])
-        balance_cards += f"""
-        <div class="balance-card" data-movement="{bal['month_movement']:.2f}">
-            <div class="balance-title" title="{_name}">{_name}</div>
-            <div>
-                <div class="balance-row">
-                    <span class="balance-label">Начало</span>
-                    <span class="balance-value {get_balance_color(bal['opening_balance'])}">
-                        <span class="mobile-value">{format_money_mobile(bal['opening_balance'])}</span>
-                        <span class="desktop-value">{format_money_desktop(bal['opening_balance'])}</span>
-                    </span>
-                </div>
-                <div class="balance-row balance-divider">
-                    <span class="balance-label">Текущий</span>
-                    <span class="balance-value font-bold {get_balance_color(bal['current_balance'])}">
-                        <span class="mobile-value">{format_money_mobile(bal['current_balance'])}</span>
-                        <span class="desktop-value">{format_money_desktop(bal['current_balance'])}</span>
-                    </span>
-                </div>
-            </div>
-        </div>"""
+    balance_cards = "".join(_render_balance_card(bal) for bal in balances)
 
     result_html = f"""
-    <style>
-        /* === BALANCES: 5 Breakpoints Grid Layout (fixed like quick-stats) === */
-        .balances-grid {{
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 0.5rem;
-        }}
-        .balance-card {{
-            background: oklch(var(--b2));
-            border-radius: 0.5rem;
-            padding: 0.5rem 0.625rem;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            border: 1px solid oklch(var(--b3));
-        }}
-        .balance-title {{
-            font-weight: 600;
-            font-size: 0.75rem;
-            margin-bottom: 0.25rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }}
-        .balance-row {{
-            display: flex;
-            justify-content: space-between;
-            align-items: baseline;
-            gap: 0.25rem;
-            white-space: nowrap;
-            line-height: 1.2;
-        }}
-        .balance-label {{
-            font-size: 0.625rem;
-            opacity: 0.6;
-            flex-shrink: 0;
-        }}
-        .balance-value {{
-            font-size: 0.75rem;
-            font-weight: 600;
-        }}
-        .balance-divider {{
-            border-top: 1px solid oklch(var(--b3));
-            margin-top: 0.25rem;
-            padding-top: 0.25rem;
-        }}
-        /* Mobile/Desktop value toggle */
-        .mobile-value {{ display: inline; }}
-        .desktop-value {{ display: none; }}
-
-        /* Breakpoint: <375px (XS) - 1 column */
-        @media (max-width: 374px) {{
-            .balances-grid {{
-                grid-template-columns: 1fr;
-                gap: 0.375rem;
-            }}
-            .balance-card {{ padding: 0.375rem 0.5rem; }}
-            .balance-title {{ font-size: 0.6875rem; }}
-            .balance-label {{ font-size: 0.5625rem; }}
-            .balance-value {{ font-size: 0.6875rem; }}
-        }}
-
-        /* Breakpoint: 375-479px (SM) - 2 columns */
-        @media (min-width: 375px) and (max-width: 479px) {{
-            .balances-grid {{
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.5rem;
-            }}
-        }}
-
-        /* Breakpoint: 480-767px (MD) - 2 columns */
-        @media (min-width: 480px) and (max-width: 767px) {{
-            .balances-grid {{
-                grid-template-columns: repeat(2, 1fr);
-                gap: 0.75rem;
-            }}
-            .balance-card {{ padding: 0.625rem 0.75rem; }}
-            .balance-title {{ font-size: 0.8125rem; }}
-            .balance-label {{ font-size: 0.6875rem; }}
-            .balance-value {{ font-size: 0.8125rem; }}
-        }}
-
-        /* Breakpoint: 768-1023px (LG) - 4 columns, desktop values */
-        @media (min-width: 768px) and (max-width: 1023px) {{
-            .mobile-value {{ display: none; }}
-            .desktop-value {{ display: inline; }}
-            .balances-grid {{
-                grid-template-columns: repeat(4, 1fr);
-                gap: 0.75rem;
-            }}
-            .balance-card {{ padding: 0.625rem 0.75rem; }}
-            .balance-title {{ font-size: 0.875rem; }}
-            .balance-label {{ font-size: 0.75rem; }}
-            .balance-value {{ font-size: 0.875rem; }}
-        }}
-
-        /* Breakpoint: >=1024px (XL) - 4 columns, full desktop */
-        @media (min-width: 1024px) {{
-            .mobile-value {{ display: none; }}
-            .desktop-value {{ display: inline; }}
-            .balances-grid {{
-                grid-template-columns: repeat(4, 1fr);
-                gap: 1rem;
-            }}
-            .balance-card {{ padding: 0.75rem 1rem; }}
-            .balance-title {{ font-size: 0.9375rem; }}
-            .balance-label {{ font-size: 0.75rem; }}
-            .balance-value {{ font-size: 0.9375rem; }}
-        }}
-    </style>
-
+    <style>{_get_balances_css()}</style>
     <div class="balances-grid">
 {balance_cards}
     </div>
     """
 
-    # Cache the generated HTML (TTL 30s)
     await cache_service.set(cache_key, result_html, CacheTTL.DASHBOARD())
-
     return result_html
 
 

@@ -17,6 +17,7 @@ Endpoints:
     GET    /api/v1/shopping-list-items/pending-sync   - Get items pending offline sync
 """
 
+import asyncio
 import logging
 from datetime import datetime
 
@@ -65,77 +66,70 @@ def _get_ws_broadcast():
     return _ws_module
 
 
+async def _compute_list_stats(session: AsyncSession, shopping_list_id: int) -> dict | None:
+    """Compute item stats for a shopping list. Returns payload dict or None."""
+    list_result = await session.execute(
+        select(ShoppingList).where(ShoppingList.id == shopping_list_id)
+    )
+    shopping_list = list_result.scalar_one_or_none()
+    if not shopping_list:
+        logger.warning("[LIST_STATS] Shopping list %s not found for stats broadcast", shopping_list_id)
+        return None
+
+    # Count total and completed items (exclude soft-deleted)
+    total_result = await session.execute(
+        select(func.count()).where(
+            ShoppingListItem.shopping_list_id == shopping_list_id,
+            ShoppingListItem.deleted_at.is_(None),
+        )
+    )
+    total_items = total_result.scalar_one()
+
+    completed_result = await session.execute(
+        select(func.count()).where(
+            ShoppingListItem.shopping_list_id == shopping_list_id,
+            ShoppingListItem.is_completed == True,  # noqa: E712
+            ShoppingListItem.deleted_at.is_(None),
+        )
+    )
+    completed_items = completed_result.scalar_one()
+
+    completion_percentage = round(
+        (completed_items / total_items * 100) if total_items > 0 else 0.0, 1
+    )
+
+    return {
+        "id": shopping_list.id,
+        "name": shopping_list.name,
+        "description": shopping_list.description,
+        "creator_id": shopping_list.creator_id,
+        "is_active": shopping_list.is_active,
+        "total_items": total_items,
+        "completed_items": completed_items,
+        "completion_percentage": completion_percentage,
+        "created_at": shopping_list.created_at.isoformat() if shopping_list.created_at else None,
+        "updated_at": shopping_list.updated_at.isoformat() if shopping_list.updated_at else None,
+    }
+
+
 async def _broadcast_list_stats_update(session: AsyncSession, shopping_list_id: int) -> None:
-    """
-    Broadcast shopping_list_updated event with updated item stats.
-
-    Called after item create/update/delete to notify all connected clients
-    that the parent shopping list's stats (total_items, completed_items) have changed.
-    This enables real-time stats refresh on landing page cards for other devices.
-
-    Args:
-        session: AsyncSession for database operations
-        shopping_list_id: Parent shopping list ID to compute stats for
-    """
+    """Broadcast shopping_list_updated event with updated item stats."""
     try:
-        # Fetch the shopping list record
-        list_result = await session.execute(
-            select(ShoppingList).where(ShoppingList.id == shopping_list_id)
-        )
-        shopping_list = list_result.scalar_one_or_none()
-        if not shopping_list:
-            logger.warning(
-                f"[LIST_STATS] Shopping list {shopping_list_id} not found for stats broadcast"
-            )
+        list_data = await _compute_list_stats(session, shopping_list_id)
+        if not list_data:
             return
-
-        # Count total and completed items (exclude soft-deleted)
-        total_result = await session.execute(
-            select(func.count()).where(
-                ShoppingListItem.shopping_list_id == shopping_list_id,
-                ShoppingListItem.deleted_at.is_(None),
-            )
-        )
-        total_items = total_result.scalar_one()
-
-        completed_result = await session.execute(
-            select(func.count()).where(
-                ShoppingListItem.shopping_list_id == shopping_list_id,
-                ShoppingListItem.is_completed == True,  # noqa: E712
-                ShoppingListItem.deleted_at.is_(None),
-            )
-        )
-        completed_items = completed_result.scalar_one()
-
-        completion_percentage = round(
-            (completed_items / total_items * 100) if total_items > 0 else 0.0, 1
-        )
-
-        # Build broadcast payload (matches SAFE_SHOPPING_LIST_FIELDS)
-        list_data = {
-            "id": shopping_list.id,
-            "name": shopping_list.name,
-            "description": shopping_list.description,
-            "creator_id": shopping_list.creator_id,
-            "is_active": shopping_list.is_active,
-            "total_items": total_items,
-            "completed_items": completed_items,
-            "completion_percentage": completion_percentage,
-            "created_at": shopping_list.created_at.isoformat() if shopping_list.created_at else None,
-            "updated_at": shopping_list.updated_at.isoformat() if shopping_list.updated_at else None,
-        }
 
         ws = _get_ws_broadcast()
         await ws.broadcast_shopping_list_updated(list_data)
         logger.debug(
-            f"[LIST_STATS] Broadcast shopping_list_updated: list_id={shopping_list_id}, "
-            f"total={total_items}, completed={completed_items}"
+            "[LIST_STATS] Broadcast list_id=%s, total=%s, completed=%s",
+            shopping_list_id, list_data["total_items"], list_data["completed_items"]
         )
-    except Exception as e:
+    except (ValueError, AttributeError, ConnectionError, RuntimeError, OSError) as e:
         # Non-critical: item operation already succeeded, only stats broadcast failed
-        logger.warning(
-            f"[LIST_STATS] Failed to broadcast shopping_list_updated for list {shopping_list_id}: {e}"
-        )
+        logger.warning("[LIST_STATS] Failed broadcast for list %s: %s", shopping_list_id, e)
+    except asyncio.CancelledError:
+        raise
 
 
 router = APIRouter(

@@ -20,6 +20,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -66,6 +67,105 @@ FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/facts", tags=["Facts"])
+
+
+async def _get_fact_date(session: AsyncSession, fact_id: int) -> date | None:
+    """Get fact_date by fact_id for partition pruning.
+
+    The t_f_budget_fact table has 372+ monthly partitions.
+    Without fact_date in WHERE, PostgreSQL plans against ALL partitions
+    (Planning Time ~2.6s). With fact_date, partition pruning reduces it to ~35ms.
+    """
+    result = await session.execute(
+        select(BudgetFact.fact_date).where(BudgetFact.id == fact_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _load_recurring_plan_data(
+    session: AsyncSession, recurring_plan_id: int | None, fact_id: int
+) -> dict | None:
+    """Load recurring plan details with enriched data. Returns None if not linked or not found."""
+    if not recurring_plan_id:
+        return None
+
+    try:
+        plan_stmt = (
+            select(RecurringPlan, Article, FinancialCenter, CostCenter)
+            .select_from(RecurringPlan)
+            .join(Article, RecurringPlan.article_id == Article.id)
+            .outerjoin(FinancialCenter, RecurringPlan.financial_center_id == FinancialCenter.id)
+            .outerjoin(CostCenter, RecurringPlan.cost_center_id == CostCenter.id)
+            .where(RecurringPlan.id == recurring_plan_id)
+        )
+        plan_result = await session.execute(plan_stmt)
+        plan_row = plan_result.one_or_none()
+
+        if not plan_row:
+            logger.warning(
+                "[GET /facts/%s] Orphaned recurring_plan_id=%s (plan not found)", fact_id, recurring_plan_id
+            )
+            return None
+
+        plan, plan_article, plan_fc, plan_cc = plan_row
+        # Import inside function to avoid circular dependency with recurring_plan_service
+        from backend.app.services.recurring_plan_service import get_frequency_display
+        frequency_display = get_frequency_display(plan.frequency_type, plan.frequency_value)
+
+        return {
+            "id": plan.id, "user_id": plan.user_id,
+            "article_id": plan.article_id,
+            "article_name": plan_article.name if plan_article else None,
+            "article_type": plan_article.type if plan_article else None,
+            "financial_center_id": plan.financial_center_id,
+            "financial_center_name": plan_fc.name if plan_fc else None,
+            "cost_center_id": plan.cost_center_id,
+            "cost_center_name": plan_cc.name if plan_cc else None,
+            "frequency_type": plan.frequency_type, "frequency_value": plan.frequency_value,
+            "frequency_display": frequency_display,
+            "start_date": plan.start_date, "end_date": plan.end_date,
+            "occurrences_count": plan.occurrences_count,
+            "occurrences_generated": plan.occurrences_generated,
+            "amount": plan.amount, "description": plan.description,
+            "record_type": plan.record_type, "is_active": plan.is_active,
+            "next_generation_date": plan.next_generation_date,
+            "last_generated_date": plan.last_generated_date,
+            "created_at": plan.created_at, "updated_at": plan.updated_at,
+        }
+    except (SQLAlchemyError, ValueError, AttributeError) as e:
+        logger.error("[GET /facts/%s] Failed to load recurring plan for plan_id=%s: %s", fact_id, recurring_plan_id, e)
+        return None
+
+
+def _build_fact_response(
+    fact: BudgetFact,
+    article: Article,
+    financial_center: FinancialCenter | None,
+    cost_center: CostCenter | None,
+    user: User | None,
+    recurring_plan_data: dict | None,
+) -> dict:
+    """Build enriched fact response dict from query row components."""
+    user_name = None
+    if user:
+        user_name = (
+            user.first_name or user.username or user.last_name
+            or (f"User {user.telegram_id}" if user.telegram_id else None)
+            or f"Пользователь #{user.id}"
+        )
+
+    return {
+        "id": fact.id, "user_id": fact.user_id, "user_name": user_name,
+        "article_id": fact.article_id, "article_type": article.type, "article_name": article.name,
+        "fact_date": fact.fact_date, "amount": fact.amount, "description": fact.description,
+        "financial_center_id": fact.financial_center_id,
+        "financial_center_name": financial_center.name if financial_center else None,
+        "cost_center_id": fact.cost_center_id,
+        "cost_center_name": cost_center.name if cost_center else None,
+        "record_type": fact.record_type, "is_offline_sync": fact.is_offline_sync,
+        "recurring_plan_id": fact.recurring_plan_id, "recurring_plan": recurring_plan_data,
+        "created_at": fact.created_at, "updated_at": fact.updated_at,
+    }
 
 
 @router.post(
@@ -1211,14 +1311,22 @@ async def get_fact(
     - 403 Forbidden: Fact belongs to another user
     - 404 Not Found: Fact not found
     """
-    # Load fact with JOINs for enriched response (like list_facts)
+    # Two-phase query for partition pruning (372 partitions → Planning Time 2.6s → 35ms)
+    fact_date = await _get_fact_date(session, fact_id)
+    if fact_date is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found"
+        )
+
+    # Full query with JOINs + fact_date filter for partition pruning
     statement = (
         select(BudgetFact, Article, FinancialCenter, CostCenter, User)
         .join(Article, BudgetFact.article_id == Article.id)
         .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
         .outerjoin(CostCenter, BudgetFact.cost_center_id == CostCenter.id)
         .outerjoin(User, BudgetFact.user_id == User.id)
-        .where(BudgetFact.id == fact_id)
+        .where(BudgetFact.id == fact_id, BudgetFact.fact_date == fact_date)
     )
     result = await session.execute(statement)
     row = result.one_or_none()
@@ -1231,107 +1339,9 @@ async def get_fact(
 
     fact, article, financial_center, cost_center, user = row
 
-    # Shared family budget - NO ownership check
-    # All authenticated users can access any transaction
+    recurring_plan_data = await _load_recurring_plan_data(session, fact.recurring_plan_id, fact_id)
 
-    # Build enriched response (same as list_facts)
-    user_name = None
-    if user:
-        user_name = (
-            user.first_name or
-            user.username or
-            user.last_name or
-            (f"User {user.telegram_id}" if user.telegram_id else None) or
-            f"Пользователь #{user.id}"
-        )
-
-    # Load recurring plan details if linked
-    recurring_plan_data = None
-    if fact.recurring_plan_id:
-        try:
-            # Load recurring plan with enriched details
-            plan_stmt = (
-                select(RecurringPlan, Article, FinancialCenter, CostCenter)
-                .select_from(RecurringPlan)
-                .join(Article, RecurringPlan.article_id == Article.id)
-                .outerjoin(FinancialCenter, RecurringPlan.financial_center_id == FinancialCenter.id)
-                .outerjoin(CostCenter, RecurringPlan.cost_center_id == CostCenter.id)
-                .where(RecurringPlan.id == fact.recurring_plan_id)
-            )
-            plan_result = await session.execute(plan_stmt)
-            plan_row = plan_result.one_or_none()
-
-            if plan_row:
-                plan, plan_article, plan_fc, plan_cc = plan_row
-
-                # Build RecurringPlanResponse with enriched data
-                from backend.app.services.recurring_plan_service import RecurringPlanService
-                service = RecurringPlanService()
-                frequency_display = service._get_frequency_display(plan)
-
-                recurring_plan_data = {
-                    "id": plan.id,
-                    "user_id": plan.user_id,
-                    "article_id": plan.article_id,
-                    "article_name": plan_article.name if plan_article else None,
-                    "article_type": plan_article.type if plan_article else None,
-                    "financial_center_id": plan.financial_center_id,
-                    "financial_center_name": plan_fc.name if plan_fc else None,
-                    "cost_center_id": plan.cost_center_id,
-                    "cost_center_name": plan_cc.name if plan_cc else None,
-                    "frequency_type": plan.frequency_type,
-                    "frequency_value": plan.frequency_value,
-                    "frequency_display": frequency_display,
-                    "start_date": plan.start_date,
-                    "end_date": plan.end_date,
-                    "occurrences_count": plan.occurrences_count,
-                    "occurrences_generated": plan.occurrences_generated,
-                    "amount": plan.amount,
-                    "description": plan.description,
-                    "record_type": plan.record_type,
-                    "is_active": plan.is_active,
-                    "next_generation_date": plan.next_generation_date,
-                    "last_generated_date": plan.last_generated_date,
-                    "created_at": plan.created_at,
-                    "updated_at": plan.updated_at,
-                }
-            else:
-                # Data integrity warning: orphaned reference
-                logger.warning(
-                    f"[GET /facts/{fact_id}] Orphaned recurring_plan_id={fact.recurring_plan_id} "
-                    f"(plan not found in database)"
-                )
-                recurring_plan_data = None
-
-        except Exception as e:
-            # Non-critical error - log and continue
-            logger.error(
-                f"[GET /facts/{fact_id}] Failed to load recurring plan "
-                f"for plan_id={fact.recurring_plan_id}: {e}"
-            )
-            recurring_plan_data = None
-
-    return {
-        "id": fact.id,
-        "user_id": fact.user_id,
-        "user_name": user_name,
-        "article_id": fact.article_id,
-        "article_type": article.type,
-        "article_name": article.name,
-        "fact_date": fact.fact_date,
-        "amount": fact.amount,
-        "description": fact.description,
-        "financial_center_id": fact.financial_center_id,
-        "financial_center_name": financial_center.name if financial_center else None,
-        "cost_center_id": fact.cost_center_id,
-        "cost_center_name": cost_center.name if cost_center else None,
-        "record_type": fact.record_type,
-        "is_offline_sync": fact.is_offline_sync,
-        "recurring_plan_id": fact.recurring_plan_id,
-        "recurring_plan": recurring_plan_data,
-        "created_at": fact.created_at,
-        "updated_at": fact.updated_at,
-    }
+    return _build_fact_response(fact, article, financial_center, cost_center, user, recurring_plan_data)
 
 
 @router.put(
@@ -1374,8 +1384,17 @@ async def update_fact(
             detail="At least one field must be provided for update"
         )
 
-    # Load fact
-    statement = select(BudgetFact).where(BudgetFact.id == fact_id)
+    # Two-phase query for partition pruning (372 partitions)
+    fact_date_val = await _get_fact_date(session, fact_id)
+    if fact_date_val is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found"
+        )
+
+    statement = select(BudgetFact).where(
+        BudgetFact.id == fact_id, BudgetFact.fact_date == fact_date_val
+    )
     result = await session.execute(statement)
     fact = result.scalar_one_or_none()
 
@@ -1519,8 +1538,17 @@ async def delete_fact(
 
     from backend.app.models.budget_fact_history import BudgetFactHistory
 
-    # Load fact
-    statement = select(BudgetFact).where(BudgetFact.id == fact_id)
+    # Two-phase query for partition pruning (372 partitions)
+    fact_date_val = await _get_fact_date(session, fact_id)
+    if fact_date_val is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found"
+        )
+
+    statement = select(BudgetFact).where(
+        BudgetFact.id == fact_id, BudgetFact.fact_date == fact_date_val
+    )
     result = await session.execute(statement)
     fact = result.scalar_one_or_none()
 

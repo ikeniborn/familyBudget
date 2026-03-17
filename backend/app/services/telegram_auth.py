@@ -389,9 +389,8 @@ def validate_telegram_auth(data: dict[str, Any]) -> bool:
 
         if current_time - auth_date > AUTH_DATE_EXPIRATION:
             logger.warning(
-                f"Telegram auth expired: auth_date={auth_date}, "
-                f"current_time={current_time}, "
-                f"age={current_time - auth_date}s (max={AUTH_DATE_EXPIRATION}s)"
+                "Telegram auth expired: auth_date=%s, current_time=%s, age=%ss (max=%ss)",
+                auth_date, current_time, current_time - auth_date, AUTH_DATE_EXPIRATION
             )
             return False
     except (ValueError, TypeError):

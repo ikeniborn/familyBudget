@@ -37,7 +37,7 @@ async def handle_sync_initial(session: AsyncSession, user_id: int) -> dict[str, 
     Returns:
         dict: Sync response with articles, financial_centers, cost_centers, hierarchy
     """
-    logger.info(f"[SYNC] Handling initial sync for user {user_id}")
+    logger.info("[SYNC] Handling initial sync for user %s", user_id)
 
     # Query articles
     articles_result = await session.execute(
@@ -122,9 +122,8 @@ async def handle_sync_initial(session: AsyncSession, user_id: int) -> dict[str, 
     }
 
     logger.info(
-        f"[SYNC] Initial sync prepared: articles={len(articles)}, "
-        f"financial_centers={len(financial_centers)}, cost_centers={len(cost_centers)}, "
-        f"hierarchy={len(hierarchy)}, total={response_data['total_records']}"
+        "[SYNC] Initial sync prepared: articles=%s, financial_centers=%s, cost_centers=%s, hierarchy=%s, total=%s",
+        len(articles), len(financial_centers), len(cost_centers), len(hierarchy), response_data['total_records']
     )
 
     return response_data
@@ -236,8 +235,8 @@ async def handle_sync_incremental_request(
         dict: Delta updates with created, updated, deleted fact IDs
     """
     logger.info(
-        f"[SYNC] Handling incremental sync for user {user_id} "
-        f"since {last_sync_timestamp.isoformat()}"
+        "[SYNC] Handling incremental sync for user %s since %s",
+        user_id, last_sync_timestamp.isoformat()
     )
 
     # Query delta changes in parallel
@@ -302,9 +301,8 @@ async def handle_sync_incremental_request(
     }
 
     logger.info(
-        f"[SYNC] Incremental sync prepared: "
-        f"created={len(created_data)}, updated={len(updated_data)}, "
-        f"deleted={len(deleted_fact_ids)}"
+        "[SYNC] Incremental sync prepared: created=%s, updated=%s, deleted=%s",
+        len(created_data), len(updated_data), len(deleted_fact_ids)
     )
 
     return response_data
@@ -346,8 +344,8 @@ async def _handle_create_fact(
 
     if existing_fact:
         logger.info(
-            f"[SYNC] Duplicate fact detected (content_hash={content_hash}), "
-            f"returning existing ID {existing_fact.id}"
+            "[SYNC] Duplicate fact detected (content_hash=%s), returning existing ID %s",
+            content_hash, existing_fact.id
         )
         return (existing_fact.id, None)
 
@@ -371,7 +369,7 @@ async def _handle_create_fact(
     await session.flush()  # Get server_id
     await session.refresh(fact)
 
-    logger.info(f"[SYNC] Created fact {fact.id} from temp_id {temp_id}")
+    logger.info("[SYNC] Created fact %s from temp_id %s", fact.id, temp_id)
     return (fact.id, None)
 
 
@@ -399,7 +397,17 @@ async def _handle_update_fact(
     if not fact_id:
         return (None, "Missing fact ID for update operation")
 
-    stmt = select(BudgetFact).where(BudgetFact.id == fact_id)
+    # Two-phase query: get fact_date first for partition pruning (372 partitions)
+    date_stmt = select(BudgetFact.fact_date).where(BudgetFact.id == fact_id)
+    date_result = await session.execute(date_stmt)
+    fact_date = date_result.scalar_one_or_none()
+
+    if fact_date is None:
+        return (None, f"Fact {fact_id} not found")
+
+    stmt = select(BudgetFact).where(
+        BudgetFact.id == fact_id, BudgetFact.fact_date == fact_date
+    )
     result_query = await session.execute(stmt)
     fact = result_query.scalar_one_or_none()
 
@@ -407,6 +415,16 @@ async def _handle_update_fact(
         return (None, f"Fact {fact_id} not found")
 
     # Update fields (partial update)
+    _apply_fact_field_updates(fact, payload)
+
+    fact.updated_at = datetime.now(timezone.utc)
+
+    logger.info("[SYNC] Updated fact %s from temp_id %s", fact.id, temp_id)
+    return (fact.id, None)
+
+
+def _apply_fact_field_updates(fact: BudgetFact, payload: dict) -> None:
+    """Apply partial field updates from sync payload to a BudgetFact."""
     if "amount" in payload:
         fact.amount = Decimal(str(payload["amount"]))
     if "comment" in payload:
@@ -419,11 +437,6 @@ async def _handle_update_fact(
         fact.financial_center_id = payload["financial_center_id"]
     if "cost_center_id" in payload:
         fact.cost_center_id = payload["cost_center_id"]
-
-    fact.updated_at = datetime.now(timezone.utc)
-
-    logger.info(f"[SYNC] Updated fact {fact.id} from temp_id {temp_id}")
-    return (fact.id, None)
 
 
 async def _handle_delete_fact(
@@ -450,16 +463,40 @@ async def _handle_delete_fact(
     if not fact_id:
         return (None, "Missing fact ID for delete operation")
 
-    stmt = select(BudgetFact).where(BudgetFact.id == fact_id)
+    # Two-phase query: get fact_date first for partition pruning (372 partitions)
+    date_stmt = select(BudgetFact.fact_date).where(BudgetFact.id == fact_id)
+    date_result = await session.execute(date_stmt)
+    fact_date = date_result.scalar_one_or_none()
+
+    if fact_date is None:
+        # Fact not found - may already be deleted, treat as success
+        logger.warning("[SYNC] Fact %s not found for deletion (date lookup miss)", fact_id)
+        return (fact_id, None)
+
+    stmt = select(BudgetFact).where(
+        BudgetFact.id == fact_id, BudgetFact.fact_date == fact_date
+    )
     result_query = await session.execute(stmt)
     fact = result_query.scalar_one_or_none()
 
     if not fact:
-        # Fact not found - may already be deleted, treat as success
-        logger.warning(f"[SYNC] Fact {fact_id} not found for deletion (may be already deleted)")
+        logger.warning("[SYNC] Fact %s not found for deletion (partition query miss)", fact_id)
         return (fact_id, None)
 
     # Create history record before delete
+    _create_fact_delete_history(session, fact, user_id)
+
+    await session.delete(fact)
+
+    logger.info("[SYNC] Deleted fact %s from temp_id %s", fact_id, temp_id)
+    return (fact_id, None)
+
+
+def _create_fact_delete_history(session: AsyncSession, fact: BudgetFact, user_id: int) -> None:
+    """Create a DELETE history record for a BudgetFact before deletion.
+
+    Note: sync function using AsyncSession — session.add() is synchronous on AsyncSession.
+    """
     delete_history = BudgetFactHistory(
         fact_id=fact.id,
         user_id=fact.user_id,
@@ -478,11 +515,6 @@ async def _handle_delete_fact(
         changed_by_user_id=user_id,
     )
     session.add(delete_history)
-
-    await session.delete(fact)
-
-    logger.info(f"[SYNC] Deleted fact {fact_id} from temp_id {temp_id}")
-    return (fact_id, None)
 
 
 async def handle_sync_client_changes(
@@ -524,7 +556,7 @@ async def handle_sync_client_changes(
     success_count = 0
     error_count = 0
 
-    logger.info(f"[SYNC] Processing {len(operations)} client operations for user {user_id}")
+    logger.info("[SYNC] Processing %s client operations for user %s", len(operations), user_id)
 
     for op in operations:
         temp_id = op.get("temp_id")
@@ -571,7 +603,7 @@ async def handle_sync_client_changes(
             success_count += 1
 
         except Exception as e:
-            logger.error(f"[SYNC] Failed to process operation {temp_id}: {e}")
+            logger.error("[SYNC] Failed to process operation %s: %s", temp_id, e)
             results.append({
                 "temp_id": temp_id,
                 "server_id": None,
@@ -583,9 +615,9 @@ async def handle_sync_client_changes(
     # Commit all changes
     try:
         await session.commit()
-        logger.info(f"[SYNC] Upload committed: {success_count} success, {error_count} errors")
+        logger.info("[SYNC] Upload committed: %s success, %s errors", success_count, error_count)
     except Exception as e:
-        logger.error(f"[SYNC] Commit failed: {e}")
+        logger.error("[SYNC] Commit failed: %s", e)
         await session.rollback()
         # Mark all pending as errors
         for result in results:

@@ -1221,3 +1221,8 @@ class RecurringPlanService:
             "total_monthly_amount": row.monthly_sum or Decimal("0"),
             "next_pending_count": row.pending_count or 0,
         }
+
+
+def get_frequency_display(frequency_type: str, frequency_value: int | None = None) -> str:
+    """Public helper: human-readable frequency description (delegates to RecurringPlanService)."""
+    return RecurringPlanService()._get_frequency_display(frequency_type, frequency_value)
