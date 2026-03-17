@@ -661,24 +661,8 @@ export function renderFactRow(fact: FactRow): string {
         ? TableFormatters.truncateText(commentText, 40)  // Already escaped
         : '—';
 
-    // Format updated_at date
-    const updatedAtValue: unknown = fact.updated_at;
-    let updatedAtFormatted = '—';
-    if (updatedAtValue) {
-        const updatedAtStr = typeof updatedAtValue === 'string'
-            ? updatedAtValue
-            : (updatedAtValue instanceof Date ? updatedAtValue.toISOString() : String(updatedAtValue));
-        // Extract date part and format DD.MM.YYYY HH:MM
-        const updatedDate = new Date(updatedAtStr);
-        if (!isNaN(updatedDate.getTime())) {
-            const dd = String(updatedDate.getDate()).padStart(2, '0');
-            const mm = String(updatedDate.getMonth() + 1).padStart(2, '0');
-            const yyyy = updatedDate.getFullYear();
-            const hh = String(updatedDate.getHours()).padStart(2, '0');
-            const min = String(updatedDate.getMinutes()).padStart(2, '0');
-            updatedAtFormatted = `${dd}.${mm}.${yyyy} ${hh}:${min}`;
-        }
-    }
+    // Format updated_at date (UTC → local timezone)
+    const updatedAtFormatted = TableFormatters.formatUpdatedAt(fact.updated_at as string | null);
 
     return `
         <tr>

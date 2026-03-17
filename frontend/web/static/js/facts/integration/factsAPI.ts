@@ -361,54 +361,11 @@ async function findFactTempId(factId: number): Promise<string | null> {
 
 /**
  * Update existing fact
- * Dexie-first with API fallback (task-015 Phase 4.4)
+ * API-first: sends directly to server for reliable persistence (aligned with createFact pattern)
  */
 export async function updateFact(factId: number, data: UpdateFactData): Promise<BudgetFact> {
-    const dexie = getDexieManager();
-
     try {
-        // Dexie-first strategy
-        if (isDexieActive() && dexie.isReady()) {
-            // Find fact temp_id by server ID
-            const temp_id = await findFactTempId(factId);
-            if (!temp_id) {
-                throw new Error('Fact temp_id not found, cannot update via Dexie');
-            }
-
-            // Update in Dexie (auto-adds to pending queue)
-            await dexie.updateFact(temp_id, {
-                date: data.fact_date,
-                amount: data.amount,
-                article_id: data.article_id,
-                financial_center_id: data.financial_center_id,
-                cost_center_id: data.cost_center_id || null,
-                comment: data.description
-            });
-
-
-            // Return placeholder (UI will reload from Dexie)
-            return {
-                id: factId,
-                temp_id,
-                fact_date: data.fact_date,
-                article_id: data.article_id,
-                article_name: '',
-                article_type: 'expense',
-                financial_center_id: data.financial_center_id,
-                financial_center_name: '',
-                cost_center_id: data.cost_center_id || null,
-                cost_center_name: null,
-                amount: data.amount,
-                description: data.description,
-                user_id: 0,
-                user_name: '',
-                record_type: 'spend',
-                created_at: new Date().toISOString(),
-                updated_at: new Date().toISOString()
-            };
-        }
-
-        // Fallback to direct API
+        // API-first strategy: always send to server for reliable persistence
         const response = await fetch(`/api/v1/facts/${factId}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -425,7 +382,6 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
             // Handle custom error format: {detail: {message: "...", errors: [...]}}
             if (error.detail && typeof error.detail === 'object') {
                 if (Array.isArray(error.detail.errors) && error.detail.errors.length > 0) {
-                    // Custom validation error format
                     errorMsg = error.detail.errors
                         .map((e: any) => e.message || e.msg || 'Unknown error')
                         .join('; ');
@@ -434,10 +390,8 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
                 } else if (typeof error.detail === 'string') {
                     errorMsg = error.detail;
                 } else if (Array.isArray(error.detail)) {
-                    // Pydantic format: [{loc: [...], msg: "...", type: "..."}]
                     errorMsg = error.detail.map((e: any) => `${e.loc.join('.')}: ${e.msg}`).join(', ');
                 } else {
-                    // Fallback: stringify unknown object
                     errorMsg = JSON.stringify(error.detail);
                 }
             } else if (typeof error.detail === 'string') {
@@ -449,7 +403,23 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
             throw new Error(errorMsg);
         }
 
-        return await response.json();
+        const updatedFact = await response.json();
+
+        // Sync Dexie cache so local data stays consistent
+        if (isDexieActive()) {
+            try {
+                const dexie = getDexieManager();
+                if (dexie.isReady()) {
+                    const localFact = mapAPIFactToLocal(updatedFact);
+                    await dexie.bulkUpdateFacts([localFact]);
+                    console.debug('[FACTS_API] Synced updated fact to Dexie cache', { id: factId });
+                }
+            } catch (cacheError) {
+                console.warn('[FACTS_API] Failed to sync update to Dexie cache:', cacheError);
+            }
+        }
+
+        return updatedFact;
     } catch (error) {
         console.error('[FACTS_API] Error updating fact:', error);
         throw error;
@@ -462,36 +432,45 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
 
 /**
  * Delete single fact
- * Dexie-first with API fallback (task-015 Phase 4.4)
+ * API-first: sends directly to server for reliable persistence (aligned with createFact pattern)
  */
 export async function deleteFact(factId: number): Promise<void> {
-    const dexie = getDexieManager();
-
     try {
-        // Dexie-first strategy
-        if (isDexieActive() && dexie.isReady()) {
-            // Find fact temp_id by server ID
-            const temp_id = await findFactTempId(factId);
-            if (!temp_id) {
-                throw new Error('Fact temp_id not found, cannot delete via Dexie');
-            }
-
-            // Delete in Dexie (soft delete, adds to pending queue)
-            await dexie.deleteFact(temp_id);
-            return;
+        // Capture temp_id before server deletion (avoids race condition with background sync)
+        let cachedTempId: string | null = null;
+        if (isDexieActive()) {
+            try {
+                cachedTempId = await findFactTempId(factId);
+            } catch { /* non-critical lookup */ }
         }
 
-        // Fallback to direct API
+        // API-first strategy: always send to server for reliable persistence
         const response = await fetch(`/api/v1/facts/${factId}`, {
             method: 'DELETE',
             credentials: 'include'
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+            let errorMsg = `HTTP error! status: ${response.status}`;
+            try {
+                const error = await response.json();
+                if (error.detail) errorMsg = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+            } catch { console.debug('[FACTS_API] Non-JSON error response:', response.status); }
+            throw new Error(errorMsg);
         }
 
+        // Remove from Dexie cache so local data stays consistent
+        if (cachedTempId && isDexieActive()) {
+            try {
+                const dexie = getDexieManager();
+                if (dexie.isReady()) {
+                    await dexie.deleteFact(cachedTempId);
+                    console.debug('[FACTS_API] Synced delete to Dexie cache', { id: factId });
+                }
+            } catch (cacheError) {
+                console.warn('[FACTS_API] Failed to sync delete to Dexie cache:', cacheError);
+            }
+        }
     } catch (error) {
         console.error('[FACTS_API] Error deleting fact:', error);
         throw error;

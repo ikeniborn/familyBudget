@@ -355,7 +355,7 @@ function renderFactsTable(facts: BudgetFact[]): void {
         <td class="${articleColorClass} font-bold">${TableFormatters.formatAmount(fact.amount, fact.article_type)}</td>
         <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
         <td>${userName}</td>
-        <td class="text-xs text-base-content/60">${fact.updated_at ? BudgetShared.DateFormatter.formatForDisplay(fact.updated_at.split('T')[0]) : '—'}</td>
+        <td class="text-xs text-base-content/60">${TableFormatters.formatUpdatedAt(fact.updated_at)}</td>
         <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">🔔</span>' : ''}</td>
         <td class="text-center">${fact.recurring_plan_id ? '<span class="text-secondary" title="Регламентный платеж">🔄</span>' : ''}</td>
         <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
