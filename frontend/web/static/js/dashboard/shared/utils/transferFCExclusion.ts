@@ -14,6 +14,9 @@ interface TransferFCExclusionOptions {
   onToClear: () => void;
 }
 
+/** WeakMap to store AbortController per fromSelect element for listener cleanup */
+const exclusionControllers = new WeakMap<HTMLSelectElement, AbortController>();
+
 /**
  * Create a standard onToClear callback for transfer modals.
  * Clears selection and disables the TO category tree, then reloads hints.
@@ -43,6 +46,9 @@ export function createToClearCallback(
  */
 export function setupTransferFCExclusion({ fromSelect, toSelect, onToClear }: TransferFCExclusionOptions): void {
   if (fromSelect.dataset.exclusionAttached) return;
+
+  const controller = new AbortController();
+  exclusionControllers.set(fromSelect, controller);
 
   fromSelect.addEventListener('change', () => {
     const fromValue = fromSelect.value;
@@ -78,18 +84,25 @@ export function setupTransferFCExclusion({ fromSelect, toSelect, onToClear }: Tr
       try { onToClear(); } catch (e) { debugLog('[TransferFCExclusion] onToClear error:', e); }
       debugLog('[TransferFCExclusion] TO cleared — matched new FROM value');
     }
-  });
+  }, { signal: controller.signal });
 
   fromSelect.dataset.exclusionAttached = 'true';
   debugLog('[TransferFCExclusion] Listener attached');
 }
 
 /**
- * Clear the exclusionAttached guard on modal close.
- * Call this when destroying transfer trees so the next open re-evaluates fresh state.
+ * Remove the exclusion listener and clear the guard flag on modal close.
+ * Call this when destroying transfer trees so the next open starts fresh.
  */
 export function cleanupExclusionFlag(fromSelect: HTMLSelectElement | null): void {
-  if (fromSelect?.dataset.exclusionAttached) {
-    delete fromSelect.dataset.exclusionAttached;
+  if (!fromSelect) return;
+
+  const controller = exclusionControllers.get(fromSelect);
+  if (controller) {
+    controller.abort();
+    exclusionControllers.delete(fromSelect);
+    debugLog('[TransferFCExclusion] Listener removed');
   }
+
+  delete fromSelect.dataset.exclusionAttached;
 }
