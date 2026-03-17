@@ -13,6 +13,7 @@ import { setupPlanTypeToggle } from './typeToggle';
 import { setupPlanPeriodButtons, setupTransferPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
 import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
+import { setupTransferFCExclusion, createToClearCallback, cleanupExclusionFlag } from '../../shared/utils/transferFCExclusion';
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
@@ -285,6 +286,18 @@ function setupTransferFCListeners(): void {
       loadPlanTransferHints('to');
     });
     toFcSelect.dataset.listenerAttached = 'true';
+  }
+
+  // Mutual exclusion: TO excludes selected FROM account
+  if (fromFcSelect && toFcSelect && !fromFcSelect.dataset.exclusionAttached) {
+    setupTransferFCExclusion({
+      fromSelect: fromFcSelect,
+      toSelect: toFcSelect,
+      onToClear: createToClearCallback(
+        () => getState().planTransferToCategoryTree,
+        loadPlanTransferHints
+      )
+    });
   }
 }
 
@@ -573,6 +586,9 @@ export function closeModalPlan(): void {
     }
     updateState({ planTransferFromCategoryTree: null, planTransferToCategoryTree: null });
   }
+  cleanupExclusionFlag(
+    document.querySelector('#modal_plan-tab-transfer select[name="from_financial_center_id"]') as HTMLSelectElement | null
+  );
 
   // Clear tab cache
   clearTabCache();

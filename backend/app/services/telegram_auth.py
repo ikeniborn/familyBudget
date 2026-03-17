@@ -285,11 +285,11 @@ async def fetch_telegram_user_info(telegram_id: int) -> dict[str, Any] | None:
                                     f"{settings.TELEGRAM_BOT_TOKEN}/{file_path}"
                                 )
                                 logger.info(
-                                    f"Successfully retrieved photo URL for user {telegram_id}"
+                                    "Successfully retrieved photo URL for user %s", telegram_id
                                 )
-            except Exception as e:
+            except (httpx.TimeoutException, httpx.RequestError, ValueError, KeyError) as e:
                 logger.warning(
-                    f"Failed to retrieve photo for user {telegram_id}: {str(e)}"
+                    "Failed to retrieve photo for user %s: %s", telegram_id, e
                 )
 
         return user_info

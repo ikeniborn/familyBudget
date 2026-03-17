@@ -85,6 +85,15 @@ async def get_p2p_config(
 
 
 # ── Relay endpoints (unauthenticated — codes are ephemeral & unknown) ─────────
+#
+# Security design rationale:
+# - Codes are 6 chars from [A-Z0-9] → 36^6 ≈ 2.18 billion combinations
+# - Generated via secrets.choice() (CSPRNG) — not predictable
+# - Redis TTL = 120s — codes auto-expire, minimizing brute-force window
+# - Rate limiting: POST 10/min, GET 30/min — at 30 req/min an attacker
+#   can try ~3600 codes in 120s, probability ≈ 0.00017% per active code
+# - Pydantic max_length on payloads prevents memory abuse
+# - Regex validation on code format rejects malformed input early
 
 
 @router.post("/relay", status_code=201)

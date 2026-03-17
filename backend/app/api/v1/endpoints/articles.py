@@ -432,7 +432,7 @@ async def update_article(
     """
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"[UPDATE_ARTICLE] ENTRY: article_id={article_id}")
+    logger.info("[UPDATE_ARTICLE] ENTRY: article_id=%s", article_id)
 
     # Check: Only admins can update articles
     if not current_user.is_admin:
@@ -446,7 +446,7 @@ async def update_article(
 
     # Извлечь financial_center_ids ДО проверки изменений
     financial_center_ids = update_data.pop('financial_center_ids', None)
-    logger.info(f"[UPDATE_ARTICLE] Extracted financial_center_ids: {financial_center_ids}")
+    logger.info("[UPDATE_ARTICLE] Extracted financial_center_ids: %s", financial_center_ids)
 
     if not update_data and financial_center_ids is None:
         raise HTTPException(
@@ -491,7 +491,7 @@ async def update_article(
     # Check if any fields actually changed
     changed, changed_fields = has_changes(old_article, update_data)
 
-    logger.info(f"[ARTICLE UPDATE] article_id={article_id}, changed={changed}, changed_fields={changed_fields}, update_data={update_data}")
+    logger.info("[ARTICLE UPDATE] article_id=%s, changed=%s, changed_fields=%s, update_data=%s", article_id, changed, changed_fields, update_data)
 
     if not changed and financial_center_ids is None:
         # No changes, return existing article
@@ -510,7 +510,7 @@ async def update_article(
         del update_data["is_active"]
         changed_fields = [f for f in changed_fields if f != "is_active"]
 
-        logger.info(f"[ARTICLE UPDATE] Detected is_active change: {old_article.is_active} -> {new_is_active}")
+        logger.info("[ARTICLE UPDATE] Detected is_active change: %s -> %s", old_article.is_active, new_is_active)
 
     # Check if there are any remaining fields to update (after removing is_active)
     has_other_changes = len(update_data) > 0
@@ -519,21 +519,21 @@ async def update_article(
     if is_active_change is not None:
         if is_active_change is False:
             # Archive article and all descendants
-            logger.info(f"[ARTICLE UPDATE] Archiving article {article_id} and all descendants")
+            logger.info("[ARTICLE UPDATE] Archiving article %s and all descendants", article_id)
             archived_count = await archive_recursive(session, article_id, changed_by_user_id=current_user.id)
-            logger.info(f"[ARTICLE UPDATE] Archived {archived_count} articles")
+            logger.info("[ARTICLE UPDATE] Archived %s articles", archived_count)
         else:
             # Restore article and all descendants
-            logger.info(f"[ARTICLE UPDATE] Restoring article {article_id} and all descendants")
+            logger.info("[ARTICLE UPDATE] Restoring article %s and all descendants", article_id)
             restored_count = await restore_recursive(session, article_id, changed_by_user_id=current_user.id)
-            logger.info(f"[ARTICLE UPDATE] Restored {restored_count} articles")
+            logger.info("[ARTICLE UPDATE] Restored %s articles", restored_count)
 
         # Refresh old_article to get updated is_active status
         await session.refresh(old_article)
 
     # If there are other fields to update, use SCD Type 1 + create history
     if has_other_changes:
-        logger.info(f"[ARTICLE UPDATE] Calling update_article_profile for article_id={article_id}")
+        logger.info("[ARTICLE UPDATE] Calling update_article_profile for article_id=%s", article_id)
         updated_article = await update_article_profile(
             session=session,
             article=old_article,
@@ -541,7 +541,7 @@ async def update_article(
             changed_by_user_id=current_user.id,
             change_type="UPDATE",
         )
-        logger.info(f"[ARTICLE UPDATE] Updated article (SCD1+History): id={article_id}")
+        logger.info("[ARTICLE UPDATE] Updated article (SCD1+History): id=%s", article_id)
         result_article = updated_article
     else:
         # Only is_active was changed, return updated article (no history record needed - already done by archive/restore)
@@ -554,7 +554,7 @@ async def update_article(
 
         from backend.app.models.article_financial_center import ArticleFinancialCenter
 
-        logger.info(f"[UPDATE_ARTICLE] Updating financial center links for article_id={article_id}")
+        logger.info("[UPDATE_ARTICLE] Updating financial center links for article_id=%s", article_id)
 
         # Удалить существующие связи
         delete_stmt = delete(ArticleFinancialCenter).where(
@@ -571,7 +571,7 @@ async def update_article(
                     financial_center_id=fc_id
                 )
                 session.add(link)
-            logger.info(f"[UPDATE_ARTICLE] Created {len(financial_center_ids)} new FC links")
+            logger.info("[UPDATE_ARTICLE] Created %s new FC links", len(financial_center_ids))
         else:
             logger.info("[UPDATE_ARTICLE] Cleared all FC links (available for all FCs)")
 

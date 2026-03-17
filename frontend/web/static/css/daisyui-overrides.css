@@ -352,7 +352,7 @@ body.modal-open {
     }
 
     /* Modal action buttons - larger touch targets */
-    .modal-action .btn {
+    .modal-action .btn:not(.btn-square) {
         min-height: 2.875rem;       /* 46px vs default 40px */
         padding-left: 1.15rem;
         padding-right: 1.15rem;

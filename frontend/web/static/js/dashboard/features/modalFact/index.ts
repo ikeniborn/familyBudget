@@ -11,6 +11,7 @@ import './dateHelpers'; // Import for side effects (window exports)
 import { setupTransactionTypeToggle } from './typeToggle';
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
 import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
+import { setupTransferFCExclusion, createToClearCallback, cleanupExclusionFlag } from '../../shared/utils/transferFCExclusion';
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
@@ -280,6 +281,18 @@ function setupTransferFCListeners(): void {
       loadFactTransferHints('to');
     });
     toFcSelect.dataset.listenerAttached = 'true';
+  }
+
+  // Mutual exclusion: TO excludes selected FROM account
+  if (fromFcSelect && toFcSelect && !fromFcSelect.dataset.exclusionAttached) {
+    setupTransferFCExclusion({
+      fromSelect: fromFcSelect,
+      toSelect: toFcSelect,
+      onToClear: createToClearCallback(
+        () => getState().factTransferToCategoryTree,
+        loadFactTransferHints
+      )
+    });
   }
 }
 
@@ -701,6 +714,9 @@ export function closeModalFact(): void {
     }
     updateState({ factTransferFromCategoryTree: null, factTransferToCategoryTree: null });
   }
+  cleanupExclusionFlag(
+    document.querySelector('#modal_fact-tab-transfer select[name="from_financial_center_id"]') as HTMLSelectElement | null
+  );
 
   // Clear form
   const form = document.getElementById('form_modal_fact') as HTMLFormElement;
