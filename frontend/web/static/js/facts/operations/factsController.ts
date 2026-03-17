@@ -392,7 +392,7 @@ function populateEditModal(fact: any, BudgetShared: any): void {
     // Сумма
     const amountInput = document.getElementById('edit-amount') as HTMLInputElement;
     if (amountInput && fact.amount !== undefined) {
-        amountInput.value = String(fact.amount);
+        amountInput.value = String(Math.round(fact.amount));
     }
 
     // Описание

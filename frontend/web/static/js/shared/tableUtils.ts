@@ -106,8 +106,8 @@ export class TableFormatters {
   static formatAmount(amount: number, type: string): string {
     // Safe: Number.toLocaleString() doesn't produce executable code
     const value = Number(amount).toLocaleString('ru-RU', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     });
     const sign = (type === 'income' || type === 'credit') ? '+' : '-';
     return `${sign}${value}`;

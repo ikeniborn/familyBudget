@@ -332,7 +332,7 @@ export async function showEditModal(factId: number): Promise<void> {
 
   // Fill basic fields
   (document.getElementById('edit-id') as HTMLInputElement).value = String(fact.id);
-  (document.getElementById('edit-amount') as HTMLInputElement).value = String(parseFloat(String(fact.amount)));
+  (document.getElementById('edit-amount') as HTMLInputElement).value = String(Math.round(parseFloat(String(fact.amount))));
   (document.getElementById('edit-date') as HTMLInputElement).value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
   (document.getElementById('edit-description') as HTMLTextAreaElement).value = fact.description || '';
 

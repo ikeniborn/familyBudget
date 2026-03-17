@@ -200,6 +200,13 @@ export async function loadFacts(options?: { forceAPI?: boolean }): Promise<LoadF
             allFacts = localFacts.map(fact => convertAPIFact(fact as any));
         }
 
+        // Sort by updated_at DESC, id DESC (matches backend ORDER BY)
+        allFacts.sort((a, b) => {
+            const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+            const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+            return dateB - dateA || (b.id ?? 0) - (a.id ?? 0);
+        });
+
         // Client-side pagination
         const limit = getLimit();
         const offset = getOffset();
@@ -310,7 +317,7 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
         // Without this, Dexie returns stale data and the new fact won't appear
         if (isDexieActive()) {
             try {
-                const dexie = await getDexieManager();
+                const dexie = getDexieManager();
                 if (dexie.isReady()) {
                     const localFact = mapAPIFactToLocal(createdFact);
                     await dexie.bulkUpdateFacts([localFact]);
@@ -337,7 +344,7 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
  * Helper: Find fact temp_id by server ID
  */
 async function findFactTempId(factId: number): Promise<string | null> {
-    const dexie = await getDexieManager();
+    const dexie = getDexieManager();
     if (!isDexieActive() || !dexie.isReady()) {
         return null;
     }
@@ -357,7 +364,7 @@ async function findFactTempId(factId: number): Promise<string | null> {
  * Dexie-first with API fallback (task-015 Phase 4.4)
  */
 export async function updateFact(factId: number, data: UpdateFactData): Promise<BudgetFact> {
-    const dexie = await getDexieManager();
+    const dexie = getDexieManager();
 
     try {
         // Dexie-first strategy
@@ -458,7 +465,7 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
  * Dexie-first with API fallback (task-015 Phase 4.4)
  */
 export async function deleteFact(factId: number): Promise<void> {
-    const dexie = await getDexieManager();
+    const dexie = getDexieManager();
 
     try {
         // Dexie-first strategy
