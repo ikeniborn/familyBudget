@@ -1,0 +1,106 @@
+/* === BALANCES: 5 Breakpoints Grid Layout (fixed like quick-stats) === */
+.balances-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+.balance-card {
+    background: oklch(var(--b2));
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.625rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border: 1px solid oklch(var(--b3));
+}
+.balance-title {
+    font-weight: 600;
+    font-size: 0.75rem;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.balance-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.25rem;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+.balance-label {
+    font-size: 0.625rem;
+    opacity: 0.6;
+    flex-shrink: 0;
+}
+.balance-value {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+.balance-divider {
+    border-top: 1px solid oklch(var(--b3));
+    margin-top: 0.25rem;
+    padding-top: 0.25rem;
+}
+/* Mobile/Desktop value toggle */
+.mobile-value { display: inline; }
+.desktop-value { display: none; }
+
+/* Breakpoint: <375px (XS) - 1 column */
+@media (max-width: 374px) {
+    .balances-grid {
+        grid-template-columns: 1fr;
+        gap: 0.375rem;
+    }
+    .balance-card { padding: 0.375rem 0.5rem; }
+    .balance-title { font-size: 0.6875rem; }
+    .balance-label { font-size: 0.5625rem; }
+    .balance-value { font-size: 0.6875rem; }
+}
+
+/* Breakpoint: 375-479px (SM) - 2 columns */
+@media (min-width: 375px) and (max-width: 479px) {
+    .balances-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+}
+
+/* Breakpoint: 480-767px (MD) - 2 columns */
+@media (min-width: 480px) and (max-width: 767px) {
+    .balances-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    .balance-card { padding: 0.625rem 0.75rem; }
+    .balance-title { font-size: 0.8125rem; }
+    .balance-label { font-size: 0.6875rem; }
+    .balance-value { font-size: 0.8125rem; }
+}
+
+/* Breakpoint: 768-1023px (LG) - 4 columns, desktop values */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .mobile-value { display: none; }
+    .desktop-value { display: inline; }
+    .balances-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.75rem;
+    }
+    .balance-card { padding: 0.625rem 0.75rem; }
+    .balance-title { font-size: 0.875rem; }
+    .balance-label { font-size: 0.75rem; }
+    .balance-value { font-size: 0.875rem; }
+}
+
+/* Breakpoint: >=1024px (XL) - 4 columns, full desktop */
+@media (min-width: 1024px) {
+    .mobile-value { display: none; }
+    .desktop-value { display: inline; }
+    .balances-grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1rem;
+    }
+    .balance-card { padding: 0.75rem 1rem; }
+    .balance-title { font-size: 0.9375rem; }
+    .balance-label { font-size: 0.75rem; }
+    .balance-value { font-size: 0.9375rem; }
+}

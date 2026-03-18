@@ -567,7 +567,9 @@ async function deleteStore(storeId) {
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `alert alert-${type} fixed bottom-4 right-4 w-auto max-w-md z-50 shadow-lg`;
-    toast.innerHTML = `<span>${message}</span>`;
+    const span = document.createElement('span');
+    span.textContent = message;
+    toast.appendChild(span);
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }

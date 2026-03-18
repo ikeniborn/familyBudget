@@ -6,12 +6,27 @@
  * Channels:
  * - Relay code: 6-digit code via server relay (cross-platform iOS↔Android)
  *
- * @version 1.2.0
+ * @version 1.3.0
  */
 
 import { P2PManager } from '/static/js/offline/p2p/P2PManager.js?v=PLACEHOLDER';
 import { P2PSyncProtocol } from '/static/js/offline/p2p/P2PSyncProtocol.js?v=PLACEHOLDER';
 import { P2PMerge } from '/static/js/offline/p2p/P2PMerge.js?v=PLACEHOLDER';
+
+import {
+  renderIosMicWarning,
+  renderRoleSelect,
+  renderRelayCodeScreen,
+  renderRelayEnterScreen,
+  renderModal,
+} from '/static/js/ui/P2PTemplates.js?v=PLACEHOLDER';
+
+import {
+  createRelayOffer,
+  getRelayOffer,
+  postRelayAnswer,
+  pollRelayAnswer,
+} from '/static/js/ui/P2PRelayService.js?v=PLACEHOLDER';
 
 // ── SDP payload encoding helpers (relay transport) ───────────────────────────
 
@@ -163,13 +178,7 @@ class P2PUIController {
       const candidates = await this.manager.gatherICECandidates();
       this._offerPayload = _buildRelayPayload(offerSdp, candidates);
 
-      const res = await fetch('/api/v1/p2p/relay', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: this._offerPayload }),
-      });
-      if (!res.ok) throw new Error('Сервер недоступен (' + res.status + ')');
-      const { code } = await res.json();
+      const { code } = await createRelayOffer(this._offerPayload);
       this._relayCode = code;
 
       const codeEl = document.getElementById('p2p-relay-code-display');
@@ -224,14 +233,17 @@ class P2PUIController {
     }
 
     try {
-      const offerRes = await fetch(`/api/v1/p2p/relay/${code}`);
-      if (offerRes.status === 404) {
-        this._showToast('Код не найден или истёк срок');
-        return;
+      let offerData;
+      try {
+        offerData = await getRelayOffer(code);
+      } catch (err) {
+        if (err.notFound) {
+          this._showToast('Код не найден или истёк срок');
+          return;
+        }
+        throw err;
       }
-      if (!offerRes.ok) throw new Error('Ошибка сервера (' + offerRes.status + ')');
 
-      const offerData = await offerRes.json();
       const { sdp: offerSdp, candidates: offerCandidates } = _parseRelayPayload(offerData.payload);
       const answerSdp = await this.manager.createAnswer(offerSdp);
       if (offerCandidates.length > 0) {
@@ -240,12 +252,7 @@ class P2PUIController {
       const localCandidates = await this.manager.gatherICECandidates();
       const answerPayload = _buildRelayPayload(answerSdp, localCandidates);
 
-      const answerRes = await fetch(`/api/v1/p2p/relay/${code}/answer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payload: answerPayload }),
-      });
-      if (!answerRes.ok) throw new Error('Не удалось отправить ответ (' + answerRes.status + ')');
+      await postRelayAnswer(code, answerPayload);
 
       console.debug('[P2PUIController] Relay answer sent for code=', code);
       this._waitForConnection();
@@ -262,17 +269,16 @@ class P2PUIController {
   _startRelayPoll(code) {
     this._relayPollTimer = setInterval(async () => {
       try {
-        const res = await fetch(`/api/v1/p2p/relay/${code}/answer`);
-        if (res.status === 200) {
+        const { status, data } = await pollRelayAnswer(code);
+        if (status === 200) {
           this._stopRelayPoll();
-          const data = await res.json();
           const { sdp: answerSdp, candidates: answerCandidates } = _parseRelayPayload(data.payload);
           await this.manager.setAnswer(answerSdp);
           if (answerCandidates.length > 0) {
             await this.manager.addICECandidates(answerCandidates);
           }
           this._waitForConnection();
-        } else if (res.status === 404) {
+        } else if (status === 404) {
           // Code expired
           this._stopRelayPoll();
           this._showError('Код истёк. Создайте новый.');
@@ -459,27 +465,7 @@ class P2PUIController {
     if (role !== 'initiator' && role !== 'responder') return;
     const content = document.getElementById('p2p-modal-content');
     if (!content) return;
-    content.innerHTML = `
-      <div class="flex flex-col items-center gap-5 p-6 text-center">
-        <div class="p-3 rounded-full bg-warning/20">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-              d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-7a3 3 0 01-3-3V5a3 3 0 016 0v6a3 3 0 01-3 3z"/>
-          </svg>
-        </div>
-        <div>
-          <h3 class="font-semibold text-base">Нужен доступ к микрофону</h3>
-          <p class="text-sm text-base-content/70 mt-2">
-            iOS требует разрешения на микрофон для установки P2P соединения.<br>
-            <span class="text-xs text-base-content/50 mt-1 block">Звук не записывается и не передаётся — доступ нужен только для технической инициализации соединения.</span>
-          </p>
-        </div>
-        <button class="btn btn-primary w-full max-w-xs" onclick="window.p2pUI?.confirmIosMic('${role}')">
-          Разрешить и продолжить
-        </button>
-        <button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>
-      </div>
-    `;
+    content.innerHTML = renderIosMicWarning(role);
   }
 
   // ── Private: modal ───────────────────────────────────
@@ -489,7 +475,7 @@ class P2PUIController {
 
     const wrapper = document.createElement('div');
     wrapper.id = 'p2p-modal-wrapper';
-    wrapper.innerHTML = '<div id="p2p-modal-content" class="p-4"></div>';
+    wrapper.innerHTML = renderModal();
     document.body.appendChild(wrapper);
     this._modal = wrapper;
 
@@ -513,69 +499,7 @@ class P2PUIController {
   _renderRoleSelect(pendingCount) {
     const content = document.getElementById('p2p-modal-content');
     if (!content) return;
-
-    const isLoading = pendingCount === null;
-    const hasPending = !isLoading && pendingCount > 0;
-
-    const statusBadge = isLoading
-      ? `<span class="loading loading-dots loading-xs"></span>`
-      : hasPending
-        ? `<span class="badge badge-warning badge-sm">${pendingCount} ожидают</span>`
-        : `<span class="badge badge-success badge-sm">Синхронизировано</span>`;
-
-    const pendingLabel = isLoading
-      ? `<span class="text-base-content/40 text-xs">Проверяем...</span>`
-      : hasPending
-        ? `<span class="text-warning text-xs font-medium">${pendingCount} ${pendingCount === 1 ? 'запись' : pendingCount < 5 ? 'записи' : 'записей'} не отправлено</span>`
-        : `<span class="text-success text-xs">Все данные синхронизированы</span>`;
-
-    content.innerHTML = `
-      <div class="flex flex-col items-center gap-4 py-4 px-2">
-
-        <div class="text-center">
-          <h3 class="text-lg font-bold">P2P Синхронизация</h3>
-          <p class="text-xs text-base-content/50 mt-0.5">Синхронизация через 6-значный код</p>
-        </div>
-
-        <!-- Current status card -->
-        <div class="bg-base-200 rounded-xl px-4 py-3 w-full max-w-xs">
-          <div class="flex items-center justify-between">
-            <span class="text-sm text-base-content/60">Локальные данные</span>
-            ${statusBadge}
-          </div>
-          <div class="mt-1">${pendingLabel}</div>
-        </div>
-
-        <!-- Action buttons -->
-        <div class="flex flex-col gap-2 w-full max-w-xs">
-
-          <div class="flex flex-col gap-2">
-            <button class="btn btn-primary flex-row h-auto min-h-[3.5rem] py-2 gap-3 text-sm justify-start px-4" onclick="window.p2pUI?.startRelayInitiator()">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14"/>
-              </svg>
-              <div class="flex flex-col items-start">
-                <span class="font-medium">Получить код</span>
-                <span class="text-xs opacity-70">Создать сессию и показать код</span>
-              </div>
-            </button>
-
-            <button class="btn btn-outline flex-row h-auto min-h-[3.5rem] py-2 gap-3 text-sm justify-start px-4" onclick="window.p2pUI?.startRelayResponder()">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/>
-              </svg>
-              <div class="flex flex-col items-start">
-                <span class="font-medium">Ввести код</span>
-                <span class="text-xs opacity-70">Подключиться по коду с другого устройства</span>
-              </div>
-            </button>
-          </div>
-
-          <button class="btn btn-ghost btn-sm mt-1" onclick="window.p2pUI?.cancel()">Отмена</button>
-        </div>
-
-      </div>
-    `;
+    content.innerHTML = renderRoleSelect(pendingCount);
   }
 
   _renderScreen(screenName) {
@@ -583,46 +507,9 @@ class P2PUIController {
     if (!content) return;
 
     if (screenName === 'relay-code') {
-      content.innerHTML = [
-        '<div class="flex flex-col items-center gap-5 p-4 pb-8 w-full">',
-          '<div class="text-center">',
-            '<p class="text-sm text-base-content/60 mb-1">Код для подключения</p>',
-            '<div id="p2p-relay-code-display" class="text-5xl font-mono font-bold tracking-[0.3em] text-primary py-3 px-4 bg-base-200 rounded-2xl select-all">',
-              '<span class="loading loading-dots loading-md"></span>',
-            '</div>',
-            '<p class="text-xs text-base-content/40 mt-2">Продиктуйте или покажите этот код другому устройству</p>',
-          '</div>',
-          '<div class="flex flex-col items-center gap-1 w-full max-w-xs">',
-            '<div class="flex items-center gap-2 text-sm text-base-content/50">',
-              '<span class="loading loading-ring loading-xs"></span>',
-              '<span>Ожидание подключения...</span>',
-            '</div>',
-            '<div class="flex items-center gap-2 w-full mt-1">',
-              '<progress id="p2p-relay-progress" class="progress progress-primary flex-1" value="100" max="100"></progress>',
-              '<span id="p2p-relay-timer" class="text-xs font-mono text-base-content/40 w-10 text-right">120s</span>',
-            '</div>',
-          '</div>',
-          '<button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>',
-        '</div>',
-      ].join('');
+      content.innerHTML = renderRelayCodeScreen(null, OFFER_TIMEOUT_SEC);
     } else if (screenName === 'relay-enter') {
-      content.innerHTML = [
-        '<div class="flex flex-col items-center gap-5 p-4 pb-8 w-full">',
-          '<div class="text-center">',
-            '<h3 class="font-semibold text-base">Ввести код</h3>',
-            '<p class="text-xs text-base-content/50 mt-1">Введите 6-значный код с другого устройства</p>',
-          '</div>',
-          '<input id="p2p-relay-input" type="text" maxlength="6" autocomplete="off" autocapitalize="characters"',
-            ' spellcheck="false" inputmode="text"',
-            ' class="input input-bordered input-lg text-center font-mono tracking-[0.4em] uppercase w-full max-w-xs text-2xl"',
-            ' placeholder="XXXXXX"',
-            ' oninput="this.value=this.value.toUpperCase()">',
-          '<button class="btn btn-primary w-full max-w-xs" onclick="window.p2pUI?.submitRelayCode()">',
-            'Подключиться',
-          '</button>',
-          '<button class="btn btn-ghost btn-sm" onclick="window.p2pUI?.cancel()">Отмена</button>',
-        '</div>',
-      ].join('');
+      content.innerHTML = renderRelayEnterScreen();
 
       // Auto-focus the input
       setTimeout(() => document.getElementById('p2p-relay-input')?.focus(), 50);

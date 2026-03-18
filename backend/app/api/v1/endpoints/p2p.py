@@ -92,6 +92,8 @@ async def get_p2p_config(
 # - Redis TTL = 120s — codes auto-expire, minimizing brute-force window
 # - Rate limiting: POST 10/min, GET 30/min — at 30 req/min an attacker
 #   can try ~3600 codes in 120s, probability ≈ 0.00017% per active code
+# NOTE: Rate limiting is per-IP. Behind a shared proxy, verify that
+# X-Forwarded-For trust is configured correctly to prevent bypass.
 # - Pydantic max_length on payloads prevents memory abuse
 # - Regex validation on code format rejects malformed input early
 
@@ -114,7 +116,7 @@ async def create_relay_offer(request: Request, body: RelayOfferRequest) -> dict[
 
 @router.get("/relay/{code}")
 @limiter.limit("30/minute")
-async def get_relay_offer(request: Request, code: str) -> dict[str, Any]:
+async def get_relay_offer(request: Request, code: str) -> dict[str, str]:
     """
     Retrieve the offer SDP for the given relay code.
     Returns 404 if the code is unknown or expired.
@@ -150,7 +152,7 @@ async def post_relay_answer(request: Request, code: str, body: RelayAnswerReques
 
 @router.get("/relay/{code}/answer")
 @limiter.limit("30/minute")
-async def get_relay_answer(request: Request, code: str, response: Response) -> dict[str, Any]:
+async def get_relay_answer(request: Request, code: str, response: Response) -> dict[str, str]:
     """
     Poll for the answer SDP.
     Returns 200 + answer when available, 202 while still waiting.

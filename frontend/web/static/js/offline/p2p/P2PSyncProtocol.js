@@ -235,7 +235,15 @@ class P2PSyncProtocol {
    */
   async initiateSync(localPendingFacts) {
     return new Promise((resolve, reject) => {
+      const prevOnMessage = this.manager.onMessage;
+
+      const cleanup = () => {
+        this._receivingActive = false;
+        this.manager.onMessage = prevOnMessage;
+      };
+
       const timeout = setTimeout(() => {
+        cleanup();
         reject(new Error('P2P sync timeout after 60s'));
       }, 60000);
 
@@ -246,6 +254,7 @@ class P2PSyncProtocol {
 
       this.sendFacts(localPendingFacts).catch(err => {
         clearTimeout(timeout);
+        cleanup();
         reject(err);
       });
     });

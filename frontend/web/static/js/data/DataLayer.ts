@@ -165,7 +165,7 @@ export class DataLayer {
         }
       }
 
-      // Query Dexie (or Dexie)
+      // Query Dexie
       console.debug('[DATA_LAYER] Using Dexie');
       const result = await dexie.queryArticles(filters);
       const duration = performance.now() - startTime;
@@ -307,7 +307,7 @@ export class DataLayer {
         }
       }
 
-      // Query Dexie (or Dexie)
+      // Query Dexie
       console.debug('[DATA_LAYER] Using Dexie');
       const result = await dexie.queryFinancialCenters(userId, true);
       const duration = performance.now() - startTime;
@@ -440,7 +440,7 @@ export class DataLayer {
         }
       }
 
-      // Query Dexie (or Dexie)
+      // Query Dexie
       console.debug('[DATA_LAYER] Using Dexie');
       const result = await dexie.queryFilteredCostCenters(userId, financialCenterId, includeGlobal);
       const duration = performance.now() - startTime;
