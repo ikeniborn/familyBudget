@@ -664,7 +664,6 @@ export function renderFactRow(fact: FactRow): string {
 
     return buildFactRowHtml(fact, {
         dateFormatted,
-        amount,
         commentText,
         updatedAtFormatted,
         amountFormatted: TableFormatters.formatAmount(amount, fact.article_type ?? 'expense'),
@@ -680,7 +679,6 @@ export function renderFactRow(fact: FactRow): string {
 
 interface FactRowParts {
     dateFormatted: string;
-    amount: number;
     commentText: string | null;
     updatedAtFormatted: string;
     amountFormatted: string;
