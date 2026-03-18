@@ -155,6 +155,39 @@ export async function deleteFact(factId: number): Promise<void> {
 }
 
 /**
+ * Validate form data and build UpdateFactData payload.
+ * Returns null and shows a toast if validation fails.
+ */
+function validateAndBuildUpdateData(formData: FormData, BudgetShared: any): UpdateFactData | null {
+    const articleId = parseInt(formData.get('article_id') as string);
+    const financialCenterId = parseInt(formData.get('financial_center_id') as string);
+    const amount = parseFloat(formData.get('amount') as string);
+
+    if (isNaN(articleId) || isNaN(financialCenterId) || isNaN(amount)) {
+        showToast('Некорректные данные формы', 'error');
+        return null;
+    }
+
+    const updateData: UpdateFactData = {
+        fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date') as string),
+        article_id: articleId,
+        financial_center_id: financialCenterId,
+        amount: amount,
+        description: formData.get('description') as string || null
+    };
+
+    const costCenterId = formData.get('cost_center_id') as string;
+    if (costCenterId) {
+        const parsedCostCenterId = parseInt(costCenterId);
+        if (!isNaN(parsedCostCenterId)) {
+            updateData.cost_center_id = parsedCostCenterId;
+        }
+    }
+
+    return updateData;
+}
+
+/**
  * Update fact from form submission
  */
 export async function updateFact(event: Event): Promise<void> {
@@ -171,47 +204,27 @@ export async function updateFact(event: Event): Promise<void> {
         return;
     }
 
+    // Disable save button (loading state)
+    const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement | null;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading', 'loading-spinner');
+    }
+
     try {
         // Import dynamically to avoid circular dependency
         const { updateFact: updateFn } = await import('../integration/factsAPI');
         const { getBudgetShared } = await import('../types/dependencies');
 
-        const BudgetShared = getBudgetShared();
-
-        // Parse and validate form data
-        const articleId = parseInt(formData.get('article_id') as string);
-        const financialCenterId = parseInt(formData.get('financial_center_id') as string);
-        const amount = parseFloat(formData.get('amount') as string);
-
-        if (isNaN(articleId) || isNaN(financialCenterId) || isNaN(amount)) {
-            showToast('Некорректные данные формы', 'error');
-            return;
-        }
-
-        // Prepare update data
-        const updateData: UpdateFactData = {
-            fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date') as string),
-            article_id: articleId,
-            financial_center_id: financialCenterId,
-            amount: amount,
-            description: formData.get('description') as string || null
-        };
-
-        // Cost center (optional)
-        const costCenterId = formData.get('cost_center_id') as string;
-        if (costCenterId) {
-            const parsedCostCenterId = parseInt(costCenterId);
-            if (!isNaN(parsedCostCenterId)) {
-                updateData.cost_center_id = parsedCostCenterId;
-            }
-        }
+        const updateData = validateAndBuildUpdateData(formData, getBudgetShared());
+        if (!updateData) return;
 
         await updateFn(factId, updateData);
 
-        showToast('Факт успешно обновлен', 'success');
-
-        // Close modal
+        // Close modal first so toast goes to global #toast-container, not inside dialog
         closeEditModal();
+
+        showToast('Факт успешно обновлен', 'success');
 
         // Reload facts from API (bypass Dexie cache)
         await loadFacts({ forceAPI: true });
@@ -219,6 +232,11 @@ export async function updateFact(event: Event): Promise<void> {
         logger.error(' Error updating fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка обновления: ${errorMessage}`, 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading', 'loading-spinner');
+        }
     }
 }
 
@@ -639,43 +657,51 @@ export function renderFactRow(fact: FactRow): string {
             ? dateValue.toISOString().split('T')[0]
             : String(dateValue));
 
-    // Format date safely (DateFormatter output is trusted)
     const dateFormatted = BudgetShared?.DateFormatter?.formatForDisplay(dateString) || dateString;
-
-    // Format amount (numeric values are safe)
     const amount = fact.fact_sum ?? fact.amount ?? 0;
-    const amountFormatted = TableFormatters.formatAmount(amount, fact.article_type ?? 'expense');
-
-    // Determine color class based on article_type
-    const articleColorClass = TableFormatters.getArticleColorClass(fact.article_type ?? 'expense', 'text');
-
-    // Escape all user-generated content to prevent XSS
-    const articleName = TableFormatters.truncateText(fact.article_name ?? '', 30);  // Already escaped
-    const financialCenterName = TableFormatters.truncateText(fact.financial_center_name ?? '', 20);  // Already escaped
-    const costCenterName = fact.cost_center_name
-        ? TableFormatters.truncateText(fact.cost_center_name, 20)  // Already escaped
-        : '—';
-
     const commentText = fact.fact_comment ?? fact.description ?? null;
-    const comment = commentText
-        ? TableFormatters.truncateText(commentText, 40)  // Already escaped
-        : '—';
-
-    // Format updated_at date (UTC → local timezone)
     const updatedAtFormatted = TableFormatters.formatUpdatedAt(fact.updated_at as string | null);
 
+    return buildFactRowHtml(fact, {
+        dateFormatted,
+        commentText,
+        updatedAtFormatted,
+        amountFormatted: TableFormatters.formatAmount(amount, fact.article_type ?? 'expense'),
+        articleColorClass: TableFormatters.getArticleColorClass(fact.article_type ?? 'expense', 'text'),
+        articleName: TableFormatters.truncateText(fact.article_name ?? '', 30),
+        financialCenterName: TableFormatters.truncateText(fact.financial_center_name ?? '', 20),
+        costCenterName: fact.cost_center_name
+            ? TableFormatters.truncateText(fact.cost_center_name, 20)
+            : '—',
+        comment: commentText ? TableFormatters.truncateText(commentText, 40) : '—',
+    });
+}
+
+interface FactRowParts {
+    dateFormatted: string;
+    commentText: string | null;
+    updatedAtFormatted: string;
+    amountFormatted: string;
+    articleColorClass: string;
+    articleName: string;
+    financialCenterName: string;
+    costCenterName: string;
+    comment: string;
+}
+
+function buildFactRowHtml(fact: FactRow, p: FactRowParts): string {
     return `
         <tr>
             <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="${fact.id}"></td>
             <td class="text-base-content/50 text-xs">${fact.id}</td>
-            <td>${escapeHtml(dateFormatted)}</td>
-            <td class="max-w-xs truncate" title="${fact.financial_center_name}">${financialCenterName}</td>
-            <td class="max-w-xs truncate" title="${fact.cost_center_name || ''}">${costCenterName}</td>
-            <td>${articleName}</td>
-            <td class="${articleColorClass} font-bold">${amountFormatted}</td>
-            <td class="max-w-xs truncate" title="${commentText || ''}">${comment}</td>
+            <td>${escapeHtml(p.dateFormatted)}</td>
+            <td class="max-w-xs truncate" title="${escapeHtml(fact.financial_center_name ?? '')}">${p.financialCenterName}</td>
+            <td class="max-w-xs truncate" title="${escapeHtml(fact.cost_center_name ?? '')}">${p.costCenterName}</td>
+            <td>${p.articleName}</td>
+            <td class="${p.articleColorClass} font-bold">${p.amountFormatted}</td>
+            <td class="max-w-xs truncate" title="${escapeHtml(p.commentText ?? '')}">${p.comment}</td>
             <td class="text-xs whitespace-nowrap">${escapeHtml(fact.user_name ?? '—')}</td>
-            <td class="text-xs text-base-content/50 whitespace-nowrap">${escapeHtml(updatedAtFormatted)}</td>
+            <td class="text-xs text-base-content/50 whitespace-nowrap">${escapeHtml(p.updatedAtFormatted)}</td>
             <td>
                 <div class="flex gap-1">
                     <button class="btn btn-xs btn-primary gap-1" onclick="window.FactsManager?.showEditModal?.(${fact.id})">✏️</button>

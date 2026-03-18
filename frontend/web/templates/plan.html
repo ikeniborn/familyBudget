@@ -5715,7 +5715,7 @@ window.budgetWSClient.on('plan_created', async (data) => {
     // Если текущие фильтры соответствуют новому плану - обновить таблицу
     if (shouldReloadOnPlanCreated(data)) {
         await loadFacts(); // Перезагрузить таблицу
-        showToast('Сохранено', 'success');
+        // Toast уже показан функцией сохранения (savePlanModal/createPlan)
     }
 });
 

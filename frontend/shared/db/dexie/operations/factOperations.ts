@@ -3,7 +3,7 @@
  * Dexie.js implementation
  */
 
-import { db, toCents, fromCents } from '../core/database';
+import { db, toCents } from '../core/database';
 import { logger } from '../utils/logger';
 import { validateFact } from '../utils/validation';
 import { calculateContentHash, generateUUID } from '../utils/hash';
@@ -185,10 +185,9 @@ export async function deleteFact(temp_id: string): Promise<void> {
 
 /**
  * Query budget facts с фильтрами
- * ВАЖНО: amount конвертируется из cents в dollars
  *
  * @param filters - Optional filters
- * @returns Array of facts (amount в dollars)
+ * @returns Array of facts (amount в рублях, без конвертации)
  */
 export async function queryFacts(filters?: FactFilters): Promise<LocalBudgetFact[]> {
   logger.debug('[Dexie] queryFacts', filters);
@@ -229,11 +228,8 @@ export async function queryFacts(filters?: FactFilters): Promise<LocalBudgetFact
     });
   }
 
-  // Convert amount from cents to dollars
-  return results.map(fact => ({
-    ...fact,
-    amount: fromCents(fact.amount)
-  }));
+  // amount already in rubles (stored via mapAPIFactToLocal without conversion)
+  return results;
 }
 
 /**
