@@ -26,6 +26,7 @@ import {
 } from '../operations/factsController';
 import { setFactDate as setFactDateAction, setFactTransferDate as setFactTransferDateAction } from '../index';
 import { initTransferCategoryTrees } from '../features/modalFact/categoryWidget';
+import { setButtonLoading } from '../../dashboard/shared/utils/buttonState';
 
 // Window interface declarations are in:
 // - facts/types/globals.d.ts (facts-specific functions)
@@ -535,10 +536,17 @@ async function saveFactModalFacts(button: HTMLElement): Promise<void> {
     const activeTab = activeTabInput?.value || 'transaction';
 
     // Set button loading state
-    const btn = button as HTMLButtonElement;
-    btn.disabled = true;
-    const origText = btn.innerHTML;
-    btn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Сохранение...';
+    setButtonLoading(button, true);
+
+    // Validate form before save
+    if (!form.checkValidity()) {
+        setButtonLoading(button, false);
+        form.reportValidity();
+        if (typeof (window as any).showToast === 'function') {
+            (window as any).showToast('Заполните все обязательные поля', 'warning');
+        }
+        return;
+    }
 
     try {
         if (activeTab === 'transfer') {
@@ -603,7 +611,6 @@ async function saveFactModalFacts(button: HTMLElement): Promise<void> {
             (window as any).showToast('Ошибка сохранения', 'error');
         }
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = origText;
+        setButtonLoading(button, false);
     }
 }

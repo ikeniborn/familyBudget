@@ -310,8 +310,8 @@ async def update_cost_center(
     """
     # LOG: Request received
     logger.info(
-        f"[UPDATE_CC] Request received: cc_id={cost_center_id}, "
-        f"user_id={current_user.id}, data={update_data.model_dump(exclude_unset=True)}"
+        "[UPDATE_CC] Request received: cc_id=%s, user_id=%s, data=%s",
+        cost_center_id, current_user.id, update_data.model_dump(exclude_unset=True)
     )
 
     # Fetch cost center
@@ -329,7 +329,7 @@ async def update_cost_center(
         )
 
     # LOG: Found record
-    logger.info(f"[UPDATE_CC] Found: id={cost_center.id}, name='{cost_center.name}'")
+    logger.info("[UPDATE_CC] Found: id=%s, name=%r", cost_center.id, cost_center.name)
 
     # Get update dict (exclude financial_center_ids - handled separately)
     update_dict = update_data.model_dump(exclude_unset=True, exclude={"financial_center_ids"})
@@ -378,7 +378,7 @@ async def update_cost_center(
         financial_center_ids = [row[0] for row in existing_links_result.all()]
 
     if not changed and not fc_ids_changed:
-        logger.info(f"[UPDATE_CC] No changes detected for cc_id={cost_center_id}")
+        logger.info("[UPDATE_CC] No changes detected for cc_id=%s", cost_center_id)
         # No changes, return existing cost center
         return CostCenterResponse(
             id=cost_center.id,
@@ -393,7 +393,7 @@ async def update_cost_center(
         )
 
     # LOG: Detected changes
-    logger.info(f"[UPDATE_CC] Detected changes: {changed_fields}, fc_ids_changed={fc_ids_changed}")
+    logger.info("[UPDATE_CC] Detected changes: %s, fc_ids_changed=%s", changed_fields, fc_ids_changed)
 
     # Use SCD1+History service for update (only if base fields changed)
     if changed:
@@ -412,8 +412,8 @@ async def update_cost_center(
 
     # LOG: Success
     logger.info(
-        f"[UPDATE_CC] Successfully updated cc_id={cost_center_id}, "
-        f"new_values: {update_dict}, fc_ids_changed={fc_ids_changed}"
+        "[UPDATE_CC] Successfully updated cc_id=%s, new_values: %s, fc_ids_changed=%s",
+        cost_center_id, update_dict, fc_ids_changed
     )
 
     # Invalidate cost centers cache
@@ -653,9 +653,8 @@ async def delete_cost_center(
         await cache_service.invalidate_dashboard()
 
     logger.info(
-        f"Physically deleted cost center {cost_center_id} "
-        f"({cost_center.name}) with {facts_count} related facts "
-        f"by admin {current_user.id}"
+        "Physically deleted cost center %s (%s) with %s related facts by admin %s",
+        cost_center_id, cost_center.name, facts_count, current_user.id
     )
 
     return {

@@ -6,12 +6,14 @@ Sends reference data (articles, financial centers, cost centers, hierarchy).
 Also handles incremental sync for budget facts (delta updates).
 """
 
+import asyncio
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import and_, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models import (
@@ -60,7 +62,6 @@ async def handle_sync_initial(session: AsyncSession, user_id: int) -> dict[str, 
     # Query article hierarchy (all entries for user's articles)
     article_ids = [a.id for a in articles]
     if article_ids:
-        from sqlalchemy import and_
         hierarchy_result = await session.execute(
             select(ArticleHierarchy).where(
                 and_(
@@ -215,6 +216,29 @@ async def _fetch_facts_deleted_after(
     return list(result.scalars().all())
 
 
+def _serialize_fact(fact: BudgetFact) -> dict[str, Any]:
+    """Serialize BudgetFact to LocalBudgetFact dict for sync response."""
+    return {
+        "id": fact.id,
+        "user_id": fact.user_id,
+        "article_id": fact.article_id,
+        "financial_center_id": fact.financial_center_id,
+        "cost_center_id": fact.cost_center_id,
+        "date": fact.fact_date.isoformat(),
+        "amount": float(fact.amount),
+        "comment": fact.description,
+        "record_type": fact.record_type,
+        "transfer_group_id": str(fact.transfer_id) if fact.transfer_id else None,
+        "is_transfer": fact.transfer_id is not None,
+        "recurring_plan_id": fact.recurring_plan_id,
+        "is_offline_sync": fact.is_offline_sync,
+        "content_hash": fact.content_hash,
+        "sync_hash": fact.sync_hash,
+        "created_at": fact.created_at.isoformat(),
+        "updated_at": fact.updated_at.isoformat(),
+    }
+
+
 async def handle_sync_incremental_request(
     session: AsyncSession, user_id: int, last_sync_timestamp: datetime
 ) -> dict[str, Any]:
@@ -239,58 +263,15 @@ async def handle_sync_incremental_request(
         user_id, last_sync_timestamp.isoformat()
     )
 
-    # Query delta changes in parallel
-    created_facts = await _fetch_facts_created_after(session, user_id, last_sync_timestamp)
-    updated_facts = await _fetch_facts_updated_after(session, user_id, last_sync_timestamp)
-    deleted_fact_ids = await _fetch_facts_deleted_after(session, user_id, last_sync_timestamp)
+    # Query delta changes concurrently
+    created_facts, updated_facts, deleted_fact_ids = await asyncio.gather(
+        _fetch_facts_created_after(session, user_id, last_sync_timestamp),
+        _fetch_facts_updated_after(session, user_id, last_sync_timestamp),
+        _fetch_facts_deleted_after(session, user_id, last_sync_timestamp),
+    )
 
-    # Format created facts (map to LocalBudgetFact structure)
-    created_data = [
-        {
-            "id": fact.id,
-            "user_id": fact.user_id,
-            "article_id": fact.article_id,
-            "financial_center_id": fact.financial_center_id,
-            "cost_center_id": fact.cost_center_id,
-            "date": fact.fact_date.isoformat(),  # fact_date → date
-            "amount": float(fact.amount),
-            "comment": fact.description,  # description → comment
-            "record_type": fact.record_type,
-            "transfer_group_id": str(fact.transfer_id) if fact.transfer_id else None,  # transfer_id → transfer_group_id
-            "is_transfer": fact.transfer_id is not None,  # added
-            "recurring_plan_id": fact.recurring_plan_id,
-            "is_offline_sync": fact.is_offline_sync,
-            "content_hash": fact.content_hash,
-            "sync_hash": fact.sync_hash,
-            "created_at": fact.created_at.isoformat(),
-            "updated_at": fact.updated_at.isoformat(),
-        }
-        for fact in created_facts
-    ]
-
-    # Format updated facts (map to LocalBudgetFact structure)
-    updated_data = [
-        {
-            "id": fact.id,
-            "user_id": fact.user_id,
-            "article_id": fact.article_id,
-            "financial_center_id": fact.financial_center_id,
-            "cost_center_id": fact.cost_center_id,
-            "date": fact.fact_date.isoformat(),  # fact_date → date
-            "amount": float(fact.amount),
-            "comment": fact.description,  # description → comment
-            "record_type": fact.record_type,
-            "transfer_group_id": str(fact.transfer_id) if fact.transfer_id else None,  # transfer_id → transfer_group_id
-            "is_transfer": fact.transfer_id is not None,  # added
-            "recurring_plan_id": fact.recurring_plan_id,
-            "is_offline_sync": fact.is_offline_sync,
-            "content_hash": fact.content_hash,
-            "sync_hash": fact.sync_hash,
-            "created_at": fact.created_at.isoformat(),
-            "updated_at": fact.updated_at.isoformat(),
-        }
-        for fact in updated_facts
-    ]
+    created_data = [_serialize_fact(fact) for fact in created_facts]
+    updated_data = [_serialize_fact(fact) for fact in updated_facts]
 
     # Prepare response
     response_data = {
@@ -413,6 +394,9 @@ async def _handle_update_fact(
 
     if not fact:
         return (None, f"Fact {fact_id} not found")
+
+    if fact.user_id != user_id:
+        return (None, "Access denied")
 
     # Update fields (partial update)
     _apply_fact_field_updates(fact, payload)
@@ -602,7 +586,7 @@ async def handle_sync_client_changes(
             })
             success_count += 1
 
-        except Exception as e:
+        except (ValueError, KeyError, SQLAlchemyError) as e:
             logger.error("[SYNC] Failed to process operation %s: %s", temp_id, e)
             results.append({
                 "temp_id": temp_id,

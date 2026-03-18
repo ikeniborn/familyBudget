@@ -99,8 +99,8 @@ async def create_registration_challenge(
         >>> # Frontend: navigator.credentials.create({publicKey: options})
     """
     logger.info(
-        f"[WEBAUTHN_SERVICE] Creating registration challenge: "
-        f"user_id={user.id}, email={user.email}"
+        "[WEBAUTHN_SERVICE] Creating registration challenge: user_id=%s, email=%s",
+        user.id, user.email,
     )
 
     # Generate cryptographic challenge (32 bytes)
@@ -123,8 +123,8 @@ async def create_registration_challenge(
     await session.refresh(challenge_record)
 
     logger.debug(
-        f"[WEBAUTHN_SERVICE] Challenge stored: expires_at={expires_at}, "
-        f"challenge={challenge_record.challenge[:20]}..."
+        "[WEBAUTHN_SERVICE] Challenge stored: expires_at=%s, challenge=%s...",
+        expires_at, challenge_record.challenge[:20],
     )
 
     # Generate WebAuthn options
@@ -160,8 +160,8 @@ async def create_registration_challenge(
     options_dict["challenge"] = challenge_record.challenge
 
     logger.debug(
-        f"[WEBAUTHN_SERVICE] Registration options generated: "
-        f"RP ID={settings.WEBAUTHN_RP_ID}, user={user_email}"
+        "[WEBAUTHN_SERVICE] Registration options generated: RP ID=%s, user=%s",
+        settings.WEBAUTHN_RP_ID, user_email,
     )
 
     return options_dict
@@ -211,8 +211,8 @@ async def verify_and_store_credential(
         ... )
     """
     logger.info(
-        f"[WEBAUTHN_SERVICE] Verifying registration: "
-        f"user_id={user.id}, challenge={challenge[:20]}..."
+        "[WEBAUTHN_SERVICE] Verifying registration: user_id=%s, challenge=%s...",
+        user.id, challenge[:20],
     )
 
     # 1. Validate challenge
@@ -234,14 +234,13 @@ async def verify_and_store_credential(
         )
 
         logger.debug(
-            f"[WEBAUTHN_SERVICE] Attestation verified: "
-            f"credential_id={verification.credential_id[:20].hex()}..., "
-            f"sign_count={verification.sign_count}"
+            "[WEBAUTHN_SERVICE] Attestation verified: credential_id=%s..., sign_count=%s",
+            verification.credential_id[:20].hex(), verification.sign_count,
         )
 
     except Exception as e:
         logger.error(
-            f"[WEBAUTHN_SERVICE] Registration verification failed: {str(e)}"
+            "[WEBAUTHN_SERVICE] Registration verification failed: %s", str(e),
         )
         await _log_audit_event(
             session,
@@ -263,7 +262,8 @@ async def verify_and_store_credential(
     existing = await session.exec(existing_stmt)
     if existing.first():
         logger.warning(
-            f"[WEBAUTHN_SERVICE] Credential already registered: {credential_id_base64url[:20]}..."
+            "[WEBAUTHN_SERVICE] Credential already registered: %s...",
+            credential_id_base64url[:20],
         )
         await _log_audit_event(
             session,
@@ -309,9 +309,8 @@ async def verify_and_store_credential(
     await session.refresh(new_credential)
 
     logger.info(
-        f"[WEBAUTHN_SERVICE] Credential stored: "
-        f"credential_id={credential_id_base64url[:20]}..., device_name={device_name}, "
-        f"backup_state={new_credential.backup_state}"
+        "[WEBAUTHN_SERVICE] Credential stored: credential_id=%s..., device_name=%s, backup_state=%s",
+        credential_id_base64url[:20], device_name, new_credential.backup_state,
     )
 
     return new_credential
@@ -345,7 +344,7 @@ async def create_authentication_challenge(
         >>> options = await create_authentication_challenge(session, "user@example.com")
         >>> # Frontend: navigator.credentials.get({publicKey: options})
     """
-    logger.info(f"[WEBAUTHN_SERVICE] Creating auth challenge: identifier={identifier}")
+    logger.info("[WEBAUTHN_SERVICE] Creating auth challenge: identifier=%s", identifier)
 
     # 1. Find user by email or username
     user_stmt = select(User).where(
@@ -355,7 +354,7 @@ async def create_authentication_challenge(
     user = result.first()
 
     if not user:
-        logger.warning(f"[WEBAUTHN_SERVICE] User not found: {identifier}")
+        logger.warning("[WEBAUTHN_SERVICE] User not found: %s", identifier)
         raise ValueError("User not found")
 
     # 2. Fetch active credentials
@@ -368,12 +367,13 @@ async def create_authentication_challenge(
 
     if not credentials:
         logger.warning(
-            f"[WEBAUTHN_SERVICE] No active credentials: user_id={user.id}"
+            "[WEBAUTHN_SERVICE] No active credentials: user_id=%s", user.id
         )
         raise ValueError("No active WebAuthn credentials found")
 
     logger.debug(
-        f"[WEBAUTHN_SERVICE] User found: user_id={user.id}, credentials_count={len(credentials)}"
+        "[WEBAUTHN_SERVICE] User found: user_id=%s, credentials_count=%s",
+        user.id, len(credentials)
     )
 
     # 3. Generate challenge
@@ -395,8 +395,8 @@ async def create_authentication_challenge(
     await session.refresh(challenge_record)
 
     logger.debug(
-        f"[WEBAUTHN_SERVICE] Challenge generated: {challenge_record.challenge[:20]}... "
-        f"(expires in 10 min)"
+        "[WEBAUTHN_SERVICE] Challenge generated: %s... (expires in 10 min)",
+        challenge_record.challenge[:20]
     )
 
     # 4. Generate WebAuthn options
@@ -413,8 +413,8 @@ async def create_authentication_challenge(
     ]
 
     logger.debug(
-        f"[WEBAUTHN_SERVICE] Credentials list: "
-        f"{[c.credential_id[:20] for c in credentials]}"
+        "[WEBAUTHN_SERVICE] Credentials list: %s",
+        [c.credential_id[:20] for c in credentials]
     )
 
     authentication_options = generate_authentication_options(
@@ -477,7 +477,7 @@ async def verify_authentication_and_issue_tokens(
         ...     session, challenge, credential_data
         ... )
     """
-    logger.info(f"[WEBAUTHN_SERVICE] Verifying authentication: challenge={challenge[:20]}...")
+    logger.info("[WEBAUTHN_SERVICE] Verifying authentication: challenge=%s...", challenge[:20])
 
     # 1. Validate challenge
     challenge_record = await _validate_challenge(
@@ -496,7 +496,8 @@ async def verify_authentication_and_issue_tokens(
 
     if not cred:
         logger.error(
-            f"[WEBAUTHN_SERVICE] Credential not found or revoked: {credential_id_base64url[:20]}..."
+            "[WEBAUTHN_SERVICE] Credential not found or revoked: %s...",
+            credential_id_base64url[:20]
         )
         await _log_audit_event(
             session,
@@ -537,7 +538,7 @@ async def verify_authentication_and_issue_tokens(
     user = result.first()
 
     if not user:
-        logger.error(f"[WEBAUTHN_SERVICE] User not found: user_id={cred.user_id}")
+        logger.error("[WEBAUTHN_SERVICE] User not found: user_id=%s", cred.user_id)
         raise ValueError("User not found")
 
     # 5. Verify authentication (using webauthn library)
@@ -557,16 +558,17 @@ async def verify_authentication_and_issue_tokens(
 
         logger.info("[WEBAUTHN_SERVICE] Signature verification: PASSED")
         logger.debug(
-            f"[WEBAUTHN_SERVICE] Sign count check: stored={cred.sign_count}, "
-            f"new={verification.new_sign_count}"
+            "[WEBAUTHN_SERVICE] Sign count check: stored=%s, new=%s",
+            cred.sign_count, verification.new_sign_count
         )
 
         # CRITICAL: Sign count regression detection (cloned credential)
         if verification.new_sign_count > 0 and verification.new_sign_count <= cred.sign_count:
             logger.critical(
-                f"[WEBAUTHN_SERVICE] ⚠️ CLONED CREDENTIAL DETECTED: "
-                f"user_id={user.id}, credential_id={credential_id_base64url[:20]}..., "
-                f"stored_count={cred.sign_count}, new_count={verification.new_sign_count}"
+                "[WEBAUTHN_SERVICE] CLONED CREDENTIAL DETECTED: "
+                "user_id=%s, credential_id=%s..., stored_count=%s, new_count=%s",
+                user.id, credential_id_base64url[:20],
+                cred.sign_count, verification.new_sign_count
             )
 
             # Auto-revoke credential
@@ -574,7 +576,7 @@ async def verify_authentication_and_issue_tokens(
             cred.revoked_at = datetime.utcnow()
             session.add(cred)
 
-            logger.info(f"[WEBAUTHN_SERVICE] Auto-revoking credential: {credential_id_base64url[:20]}...")
+            logger.info("[WEBAUTHN_SERVICE] Auto-revoking credential: %s...", credential_id_base64url[:20])
 
             # Log audit event
             await _log_audit_event(
@@ -610,7 +612,7 @@ async def verify_authentication_and_issue_tokens(
             raise ValueError("Credential compromised (cloned authenticator detected)")
 
     except Exception as e:
-        logger.error(f"[WEBAUTHN_SERVICE] Authentication verification failed: {str(e)}")
+        logger.error("[WEBAUTHN_SERVICE] Authentication verification failed: %s", e)
         await _log_audit_event(
             session,
             user.id,
@@ -626,7 +628,7 @@ async def verify_authentication_and_issue_tokens(
     access_token = create_access_token(user_id=user.id, telegram_id=user.telegram_id or 0)
     refresh_token, refresh_expires = create_refresh_token(user_id=user.id)
 
-    logger.info(f"[WEBAUTHN_SERVICE] JWT tokens generated: user_id={user.id}")
+    logger.info("[WEBAUTHN_SERVICE] JWT tokens generated: user_id=%s", user.id)
 
     # 7. Update credential metadata
     cred.sign_count = verification.new_sign_count
@@ -651,12 +653,12 @@ async def verify_authentication_and_issue_tokens(
     await session.commit()
 
     logger.info(
-        f"[WEBAUTHN_SERVICE] Credential updated: last_used_at={cred.last_used_at}, "
-        f"sign_count={cred.sign_count}"
+        "[WEBAUTHN_SERVICE] Credential updated: last_used_at=%s, sign_count=%s",
+        cred.last_used_at, cred.sign_count
     )
     logger.info(
-        f"[WEBAUTHN_SERVICE] Auth successful: user_id={user.id}, "
-        f"credential_id={credential_id_base64url[:20]}..."
+        "[WEBAUTHN_SERVICE] Auth successful: user_id=%s, credential_id=%s...",
+        user.id, credential_id_base64url[:20]
     )
 
     return user, access_token, refresh_token

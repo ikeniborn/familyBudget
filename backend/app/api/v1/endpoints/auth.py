@@ -1906,7 +1906,7 @@ async def check_auth_methods(
     session: AsyncSession = Depends(get_session),
 ) -> AuthMethodsResponse:
     """Check available authentication methods for user."""
-    logger.info(f"[AUTH_METHODS] Checking methods for identifier_hash: {hash_email_for_logging(identifier)}")
+    logger.info("[AUTH_METHODS] Checking methods for identifier_hash: %s", hash_email_for_logging(identifier))
 
     # Try to find user by email first
     user = await get_user_by_email(session, identifier)
@@ -1918,7 +1918,7 @@ async def check_auth_methods(
         user = result.first()
 
     if user is None:
-        logger.warning(f"[AUTH_METHODS] User not found: identifier_hash={hash_email_for_logging(identifier)}")
+        logger.warning("[AUTH_METHODS] User not found: identifier_hash=%s", hash_email_for_logging(identifier))
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found"
@@ -1941,7 +1941,7 @@ async def check_auth_methods(
     credentials = result.all()
 
     has_webauthn = len(credentials) > 0
-    logger.debug(f"[AUTH_METHODS] WebAuthn credentials: {len(credentials)}")
+    logger.debug("[AUTH_METHODS] WebAuthn credentials: %s", len(credentials))
 
     # Build response
     webauthn_credentials_list = [

@@ -136,8 +136,8 @@ async def create_shopping_list(
     await session.refresh(shopping_list)
 
     logger.info(
-        f"Created shopping list {shopping_list.id} ({shopping_list.name}) "
-        f"by user {current_user.id}"
+        "Created shopping list %s (%s) by user %s",
+        shopping_list.id, shopping_list.name, current_user.id
     )
 
     response = ShoppingListResponse.model_validate(shopping_list)
@@ -146,7 +146,7 @@ async def create_shopping_list(
     try:
         await broadcast_shopping_list_created(response.model_dump(mode="json"))
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for created list {shopping_list.id}: {e}")
+        logger.warning("WebSocket broadcast failed for created list %s: %s", shopping_list.id, e)
 
     return response
 
@@ -279,8 +279,8 @@ async def update_shopping_list(
     await session.refresh(shopping_list)
 
     logger.info(
-        f"Updated shopping list {shopping_list_id} ({shopping_list.name}) "
-        f"fields: {changed_fields} by user {current_user.id}"
+        "Updated shopping list %s (%s) fields: %s by user %s",
+        shopping_list_id, shopping_list.name, changed_fields, current_user.id
     )
 
     response = ShoppingListResponse.model_validate(shopping_list)
@@ -289,7 +289,7 @@ async def update_shopping_list(
     try:
         await broadcast_shopping_list_updated(response.model_dump(mode="json"))
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for updated list {shopping_list_id}: {e}")
+        logger.warning("WebSocket broadcast failed for updated list %s: %s", shopping_list_id, e)
 
     return response
 
@@ -328,8 +328,8 @@ async def archive_shopping_list(
     )
 
     logger.info(
-        f"Archived shopping list {shopping_list_id} ({shopping_list.name}) "
-        f"by user {current_user.id}"
+        "Archived shopping list %s (%s) by user %s",
+        shopping_list_id, shopping_list.name, current_user.id
     )
 
     return ShoppingListResponse.model_validate(archived_list)
@@ -368,8 +368,8 @@ async def restore_shopping_list(
     )
 
     logger.info(
-        f"Restored shopping list {shopping_list_id} ({shopping_list.name}) "
-        f"by user {current_user.id}"
+        "Restored shopping list %s (%s) by user %s",
+        shopping_list_id, shopping_list.name, current_user.id
     )
 
     return ShoppingListResponse.model_validate(restored_list)
@@ -445,11 +445,11 @@ async def delete_shopping_list(
     try:
         await broadcast_shopping_list_deleted(shopping_list_id)
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for deleted list {shopping_list_id}: {e}")
+        logger.warning("WebSocket broadcast failed for deleted list %s: %s", shopping_list_id, e)
 
     logger.info(
-        f"Deleted shopping list {shopping_list_id} ({shopping_list.name}) "
-        f"with {items_count} items by owner {current_user.id}"
+        "Deleted shopping list %s (%s) with %s items by owner %s",
+        shopping_list_id, shopping_list.name, items_count, current_user.id
     )
 
     return None  # 204 No Content

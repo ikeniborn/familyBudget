@@ -169,9 +169,10 @@ class RecurringPlanService:
         await session.refresh(plan)
 
         logger.info(
-            f"[RECURRING] Created plan {plan.id} for user {user_id}, "
-            f"frequency={data.frequency_type}, generated {generated_count} facts, "
-            f"created {reminders_created} reminders"
+            "[RECURRING] Created plan %s for user %s, "
+            "frequency=%s, generated %s facts, "
+            "created %s reminders",
+            plan.id, user_id, data.frequency_type, generated_count, reminders_created,
         )
 
         return plan
@@ -254,7 +255,7 @@ class RecurringPlanService:
         await session.commit()
         await session.refresh(plan)
 
-        logger.info(f"[RECURRING] Updated plan {plan_id}")
+        logger.info("[RECURRING] Updated plan %s", plan_id)
 
         return plan
 
@@ -293,12 +294,12 @@ class RecurringPlanService:
 
         if delete_future_facts:
             deleted_count = await self._delete_future_facts(session, plan_id)
-            logger.info(f"[RECURRING] Deleted {deleted_count} future facts for plan {plan_id}")
+            logger.info("[RECURRING] Deleted %s future facts for plan %s", deleted_count, plan_id)
 
         await session.commit()
         await session.refresh(plan)
 
-        logger.info(f"[RECURRING] Deactivated plan {plan_id}")
+        logger.info("[RECURRING] Deactivated plan %s", plan_id)
 
         return plan
 
@@ -363,11 +364,11 @@ class RecurringPlanService:
         row = result.one_or_none()
 
         if not row:
-            logger.debug(f"[QUERY_OPT] get_plan_with_details: plan_id={plan_id} not found or access denied")
+            logger.debug("[QUERY_OPT] get_plan_with_details: plan_id=%s not found or access denied", plan_id)
             return None
 
         plan = row[0]
-        logger.info(f"[QUERY_OPT] get_plan_with_details: plan_id={plan_id}, single JOIN (4→1 queries)")
+        logger.info("[QUERY_OPT] get_plan_with_details: plan_id=%s, single JOIN (4→1 queries)", plan_id)
 
         return {
             "id": plan.id,
@@ -620,20 +621,22 @@ class RecurringPlanService:
                     total_reminders_created += reminders_created
 
                     logger.info(
-                        f"[SCHEDULER] Plan {plan.id}: generated {new_generated} facts, "
-                        f"created {reminders_created} reminders"
+                        "[SCHEDULER] Plan %s: generated %s facts, "
+                        "created %s reminders",
+                        plan.id, new_generated, reminders_created,
                     )
 
             except Exception as e:
-                logger.error(f"[RECURRING] Error generating facts for plan {plan.id}: {e}")
+                logger.error("[RECURRING] Error generating facts for plan %s: %s", plan.id, e)
                 continue
 
         await session.commit()
 
         if total_generated > 0:
             logger.info(
-                f"[RECURRING] Generated {total_generated} facts for {len(plans)} plans, "
-                f"created {total_reminders_created} reminders"
+                "[RECURRING] Generated %s facts for %s plans, "
+                "created %s reminders",
+                total_generated, len(plans), total_reminders_created,
             )
 
         return {
@@ -673,9 +676,11 @@ class RecurringPlanService:
         current_date = plan.next_generation_date or plan.start_date
 
         logger.info(
-            f"[RECURRING] Starting fact generation for plan {plan.id}: "
-            f"current_date={current_date}, horizon={horizon_date}, "
-            f"end_date={plan.end_date}, occurrences={plan.occurrences_generated}/{plan.occurrences_count}"
+            "[RECURRING] Starting fact generation for plan %s: "
+            "current_date=%s, horizon=%s, "
+            "end_date=%s, occurrences=%s/%s",
+            plan.id, current_date, horizon_date, plan.end_date,
+            plan.occurrences_generated, plan.occurrences_count,
         )
 
         while True:
@@ -808,7 +813,7 @@ class RecurringPlanService:
             - Reminder datetime = fact_date + reminder_hour:minute
         """
         if not recurring_plan.enable_reminder:
-            logger.info(f"[RECURRING_REMINDER] Plan {recurring_plan.id}: enable_reminder=false, skipping")
+            logger.info("[RECURRING_REMINDER] Plan %s: enable_reminder=false, skipping", recurring_plan.id)
             return 0
 
         if recurring_plan.reminder_hour is None or recurring_plan.reminder_minute is None:
@@ -870,7 +875,7 @@ class RecurringPlanService:
             # Check if reminder already exists (idempotency - pre-fetched set)
             if fact.id in existing_fact_ids:
                 skipped_existing += 1
-                logger.debug(f"[RECURRING_REMINDER] Fact {fact.id}: reminder already exists, skipping")
+                logger.debug("[RECURRING_REMINDER] Fact %s: reminder already exists, skipping", fact.id)
                 continue
 
             # Create reminder
@@ -1053,7 +1058,7 @@ class RecurringPlanService:
 
             next_date = date(next_year, target_month, target_day)
 
-            logger.info(f"[CALC_NEXT] Yearly: {from_date} → {next_date}")
+            logger.info("[CALC_NEXT] Yearly: %s → %s", from_date, next_date)
             return next_date
 
         return None
@@ -1150,7 +1155,7 @@ class RecurringPlanService:
         await session.commit()
         await session.refresh(fact)
 
-        logger.info(f"[RECURRING] Detached fact {fact_id} from plan {plan_id}")
+        logger.info("[RECURRING] Detached fact %s from plan %s", fact_id, plan_id)
 
         return fact
 

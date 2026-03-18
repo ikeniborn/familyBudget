@@ -108,7 +108,7 @@ async def create_relay_offer(request: Request, body: RelayOfferRequest) -> dict[
     async with get_redis() as redis:
         await redis.set(f"p2p:relay:{code}:offer", body.payload, ex=RELAY_TTL_SECONDS)
 
-    logger.debug("[P2P relay] Created offer code=%s", code)
+    logger.debug("[P2P relay] Created offer code=%s ip=%s", code, request.client.host if request.client else "unknown")
     return {"code": code}
 
 
@@ -144,7 +144,7 @@ async def post_relay_answer(request: Request, code: str, body: RelayAnswerReques
 
         await redis.set(f"p2p:relay:{code}:answer", body.payload, ex=RELAY_TTL_SECONDS)
 
-    logger.debug("[P2P relay] Stored answer for code=%s", code)
+    logger.debug("[P2P relay] Stored answer for code=%s ip=%s", code, request.client.host if request.client else "unknown")
     return {"status": "ok"}
 
 

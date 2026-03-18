@@ -89,9 +89,8 @@ class GenericCSVParser:
         transformations = transformations or {}
         additional_columns = transformations.get("additional_description_columns", [])
         logger.info(
-            f"[CSV_PARSER] Starting parse: "
-            f"additional_description_columns={additional_columns}, "
-            f"encoding={encoding}, delimiter='{delimiter}'"
+            "[CSV_PARSER] Starting parse: additional_description_columns=%s, encoding=%s, delimiter='%s'",
+            additional_columns, encoding, delimiter
         )
 
         # Decode file
@@ -120,10 +119,11 @@ class GenericCSVParser:
                     skipped_missing += 1
                     if skipped_missing <= 3:  # Log first 3 skipped rows
                         logger.warning(
-                            f"Row {row_num}: missing required fields. "
-                            f"fact_date_col='{fact_date_col}', amount_col='{amount_col}', "
-                            f"fact_date_str='{fact_date_str}', amount_str='{amount_str}', "
-                            f"row_keys={list(row.keys())[:5]}"
+                            "Row %s: missing required fields. "
+                            "fact_date_col='%s', amount_col='%s', "
+                            "fact_date_str='%s', amount_str='%s', row_keys=%s",
+                            row_num, fact_date_col, amount_col,
+                            fact_date_str, amount_str, list(row.keys())[:5]
                         )
                     continue
 
@@ -133,8 +133,8 @@ class GenericCSVParser:
                     skipped_date += 1
                     if skipped_date <= 3:  # Log first 3 unparseable dates
                         logger.warning(
-                            f"Row {row_num}: cannot parse date '{fact_date_str}' "
-                            f"with format={date_format or 'auto'}"
+                            "Row %s: cannot parse date '%s' with format=%s",
+                            row_num, fact_date_str, date_format or 'auto'
                         )
                     continue  # Skip invalid dates
 
@@ -145,7 +145,7 @@ class GenericCSVParser:
                     if value:
                         csv_metadata["category"] = value
 
-                logger.debug(f"[CSV_MAPPING] Row {row_num}: csv_metadata={csv_metadata}")
+                logger.debug("[CSV_MAPPING] Row %s: csv_metadata=%s", row_num, csv_metadata)
 
                 # Normalize amount_string to standard format (Russian: space + comma)
                 normalized_amount = GenericCSVParser._normalize_amount(
@@ -157,7 +157,7 @@ class GenericCSVParser:
                 if parsed_amount is None or parsed_amount == 0.0:
                     skipped_zero += 1
                     if skipped_zero <= 3:
-                        logger.warning(f"Row {row_num}: skipping zero amount '{amount_str}'")
+                        logger.warning("Row %s: skipping zero amount '%s'", row_num, amount_str)
                     continue
 
                 # Build description with optional concatenation
@@ -170,7 +170,8 @@ class GenericCSVParser:
                 # 2. Add additional description columns (if specified)
                 if additional_columns:
                     logger.debug(
-                        f"[CSV_PARSER] Row {row_num}: additional_description_columns={additional_columns}"
+                        "[CSV_PARSER] Row %s: additional_description_columns=%s",
+                        row_num, additional_columns
                     )
 
                     # Concatenate ONLY specified columns (skip empty values)
@@ -184,20 +185,21 @@ class GenericCSVParser:
                         concatenated = "; ".join(additional_parts)
                         description_parts.append(f"[CSV: {concatenated}]")
                         logger.debug(
-                            f"[CSV_PARSER] Row {row_num}: concatenated {len(additional_parts)} "
-                            f"additional columns"
+                            "[CSV_PARSER] Row %s: concatenated %s additional columns",
+                            row_num, len(additional_parts)
                         )
                     else:
                         logger.debug(
-                            f"[CSV_PARSER] Row {row_num}: additional columns specified but all empty"
+                            "[CSV_PARSER] Row %s: additional columns specified but all empty",
+                            row_num
                         )
 
                 # 3. Combine parts
                 final_description = " | ".join(description_parts) if description_parts else None
 
                 logger.debug(
-                    f"[CSV_PARSER] Row {row_num}: final_description length="
-                    f"{len(final_description) if final_description else 0}"
+                    "[CSV_PARSER] Row %s: final_description length=%s",
+                    row_num, len(final_description) if final_description else 0
                 )
 
                 # Build staging record
@@ -218,16 +220,16 @@ class GenericCSVParser:
 
             except Exception as e:
                 # Skip rows that fail parsing
-                logger.error(f"Row {row_num}: parsing error: {e}")
+                logger.error("Row %s: parsing error: %s", row_num, e)
                 continue
 
         # Log summary
         logger.info(
-            f"[CSV_PARSER] Parsing complete: {len(staging_records)} records parsed, "
-            f"{skipped_missing} skipped (missing fields), "
-            f"{skipped_date} skipped (invalid date), "
-            f"{skipped_zero} skipped (zero amount), "
-            f"additional_description_columns={additional_columns}"
+            "[CSV_PARSER] Parsing complete: %s records parsed, "
+            "%s skipped (missing fields), %s skipped (invalid date), "
+            "%s skipped (zero amount), additional_description_columns=%s",
+            len(staging_records), skipped_missing, skipped_date,
+            skipped_zero, additional_columns
         )
 
         return staging_records

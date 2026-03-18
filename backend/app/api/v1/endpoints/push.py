@@ -141,8 +141,8 @@ async def subscribe_to_push(
             existing.auth_key = auth_key
             existing.user_agent = user_agent
             logger.info(
-                f"[Push] Updated existing subscription for user {current_user.id}: "
-                f"{endpoint[:50]}..."
+                "[Push] Updated existing subscription for user %s: %s...",
+                current_user.id, endpoint[:50]
             )
         else:
             # Create new subscription
@@ -156,8 +156,8 @@ async def subscribe_to_push(
             )
             session.add(new_subscription)
             logger.info(
-                f"[Push] User {current_user.id} subscribed to push notifications: "
-                f"{endpoint[:50]}..."
+                "[Push] User %s subscribed to push notifications: %s...",
+                current_user.id, endpoint[:50]
             )
 
         await session.commit()
@@ -165,7 +165,7 @@ async def subscribe_to_push(
         return {"status": "subscribed"}
 
     except Exception as e:
-        logger.error(f"[Push] Failed to subscribe user {current_user.id}: {e}")
+        logger.error("[Push] Failed to subscribe user %s: %s", current_user.id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to subscribe to push notifications: {str(e)}"
@@ -205,18 +205,19 @@ async def unsubscribe_from_push(
             await session.delete(subscription)
             await session.commit()
             logger.info(
-                f"[Push] User {current_user.id} unsubscribed from push notifications: "
-                f"{endpoint[:50]}..."
+                "[Push] User %s unsubscribed from push notifications: %s...",
+                current_user.id, endpoint[:50]
             )
         else:
             logger.debug(
-                f"[Push] Subscription not found for unsubscribe: {endpoint[:50]}..."
+                "[Push] Subscription not found for unsubscribe: %s...",
+                endpoint[:50]
             )
 
         return {"status": "unsubscribed"}
 
     except Exception as e:
-        logger.error(f"[Push] Failed to unsubscribe user {current_user.id}: {e}")
+        logger.error("[Push] Failed to unsubscribe user %s: %s", current_user.id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to unsubscribe from push notifications: {str(e)}"
@@ -263,8 +264,8 @@ async def send_push_notification(
 
     try:
         logger.info(
-            f"[Push] Admin {current_user.id} sending notification to user {notification.user_id}: "
-            f"{notification.title}"
+            "[Push] Admin %s sending notification to user %s: %s",
+            current_user.id, notification.user_id, notification.title
         )
 
         sent_count = await PushService.send_to_user(
@@ -287,7 +288,7 @@ async def send_push_notification(
         raise
     except Exception as e:
         logger.error(
-            f"[Push] Failed to send notification to user {notification.user_id}: {e}"
+            "[Push] Failed to send notification to user %s: %s", notification.user_id, e
         )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

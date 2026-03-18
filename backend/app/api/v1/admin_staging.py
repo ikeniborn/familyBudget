@@ -182,7 +182,7 @@ async def list_staging_records(
     ]
     ```
     """
-    logger.info(f"Listing staging records for admin user {current_admin.id}")
+    logger.info("Listing staging records for admin user %s", current_admin.id)
 
     # Get all staging records for current user
     statement = select(ImportStaging).where(
@@ -249,7 +249,7 @@ async def update_staging_record(
     Response: {"message": "Staging record updated successfully"}
     ```
     """
-    logger.info(f"Updating staging record {staging_id} for admin user {current_admin.id}")
+    logger.info("Updating staging record %s for admin user %s", staging_id, current_admin.id)
 
     # Get staging record
     statement = select(ImportStaging).where(
@@ -303,7 +303,7 @@ async def delete_staging_record(
     Response: {"message": "Staging record deleted successfully"}
     ```
     """
-    logger.info(f"Deleting staging record {staging_id} for admin user {current_admin.id}")
+    logger.info("Deleting staging record %s for admin user %s", staging_id, current_admin.id)
 
     # Get staging record
     statement = select(ImportStaging).where(
@@ -341,7 +341,7 @@ async def clear_all_staging(
     Response: {"message": "Cleared 152 staging records"}
     ```
     """
-    logger.info(f"Clearing all staging records for admin user {current_admin.id}")
+    logger.info("Clearing all staging records for admin user %s", current_admin.id)
 
     # Get all staging records for current user
     statement = select(ImportStaging).where(
@@ -388,7 +388,7 @@ async def bulk_delete_staging(
     ```
     """
     logger.info(
-        f"Bulk deleting {len(request.staging_ids)} staging records for admin user {current_admin.id}"
+        "Bulk deleting %s staging records for admin user %s", len(request.staging_ids), current_admin.id
     )
 
     if not request.staging_ids:
@@ -445,7 +445,7 @@ async def bulk_update_staging(
     ```
     """
     logger.info(
-        f"Bulk updating {len(request.staging_ids)} staging records for admin user {current_admin.id}"
+        "Bulk updating %s staging records for admin user %s", len(request.staging_ids), current_admin.id
     )
 
     if not request.staging_ids:
@@ -527,7 +527,7 @@ async def execute_import(
     ```
     """
     logger.info(
-        f"Executing import of {len(request.staging_ids)} staging records for admin user {current_admin.id}"
+        "Executing import of %s staging records for admin user %s", len(request.staging_ids), current_admin.id
     )
 
     if not request.staging_ids:
@@ -575,7 +575,7 @@ async def execute_import(
         try:
             amount = abs(_parse_amount_smart(record.amount_string))
         except ValueError as e:
-            logger.error(f"Failed to parse amount '{record.amount_string}' for record {record.id}: {e}")
+            logger.error("Failed to parse amount %r for record %s: %s", record.amount_string, record.id, e)
             raise HTTPException(
                 400,
                 f"Invalid amount format '{record.amount_string}' in record {record.id}"
@@ -639,7 +639,7 @@ async def execute_import(
 
     await session.commit()
 
-    logger.info(f"Successfully imported {imported_count} transactions from staging for user {current_admin.id}")
+    logger.info("Successfully imported %s transactions from staging for user %s", imported_count, current_admin.id)
 
     return ImportExecuteResponse(
         success=True,

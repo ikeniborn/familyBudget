@@ -1187,7 +1187,7 @@ async def get_plan_fact_data(
         }
 
     except Exception as e:
-        logger.error(f"Error in /plan-fact: {str(e)}", exc_info=True)
+        logger.error("Error in /plan-fact: %s", str(e), exc_info=True)
         return {
             "labels": [],
             "plan": [],
@@ -1429,7 +1429,7 @@ async def get_trends_data(
         }
 
     except Exception as e:
-        logger.error(f"Error in /trends: {str(e)}", exc_info=True)
+        logger.error("Error in /trends: %s", str(e), exc_info=True)
         return {
             "labels": [],
             "income": [],
@@ -1549,7 +1549,7 @@ async def get_category_breakdown(
         }
 
     except Exception as e:
-        logger.error(f"Error in /category-breakdown: {str(e)}", exc_info=True)
+        logger.error("Error in /category-breakdown: %s", str(e), exc_info=True)
         return {
             "categories": [],
             "amounts": [],
@@ -1878,7 +1878,7 @@ async def get_waterfall_data(
         return result
 
     except Exception as e:
-        logger.error(f"Error in /waterfall: {str(e)}", exc_info=True)
+        logger.error("Error in /waterfall: %s", str(e), exc_info=True)
         return {
             "labels": [],
             "income": [],
@@ -1995,7 +1995,7 @@ async def get_heatmap_data(
 
         result = await session.execute(query)
         rows = result.all()
-        logger.debug(f"[HEATMAP] Query returned {len(rows)} rows for {start_date} to {end_date}")
+        logger.debug("[HEATMAP] Query returned %s rows for %s to %s", len(rows), start_date, end_date)
 
         # Build data by date (guard against None values)
         data_by_date = {row.fact_date: float(row.total) if row.total is not None else 0.0 for row in rows}

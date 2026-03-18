@@ -108,7 +108,7 @@ class LogsCollectorService:
             try:
                 container = client.containers.get(container_name)
             except NotFound:
-                logger.warning(f"[LOGS_COLLECTOR] Container not found: {container_name}")
+                logger.warning("[LOGS_COLLECTOR] Container not found: %s", container_name)
                 return []
 
             # Get logs from container
@@ -157,10 +157,10 @@ class LogsCollectorService:
             return logs
 
         except DockerException as e:
-            logger.error(f"[LOGS_COLLECTOR] Docker error for service={service}: {e}")
+            logger.error("[LOGS_COLLECTOR] Docker error for service=%s: %s", service, e)
             return []
         except Exception as e:
-            logger.error(f"[LOGS_COLLECTOR] Error collecting logs for service={service}: {e}", exc_info=True)
+            logger.error("[LOGS_COLLECTOR] Error collecting logs for service=%s: %s", service, e, exc_info=True)
             return []
 
     def collect_browser_logs(
@@ -216,7 +216,7 @@ class LogsCollectorService:
         # Filter by level
         if level and level != "all":
             filtered = [log for log in filtered if log.get("level") == level]
-            logger.debug(f"[LOGS_COLLECTOR] After level filter ({level}): {len(filtered)} logs")
+            logger.debug("[LOGS_COLLECTOR] After level filter (%s): %s logs", level, len(filtered))
 
         # Filter by date range
         if since:
@@ -224,14 +224,14 @@ class LogsCollectorService:
                 log for log in filtered
                 if log.get("timestamp") and self._parse_timestamp(log["timestamp"]) >= since
             ]
-            logger.debug(f"[LOGS_COLLECTOR] After since filter ({since}): {len(filtered)} logs")
+            logger.debug("[LOGS_COLLECTOR] After since filter (%s): %s logs", since, len(filtered))
 
         if until:
             filtered = [
                 log for log in filtered
                 if log.get("timestamp") and self._parse_timestamp(log["timestamp"]) <= until
             ]
-            logger.debug(f"[LOGS_COLLECTOR] After until filter ({until}): {len(filtered)} logs")
+            logger.debug("[LOGS_COLLECTOR] After until filter (%s): %s logs", until, len(filtered))
 
         return filtered
 
@@ -459,5 +459,5 @@ class LogsCollectorService:
 
         except (ValueError, IndexError):
             # Default to 1 hour if parsing fails
-            logger.warning(f"[LOGS_COLLECTOR] Failed to parse since={since}, defaulting to 1h")
+            logger.warning("[LOGS_COLLECTOR] Failed to parse since=%s, defaulting to 1h", since)
             return 3600

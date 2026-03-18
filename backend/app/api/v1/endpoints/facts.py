@@ -495,7 +495,7 @@ async def create_fact(
         else:
             await ws.broadcast_fact_created(response_data)
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for fact {fact.id}: {e}")
+        logger.warning("WebSocket broadcast failed for fact %s: %s", fact.id, e)
         # Don't fail the request if broadcast fails
 
     # AWAIT cache invalidation to ensure fresh data on subsequent requests
@@ -677,7 +677,7 @@ async def list_facts(
                     f"Using fallback: '{user_name}'"
                 )
         else:
-            logger.error(f"Fact {fact.id} has no associated user (user_id={fact.user_id})")
+            logger.error("Fact %s has no associated user (user_id=%s)", fact.id, fact.user_id)
 
         fact_dict = {
             "id": fact.id,
@@ -829,7 +829,7 @@ async def get_recent_facts(
         return enriched_facts
 
     except Exception as e:
-        logger.error(f"Error loading recent facts: {str(e)}", exc_info=True)
+        logger.error("Error loading recent facts: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to load recent facts"
@@ -1102,7 +1102,7 @@ async def get_recent_facts_html(
         return result_html
 
     except Exception as e:
-        logger.error(f"Error loading recent records: {str(e)}", exc_info=True)
+        logger.error("Error loading recent records: %s", e, exc_info=True)
         return """
         <div class="alert alert-error">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -1500,7 +1500,7 @@ async def update_fact(
         else:
             await ws.broadcast_fact_updated(response_data)
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for updated fact {fact.id}: {e}")
+        logger.warning("WebSocket broadcast failed for updated fact %s: %s", fact.id, e)
         # Don't fail the request if broadcast fails
 
     # AWAIT cache invalidation to ensure fresh data on subsequent requests
@@ -1605,7 +1605,7 @@ async def delete_fact(
         else:
             await ws.broadcast_fact_deleted(fact_id)
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for deleted fact {fact_id}: {e}")
+        logger.warning("WebSocket broadcast failed for deleted fact %s: %s", fact_id, e)
         # Don't fail the request if broadcast fails
 
     # AWAIT cache invalidation to ensure fresh data on subsequent requests
@@ -1706,7 +1706,7 @@ async def batch_delete_facts(
     await session.commit()
 
     deleted_count = len(facts_to_delete)
-    logger.info(f"[BULK_DELETE] Batch deleted {deleted_count} facts by user {current_user.id}")
+    logger.info("[BULK_DELETE] Batch deleted %s facts by user %s", deleted_count, current_user.id)
 
     # 5. WebSocket broadcast: SINGLE summary event (NEW PATTERN)
     # Replaces individual fact_deleted/plan_deleted events to eliminate toast spam
@@ -1718,9 +1718,9 @@ async def batch_delete_facts(
         record_type = record_types.pop() if len(record_types) == 1 else None
 
         await ws.broadcast_facts_batch_deleted(fact_ids_list, deleted_count, record_type)
-        logger.info(f"[BULK_DELETE] Broadcasted summary event: type={record_type}, count={deleted_count}")
+        logger.info("[BULK_DELETE] Broadcasted summary event: type=%s, count=%s", record_type, deleted_count)
     except Exception as e:
-        logger.warning(f"[BULK_DELETE] WebSocket broadcast failed: {e}")
+        logger.warning("[BULK_DELETE] WebSocket broadcast failed: %s", e)
         # Don't fail the request if broadcast fails
 
     # AWAIT cache invalidation to ensure fresh data on subsequent requests

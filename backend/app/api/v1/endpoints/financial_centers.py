@@ -201,8 +201,8 @@ async def update_financial_center(
     """
     # LOG: Request received
     logger.info(
-        f"[UPDATE_FC] Request received: fc_id={financial_center_id}, "
-        f"user_id={current_user.id}, data={update_data.model_dump(exclude_unset=True)}"
+        "[UPDATE_FC] Request received: fc_id=%s, user_id=%s, data=%s",
+        financial_center_id, current_user.id, update_data.model_dump(exclude_unset=True)
     )
 
     # Fetch financial center
@@ -220,7 +220,7 @@ async def update_financial_center(
         )
 
     # LOG: Found record
-    logger.info(f"[UPDATE_FC] Found: id={financial_center.id}, name='{financial_center.name}'")
+    logger.info("[UPDATE_FC] Found: id=%s, name=%r", financial_center.id, financial_center.name)
 
     # Get update dict
     update_dict = update_data.model_dump(exclude_unset=True)
@@ -228,12 +228,12 @@ async def update_financial_center(
     # Check if anything changed
     changed, changed_fields = has_changes(financial_center, update_dict)
     if not changed:
-        logger.info(f"[UPDATE_FC] No changes detected for fc_id={financial_center_id}")
+        logger.info("[UPDATE_FC] No changes detected for fc_id=%s", financial_center_id)
         # No changes, return existing financial center
         return FinancialCenterResponse.model_validate(financial_center)
 
     # LOG: Detected changes
-    logger.info(f"[UPDATE_FC] Detected changes: {changed_fields}")
+    logger.info("[UPDATE_FC] Detected changes: %s", changed_fields)
 
     # Use SCD1+History service for update
     updated_financial_center = await update_financial_center_profile(
@@ -246,8 +246,8 @@ async def update_financial_center(
 
     # LOG: Success
     logger.info(
-        f"[UPDATE_FC] Successfully updated fc_id={financial_center_id}, "
-        f"new_values: {update_dict}"
+        "[UPDATE_FC] Successfully updated fc_id=%s, new_values: %s",
+        financial_center_id, update_dict
     )
 
     # Invalidate financial centers cache
@@ -477,9 +477,8 @@ async def delete_financial_center(
         await cache_service.invalidate_dashboard()
 
     logger.info(
-        f"Physically deleted financial center {financial_center_id} "
-        f"({financial_center.name}) with {facts_count} related facts "
-        f"by admin {current_user.id}"
+        "Physically deleted financial center %s (%s) with %s related facts by admin %s",
+        financial_center_id, financial_center.name, facts_count, current_user.id
     )
 
     return {

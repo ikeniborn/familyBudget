@@ -59,7 +59,7 @@ async def init_redis_pool() -> None:
         )
         logger.info("Redis connection pool initialized")
     except Exception as e:
-        logger.error(f"Failed to initialize Redis pool: {e}")
+        logger.error("Failed to initialize Redis pool: %s", e)
         _redis_pool = None
 
 
@@ -189,7 +189,7 @@ async def check_redis_health() -> RedisHealthResult:
                 )
 
     except Exception as e:
-        logger.error(f"Redis health check failed: {e}")
+        logger.error("Redis health check failed: %s", e)
         return RedisHealthResult(
             is_healthy=False,
             error=str(e)
@@ -236,7 +236,7 @@ async def get_redis_stats() -> dict:
                 "uptime_days": server_info.get("uptime_in_days", 0),
             }
     except Exception as e:
-        logger.error(f"Failed to get Redis stats: {e}")
+        logger.error("Failed to get Redis stats: %s", e)
         return {"error": str(e)}
 
 
@@ -284,5 +284,5 @@ async def get_cache_breakdown() -> dict:
                 "by_category": breakdown,
             }
     except Exception as e:
-        logger.error(f"Failed to get cache breakdown: {e}")
+        logger.error("Failed to get cache breakdown: %s", e)
         return {"error": str(e)}

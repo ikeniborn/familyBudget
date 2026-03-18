@@ -179,7 +179,7 @@ class BankProviderService:
         if not bank:
             raise ValueError(f"Bank with id={bank_id} not found")
 
-        logger.info(f"Deleting bank id={bank_id}, code='{bank.code}'")
+        logger.info("Deleting bank id=%s, code='%s'", bank_id, bank.code)
 
         # 1. Delete staging records (by bank_provider_id)
         staging_stmt = select(ImportStaging).where(
@@ -191,7 +191,7 @@ class BankProviderService:
         for record in staging_records:
             await session.delete(record)
 
-        logger.info(f"Deleted {deleted_staging} staging records")
+        logger.info("Deleted %s staging records", deleted_staging)
 
         # 2. Delete file uploads (by bank_provider_id)
         uploads_stmt = select(ImportFileUpload).where(
@@ -203,7 +203,7 @@ class BankProviderService:
         for record in upload_records:
             await session.delete(record)
 
-        logger.info(f"Deleted {deleted_uploads} file upload records")
+        logger.info("Deleted %s file upload records", deleted_uploads)
 
         # 3. Delete column mappings (by bank_provider_id)
         mappings_stmt = select(ImportColumnMapping).where(
@@ -215,13 +215,13 @@ class BankProviderService:
         for record in mapping_records:
             await session.delete(record)
 
-        logger.info(f"Deleted {deleted_mappings} column mapping records")
+        logger.info("Deleted %s column mapping records", deleted_mappings)
 
         # 4. Delete bank provider
         await session.delete(bank)
         await session.commit()
 
-        logger.info(f"Bank id={bank_id} deleted successfully")
+        logger.info("Bank id=%s deleted successfully", bank_id)
 
         return {
             "deleted_staging": deleted_staging,

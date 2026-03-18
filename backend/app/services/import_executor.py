@@ -184,7 +184,8 @@ class ImportExecutor:
             This is intentional to allow partial imports.
         """
         logger.info(
-            f"Starting import execution for user {user_id}, selected_only={selected_only}"
+            "Starting import execution for user %s, selected_only=%s",
+            user_id, selected_only
         )
 
         # Get staging records
@@ -198,10 +199,10 @@ class ImportExecutor:
         staging_records = result.scalars().all()
 
         if not staging_records:
-            logger.info(f"No staging records to import for user {user_id}")
+            logger.info("No staging records to import for user %s", user_id)
             return 0, 0, []
 
-        logger.info(f"Found {len(staging_records)} staging records to import")
+        logger.info("Found %s staging records to import", len(staging_records))
 
         success_count = 0
         failed_count = 0
@@ -218,7 +219,7 @@ class ImportExecutor:
                         f"Staging ID {record.id}: {error_msg}"
                     )
                     logger.warning(
-                        f"Validation failed for staging {record.id}: {error_msg}"
+                        "Validation failed for staging %s: %s", record.id, error_msg
                     )
                     continue
 
@@ -250,7 +251,7 @@ class ImportExecutor:
 
                 session.add(fact)
                 success_count += 1
-                logger.debug(f"Created BudgetFact from staging {record.id}")
+                logger.debug("Created BudgetFact from staging %s", record.id)
 
             except IntegrityError as e:
                 failed_count += 1
@@ -258,7 +259,7 @@ class ImportExecutor:
                     f"Staging ID {record.id}: Database integrity error - {str(e.orig)}"
                 )
                 logger.error(
-                    f"Integrity error for staging {record.id}: {e}",
+                    "Integrity error for staging %s: %s", record.id, e,
                     exc_info=True
                 )
                 await session.rollback()
@@ -269,7 +270,7 @@ class ImportExecutor:
                     f"Staging ID {record.id}: Unexpected error - {str(e)}"
                 )
                 logger.error(
-                    f"Unexpected error for staging {record.id}: {e}",
+                    "Unexpected error for staging %s: %s", record.id, e,
                     exc_info=True
                 )
 
@@ -277,11 +278,11 @@ class ImportExecutor:
         try:
             await session.commit()
             logger.info(
-                f"Import completed: {success_count} success, {failed_count} failed"
+                "Import completed: %s success, %s failed", success_count, failed_count
             )
         except Exception as e:
             await session.rollback()
-            logger.error(f"Failed to commit import transaction: {e}", exc_info=True)
+            logger.error("Failed to commit import transaction: %s", e, exc_info=True)
             # All records failed
             return 0, len(staging_records), [f"Transaction commit failed: {str(e)}"]
 
@@ -305,7 +306,7 @@ class ImportExecutor:
             Number of deleted records
         """
         logger.info(
-            f"Cleaning up staging for user {user_id}, selected_only={selected_only}"
+            "Cleaning up staging for user %s, selected_only=%s", user_id, selected_only
         )
 
         # Get staging records to delete
@@ -326,6 +327,6 @@ class ImportExecutor:
 
         await session.commit()
 
-        logger.info(f"Deleted {deleted_count} staging records for user {user_id}")
+        logger.info("Deleted %s staging records for user %s", deleted_count, user_id)
 
         return deleted_count

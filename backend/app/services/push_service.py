@@ -104,7 +104,7 @@ class PushService:
                 # Don't commit here - let caller handle transaction
 
             logger.debug(
-                f"[Push] Sent to user {subscription.user_id}: {title}"
+                "[Push] Sent to user %s: %s", subscription.user_id, title
             )
             return True
 
@@ -112,22 +112,23 @@ class PushService:
             if e.response and e.response.status_code == 410:
                 # 410 Gone - subscription expired, remove from database
                 logger.info(
-                    f"[Push] Subscription expired for user {subscription.user_id}, "
-                    f"removing: {subscription.endpoint[:50]}..."
+                    "[Push] Subscription expired for user %s, removing: %s...",
+                    subscription.user_id, subscription.endpoint[:50]
                 )
                 if session:
                     await session.delete(subscription)
                     # Don't commit here - let caller handle transaction
             else:
                 logger.error(
-                    f"[Push] Failed to send to user {subscription.user_id}: "
-                    f"{e.response.status_code if e.response else 'Unknown error'}"
+                    "[Push] Failed to send to user %s: %s",
+                    subscription.user_id,
+                    e.response.status_code if e.response else 'Unknown error'
                 )
             return False
 
         except Exception as e:
             logger.error(
-                f"[Push] Unexpected error sending to user {subscription.user_id}: {e}"
+                "[Push] Unexpected error sending to user %s: %s", subscription.user_id, e
             )
             return False
 
@@ -162,7 +163,7 @@ class PushService:
         subscriptions = result.scalars().all()
 
         if not subscriptions:
-            logger.debug(f"[Push] No subscriptions for user {user_id}")
+            logger.debug("[Push] No subscriptions for user %s", user_id)
             return 0
 
         sent_count = 0
@@ -233,7 +234,7 @@ class PushService:
 
         if sent_count > 0:
             logger.info(
-                f"[Push] Broadcast to {sent_count} offline users: {title}"
+                "[Push] Broadcast to %s offline users: %s", sent_count, title
             )
 
         return sent_count
@@ -283,7 +284,7 @@ class PushService:
         await session.commit()
 
         if sent_count > 0:
-            logger.info(f"[Push] Broadcast to all ({sent_count} users): {title}")
+            logger.info("[Push] Broadcast to all (%s users): %s", sent_count, title)
 
         return sent_count
 

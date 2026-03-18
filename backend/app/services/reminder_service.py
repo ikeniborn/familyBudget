@@ -86,8 +86,8 @@ class ReminderService:
         await session.refresh(reminder)
 
         logger.info(
-            f"[REMINDER] Created reminder {reminder.id} for plan {fact_id}, "
-            f"scheduled at {reminder_datetime}"
+            "[REMINDER] Created reminder %s for plan %s, scheduled at %s",
+            reminder.id, fact_id, reminder_datetime,
         )
 
         return reminder
@@ -134,8 +134,8 @@ class ReminderService:
         await session.refresh(reminder)
 
         logger.info(
-            f"[REMINDER] Updated reminder {reminder.id} for plan {fact_id}, "
-            f"new datetime: {reminder_datetime}"
+            "[REMINDER] Updated reminder %s for plan %s, new datetime: %s",
+            reminder.id, fact_id, reminder_datetime,
         )
 
         return reminder
@@ -173,7 +173,7 @@ class ReminderService:
         await session.delete(reminder)
         await session.commit()
 
-        logger.info(f"[REMINDER] Deleted reminder for plan {fact_id}")
+        logger.info("[REMINDER] Deleted reminder for plan %s", fact_id)
 
         return True
 
@@ -301,14 +301,14 @@ class ReminderService:
         # Get plan and user info
         fact = await session.get(BudgetFact, reminder.fact_id)
         if not fact:
-            logger.error(f"[REMINDER] Plan {reminder.fact_id} not found for reminder {reminder.id}")
+            logger.error("[REMINDER] Plan %s not found for reminder %s", reminder.fact_id, reminder.id)
             reminder.mark_failed("Plan not found")
             await session.commit()
             return False, False
 
         user = await session.get(User, fact.user_id)
         if not user:
-            logger.error(f"[REMINDER] User {fact.user_id} not found for reminder {reminder.id}")
+            logger.error("[REMINDER] User %s not found for reminder %s", fact.user_id, reminder.id)
             reminder.mark_failed("User not found")
             await session.commit()
             return False, False
@@ -340,8 +340,9 @@ class ReminderService:
                 reminder.telegram_sent = telegram_sent
             else:
                 logger.info(
-                    f"[NOTIF_FILTER] Skipping Telegram reminder for user {user.id}: "
-                    "Telegram notifications disabled"
+                    "[NOTIF_FILTER] Skipping Telegram reminder for user %s: "
+                    "Telegram notifications disabled",
+                    user.id,
                 )
 
         # Send Web Push notification (check user preference)
@@ -357,22 +358,24 @@ class ReminderService:
             reminder.web_push_sent = web_push_sent
         else:
             logger.info(
-                f"[NOTIF_FILTER] Skipping Web Push reminder for user {user.id}: "
-                "Push notifications disabled"
+                "[NOTIF_FILTER] Skipping Web Push reminder for user %s: "
+                "Push notifications disabled",
+                user.id,
             )
 
         # Update reminder status
         if telegram_sent or web_push_sent:
             reminder.mark_sent()
             logger.info(
-                f"[REMINDER] Sent reminder {reminder.id} for plan {reminder.fact_id}: "
-                f"telegram={telegram_sent}, web_push={web_push_sent}"
+                "[REMINDER] Sent reminder %s for plan %s: telegram=%s, web_push=%s",
+                reminder.id, reminder.fact_id, telegram_sent, web_push_sent,
             )
         else:
             error_msg = "All notification channels failed"
             reminder.increment_retry(error_msg)
             logger.warning(
-                f"[REMINDER] Failed to send reminder {reminder.id}, retry_count={reminder.retry_count}"
+                "[REMINDER] Failed to send reminder %s, retry_count=%s",
+                reminder.id, reminder.retry_count,
             )
 
         await session.commit()
@@ -455,7 +458,7 @@ class ReminderService:
                 response.raise_for_status()
                 return True
         except httpx.HTTPError as e:
-            logger.error(f"[REMINDER] Failed to send Telegram message to {telegram_id}: {e}")
+            logger.error("[REMINDER] Failed to send Telegram message to %s: %s", telegram_id, e)
             return False
 
     async def _send_web_push_to_user(
@@ -496,7 +499,7 @@ class ReminderService:
         subscriptions = list(result.scalars().all())
 
         if not subscriptions:
-            logger.debug(f"[REMINDER] No push subscriptions for user {user_id}")
+            logger.debug("[REMINDER] No push subscriptions for user %s", user_id)
             return False
 
         # Try to import pywebpush
@@ -550,18 +553,18 @@ class ReminderService:
                 if e.response and e.response.status_code == 410:
                     # Subscription expired - mark for deletion
                     expired_subscriptions.append(subscription)
-                    logger.debug(f"[REMINDER] Subscription expired: {subscription.endpoint[:50]}...")
+                    logger.debug("[REMINDER] Subscription expired: %s...", subscription.endpoint[:50])
                 else:
-                    logger.error(f"[REMINDER] WebPush error: {e}")
+                    logger.error("[REMINDER] WebPush error: %s", e)
             except Exception as e:
-                logger.error(f"[REMINDER] Unexpected WebPush error: {e}")
+                logger.error("[REMINDER] Unexpected WebPush error: %s", e)
 
         # Delete expired subscriptions
         for sub in expired_subscriptions:
             await session.delete(sub)
 
         if sent_count > 0:
-            logger.info(f"[REMINDER] Sent Web Push to {sent_count}/{len(subscriptions)} subscriptions for user {user_id}")
+            logger.info("[REMINDER] Sent Web Push to %s/%s subscriptions for user %s", sent_count, len(subscriptions), user_id)
 
         return sent_count > 0
 

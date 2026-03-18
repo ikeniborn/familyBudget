@@ -201,8 +201,8 @@ async def create_transfer(
 
             if len(transfer_facts) != 2:
                 logger.error(
-                    f"[DEDUP] Inconsistent transfer state: transfer_id={existing_transfer_id} "
-                    f"has {len(transfer_facts)} facts instead of 2"
+                    "[DEDUP] Inconsistent transfer state: transfer_id=%s has %s facts instead of 2",
+                    existing_transfer_id, len(transfer_facts)
                 )
                 # Fall through to create new transfer
             else:
@@ -222,12 +222,11 @@ async def create_transfer(
 
                 if expense_fact and income_fact:
                     logger.info(
-                        f"[DEDUP] Transfer duplicate detected: sync_hash={transfer.sync_hash}, "
-                        f"existing_transfer_id={existing_transfer_id}, "
-                        f"expense_fact_id={expense_fact.id}, "
-                        f"income_fact_id={income_fact.id}, "
-                        f"user_id={current_user.id}, "
-                        f"skipping creation (idempotent)"
+                        "[DEDUP] Transfer duplicate detected: sync_hash=%s, "
+                        "existing_transfer_id=%s, expense_fact_id=%s, "
+                        "income_fact_id=%s, user_id=%s, skipping creation (idempotent)",
+                        transfer.sync_hash, existing_transfer_id,
+                        expense_fact.id, income_fact.id, current_user.id
                     )
 
                     # Return existing transfer (idempotent response)
@@ -333,7 +332,7 @@ async def create_transfer(
         }
         await ws.broadcast_transfer_created(transfer_data)
     except Exception as e:
-        logger.warning(f"SSE broadcast failed for transfer {transfer_id}: {e}")
+        logger.warning("SSE broadcast failed for transfer %s: %s", transfer_id, e)
         # Don't fail the request if broadcast fails
 
     # 9. Return response
@@ -416,7 +415,7 @@ async def delete_transfer(
     await session.commit()
 
     logger.info(
-        f"Deleted transfer {transfer_id} ({len(facts)} facts) by user {current_user.id}"
+        "Deleted transfer %s (%s facts) by user %s", transfer_id, len(facts), current_user.id
     )
 
     # SSE broadcast for transfer deleted (notify all connected clients)
@@ -424,7 +423,7 @@ async def delete_transfer(
         ws = _get_budget_ws_broadcast()
         await ws.broadcast_transfer_deleted(transfer_id)
     except Exception as e:
-        logger.warning(f"SSE broadcast failed for deleted transfer {transfer_id}: {e}")
+        logger.warning("SSE broadcast failed for deleted transfer %s: %s", transfer_id, e)
         # Don't fail the request if broadcast fails
 
     return None

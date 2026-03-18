@@ -99,11 +99,11 @@ async def publish_event(event_type: str, data: dict[str, Any]) -> bool:
                 to_remove = buffer_size - EVENT_BUFFER_MAX_SIZE
                 await redis.zremrangebyrank(EVENT_BUFFER_KEY, 0, to_remove - 1)
 
-        logger.debug(f"Published event: {event_type}")
+        logger.debug("Published event: %s", event_type)
         return True
 
     except Exception as e:
-        logger.error(f"Failed to publish event: {e}")
+        logger.error("Failed to publish event: %s", e)
         return False
 
 
@@ -150,7 +150,7 @@ async def get_events_since(since_timestamp: float) -> list[dict]:
             return events
 
     except Exception as e:
-        logger.error(f"Failed to get events from buffer: {e}")
+        logger.error("Failed to get events from buffer: %s", e)
         return []
 
 
@@ -176,7 +176,7 @@ async def _subscriber_loop():
                 pubsub = redis.pubsub()
                 await pubsub.subscribe(BUDGET_EVENTS_CHANNEL)
 
-                logger.info(f"Subscribed to Redis channel: {BUDGET_EVENTS_CHANNEL}")
+                logger.info("Subscribed to Redis channel: %s", BUDGET_EVENTS_CHANNEL)
 
                 # Use get_message() in a loop instead of listen()
                 # This prevents blocking and allows proper context manager handling
@@ -194,18 +194,18 @@ async def _subscriber_loop():
                             event_type = event.get("type")
                             event_data = event.get("data", {})
 
-                            logger.debug(f"Received Pub/Sub event: {event_type}")
+                            logger.debug("Received Pub/Sub event: %s", event_type)
 
                             # Forward to local connections via callback
                             if _local_broadcast_callback:
                                 await _local_broadcast_callback(event_type, event_data)
                             else:
-                                logger.warning(f"No callback registered, event {event_type} dropped")
+                                logger.warning("No callback registered, event %s dropped", event_type)
 
                         except ValueError as e:
-                            logger.warning(f"Invalid JSON in Pub/Sub message: {e}")
+                            logger.warning("Invalid JSON in Pub/Sub message: %s", e)
                         except Exception as e:
-                            logger.error(f"Error processing Pub/Sub message: {e}", exc_info=True)
+                            logger.error("Error processing Pub/Sub message: %s", e, exc_info=True)
 
         except asyncio.CancelledError:
             logger.info("Redis Pub/Sub subscriber cancelled")
@@ -217,7 +217,7 @@ async def _subscriber_loop():
             # Redis timeout is normal when no messages - just reconnect
             continue
         except redis.exceptions.ConnectionError as e:
-            logger.warning(f"Redis connection lost, reconnecting in 5s: {e}")
+            logger.warning("Redis connection lost, reconnecting in 5s: %s", e)
             await asyncio.sleep(5)
         except Exception as e:
             # Only log unexpected errors
@@ -225,7 +225,7 @@ async def _subscriber_loop():
             if "Timeout" in error_msg or "timeout" in error_msg:
                 # Timeout during listen is normal - just reconnect
                 continue
-            logger.error(f"Redis Pub/Sub error: {e}")
+            logger.error("Redis Pub/Sub error: %s", e)
             await asyncio.sleep(5)  # Wait before reconnecting
 
 
