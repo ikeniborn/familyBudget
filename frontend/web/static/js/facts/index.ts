@@ -119,8 +119,8 @@ async function initializeUI(): Promise<void> {
         // 4. Setup modal_fact event listeners (Today button, etc.)
         setupModalFactListeners();
 
-        // 5. Load facts with default filters
-        await loadFacts();
+        // 5. Load facts with default filters (forceAPI for correct sort order)
+        await loadFacts({ forceAPI: true });
 
     } catch (error) {
         logger.error(' Initialization error:', error);

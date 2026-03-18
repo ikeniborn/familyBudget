@@ -171,6 +171,13 @@ export async function updateFact(event: Event): Promise<void> {
         return;
     }
 
+    // Disable save button (loading state)
+    const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement | null;
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.classList.add('loading', 'loading-spinner');
+    }
+
     try {
         // Import dynamically to avoid circular dependency
         const { updateFact: updateFn } = await import('../integration/factsAPI');
@@ -208,10 +215,10 @@ export async function updateFact(event: Event): Promise<void> {
 
         await updateFn(factId, updateData);
 
-        showToast('Факт успешно обновлен', 'success');
-
-        // Close modal
+        // Close modal first so toast goes to global #toast-container, not inside dialog
         closeEditModal();
+
+        showToast('Факт успешно обновлен', 'success');
 
         // Reload facts from API (bypass Dexie cache)
         await loadFacts({ forceAPI: true });
@@ -219,6 +226,11 @@ export async function updateFact(event: Event): Promise<void> {
         logger.error(' Error updating fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка обновления: ${errorMessage}`, 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.classList.remove('loading', 'loading-spinner');
+        }
     }
 }
 
