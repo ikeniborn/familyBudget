@@ -185,10 +185,9 @@ export async function deleteFact(temp_id: string): Promise<void> {
 
 /**
  * Query budget facts с фильтрами
- * ВАЖНО: amount конвертируется из cents в dollars
  *
  * @param filters - Optional filters
- * @returns Array of facts (amount в dollars)
+ * @returns Array of facts (amount в рублях, без конвертации)
  */
 export async function queryFacts(filters?: FactFilters): Promise<LocalBudgetFact[]> {
   logger.debug('[Dexie] queryFacts', filters);
