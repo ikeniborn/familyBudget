@@ -103,10 +103,10 @@
                 <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📋 Плановые записи</h2>
                 <div class="flex flex-wrap gap-2">
                     <!-- Export button -->
-                    <button class="btn btn-sm btn-outline gap-1" onclick="exportFilteredFacts('csv')" title="Экспорт отфильтрованных транзакций в CSV">
+                    <button class="btn btn-sm btn-outline gap-1" data-action="export-csv" title="Экспорт отфильтрованных транзакций в CSV">
                         📄 CSV
                     </button>
-                    <button class="btn btn-sm btn-error gap-1 hidden md:flex" id="batch-delete-btn" onclick="batchDelete()" disabled>
+                    <button class="btn btn-sm btn-error gap-1 hidden md:flex" id="batch-delete-btn" data-action="batch-delete" disabled>
                         🗑️ Удалить выбранные
                     </button>
                 </div>

@@ -14,7 +14,7 @@
                 🔍 Фильтры
                 <span id="filter-indicator" class="badge badge-primary badge-sm ml-2 hidden">активны</span>
             </span>
-            <button class="btn btn-sm btn-ghost" onclick="event.stopPropagation(); window.PlanApp.resetFilters();">Сбросить</button>
+            <button class="btn btn-sm btn-ghost" data-action="reset-filters">Сбросить</button>
         </label>
         <div class="collapse-content">
             <div class="pt-4">
@@ -137,10 +137,10 @@
             </div>
 
             <div class="flex justify-end items-center gap-2 mt-4">
-                <button class="btn btn-sm btn-ghost gap-1" onclick="window.PlanApp.collapseFilters()">
+                <button class="btn btn-sm btn-ghost gap-1" data-action="collapse-filters">
                     ⬆️ Свернуть
                 </button>
-                <button class="btn btn-primary btn-sm" onclick="window.PlanApp.applyFilters()">Применить фильтры</button>
+                <button class="btn btn-primary btn-sm" data-action="apply-filters">Применить фильтры</button>
             </div>
             </div>
         </div>

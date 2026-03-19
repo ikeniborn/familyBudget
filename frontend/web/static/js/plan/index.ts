@@ -14,6 +14,19 @@ import * as PlanFactsTable from './factsTable';
 import * as PlanAnalytics from './analytics';
 import * as FilterAnalyticsSync from './filterAnalyticsSync';
 import * as PlanCRUD from './crud';
+import { setupEventDelegation } from './adapters/eventDelegation';
+import { setupWindowExports } from './adapters/windowExports';
+
+// Logger из utils/logger.js (загружается глобально через bundle)
+declare class Logger {
+  constructor(prefix: string, moduleKey: string);
+  debug(...args: any[]): void;
+  info(...args: any[]): void;
+  warn(...args: any[]): void;
+  error(...args: any[]): void;
+}
+
+const log = new Logger('[PLAN]', 'PLAN');
 
 // Re-export modules for external use
 export { PlanHelpers, PlanFilters, PlanFactsTable, PlanAnalytics, FilterAnalyticsSync, PlanCRUD };
@@ -55,6 +68,9 @@ interface PlanAppGlobal {
   syncFiltersToAnalytics: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
   syncAnalyticsToFilters: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
 
+  // Modal Save Actions
+  savePlanModal: (button: HTMLElement) => Promise<void>;
+
   // CRUD Actions (exposed for onclick handlers - Phase 3: Week 3-4)
   closeEditModal: () => void;
   deleteFact: (factId: number) => Promise<void>;
@@ -81,6 +97,7 @@ interface PlanAppGlobal {
 declare global {
   interface Window {
     PlanApp: PlanAppGlobal;
+    // savePlanModal уже объявлена в dashboard/types/globals.d.ts
   }
 }
 
@@ -93,9 +110,12 @@ declare global {
  * Called on DOMContentLoaded from inline script
  */
 export async function initialize(): Promise<void> {
-  console.log('[PLAN] Initializing plan page (Phase 2: Complete)...');
+  log.info('Initializing plan page (Phase 2: Complete)...');
 
   try {
+    // Инициализация делегирования событий (data-action вместо inline onclick)
+    setupEventDelegation();
+
     // Initialize default period filter UI
     PlanFilters.initDefaultPeriodFilter();
 
@@ -103,7 +123,7 @@ export async function initialize(): Promise<void> {
     PlanAnalytics.initAnalyticsMonthButtons();
 
     // Load dropdown data in parallel
-    console.log('[PLAN] Loading dropdown data...');
+    log.debug('Loading dropdown data...');
     await Promise.all([
       loadUsersDropdown(),
       loadArticlesDropdown(),
@@ -114,19 +134,19 @@ export async function initialize(): Promise<void> {
     ]);
 
     // Apply filters and load initial data
-    console.log('[PLAN] Applying initial filters...');
+    log.debug('Applying initial filters...');
     await applyFiltersAndLoadData();
 
     // Load analytics
-    console.log('[PLAN] Loading analytics...');
+    log.debug('Loading analytics...');
     await PlanAnalytics.loadPlanAnalytics();
 
     // Update filter indicator
     PlanFilters.updateFilterIndicator();
 
-    console.log('[PLAN] ✅ Plan page initialized successfully');
+    log.info('✅ Plan page initialized successfully');
   } catch (error) {
-    console.error('[PLAN] ❌ Error initializing plan page:', error);
+    log.error('❌ Error initializing plan page:', error);
     PlanHelpers.showNotification('Ошибка инициализации страницы: ' + (error as Error).message, 'error');
   }
 }
@@ -144,7 +164,7 @@ async function loadUsersDropdown(): Promise<void> {
     const select = document.getElementById('filter-user') as HTMLSelectElement | null;
 
     if (!select) {
-      console.warn('[PLAN] User dropdown not found');
+      log.warn('User dropdown not found');
       return;
     }
 
@@ -155,9 +175,9 @@ async function loadUsersDropdown(): Promise<void> {
       select.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${users.length} users`);
+    log.debug(`Loaded ${users.length} users`);
   } catch (error) {
-    console.error('[PLAN] Error loading users:', error);
+    log.error('Error loading users:', error);
   }
 }
 
@@ -248,7 +268,7 @@ async function loadArticlesDropdown(): Promise<void> {
     const filterSelect = document.getElementById('filter-article') as HTMLSelectElement | null;
 
     if (!filterSelect) {
-      console.warn('[PLAN] Article dropdown not found');
+      log.warn('Article dropdown not found');
       return;
     }
 
@@ -257,9 +277,9 @@ async function loadArticlesDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${sortedNodes.length} articles (${articles.length} total)`);
+    log.debug(`Loaded ${sortedNodes.length} articles (${articles.length} total)`);
   } catch (error) {
-    console.error('[PLAN] Error loading articles:', error);
+    log.error('Error loading articles:', error);
   }
 }
 
@@ -272,7 +292,7 @@ async function loadFinancialCentersDropdown(): Promise<void> {
     const filterSelect = document.getElementById('filter-financial-center') as HTMLSelectElement | null;
 
     if (!filterSelect) {
-      console.warn('[PLAN] Financial center dropdown not found');
+      log.warn('Financial center dropdown not found');
       return;
     }
 
@@ -283,9 +303,9 @@ async function loadFinancialCentersDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${centers.length} financial centers`);
+    log.debug(`Loaded ${centers.length} financial centers`);
   } catch (error) {
-    console.error('[PLAN] Error loading financial centers:', error);
+    log.error('Error loading financial centers:', error);
     PlanHelpers.showToast('Ошибка загрузки счетов: ' + (error as Error).message, 'error');
   }
 }
@@ -299,7 +319,7 @@ async function loadCostCentersDropdown(): Promise<void> {
     const filterSelect = document.getElementById('filter-cost-center') as HTMLSelectElement | null;
 
     if (!filterSelect) {
-      console.warn('[PLAN] Cost center dropdown not found');
+      log.warn('Cost center dropdown not found');
       return;
     }
 
@@ -310,9 +330,9 @@ async function loadCostCentersDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${centers.length} cost centers`);
+    log.debug(`Loaded ${centers.length} cost centers`);
   } catch (error) {
-    console.error('[PLAN] Error loading cost centers:', error);
+    log.error('Error loading cost centers:', error);
     PlanHelpers.showToast('Ошибка загрузки мест затрат: ' + (error as Error).message, 'error');
   }
 }
@@ -336,9 +356,9 @@ export async function applyFiltersAndLoadData(): Promise<void> {
     // Sync filters to analytics (debounced to prevent cascading reloads)
     FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
 
-    console.log('[PLAN] Filters applied and data reloaded');
+    log.debug('Filters applied and data reloaded');
   } catch (error) {
-    console.error('[PLAN] Error applying filters:', error);
+    log.error('Error applying filters:', error);
     PlanHelpers.showNotification('Ошибка применения фильтров: ' + (error as Error).message, 'error');
   }
 }
@@ -358,9 +378,9 @@ export async function resetFiltersAndLoadData(): Promise<void> {
     // Sync filters to analytics (debounced to prevent cascading reloads)
     FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
 
-    console.log('[PLAN] Filters reset and data reloaded');
+    log.debug('Filters reset and data reloaded');
   } catch (error) {
-    console.error('[PLAN] Error resetting filters:', error);
+    log.error('Error resetting filters:', error);
     PlanHelpers.showNotification('Ошибка сброса фильтров: ' + (error as Error).message, 'error');
   }
 }
@@ -373,14 +393,50 @@ export function collapseFiltersAction(): void {
 }
 
 // ============================================================================
-// Expose to Window Object
+// Modal Save Actions
 // ============================================================================
 
 /**
- * Expose PlanApp to global window object
- * Allows inline onclick handlers to call: window.PlanApp.applyFilters()
+ * Обработчик кнопки «Сохранить» в modal_plan.
+ * Аналог saveFactModal из facts/adapters/windowExports.ts.
+ * Вызывается через onclick="savePlanModal(this)" — без optional chaining,
+ * чтобы ошибка «функция не определена» была видима сразу.
+ *
+ * @param button - Кнопка с data-form-id и data-modal-id
  */
-window.PlanApp = {
+export async function savePlanModal(button: HTMLElement): Promise<void> {
+  if ((button as HTMLButtonElement).disabled) return;
+
+  const formId = button.dataset.formId;
+  const modalId = button.dataset.modalId || 'modal_plan';
+  const form = document.getElementById(formId || `form_${modalId}`) as HTMLFormElement | null;
+  if (!form) return;
+
+  if (modalId === 'modal_plan') {
+    // Для основного модала — TS-реализация из PlanCRUD (поддерживает recurring + offline)
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    Object.defineProperty(event, 'target', { value: form, writable: false });
+    await PlanCRUD.createPlan(event);
+  } else {
+    // Для остальных модалов (например modal_add_plan) — нативная отправка формы,
+    // которая триггерит зарегистрированный submit-обработчик из inline-скрипта
+    if (form.checkValidity()) {
+      form.requestSubmit();
+    } else {
+      form.reportValidity();
+    }
+  }
+}
+
+// ============================================================================
+// Expose to Window Object (через windowExports адаптер)
+// ============================================================================
+
+/**
+ * Построить объект публичного API страницы и экспортировать в window.
+ * Вынесено в отдельный адаптер adapters/windowExports.ts по образцу facts.
+ */
+const planApp: typeof window.PlanApp = {
   // Initialization
   initialize,
 
@@ -391,6 +447,9 @@ window.PlanApp = {
   Analytics: PlanAnalytics,
   FilterAnalyticsSync,
   CRUD: PlanCRUD,
+
+  // Modal Save Actions (for onclick handlers)
+  savePlanModal,
 
   // Filter Actions (for onclick handlers)
   applyFilters: applyFiltersAndLoadData,
@@ -432,7 +491,7 @@ window.PlanApp = {
   updateEditReminderDatetime: PlanCRUD.updateEditReminderDatetime
 };
 
-console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 4 complete)');
+setupWindowExports(planApp);
 
 // FAB toolbar compatibility (v10.1.11)
 // REMOVED: window.openModalPlan = PlanCRUD.openAddPlanModal
@@ -440,3 +499,35 @@ console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 4 complete)'
 // dashboard.min.js already exports correct openModalPlan with loadTransactionTabData()
 // This line was overriding the correct implementation, causing financial centers/categories
 // to not load automatically (Task #1, #2 from v10.1.41 fixes)
+
+// ============================================================================
+// Авто-инициализация (по образцу facts/index.ts)
+// ============================================================================
+
+/**
+ * Флаг предотвращает двойную инициализацию, если initialize() вызывается
+ * как через DOMContentLoaded, так и через window.PlanApp.initialize() вручную.
+ */
+let _isInitialized = false;
+
+/**
+ * Запустить initialize() один раз: либо сразу (DOM готов),
+ * либо после DOMContentLoaded.
+ * Аналог facts/index.ts:713-720.
+ */
+function autoInitialize(): void {
+  if (_isInitialized) return;
+  _isInitialized = true;
+  initialize();
+}
+
+if (typeof document !== 'undefined') {
+  if (document.readyState === 'loading') {
+    // DOM ещё не готов — ждём DOMContentLoaded
+    document.addEventListener('DOMContentLoaded', autoInitialize);
+  }
+  // Если readyState === 'interactive'/'complete', скрипт загружен в конце <body>.
+  // В этом случае inline JS в plan.html уже зарегистрировал свои DOMContentLoaded-обработчики
+  // и возьмёт на себя загрузку данных. После полной миграции inline JS
+  // добавить else { autoInitialize(); }.
+}
