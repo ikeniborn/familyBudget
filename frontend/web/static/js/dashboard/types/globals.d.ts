@@ -270,6 +270,14 @@ declare global {
     openAddTransactionModal?: () => Promise<void>;
     openFactTransferModal?: () => Promise<void>;
 
+    // Plan page (HTML onclick handlers)
+    openAddPlanModal?: () => void;
+    createPlan?: (event: Event) => Promise<void>;
+    batchDeleteRecurringPlans?: () => Promise<void>;
+    selectAnalyticsMonth?: (month: string, btn: HTMLButtonElement) => Promise<void>;
+    updateReminderDatetime?: (modalId: string) => void;
+    updateEditReminderDatetime?: () => void;
+
     // Tabbed Modals (v9.0)
     openModalFact?: () => void;
     closeModalFact?: () => void;
