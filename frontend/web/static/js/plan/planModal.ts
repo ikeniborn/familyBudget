@@ -24,6 +24,38 @@ let editReminderCalendarWidget: any = null;
 export const selectedRecurringPlanIds = new Set<number>();
 
 // ============================================================================
+// Modal Listener Manager
+// ============================================================================
+
+/**
+ * Encapsulated AbortController for edit modal event listeners.
+ * Ensures previous listeners are cleaned up before attaching new ones.
+ */
+export const ModalListenerManager = (() => {
+  let abortController: AbortController | null = null;
+
+  return {
+    registerListener(
+      element: HTMLElement,
+      eventName: string,
+      handler: EventListenerOrEventListenerObject
+    ): void {
+      if (abortController) {
+        abortController.abort();
+      }
+      abortController = new AbortController();
+      element.addEventListener(eventName, handler, { signal: abortController.signal });
+    },
+    abort(): void {
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+      }
+    },
+  };
+})();
+
+// ============================================================================
 // Submit Loading State
 // ============================================================================
 

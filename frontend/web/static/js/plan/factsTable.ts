@@ -56,14 +56,16 @@ let totalFacts = 0;
 let factsData: BudgetFact[] = [];
 
 /**
- * Set of selected fact IDs for batch operations
+ * Set of selected fact IDs for batch operations.
+ * Exported for use by crud.ts (shared live binding via Rollup).
  */
-let selectedFactIds: Set<number> = new Set();
+export let selectedFactIds: Set<number> = new Set();
 
 /**
- * Map of fact ID → reminder for reminder status display
+ * Map of fact ID → reminder for reminder status display.
+ * Exported for use by crud.ts (shared live binding via Rollup).
  */
-const remindersMap: Map<number, Reminder> = new Map();
+export const remindersMap: Map<number, Reminder> = new Map();
 
 /**
  * Get current page number
