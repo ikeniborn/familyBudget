@@ -30,4 +30,52 @@ export function setupWindowExports(
   // Прямой алиас savePlanModal — без optional chaining,
   // чтобы ошибка «функция не определена» была видима сразу
   window.savePlanModal = planApp.savePlanModal;
+
+  // -----------------------------------------------------------------------
+  // CRUD operations
+  // -----------------------------------------------------------------------
+  window.showEditModal = planApp.showEditModal;
+  window.closeEditModal = planApp.closeEditModal;
+  window.deleteFact = planApp.deleteFact;
+  window.deleteFromEditModal = planApp.deleteFromEditModal;
+  window.updateFact = planApp.updateFact;
+  window.batchDelete = planApp.batchDeleteFacts;       // HTML использует batchDelete
+  window.openAddPlanModal = planApp.openAddPlanModal;
+  window.createPlan = planApp.createPlan;
+  window.batchDeleteRecurringPlans = planApp.batchDeleteRecurringPlans;
+  // cast needed: window type uses string | null, planApp narrows to 'single' | 'all' | null
+  window.recurringDeleteResolve = planApp.recurringDeleteResolve as (choice: string | null) => void;
+
+  // -----------------------------------------------------------------------
+  // Filter operations
+  // -----------------------------------------------------------------------
+  window.applyFilters = planApp.applyFilters;
+  window.resetFilters = planApp.resetFilters;
+  window.collapseFilters = planApp.collapseFilters;
+
+  // -----------------------------------------------------------------------
+  // Table / Pagination operations
+  // -----------------------------------------------------------------------
+  window.previousPage = planApp.previousPage;
+  window.nextPage = planApp.nextPage;
+  window.toggleSelectAll = planApp.FactsTable.toggleSelectAll;
+
+  // -----------------------------------------------------------------------
+  // Analytics operations
+  // -----------------------------------------------------------------------
+  window.selectAnalyticsMonth = planApp.selectAnalyticsMonth;
+
+  // -----------------------------------------------------------------------
+  // Recurring plan helpers
+  // -----------------------------------------------------------------------
+  window.updateFrequencyFields = planApp.updateFrequencyFields;
+  window.updateYearlyFrequencyValue = planApp.updateYearlyFrequencyValue;
+  window.updateDurationFields = planApp.updateDurationFields;
+  window.updateRecurringPreview = planApp.updateRecurringPreview;
+
+  // -----------------------------------------------------------------------
+  // Reminder helpers
+  // -----------------------------------------------------------------------
+  window.updateReminderDatetime = planApp.updateReminderDatetime;
+  window.updateEditReminderDatetime = planApp.updateEditReminderDatetime;
 }

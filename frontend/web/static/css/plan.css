@@ -1,0 +1,132 @@
+/* Hide filters toggle checkbox */
+#filters-toggle {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Collapse behavior with checkbox */
+#filters-toggle:checked ~ .collapse-content {
+    max-height: 1000px;
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+/* Hide analytics toggle checkbox */
+#analytics-toggle {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Default state: collapsed (unchecked) */
+#analytics-toggle:not(:checked) ~ .collapse-content {
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
+}
+
+/* Expanded state */
+#analytics-toggle:checked ~ .collapse-content {
+    max-height: 2000px; /* Increased for analytics content */
+    padding-top: 1rem;
+    padding-bottom: 1rem;
+}
+
+/* Улучшенное отображение select элементов */
+.select {
+    min-height: 3rem;
+    line-height: 1.5;
+}
+
+.select option {
+    padding: 0.5rem;
+    line-height: 1.5;
+}
+
+/* Стили для категорий в иерархическом select */
+.category-parent {
+    font-weight: 600;
+    background-color: hsl(var(--b2));
+}
+
+.category-leaf {
+    padding-left: 0.5rem;
+}
+
+/* Улучшенная читаемость текста в select */
+.select:not([multiple]) {
+    background-position: right 0.75rem center;
+    padding-right: 2.5rem;
+}
+
+/* Достаточный отступ для длинного текста */
+.form-control .select {
+    text-overflow: ellipsis;
+}
+
+/* Трехуровневая структура фильтров */
+.filter-section {
+    padding: 1rem;
+    border: 1px solid hsl(var(--bc) / 0.1);
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+    background-color: hsl(var(--b1));
+}
+
+.filter-section-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: hsl(var(--bc) / 0.6);
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+/* Mobile Facts List Styles (Two-Line List) */
+.amount-expense { color: #ef4444; }
+.amount-income { color: #22c55e; }
+.amount-debit { color: #3b82f6; }
+.amount-credit { color: #f59e0b; }
+
+.facts-mobile-list {
+    display: none;
+}
+
+.transaction-item:not(:last-child) {
+    border-bottom: 1px solid hsl(var(--b3));
+}
+
+.transaction-item {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.transaction-item:hover {
+    background-color: hsl(var(--b2));
+}
+
+.transaction-item:active {
+    background-color: hsl(var(--b3));
+}
+
+/* Mobile: show list, hide table */
+@media (max-width: 768px) {
+    .facts-desktop-table {
+        display: none !important;
+    }
+    .facts-mobile-list {
+        display: block !important;
+    }
+}
+
+/* Desktop: show table, hide list */
+@media (min-width: 769px) {
+    .facts-desktop-table {
+        display: block;
+    }
+    .facts-mobile-list {
+        display: none;
+    }
+}
