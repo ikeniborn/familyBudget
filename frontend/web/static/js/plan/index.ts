@@ -525,9 +525,9 @@ if (typeof document !== 'undefined') {
   if (document.readyState === 'loading') {
     // DOM ещё не готов — ждём DOMContentLoaded
     document.addEventListener('DOMContentLoaded', autoInitialize);
+  } else {
+    // Скрипт загружен после DOM готов (readyState === 'interactive'/'complete').
+    // Inline JS удалён (Unit 4), поэтому инициализируем сразу.
+    autoInitialize();
   }
-  // Если readyState === 'interactive'/'complete', скрипт загружен в конце <body>.
-  // В этом случае inline JS в plan.html уже зарегистрировал свои DOMContentLoaded-обработчики
-  // и возьмёт на себя загрузку данных. После полной миграции inline JS
-  // добавить else { autoInitialize(); }.
 }
