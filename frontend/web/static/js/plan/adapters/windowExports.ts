@@ -12,6 +12,9 @@
  *   setupWindowExports(planAppObject, savePlanModalFn);
  */
 
+import * as PlanModal from '../planModal';
+import * as PlanHelpers from '../helpers';
+
 // Типы PlanApp определены в plan/index.ts через declare global Window
 // Используем any здесь, чтобы избежать циклической зависимости с index.ts
 
@@ -78,4 +81,29 @@ export function setupWindowExports(
   // -----------------------------------------------------------------------
   window.updateReminderDatetime = planApp.updateReminderDatetime;
   window.updateEditReminderDatetime = planApp.updateEditReminderDatetime;
+
+  // -----------------------------------------------------------------------
+  // Plan Modal helpers (ранее были в inline JS plan.html — Unit 4 рефакторинг)
+  // -----------------------------------------------------------------------
+  (window as any).setSubmitLoading = PlanModal.setSubmitLoading;
+  (window as any).loadFinancialCenters = PlanModal.loadFinancialCenters;
+  (window as any).loadCostCenters = PlanModal.loadCostCenters;
+  (window as any).filterCostCenterDropdown = PlanModal.filterCostCenterDropdown;
+  (window as any).resetEditReminderFields = PlanModal.resetEditReminderFields;
+  (window as any).populateEditReminderFields = PlanModal.populateEditReminderFields;
+  (window as any).initEditReminderCalendarWidget = PlanModal.initEditReminderCalendarWidget;
+  (window as any).setupCreatePlanPeriodButtons = PlanModal.setupCreatePlanPeriodButtons;
+  (window as any).loadRecurringPlans = PlanModal.loadRecurringPlans;
+  (window as any).updateBatchDeleteRecurringPlansButtonState = PlanModal.updateBatchDeleteRecurringPlansButtonState;
+  (window as any).selectedRecurringPlanIds = PlanModal.selectedRecurringPlanIds;
+
+  // prefillReminderDateTime и resetReminderFields — делегируем в dashboard
+  // (реализации в dashboard.min.js, экспортируются через window.Dashboard)
+  (window as any).prefillReminderDateTime = (modalId: string) =>
+    (window as any).Dashboard?.prefillReminderDateTime?.(modalId);
+  (window as any).resetReminderFields = (modalId: string) =>
+    (window as any).Dashboard?.resetReminderFields?.(modalId);
+
+  // getReminderStatusBadge — уже есть в helpers.ts
+  (window as any).getReminderStatusBadge = PlanHelpers.getReminderStatusBadge;
 }
