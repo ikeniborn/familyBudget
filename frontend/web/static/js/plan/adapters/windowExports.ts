@@ -83,6 +83,16 @@ export function setupWindowExports(
   window.updateEditReminderDatetime = planApp.updateEditReminderDatetime;
 
   // -----------------------------------------------------------------------
+  // Глобальные переменные состояния (ранее — inline JS plan.html)
+  // -----------------------------------------------------------------------
+  // allCategories: пустой массив, заполняется в loadArticlesDropdown (index.ts)
+  if (!(window as any).allCategories) {
+    (window as any).allCategories = [];
+  }
+  (window as any).ModalListenerManager = PlanModal.ModalListenerManager;
+  (window as any).showNotification = PlanHelpers.showNotification;
+
+  // -----------------------------------------------------------------------
   // Plan Modal helpers (ранее были в inline JS plan.html — Unit 4 рефакторинг)
   // -----------------------------------------------------------------------
   (window as any).setSubmitLoading = PlanModal.setSubmitLoading;

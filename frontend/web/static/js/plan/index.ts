@@ -260,6 +260,10 @@ function createArticleOption(node: PlanHelpers.FlatArticle): HTMLOptionElement {
 async function loadArticlesDropdown(): Promise<void> {
   try {
     const articles = await PlanHelpers.loadArticles();
+
+    // Populate global allCategories used by crud.ts (declare let allCategories)
+    (window as any).allCategories = articles;
+
     const tree = PlanHelpers.buildArticleTree(articles);
     const flatNodes = PlanHelpers.flattenArticleTree(tree);
     const sortedNodes = groupArticlesByType(flatNodes);

@@ -9,6 +9,7 @@
 
 import * as PlanHelpers from './helpers';
 import * as PlanFactsTable from './factsTable';
+import { remindersMap, selectedFactIds } from './factsTable';
 
 // Import BudgetShared from global
 declare const BudgetShared: {
@@ -30,16 +31,17 @@ declare const BudgetShared: {
   ChoicesCategoryTree: any; // Constructor
 };
 
-// Global variables from plan.html
+// Global variables from plan.html (set via window in planModal/windowExports)
 declare let allCategories: any[];
-declare let editCategoryTreeSelect: any;
-declare let editDateCalendar: any;
-declare let createCategoryTreeSelect: any;
-declare const remindersMap: Map<number, any>;
 declare const ModalListenerManager: any;
 declare const showNotification: (message: string, type: string) => void;
-declare const selectedFactIds: Set<number>;
 declare const selectedRecurringPlanIds: Set<number>;
+
+// Module-local state (previously declared as globals, only used in this module)
+let editCategoryTreeSelect: any = null;
+let editDateCalendar: any = null;
+let createCategoryTreeSelect: any = null;
+// remindersMap and selectedFactIds are imported from factsTable (see import above)
 
 // Logger class from utils/logger.js (loaded globally via bundle)
 declare class Logger {
@@ -637,7 +639,7 @@ export async function showEditModal(factId: number): Promise<void> {
   if (reminder) {
     if (reminderCheckbox) reminderCheckbox.checked = true;
     // Populate separate date/hour/minute fields
-    populateEditReminderFields(reminder.reminder_datetime);
+    populateEditReminderFields(reminder.remind_at);
     if (reminderSettingsDiv) reminderSettingsDiv.classList.remove('hidden');
     // Initialize CalendarWidget for edit reminder date
     initEditReminderCalendarWidget();
