@@ -96,25 +96,24 @@ export function initialize(): void {
  * Initialize UI components and load initial data
  */
 async function initializeUI(): Promise<void> {
+    // 1. Initialize default period filter
+    initDefaultPeriodFilter();
+
+    // 2. Initialize CalendarWidget for date range
+    initDateRangeCalendar();
+
+    // 3. Load all dropdown data independently — does not block facts loading
     try {
-        // 1. Initialize default period filter
-        initDefaultPeriodFilter();
-
-        // 2. Initialize CalendarWidget for date range
-        initDateRangeCalendar();
-
-        // 3. Load all dropdown data in parallel
         await loadAndPopulateDropdowns();
-
-        // 4. Setup modal_fact event listeners (Today button, etc.)
-        setupModalFactListeners();
-
-        // 5. Load facts with default filters
-        await loadFacts();
-
     } catch (error) {
-        logger.error(' Initialization error:', error);
+        logger.error('Ошибка загрузки dropdown:', error);
     }
+
+    // 4. Setup modal_fact event listeners (Today button, etc.)
+    setupModalFactListeners();
+
+    // 5. Always load facts, even if dropdowns failed
+    await loadFacts();
 }
 
 /**
