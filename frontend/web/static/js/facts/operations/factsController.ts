@@ -13,6 +13,8 @@ import type { CreateFactData, UpdateFactData, FactRow } from '../types/models';
 import { escapeHtml, sanitizeErrorMessage } from '../../shared/htmlSanitizer';
 import { TableFormatters } from '../../shared/tableUtils';
 import { factsControllerLogger as logger } from '../utilities/logger';
+import { setButtonLoading } from '../../dashboard/shared/utils/buttonState';
+import { initEditCategoryTree, destroyEditCategoryTree } from '../features/modalFact/categoryWidget';
 
 // ============================================================================
 // Main Load Function
@@ -204,12 +206,8 @@ export async function updateFact(event: Event): Promise<void> {
         return;
     }
 
-    // Disable save button (loading state)
     const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement | null;
-    if (submitBtn) {
-        submitBtn.disabled = true;
-        submitBtn.classList.add('loading', 'loading-spinner');
-    }
+    setButtonLoading(submitBtn, true);
 
     try {
         // Import dynamically to avoid circular dependency
@@ -233,10 +231,7 @@ export async function updateFact(event: Event): Promise<void> {
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка обновления: ${errorMessage}`, 'error');
     } finally {
-        if (submitBtn) {
-            submitBtn.disabled = false;
-            submitBtn.classList.remove('loading', 'loading-spinner');
-        }
+        setButtonLoading(submitBtn, false);
     }
 }
 
@@ -347,6 +342,9 @@ export async function showEditModal(factId: number): Promise<void> {
         // Populate edit modal
         populateEditModal(fact, getBudgetShared());
 
+        // Initialize category search tree for edit modal
+        initEditCategoryTree(fact.article_type ?? 'expense', fact.article_id ?? null);
+
         // Hide skeleton, show form
         if (skeleton) skeleton.classList.add('hidden');
         if (formFields) formFields.classList.remove('hidden');
@@ -383,14 +381,14 @@ function populateEditModal(fact: any, BudgetShared: any): void {
 
     // Тип категории - badge
     const categoryTypeLabel = document.getElementById('edit-category-type-label');
-    if (categoryTypeLabel && fact.article) {
+    if (categoryTypeLabel && fact.article_type) {
         const typeMap: Record<string, { text: string; badgeClass: string }> = {
             'expense': { text: 'Расход', badgeClass: 'badge-error' },
             'income': { text: 'Доход', badgeClass: 'badge-success' },
             'debit': { text: 'Списание', badgeClass: 'badge-info' },
             'credit': { text: 'Пополнение', badgeClass: 'badge-warning' }
         };
-        const typeInfo = typeMap[fact.article.record_type] || { text: 'Неизвестно', badgeClass: 'badge-neutral' };
+        const typeInfo = typeMap[fact.article_type] || { text: 'Неизвестно', badgeClass: 'badge-neutral' };
         categoryTypeLabel.textContent = typeInfo.text;
         categoryTypeLabel.className = `badge badge-sm ${typeInfo.badgeClass}`;
     }
@@ -428,6 +426,7 @@ export function closeEditModal(): void {
     if (modal?.close) {
         modal.close();
     }
+    destroyEditCategoryTree();
 }
 
 /**
