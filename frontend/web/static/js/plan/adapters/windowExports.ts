@@ -59,6 +59,7 @@ export function setupWindowExports(
   // -----------------------------------------------------------------------
   // Table / Pagination operations
   // -----------------------------------------------------------------------
+  window.loadFacts = planApp.loadFacts;
   window.previousPage = planApp.previousPage;
   window.nextPage = planApp.nextPage;
   window.toggleSelectAll = planApp.FactsTable.toggleSelectAll;

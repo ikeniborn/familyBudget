@@ -67,7 +67,6 @@ declare function resetRecurringSettings(modalId: string): void;
 declare function resetReminderFields(modalId: string): void;
 declare function setupCreatePlanPeriodButtons(): void;
 declare function setSubmitLoading(form: HTMLFormElement, isLoading: boolean): void;
-declare function loadFacts(): Promise<void>;
 declare function showToast(message: string, type: string): void;
 declare function loadRecurringPlans(): Promise<void>;
 declare function updateBatchDeleteRecurringPlansButtonState(): void;
@@ -1457,7 +1456,7 @@ export async function createPlan(event: Event): Promise<void> {
         const reminderSettings = document.getElementById('reminder-settings-modal_plan');
         if (reminderSettings) reminderSettings.classList.add('hidden');
         resetReminderFields(modalId);
-        await loadFacts();
+        await PlanFactsTable.loadFacts();
         setupCreatePlanPeriodButtons();
       } else {
         // Fallback to direct fetch if OfflineManager not available
@@ -1484,7 +1483,7 @@ export async function createPlan(event: Event): Promise<void> {
           const reminderSettings = document.getElementById('reminder-settings-modal_plan');
           if (reminderSettings) reminderSettings.classList.add('hidden');
           resetReminderFields(modalId);
-          await loadFacts();
+          await PlanFactsTable.loadFacts();
           setupCreatePlanPeriodButtons();
         } else {
           const error = await response.json();
@@ -1539,7 +1538,7 @@ export async function createPlan(event: Event): Promise<void> {
       const reminderSettings = document.getElementById('reminder-settings-modal_plan');
       if (reminderSettings) reminderSettings.classList.add('hidden');
       resetReminderFields('modal_plan');
-      await loadFacts(); // Перезагрузить список планов
+      await PlanFactsTable.loadFacts(); // Перезагрузить список планов
 
       // Переинициализировать кнопки периода
       setupCreatePlanPeriodButtons();
@@ -1575,7 +1574,7 @@ export async function createPlan(event: Event): Promise<void> {
         const reminderSettings = document.getElementById('reminder-settings-modal_plan');
         if (reminderSettings) reminderSettings.classList.add('hidden');
         resetReminderFields('modal_plan');
-        await loadFacts(); // Перезагрузить список планов
+        await PlanFactsTable.loadFacts(); // Перезагрузить список планов
 
         // Переинициализировать кнопки периода
         setupCreatePlanPeriodButtons();
@@ -1768,7 +1767,7 @@ export async function updateFact(event: Event): Promise<void> {
     }
 
     closeEditModal();
-    await loadFacts();
+    await PlanFactsTable.loadFacts();
     showNotification(successMessage, 'success');
   } catch (error) {
     logCrud.error('Error updating fact:', error);
@@ -1839,7 +1838,7 @@ export async function batchDeleteFacts(): Promise<void> {
     }
 
     const result = await response.json();
-    await loadFacts();
+    await PlanFactsTable.loadFacts();
     showNotification(`✅ Удалено транзакций: ${result.deleted_count}`, 'success');
   } catch (error) {
     logCrud.error('Error batch deleting facts:', error);
@@ -1931,7 +1930,7 @@ export async function batchDeleteRecurringPlans(): Promise<void> {
 
     // Reload data
     await loadRecurringPlans();
-    await loadFacts(); // Reload plan facts table
+    await PlanFactsTable.loadFacts(); // Reload plan facts table
 
     // Success notification (SINGLE)
     const message = result.failed && result.failed.length > 0

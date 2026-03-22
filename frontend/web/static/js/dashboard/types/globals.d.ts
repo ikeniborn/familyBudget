@@ -271,6 +271,7 @@ declare global {
     openFactTransferModal?: () => Promise<void>;
 
     // Plan page (HTML onclick handlers)
+    loadFacts?: () => Promise<void>;
     openAddPlanModal?: () => void;
     createPlan?: (event: Event) => Promise<void>;
     batchDeleteRecurringPlans?: () => Promise<void>;
