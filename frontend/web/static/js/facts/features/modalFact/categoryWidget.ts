@@ -13,7 +13,9 @@ import {
     getCreateTransferFromTree,
     setCreateTransferFromTree,
     getCreateTransferToTree,
-    setCreateTransferToTree
+    setCreateTransferToTree,
+    getEditCategoryTreeSelect,
+    setEditCategoryTreeSelect
 } from '../../core/stateManager';
 import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
 
@@ -251,6 +253,43 @@ function setupTransferFCListeners(): void {
         });
         toFcSelect.dataset.listenerAttached = 'true';
     }
+}
+
+// ============================================================================
+// Edit Modal Category Tree
+// ============================================================================
+
+/**
+ * Initialize ChoicesCategoryTree for the Edit Fact modal (#edit-article).
+ * Called on each modal open; destroys any previous instance first.
+ */
+export function initEditCategoryTree(articleType: string, selectedId: number | null): void {
+    const ChoicesCategoryTree = (window as any).BudgetShared?.ChoicesCategoryTree;
+    if (!ChoicesCategoryTree) return;
+    const articleSelect = document.querySelector('#edit-article');
+    if (!articleSelect) return;
+
+    const prev = getEditCategoryTreeSelect();
+    if (prev) { try { prev.destroy(); } catch (_) {} setEditCategoryTreeSelect(null); }
+
+    const instance = new ChoicesCategoryTree('#edit-article', {
+        type: articleType,
+        showLeafOnly: true,
+        mode: 'edit',
+        selectedId: selectedId,
+        onCategoryChange: () => {}
+    });
+    setEditCategoryTreeSelect(instance);
+    setupMobileModalPositioning(instance, 'edit-modal');
+}
+
+/**
+ * Destroy the Edit Fact modal category tree instance.
+ * Called on modal close to prevent double-init errors.
+ */
+export function destroyEditCategoryTree(): void {
+    const inst = getEditCategoryTreeSelect();
+    if (inst) { try { inst.destroy(); } catch (_) {} setEditCategoryTreeSelect(null); }
 }
 
 /**
