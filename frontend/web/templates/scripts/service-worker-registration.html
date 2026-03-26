@@ -362,7 +362,7 @@
             const arrowElem = document.getElementById('sw-version-arrow');
 
             // Defensive check: Ensure DOM elements exist
-            if (!currentElem || !newElem) {
+            if (!currentElem || !newElem || !arrowElem) {
                 console.warn('[SW_UPDATE] ⚠️ Version display elements not found in modal DOM');
                 console.warn('[SW_UPDATE] Modal will show without version information');
                 return;
@@ -377,10 +377,11 @@
             if (hasTransition) {
                 currentElem.textContent = currentVersion;
                 currentElem.classList.remove('hidden');
-                if (arrowElem) arrowElem.classList.remove('hidden');
+                arrowElem.classList.remove('hidden');
             } else {
+                currentElem.textContent = '';
                 currentElem.classList.add('hidden');
-                if (arrowElem) arrowElem.classList.add('hidden');
+                arrowElem.classList.add('hidden');
                 if (!currentVersion) {
                     console.warn('[SW_UPDATE] ⚠️ Current version missing (first install or localStorage cleared)');
                 }
@@ -561,8 +562,8 @@
 
             navigator.serviceWorker.register('/sw.min.js')
                 .then(async (registration) => {
-                    // Сохраняем текущую версию SW при загрузке
-                    // Не перезаписываем если уже есть ожидающее обновление (предотвращает показ X → X)
+                    // Save current SW version on load
+                    // Skip if update already pending — prevents overwriting old version with new (avoids X → X display)
                     if (navigator.serviceWorker.controller) {
                         const updatePending = localStorage.getItem(SW_UPDATE_AVAILABLE_KEY) === 'true';
                         if (!updatePending) {
