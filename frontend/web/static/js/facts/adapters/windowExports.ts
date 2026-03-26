@@ -28,6 +28,7 @@ import { setFactDate as setFactDateAction, setFactTransferDate as setFactTransfe
 import { initTransferCategoryTrees } from '../features/modalFact/categoryWidget';
 import { setButtonLoading } from '../../dashboard/shared/utils/buttonState';
 import { parseIntOrNull } from '../../dashboard/shared/utils/apiHelpers';
+import { getFilters, getPagination, getSelectedIds } from '../core/stateManager';
 
 // Window interface declarations are in:
 // - facts/types/globals.d.ts (facts-specific functions)
@@ -74,9 +75,9 @@ export function setupWindowExports(): void {
         showEditModal: (id: number) => showEditModal(id),
         deleteFact: (id: number) => deleteFact(id),
         toggleSelectAll: (checkbox: HTMLInputElement) => toggleSelectAll(checkbox),
-        getFilters: () => ({}),
-        getPagination: () => ({}),
-        getSelectedIds: () => new Set<number>(),
+        getFilters,
+        getPagination,
+        getSelectedIds,
     };
 
     // Transaction operations (delegated to external modules when available)
