@@ -379,7 +379,8 @@ async def get_quick_stats(
         Article.type.label("type"),
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-        Fact.fact_date == today
+        Fact.fact_date == today,
+        Fact.record_type == "fact",
     ).group_by(Article.type)
 
     today_result = await session.execute(today_query)
@@ -392,7 +393,8 @@ async def get_quick_stats(
         func.sum(Fact.amount).label("total")
     ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
         Fact.fact_date >= month_start,
-        Fact.fact_date <= today
+        Fact.fact_date <= today,
+        Fact.record_type == "fact",
     ).group_by(Article.type)
 
     month_result = await session.execute(month_query)

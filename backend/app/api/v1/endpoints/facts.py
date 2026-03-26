@@ -1170,10 +1170,10 @@ async def get_facts_summary(
         for fact in facts:
             article = articles.get(fact.article_id)
             if article:
-                if article.type == "income":
+                if article.type in ("income", "credit"):
                     total_income += fact.amount
                     count_income += 1
-                elif article.type == "expense":
+                elif article.type in ("expense", "debit"):
                     total_expense += fact.amount
                     count_expense += 1
 
