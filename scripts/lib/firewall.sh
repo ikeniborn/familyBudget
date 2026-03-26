@@ -228,7 +228,7 @@ configure_docker_firewall() {
         else
             warning "Could not install iptables-persistent — rules will not survive reboot"
             warning "Manual install: sudo apt-get install iptables-persistent"
-            return 0
+            return 1
         fi
     fi
 

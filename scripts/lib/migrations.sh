@@ -27,14 +27,13 @@ run_alembic_migrations() {
     info "Verifying PostgreSQL credentials..."
     local pg_user="${POSTGRES_USER:-familybudget}"
     local pg_db="${POSTGRES_DB:-familybudget}"
-    if ! timeout 10 docker exec familybudget-postgres \
-        psql -U "$pg_user" -d "$pg_db" -c "SELECT 1" > /dev/null 2>&1; then
+    if ! compose_cmd exec -T postgres psql -U "$pg_user" "$pg_db" -c "SELECT 1" > /dev/null 2>&1; then
         error "PostgreSQL credential mismatch — cannot connect as '${pg_user}' to '${pg_db}'"
         error "Likely cause: volume was created with a different POSTGRES_PASSWORD"
         error "Fix options:"
         error "  1. Reset with clean sync: ./deploy.sh --sync-mode clean"
         error "  2. Manually reset: docker exec familybudget-postgres psql -U postgres \
-             -c "ALTER USER ${pg_user} PASSWORD 'NEW_PASS';""
+             -c \"ALTER USER \${pg_user} PASSWORD 'NEW_PASS';\"" 
         return 1
     fi
     success "PostgreSQL credentials verified"
@@ -76,8 +75,7 @@ run_alembic_migrations() {
     if [[ "$current_revision" == "none" ]]; then
         # Distinguish truly empty DB from silent connection failure
         local table_count
-        table_count=$(timeout 5 docker exec familybudget-postgres \
-            psql -U "$pg_user" -d "$pg_db" -t -c \
+        table_count=$(compose_cmd exec -T postgres psql -U "$pg_user" "$pg_db" -t -c \
             "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" \
             2>/dev/null | tr -d ' \n' || echo "error")
         if [[ "$table_count" == "error" ]]; then
