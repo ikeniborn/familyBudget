@@ -186,6 +186,8 @@ export interface CategoryTreeSelectState {
     createCategoryTreeSelect: any | null; // CategoryTreeSelect instance
     editCategoryTreeSelect: any | null; // CategoryTreeSelect instance
     editDateCalendar: any | null; // CalendarWidget instance
+    createTransferFromTree: any | null; // ChoicesCategoryTree instance for transfer FROM
+    createTransferToTree: any | null; // ChoicesCategoryTree instance for transfer TO
 }
 
 /**

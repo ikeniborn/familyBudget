@@ -370,6 +370,40 @@ export function setEditDateCalendar(instance: any | null): void {
     });
 }
 
+/**
+ * Get transfer FROM category tree instance
+ */
+export function getCreateTransferFromTree(): any | null {
+    return getState().categoryTreeSelect.createTransferFromTree;
+}
+
+/**
+ * Set transfer FROM category tree instance
+ */
+export function setCreateTransferFromTree(instance: any | null): void {
+    const currentCTS = getState().categoryTreeSelect;
+    updateState({
+        categoryTreeSelect: { ...currentCTS, createTransferFromTree: instance }
+    });
+}
+
+/**
+ * Get transfer TO category tree instance
+ */
+export function getCreateTransferToTree(): any | null {
+    return getState().categoryTreeSelect.createTransferToTree;
+}
+
+/**
+ * Set transfer TO category tree instance
+ */
+export function setCreateTransferToTree(instance: any | null): void {
+    const currentCTS = getState().categoryTreeSelect;
+    updateState({
+        categoryTreeSelect: { ...currentCTS, createTransferToTree: instance }
+    });
+}
+
 // ============================================================================
 // Fact Hints Operations
 // ============================================================================

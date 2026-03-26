@@ -25,6 +25,9 @@ import {
     goToNextPage
 } from '../operations/factsController';
 import { setFactDate as setFactDateAction, setFactTransferDate as setFactTransferDateAction } from '../index';
+import { initTransferCategoryTrees } from '../features/modalFact/categoryWidget';
+import { setButtonLoading } from '../../dashboard/shared/utils/buttonState';
+import { parseIntOrNull } from '../../dashboard/shared/utils/apiHelpers';
 
 // Window interface declarations are in:
 // - facts/types/globals.d.ts (facts-specific functions)
@@ -66,6 +69,16 @@ export function setupWindowExports(): void {
     // FAB toolbar compatibility (v10.1.11)
     window.openModalFact = openAddTransactionModal;
 
+    // FactsManager namespace: used by onclick handlers in rendered table rows
+    window.FactsManager = {
+        showEditModal: (id: number) => showEditModal(id),
+        deleteFact: (id: number) => deleteFact(id),
+        toggleSelectAll: (checkbox: HTMLInputElement) => toggleSelectAll(checkbox),
+        getFilters: () => ({}),
+        getPagination: () => ({}),
+        getSelectedIds: () => new Set<number>(),
+    };
+
     // Transaction operations (delegated to external modules when available)
     window.saveTransaction = saveTransaction;
     window.saveTransfer = saveTransfer;
@@ -77,6 +90,9 @@ export function setupWindowExports(): void {
     window.setFactTransferDate = setFactTransferDateAction; // For modal_fact transfer tab date buttons
     window.loadFactHints = loadFactHintsWrapper;
     window.filterEditCostCenters = filterEditCostCenters;
+
+    // Save fact modal (modal_fact save button uses onclick="saveFactModal(this)")
+    window.saveFactModal = saveFactModalFacts;
 }
 
 // ============================================================================
@@ -94,7 +110,12 @@ async function openCreateModal(): Promise<void> {
  * Open add transaction modal
  */
 async function openAddTransactionModal(): Promise<void> {
-    // Delegate to Dashboard module if available (has skeleton loader)
+    // Delegate to Dashboard.openModalFact if available (has full tab+data setup)
+    if (typeof window.openModalFact === 'function' && window.openModalFact !== openAddTransactionModal) {
+        return (window.openModalFact as () => void | Promise<void>)();
+    }
+
+    // Delegate to Dashboard module openAddTransactionModal if available
     if (window.Dashboard?.openAddTransactionModal) {
         return window.Dashboard.openAddTransactionModal();
     }
@@ -103,31 +124,63 @@ async function openAddTransactionModal(): Promise<void> {
     // Try modern modal first (v10.x+)
     let modal = document.getElementById('modal_fact') as HTMLDialogElement | null;
 
-    // Legacy fallback removed in v11.x (modal_add_transaction deleted)
-    // Only modal_fact is used now
+    // Fallback to legacy modal (v9.x)
+    if (!modal) {
+        modal = document.getElementById('modal_add_transaction') as HTMLDialogElement | null;
+    }
 
     if (modal?.showModal) {
         // Set default date to today
         setTransactionDate(0);
         modal.showModal();
     } else {
-        console.warn('[FactsManager] Transaction modal not found (modal_fact)');
+        console.warn('[FactsManager] Transaction modal not found (tried modal_fact and modal_add_transaction)');
     }
 }
 
 /**
- * Open transfer modal
+ * Open transfer tab in modal_fact
+ * When dashboard.min.js is loaded, delegate to Dashboard.openFactTransferModal
+ * which initialises the full tabbed modal properly.
  */
 async function openFactTransferModal(): Promise<void> {
-    // Delegate to openFactTransferModal if available (has skeleton loader)
-    if (window.openFactTransferModal && window.openFactTransferModal !== openFactTransferModal) {
-        return window.openFactTransferModal();
+    // Delegate to Dashboard.openFactTransferModal if available (has full tab+data setup)
+    if (window.Dashboard?.openFactTransferModal) {
+        return window.Dashboard.openFactTransferModal();
     }
 
-    // Fallback: simple modal open without skeleton
-    const modal = document.getElementById('modal_add_transfer') as HTMLDialogElement | null;
+    // Fallback: open modal_fact and switch to transfer tab
+    const modal = document.getElementById('modal_fact') as HTMLDialogElement | null;
     if (modal?.showModal) {
+        setTransactionDate(0);
+        // Initialize category trees BEFORE showModal so user never sees plain <select>
+        // (MutationObserver will be a no-op due to existing instance guards)
+        await initTransferCategoryTrees();
         modal.showModal();
+
+        // Switch to transfer tab by checking the transfer radio input
+        const transferTabRadio = modal.querySelector('input[type="radio"][data-tab="transfer"]') as HTMLInputElement | null;
+        if (transferTabRadio) {
+            transferTabRadio.checked = true;
+            transferTabRadio.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        // Show transfer tab content, hide transaction tab content
+        const transactionContent = modal.querySelector('.tab-content[data-tab="transaction"]') as HTMLElement | null;
+        const transferContent = modal.querySelector('.tab-content[data-tab="transfer"]') as HTMLElement | null;
+        if (transactionContent) transactionContent.classList.add('hidden');
+        if (transferContent) transferContent.classList.remove('hidden');
+
+        // Update hidden active_tab input
+        const activeTabInput = modal.querySelector('input[name="active_tab"]') as HTMLInputElement | null;
+        if (activeTabInput) activeTabInput.value = 'transfer';
+        return;
+    }
+
+    // Legacy fallback: try old transfer modal
+    const legacyModal = document.getElementById('modal_add_transfer') as HTMLDialogElement | null;
+    if (legacyModal?.showModal) {
+        legacyModal.showModal();
     } else {
         console.warn('[FactsManager] Transfer modal not found');
     }
@@ -210,8 +263,8 @@ function setTransactionDate(offsetDays: number): void {
         date.toISOString().split('T')[0]
     );
 
-    // Find date input in transaction modal (v9.0+ uses modal_fact)
-    const dateInput = document.querySelector('#modal_fact input[name="fact_date"]') as HTMLInputElement;
+    // Find date input in transaction modal
+    const dateInput = document.querySelector('#modal_add_transaction input[name="fact_date"]') as HTMLInputElement;
     if (dateInput) {
         dateInput.value = formattedDate;
         // Trigger change event for any listeners
@@ -232,14 +285,18 @@ async function loadFactHintsWrapper(_category?: any): Promise<void> {
     if (!hintsContainer) return;
 
     try {
-        // Get form values
-        const form = document.getElementById('form_modal_add_transaction') as HTMLFormElement;
+        // modal_fact form (v10.x+) with fallback to legacy modal
+        const form = (
+            document.getElementById('form_modal_fact') ||
+            document.getElementById('form_modal_add_transaction')
+        ) as HTMLFormElement | null;
         if (!form) return;
 
         const formData = new FormData(form);
         const articleId = formData.get('article_id') as string;
         const factDate = formData.get('fact_date') as string;
-        const recordType = formData.get('record_type') as string;
+        // fact_type hidden (synced from record_type radio) — fallback to record_type
+        const recordType = (formData.get('fact_type') || formData.get('record_type')) as string;
         const financialCenterId = formData.get('financial_center_id') as string;
 
         if (!articleId || !factDate || !recordType) {
@@ -453,4 +510,121 @@ function exportFilteredFacts(format: 'csv'): void {
  */
 async function createFact(event: Event): Promise<void> {
     await createFactAction(event);
+}
+
+// ============================================================================
+// Save Fact Modal
+// ============================================================================
+
+/**
+ * Save handler for modal_fact
+ * Called by onclick="saveFactModal(this)" on the Save button in modal_fact.html
+ * Routes to transfer save (transfers.min.js) or fact create based on active tab
+ */
+async function saveFactModalFacts(button: HTMLElement): Promise<void> {
+    if ((button as HTMLButtonElement).disabled) return;
+
+    const formId = button.dataset.formId || 'form_modal_fact';
+    const modalId = button.dataset.modalId || 'modal_fact';
+    const form = document.getElementById(formId) as HTMLFormElement;
+    if (!form) return;
+
+    const activeTabInput = form.querySelector<HTMLInputElement>('input[name="active_tab"]');
+    const activeTab = activeTabInput?.value || 'transaction';
+
+    // Set button loading state
+    setButtonLoading(button, true);
+
+    // Temporarily disable required on inactive tab to avoid "not focusable" errors
+    const inactiveTabName = activeTab === 'transfer' ? 'transaction' : 'transfer';
+    const inactiveTabContainer = form.querySelector<HTMLElement>(`[data-tab="${inactiveTabName}"]`);
+    const inactiveRequiredFields = inactiveTabContainer
+        ? Array.from(inactiveTabContainer.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('[required]'))
+        : [];
+    inactiveRequiredFields.forEach(f => { f.required = false; });
+
+    const isValid = form.checkValidity();
+
+    inactiveRequiredFields.forEach(f => { f.required = true; });
+
+    if (!isValid) {
+        setButtonLoading(button, false);
+        form.reportValidity();
+        if (typeof (window as any).showToast === 'function') {
+            (window as any).showToast('Заполните все обязательные поля', 'warning');
+        }
+        return;
+    }
+
+    try {
+        if (activeTab === 'transfer') {
+            // Inline transfer save logic (avoids cross-module dynamic import issues in IIFE bundle)
+            const transferTab = form.querySelector('[data-tab="transfer"]') as HTMLElement;
+            const amountInput = transferTab?.querySelector('input[name="amount"]') as HTMLInputElement;
+            const descriptionInput = transferTab?.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+            const formData = new FormData(form);
+
+            const displayDate = formData.get('transfer_date') as string;
+            const BudgetShared = (window as any).BudgetShared;
+            const apiDate = BudgetShared?.DateFormatter.formatForAPI(displayDate);
+            if (!apiDate) throw new Error('Failed to convert date to API format');
+
+            const data = {
+                record_type: 'fact',
+                transfer_date: apiDate,
+                from_financial_center_id: parseIntOrNull(formData.get('from_financial_center_id'))!,
+                to_financial_center_id: parseIntOrNull(formData.get('to_financial_center_id'))!,
+                from_article_id: parseIntOrNull(formData.get('from_article_id')),
+                to_article_id: parseIntOrNull(formData.get('to_article_id')),
+                amount: parseFloat(amountInput?.value || '0'),
+                description: descriptionInput?.value || null
+            };
+
+            // Client-side validation: prevent same account for FROM and TO
+            if (data.from_financial_center_id && data.to_financial_center_id &&
+                data.from_financial_center_id === data.to_financial_center_id) {
+                const toSelect = transferTab?.querySelector<HTMLSelectElement>('select[name="to_financial_center_id"]');
+                if (toSelect) toSelect.value = '';
+                if (typeof (window as any).showToast === 'function') {
+                    (window as any).showToast('Счёт «Откуда» и «Куда» не могут совпадать', 'warning');
+                }
+                setButtonLoading(button, false);
+                return;
+            }
+
+            const response = await fetch('/api/v1/transfers', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP ${response.status}: ${errorText}`);
+            }
+        } else {
+            // Use facts controller createFact
+            // Dispatch event on form so event.target === form (required for FormData)
+            const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+            Object.defineProperty(submitEvent, 'target', { value: form, writable: false });
+            await createFactAction(submitEvent);
+        }
+
+        // Reset form and close modal on success
+        form.reset();
+        const modal = document.getElementById(modalId) as HTMLDialogElement;
+        modal?.close();
+
+        // Show success toast
+        if (typeof (window as any).showToast === 'function') {
+            (window as any).showToast('Факт сохранён', 'success');
+        }
+    } catch (error) {
+        console.error('[FactsManager] Error saving:', error);
+        if (typeof (window as any).showToast === 'function') {
+            (window as any).showToast('Ошибка сохранения', 'error');
+        }
+    } finally {
+        setButtonLoading(button, false);
+    }
 }
