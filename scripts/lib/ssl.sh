@@ -86,35 +86,15 @@ setup_ssl_certificates() {
                 warning "You may need to run manually: sudo scripts/ssl_certificate_manager.sh setup-cron"
             fi
 
-            # Check if HTTPS configuration already active (avoid unnecessary regeneration)
-            local nginx_conf="$DEPLOY_DIR/nginx/conf.d/app.conf"
-            if [[ -f "$nginx_conf" ]] && \
-               grep -q "listen 443 ssl" "$nginx_conf" && \
-               ! grep -q "^#.*listen 443 ssl" "$nginx_conf"; then
-
-                # Verify domain matches
-                local current_domain
-                current_domain=$(grep "server_name" "$nginx_conf" | grep -v "^#" | head -1 | awk '{print $2}' | tr -d ';')
-
-                if [[ "$current_domain" == "$domain" ]]; then
-                    success "SSL certificate valid for $domain - no changes needed"
-
-                    # Restart nginx to ensure certificate renewal is picked up
-                    # (Registry-first v9.0: entrypoint auto-selects HTTPS template if cert exists)
-                    if compose_cmd ps -q nginx >/dev/null 2>&1; then
-                        info "Restarting nginx to pick up any certificate updates..."
-                        compose_cmd restart nginx >> "$LOG_FILE" 2>&1 || true
-                        sleep 3
-                    fi
-
-                    return 0
-                else
-                    info "Domain changed ($current_domain → $domain), obtaining new certificate"
-                fi
+            # Registry-first v9.0: nginx entrypoint auto-selects HTTPS template when cert exists
+            # No need to check nginx.conf — just restart nginx to pick up the certificate
+            if compose_cmd ps -q nginx > /dev/null 2>&1; then
+                info "Restarting nginx to pick up certificate..."
+                compose_cmd restart nginx >> "$LOG_FILE" 2>&1 || true
+                sleep 3
             fi
-
-            # Certificate domain mismatch - will obtain new certificate below
-            warning "Certificate validation failed, will obtain new certificate"
+            success "SSL certificate valid for $domain - no changes needed"
+            return 0
         else
             warning "Certificate validation failed, will obtain new certificate"
         fi
