@@ -125,9 +125,14 @@ async function loadTransactionTabData(): Promise<void> {
       throw new Error('Article select element not available');
     }
 
-    // Get current plan type (expense/income)
+    // Get current plan type: prefer CSS active button state (persists across form.reset()),
+    // fall back to radio value, then default to 'expense'
+    const activeBtn = document.querySelector('#modal_plan-tab-transaction .transaction-type-btn.btn-active') as HTMLElement | null;
     const typeInput = document.querySelector('#modal_plan-tab-transaction input[name="plan_type"]:checked') as HTMLInputElement | null;
-    const planType = typeInput?.value || 'expense';
+    const planType = (activeBtn?.dataset.type as 'expense' | 'income') || typeInput?.value || 'expense';
+    // Sync radio to match CSS state (form.reset() resets radio but not CSS button classes)
+    const radioToSync = document.querySelector(`#modal_plan-tab-transaction input[name="plan_type"][value="${planType}"]`) as HTMLInputElement | null;
+    if (radioToSync) radioToSync.checked = true;
 
     if ((window as any).BudgetShared?.ChoicesCategoryTree) {
       const planCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
