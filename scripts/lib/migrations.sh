@@ -23,6 +23,22 @@ run_alembic_migrations() {
         return 1
     fi
 
+    # Verify PostgreSQL credentials match .env before running alembic
+    info "Verifying PostgreSQL credentials..."
+    local pg_user="${POSTGRES_USER:-familybudget}"
+    local pg_db="${POSTGRES_DB:-familybudget}"
+    if ! timeout 10 docker exec familybudget-postgres \
+        psql -U "$pg_user" -d "$pg_db" -c "SELECT 1" > /dev/null 2>&1; then
+        error "PostgreSQL credential mismatch — cannot connect as '${pg_user}' to '${pg_db}'"
+        error "Likely cause: volume was created with a different POSTGRES_PASSWORD"
+        error "Fix options:"
+        error "  1. Reset with clean sync: ./deploy.sh --sync-mode clean"
+        error "  2. Manually reset: docker exec familybudget-postgres psql -U postgres \
+             -c "ALTER USER ${pg_user} PASSWORD 'NEW_PASS';""
+        return 1
+    fi
+    success "PostgreSQL credentials verified"
+
     # Handle manual reapply flag (--reapply-migration <revision>)
     if [[ "$REAPPLY_MIGRATION" == "true" && -n "$REAPPLY_MIGRATION_FILE" ]]; then
         warning "Manual reapply requested for revision: $REAPPLY_MIGRATION_FILE"
@@ -58,7 +74,19 @@ run_alembic_migrations() {
     current_revision=$(compose_cmd exec -T backend python -m alembic -c backend/db/migrations/alembic.ini current 2>/dev/null | tail -1 | grep -oP '^[a-zA-Z0-9]{12}' || echo "none")
 
     if [[ "$current_revision" == "none" ]]; then
-        info "No migrations applied yet - fresh database detected"
+        # Distinguish truly empty DB from silent connection failure
+        local table_count
+        table_count=$(timeout 5 docker exec familybudget-postgres \
+            psql -U "$pg_user" -d "$pg_db" -t -c \
+            "SELECT count(*) FROM information_schema.tables WHERE table_schema='public';" \
+            2>/dev/null | tr -d ' \n' || echo "error")
+        if [[ "$table_count" == "error" ]]; then
+            warning "Cannot query tables — treating as fresh database (migration will initialize)"
+        elif [[ "$table_count" -gt 0 ]]; then
+            warning "DB has $table_count tables but no alembic revision tracked — possible partial init"
+        else
+            info "No migrations applied yet - fresh database detected"
+        fi
     else
         info "Current revision: $current_revision"
     fi
