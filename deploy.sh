@@ -1050,13 +1050,7 @@ main() {
     # NEW: Display and confirm IMAGE_VERSIONS.json (v9.0+)
     info "Reading deployment versions from IMAGE_VERSIONS.json..."
     if [[ -f "$DEPLOY_DIR/IMAGE_VERSIONS.json" ]]; then
-        # Display versions
-        if ! display_deployment_versions; then
-            error "Failed to read IMAGE_VERSIONS.json"
-            exit 1
-        fi
-
-        # Ask confirmation
+        # Display versions + ask confirmation (display_deployment_versions called inside)
         if ! confirm_deployment_versions; then
             error "Deployment cancelled by user"
             exit 1

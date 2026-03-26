@@ -20,7 +20,7 @@
   },
   "nginx": {
     "version": "11.1.30",
-    "hash": "413175d8",
+    "hash": "placeholder",
     "lastModified": "2026-02-02T13:22:48Z",
     "paths": [
       "nginx/"
