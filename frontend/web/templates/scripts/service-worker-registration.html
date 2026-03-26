@@ -562,8 +562,7 @@
 
             navigator.serviceWorker.register('/sw.min.js')
                 .then(async (registration) => {
-                    // Save current SW version on load
-                    // Skip if update already pending — prevents overwriting old version with new (avoids X → X display)
+                    // Save current SW version on load; skip if update pending (avoids X → X display)
                     if (navigator.serviceWorker.controller) {
                         const updatePending = localStorage.getItem(SW_UPDATE_AVAILABLE_KEY) === 'true';
                         if (!updatePending) {
