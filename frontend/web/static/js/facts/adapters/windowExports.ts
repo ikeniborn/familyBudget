@@ -27,6 +27,8 @@ import {
 import { setFactDate as setFactDateAction, setFactTransferDate as setFactTransferDateAction } from '../index';
 import { initTransferCategoryTrees } from '../features/modalFact/categoryWidget';
 import { setButtonLoading } from '../../dashboard/shared/utils/buttonState';
+import { parseIntOrNull } from '../../dashboard/shared/utils/apiHelpers';
+import { getFilters, getPagination, getSelectedIds } from '../core/stateManager';
 
 // Window interface declarations are in:
 // - facts/types/globals.d.ts (facts-specific functions)
@@ -74,9 +76,9 @@ export function setupWindowExports(): void {
         showEditModal: (id: number) => showEditModal(id),
         deleteFact: (id: number) => deleteFact(id),
         toggleSelectAll: (checkbox: HTMLInputElement) => toggleSelectAll(checkbox),
-        getFilters: () => ({}),
-        getPagination: () => ({}),
-        getSelectedIds: () => new Set<number>(),
+        getFilters,
+        getPagination,
+        getSelectedIds,
     };
 
     // Transaction operations (delegated to external modules when available)
@@ -538,8 +540,17 @@ async function saveFactModalFacts(button: HTMLElement): Promise<void> {
     // Set button loading state
     setButtonLoading(button, true);
 
-    // Validate form before save
-    if (!form.checkValidity()) {
+    // Validate active tab only — inactive tab fields are hidden and must not block submission
+    const inactiveTabName = activeTab === 'transfer' ? 'transaction' : 'transfer';
+    const inactiveContainer = form.querySelector<HTMLElement>(`[data-tab="${inactiveTabName}"]`);
+    const inactiveRequired = inactiveContainer
+        ? Array.from(inactiveContainer.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('[required]'))
+        : [];
+    inactiveRequired.forEach(f => { f.required = false; });
+    const isValid = form.checkValidity();
+    inactiveRequired.forEach(f => { f.required = true; });
+
+    if (!isValid) {
         setButtonLoading(button, false);
         form.reportValidity();
         if (typeof (window as any).showToast === 'function') {
@@ -561,12 +572,6 @@ async function saveFactModalFacts(button: HTMLElement): Promise<void> {
             const apiDate = BudgetShared?.DateFormatter.formatForAPI(displayDate);
             if (!apiDate) throw new Error('Failed to convert date to API format');
 
-            const parseIntOrNull = (v: FormDataEntryValue | null): number | null => {
-                if (!v) return null;
-                const n = parseInt(v as string);
-                return isNaN(n) ? null : n;
-            };
-
             const data = {
                 record_type: 'fact',
                 transfer_date: apiDate,
@@ -577,6 +582,18 @@ async function saveFactModalFacts(button: HTMLElement): Promise<void> {
                 amount: parseFloat(amountInput?.value || '0'),
                 description: descriptionInput?.value || null
             };
+
+            // Client-side validation: FROM and TO accounts must differ
+            if (data.from_financial_center_id && data.to_financial_center_id &&
+                data.from_financial_center_id === data.to_financial_center_id) {
+                const toSelect = transferTab?.querySelector<HTMLSelectElement>('select[name="to_financial_center_id"]');
+                if (toSelect) toSelect.value = '';
+                if (typeof (window as any).showToast === 'function') {
+                    (window as any).showToast('Счёт «Откуда» и «Куда» не могут совпадать', 'warning');
+                }
+                setButtonLoading(button, false);
+                return;
+            }
 
             const response = await fetch('/api/v1/transfers', {
                 method: 'POST',
