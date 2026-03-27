@@ -15,6 +15,16 @@ import * as PlanAnalytics from './analytics';
 import * as FilterAnalyticsSync from './filterAnalyticsSync';
 import * as PlanCRUD from './crud';
 
+declare class Logger {
+  constructor(prefix: string, moduleKey: string);
+  debug(...args: any[]): void;
+  info(...args: any[]): void;
+  warn(...args: any[]): void;
+  error(...args: any[]): void;
+}
+
+const log = new Logger('[PLAN]', 'PLAN');
+
 // Re-export modules for external use
 export { PlanHelpers, PlanFilters, PlanFactsTable, PlanAnalytics, FilterAnalyticsSync, PlanCRUD };
 
@@ -93,7 +103,7 @@ declare global {
  * Called on DOMContentLoaded from inline script
  */
 export async function initialize(): Promise<void> {
-  console.log('[PLAN] Initializing plan page (Phase 2: Complete)...');
+  log.info('Initializing plan page...');
 
   try {
     // Initialize default period filter UI
@@ -103,7 +113,7 @@ export async function initialize(): Promise<void> {
     PlanAnalytics.initAnalyticsMonthButtons();
 
     // Load dropdown data in parallel
-    console.log('[PLAN] Loading dropdown data...');
+    log.debug('Loading dropdown data...');
     await Promise.all([
       loadUsersDropdown(),
       loadArticlesDropdown(),
@@ -114,19 +124,22 @@ export async function initialize(): Promise<void> {
     ]);
 
     // Apply filters and load initial data
-    console.log('[PLAN] Applying initial filters...');
+    log.debug('Applying initial filters...');
     await applyFiltersAndLoadData();
 
-    // Load analytics
-    console.log('[PLAN] Loading analytics...');
-    await PlanAnalytics.loadPlanAnalytics();
+    // Load analytics and recurring plans in parallel
+    log.debug('Loading analytics and recurring plans...');
+    await Promise.all([
+      PlanAnalytics.loadPlanAnalytics(),
+      (window as any).loadRecurringPlans?.(),
+    ]);
 
     // Update filter indicator
     PlanFilters.updateFilterIndicator();
 
-    console.log('[PLAN] ✅ Plan page initialized successfully');
+    log.info('Plan page initialized successfully');
   } catch (error) {
-    console.error('[PLAN] ❌ Error initializing plan page:', error);
+    log.error('Error initializing plan page:', error);
     PlanHelpers.showNotification('Ошибка инициализации страницы: ' + (error as Error).message, 'error');
   }
 }
@@ -144,7 +157,7 @@ async function loadUsersDropdown(): Promise<void> {
     const select = document.getElementById('filter-user') as HTMLSelectElement | null;
 
     if (!select) {
-      console.warn('[PLAN] User dropdown not found');
+      log.warn('User dropdown not found');
       return;
     }
 
@@ -155,9 +168,9 @@ async function loadUsersDropdown(): Promise<void> {
       select.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${users.length} users`);
+    log.debug(`Loaded ${users.length} users`);
   } catch (error) {
-    console.error('[PLAN] Error loading users:', error);
+    log.error('Error loading users:', error);
   }
 }
 
@@ -248,7 +261,7 @@ async function loadArticlesDropdown(): Promise<void> {
     const filterSelect = document.getElementById('filter-article') as HTMLSelectElement | null;
 
     if (!filterSelect) {
-      console.warn('[PLAN] Article dropdown not found');
+      log.warn('Article dropdown not found');
       return;
     }
 
@@ -257,9 +270,9 @@ async function loadArticlesDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${sortedNodes.length} articles (${articles.length} total)`);
+    log.debug(`Loaded ${sortedNodes.length} articles (${articles.length} total)`);
   } catch (error) {
-    console.error('[PLAN] Error loading articles:', error);
+    log.error('Error loading articles:', error);
   }
 }
 
@@ -272,7 +285,7 @@ async function loadFinancialCentersDropdown(): Promise<void> {
     const filterSelect = document.getElementById('filter-financial-center') as HTMLSelectElement | null;
 
     if (!filterSelect) {
-      console.warn('[PLAN] Financial center dropdown not found');
+      log.warn('Financial center dropdown not found');
       return;
     }
 
@@ -283,9 +296,9 @@ async function loadFinancialCentersDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${centers.length} financial centers`);
+    log.debug(`Loaded ${centers.length} financial centers`);
   } catch (error) {
-    console.error('[PLAN] Error loading financial centers:', error);
+    log.error('Error loading financial centers:', error);
     PlanHelpers.showToast('Ошибка загрузки счетов: ' + (error as Error).message, 'error');
   }
 }
@@ -299,7 +312,7 @@ async function loadCostCentersDropdown(): Promise<void> {
     const filterSelect = document.getElementById('filter-cost-center') as HTMLSelectElement | null;
 
     if (!filterSelect) {
-      console.warn('[PLAN] Cost center dropdown not found');
+      log.warn('Cost center dropdown not found');
       return;
     }
 
@@ -310,9 +323,9 @@ async function loadCostCentersDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${centers.length} cost centers`);
+    log.debug(`Loaded ${centers.length} cost centers`);
   } catch (error) {
-    console.error('[PLAN] Error loading cost centers:', error);
+    log.error('Error loading cost centers:', error);
     PlanHelpers.showToast('Ошибка загрузки мест затрат: ' + (error as Error).message, 'error');
   }
 }
@@ -336,9 +349,9 @@ export async function applyFiltersAndLoadData(): Promise<void> {
     // Sync filters to analytics (debounced to prevent cascading reloads)
     FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
 
-    console.log('[PLAN] Filters applied and data reloaded');
+    log.debug('Filters applied and data reloaded');
   } catch (error) {
-    console.error('[PLAN] Error applying filters:', error);
+    log.error('Error applying filters:', error);
     PlanHelpers.showNotification('Ошибка применения фильтров: ' + (error as Error).message, 'error');
   }
 }
@@ -358,9 +371,9 @@ export async function resetFiltersAndLoadData(): Promise<void> {
     // Sync filters to analytics (debounced to prevent cascading reloads)
     FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
 
-    console.log('[PLAN] Filters reset and data reloaded');
+    log.debug('Filters reset and data reloaded');
   } catch (error) {
-    console.error('[PLAN] Error resetting filters:', error);
+    log.error('Error resetting filters:', error);
     PlanHelpers.showNotification('Ошибка сброса фильтров: ' + (error as Error).message, 'error');
   }
 }
@@ -432,7 +445,7 @@ window.PlanApp = {
   updateEditReminderDatetime: PlanCRUD.updateEditReminderDatetime
 };
 
-console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 4 complete)');
+log.info('PlanApp exposed to window object');
 
 // FAB toolbar compatibility (v10.1.11)
 // REMOVED: window.openModalPlan = PlanCRUD.openAddPlanModal
