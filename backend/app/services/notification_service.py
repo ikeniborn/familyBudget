@@ -10,11 +10,10 @@ from decimal import Decimal
 
 import httpx
 from sqlmodel import select
-
-from backend.app.services.telegram_auth import _make_telegram_client
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import Settings
+from backend.app.services.telegram_auth import make_telegram_client
 from backend.app.core.logging import get_logger
 from backend.app.db.session import get_session_context
 from backend.app.models.article import Article
@@ -53,7 +52,7 @@ class NotificationService:
             bool: True if message sent successfully
         """
         try:
-            async with _make_telegram_client() as client:
+            async with make_telegram_client() as client:
                 response = await client.post(
                     f"{self.telegram_api_url}/sendMessage",
                     json={

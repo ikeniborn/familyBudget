@@ -29,7 +29,7 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
-def _make_telegram_client() -> httpx.AsyncClient:
+def make_telegram_client() -> httpx.AsyncClient:
     """Create httpx client with optional proxy for Telegram API requests."""
     proxy_url = settings.TELEGRAM_PROXY_URL
     if proxy_url:
@@ -75,7 +75,7 @@ async def get_bot_username() -> str | None:
         url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getMe"
 
         # Make request to Telegram API
-        async with _make_telegram_client() as client:
+        async with make_telegram_client() as client:
             response = await client.get(url, timeout=10.0)
 
         # Check if request was successful
@@ -143,7 +143,7 @@ async def validate_telegram_user(telegram_id: int) -> bool:
         url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getChat"
 
         # Make request to Telegram API
-        async with _make_telegram_client() as client:
+        async with make_telegram_client() as client:
             response = await client.get(
                 url,
                 params={"chat_id": telegram_id},
@@ -231,7 +231,7 @@ async def fetch_telegram_user_info(telegram_id: int) -> dict[str, Any] | None:
         url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getChat"
 
         # Make request to Telegram API
-        async with _make_telegram_client() as client:
+        async with make_telegram_client() as client:
             response = await client.get(
                 url,
                 params={"chat_id": telegram_id},
@@ -277,7 +277,7 @@ async def fetch_telegram_user_info(telegram_id: int) -> dict[str, Any] | None:
                 if file_id:
                     # Call getFile to get file_path
                     file_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getFile"
-                    async with _make_telegram_client() as file_client:
+                    async with make_telegram_client() as file_client:
                         file_response = await file_client.get(
                             file_url,
                             params={"file_id": file_id},

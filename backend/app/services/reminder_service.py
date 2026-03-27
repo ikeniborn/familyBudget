@@ -8,11 +8,10 @@ from datetime import datetime
 
 import httpx
 from sqlmodel import select
-
-from backend.app.services.telegram_auth import _make_telegram_client
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import Settings, get_settings
+from backend.app.services.telegram_auth import make_telegram_client
 from backend.app.core.json_utils import dumps as json_dumps
 from backend.app.core.logging import get_logger
 from backend.app.models.article import Article
@@ -448,7 +447,7 @@ class ReminderService:
             bool: True if message sent successfully
         """
         try:
-            async with _make_telegram_client() as client:
+            async with make_telegram_client() as client:
                 response = await client.post(
                     f"{self.telegram_api_url}/sendMessage",
                     json={
