@@ -250,41 +250,40 @@ jobs:
 
       - name: Check image changes
         id: changes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Backend changes
-          if bash scripts/ci/check_image_changes.sh backend | grep -q "build"; then
-            echo "backend=true" >> $GITHUB_OUTPUT
-          else
-            echo "backend=false" >> $GITHUB_OUTPUT
-          fi
+          # Returns 0 (build) if: hash changed OR image tag missing from registry
+          needs_build() {
+            local service="$1"
+            # Check git hash first
+            if bash scripts/ci/check_image_changes.sh "$service" | grep -q "build"; then
+              return 0
+            fi
+            # Fallback: verify image tag exists in registry via GitHub API
+            # Guards against accidental deletion of images that haven't changed
+            local version
+            version=$(jq -r ".${service}.version // empty" IMAGE_VERSIONS.json 2>/dev/null)
+            if [[ -n "$version" ]]; then
+              local found
+              found=$(gh api \
+                -H "Accept: application/vnd.github+json" \
+                "/users/${{ github.repository_owner }}/packages/container/familybudget-${service}/versions" \
+                --jq "[.[] | select(.metadata.container.tags | contains([\"${version}\"]))] | length" \
+                2>/dev/null || echo "0")
+              if [[ "$found" == "0" || -z "$found" ]]; then
+                echo "⚠️ ${service}:${version} not found in registry — forcing rebuild" >&2
+                return 0
+              fi
+            fi
+            return 1
+          }
 
-          # Bot changes
-          if bash scripts/ci/check_image_changes.sh bot | grep -q "build"; then
-            echo "bot=true" >> $GITHUB_OUTPUT
-          else
-            echo "bot=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Nginx changes
-          if bash scripts/ci/check_image_changes.sh nginx | grep -q "build"; then
-            echo "nginx=true" >> $GITHUB_OUTPUT
-          else
-            echo "nginx=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Redis changes
-          if bash scripts/ci/check_image_changes.sh redis | grep -q "build"; then
-            echo "redis=true" >> $GITHUB_OUTPUT
-          else
-            echo "redis=false" >> $GITHUB_OUTPUT
-          fi
-
-          # PostgreSQL changes
-          if bash scripts/ci/check_image_changes.sh postgresql | grep -q "build"; then
-            echo "postgresql=true" >> $GITHUB_OUTPUT
-          else
-            echo "postgresql=false" >> $GITHUB_OUTPUT
-          fi
+          needs_build backend    && echo "backend=true"    >> $GITHUB_OUTPUT || echo "backend=false"    >> $GITHUB_OUTPUT
+          needs_build bot        && echo "bot=true"        >> $GITHUB_OUTPUT || echo "bot=false"        >> $GITHUB_OUTPUT
+          needs_build nginx      && echo "nginx=true"      >> $GITHUB_OUTPUT || echo "nginx=false"      >> $GITHUB_OUTPUT
+          needs_build redis      && echo "redis=true"      >> $GITHUB_OUTPUT || echo "redis=false"      >> $GITHUB_OUTPUT
+          needs_build postgresql && echo "postgresql=true" >> $GITHUB_OUTPUT || echo "postgresql=false" >> $GITHUB_OUTPUT
 
       - name: Docker meta (backend)
         id: meta-backend
@@ -477,6 +476,10 @@ jobs:
             echo ""
             echo "📦 Processing package: $PACKAGE"
 
+            # Collect protected tags from IMAGE_VERSIONS.json (never delete these)
+            PROTECTED_TAGS=$(jq -r '.[].version' IMAGE_VERSIONS.json 2>/dev/null | sort -u)
+            echo "   Protected tags: $(echo $PROTECTED_TAGS | tr '\n' ' ')"
+
             # Get all untagged versions older than cutoff date
             OLD_VERSIONS=$(gh api \
               --paginate \
@@ -493,8 +496,26 @@ jobs:
             COUNT=$(echo "$OLD_VERSIONS" | wc -l)
             echo "   Found $COUNT old untagged images to delete"
 
-            # Delete each old version
+            # Delete each old version, skipping any that match a protected tag
             while IFS= read -r VERSION_ID; do
+              # Get tags for this version
+              VERSION_TAGS=$(gh api \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions/$VERSION_ID" \
+                --jq '.metadata.container.tags[]?' 2>/dev/null || echo "")
+
+              # Skip if any tag is in the protected list
+              PROTECTED=false
+              while IFS= read -r TAG; do
+                if echo "$PROTECTED_TAGS" | grep -qx "$TAG"; then
+                  echo "   🛡️ Skipping protected version $VERSION_ID (tag: $TAG is in IMAGE_VERSIONS.json)"
+                  PROTECTED=true
+                  break
+                fi
+              done <<< "$VERSION_TAGS"
+              [[ "$PROTECTED" == "true" ]] && continue
+
               if gh api \
                 --method DELETE \
                 -H "Accept: application/vnd.github+json" \
