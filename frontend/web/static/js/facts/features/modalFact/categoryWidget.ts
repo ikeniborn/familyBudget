@@ -43,20 +43,20 @@ export function initTransactionCategoryTree(): void {
     const articleSelect = document.querySelector(TRANSACTION_ARTICLE_SELECTOR);
     if (!articleSelect) return;
 
-    // Get current type: prefer CSS active button state (persists across form.reset()),
-    // fall back to radio value, then default to 'expense'
-    const activeBtn = document.querySelector(
-        '#modal_fact-tab-transaction .transaction-type-btn.btn-active'
-    ) as HTMLElement | null;
+    // Radio is the source of truth (form.reset() correctly resets radio to default).
+    // CSS may be stale after form.reset(), so sync it from the radio state.
     const typeInput = document.querySelector(
         '#modal_fact-tab-transaction input[name="record_type"]:checked'
     ) as HTMLInputElement | null;
-    const currentType = (activeBtn?.dataset.type as 'expense' | 'income') || typeInput?.value || 'expense';
-    // Sync radio and hidden fact_type to match CSS state (form.reset() resets these but not CSS)
-    const radioToSync = document.querySelector(
-        `#modal_fact-tab-transaction input[name="record_type"][value="${currentType}"]`
-    ) as HTMLInputElement | null;
-    if (radioToSync) radioToSync.checked = true;
+    const currentType = (typeInput?.value as 'expense' | 'income') || 'expense';
+    // Sync CSS to match radio state
+    document.querySelectorAll<HTMLElement>(
+        '#modal_fact-tab-transaction .transaction-type-btn'
+    ).forEach(btn => {
+        const isActive = btn.dataset.type === currentType;
+        btn.classList.toggle('btn-active', isActive);
+        btn.classList.toggle('opacity-50', !isActive);
+    });
     syncFactTypeHidden(currentType);
 
     const prev = getCreateCategoryTreeSelect();

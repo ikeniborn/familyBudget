@@ -627,7 +627,16 @@ function setupTransactionTypeListener(modal: HTMLElement): void {
     modal.addEventListener('change', (e) => {
         const target = e.target as HTMLInputElement;
         if (target.name === 'record_type' && target.type === 'radio') {
-            updateTransactionCategoryTreeType(target.value as 'expense' | 'income');
+            const newType = target.value as 'expense' | 'income';
+            // Sync CSS on type buttons to match new radio state
+            modal.querySelectorAll<HTMLElement>(
+                '#modal_fact-tab-transaction .transaction-type-btn'
+            ).forEach(btn => {
+                const isActive = btn.dataset.type === newType;
+                btn.classList.toggle('btn-active', isActive);
+                btn.classList.toggle('opacity-50', !isActive);
+            });
+            updateTransactionCategoryTreeType(newType);
         }
     });
 }
