@@ -31,7 +31,10 @@ logger = logging.getLogger(__name__)
 
 def _make_telegram_client() -> httpx.AsyncClient:
     """Create httpx client with optional proxy for Telegram API requests."""
-    return httpx.AsyncClient(proxy=settings.TELEGRAM_PROXY_URL)
+    proxy_url = settings.TELEGRAM_PROXY_URL
+    if proxy_url:
+        return httpx.AsyncClient(proxies={"all://": proxy_url})
+    return httpx.AsyncClient()
 
 
 # Auth date expiration in seconds (5 minutes - stricter than Web Apps 1 hour)
