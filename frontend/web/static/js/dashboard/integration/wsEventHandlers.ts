@@ -154,6 +154,8 @@ function registerPlanHandlers(hasIncrementalUpdates: boolean): void {
     } else {
       refreshQuickStats();
     }
+    // Refresh recurring plans list on plan page
+    (window as any).loadRecurringPlans?.();
   });
 
   window.budgetWSClient.on('plan_updated', (data: FactEventData) => {

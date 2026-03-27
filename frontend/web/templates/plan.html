@@ -1318,6 +1318,7 @@ async function loadRecurringPlans() {
         showSafeAlert(container, `❌ Ошибка загрузки регламентных платежей: ${error.message}`, 'alert-error');
     }
 }
+window.loadRecurringPlans = loadRecurringPlans;
 
 /**
  * Render recurring plans in table with checkboxes
