@@ -633,6 +633,20 @@ function setupTransactionTypeListener(modal: HTMLElement): void {
 }
 
 /**
+ * Highlight the quick-date button that corresponds to daysOffset.
+ * Buttons are ordered: index 0 = today (0), 1 = yesterday (-1), 2 = day-before (-2).
+ */
+function updateDateButtonState(tabSelector: string, daysOffset: number): void {
+    const activeIndex = Math.abs(daysOffset);
+    document.querySelectorAll<HTMLButtonElement>(
+        `${tabSelector} .flex.gap-1.mb-1 button`
+    ).forEach((btn, index) => {
+        btn.classList.toggle('btn-active', index === activeIndex);
+        btn.classList.toggle('btn-outline', index !== activeIndex);
+    });
+}
+
+/**
  * Set fact date (relative to today) - for transaction tab
  * Used by onclick buttons in modal_fact transaction tab
  * @param daysOffset - Number of days relative to today (0 = today, -1 = yesterday, etc.)
@@ -657,6 +671,8 @@ export function setFactDate(daysOffset: number): void {
         dateInput.dispatchEvent(new Event('change', { bubbles: true }));
         logger.log(' Transaction date set:', dateStr, '(offset:', daysOffset, ')');
     }
+
+    updateDateButtonState('#modal_fact-tab-transaction', daysOffset);
 }
 
 /**
@@ -684,6 +700,8 @@ export function setFactTransferDate(daysOffset: number): void {
         dateInput.dispatchEvent(new Event('change', { bubbles: true }));
         logger.log(' Transfer date set:', dateStr, '(offset:', daysOffset, ')');
     }
+
+    updateDateButtonState('#modal_fact-tab-transfer', daysOffset);
 }
 
 /**
