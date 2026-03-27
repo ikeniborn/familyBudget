@@ -434,30 +434,36 @@
 
             const currentElem = document.getElementById('sw-current-version');
             const newElem = document.getElementById('sw-new-version');
+            const arrowElem = document.getElementById('sw-version-arrow');
 
             // Defensive check: Ensure DOM elements exist
-            if (!currentElem || !newElem) {
+            if (!currentElem || !newElem || !arrowElem) {
                 console.warn('[SW_UPDATE] ⚠️ Version display elements not found in modal DOM');
                 console.warn('[SW_UPDATE] Modal will show without version information');
                 return;
             }
 
-            // Display current version with fallback
-            const currentText = currentVersion || '(неизвестно)';
-            currentElem.textContent = currentText;
-
-            // Display new version with fallback
+            // Display new version (always shown)
             const newText = newVersion || '(неизвестно)';
             newElem.textContent = newText;
 
-            // Log version transition for debugging
-            if (currentVersion && newVersion) {
-            } else if (!currentVersion && newVersion) {
-                console.warn('[SW_UPDATE] ⚠️ Current version missing (first install or localStorage cleared)');
-            } else if (currentVersion && !newVersion) {
-                console.error('[SW_UPDATE] ❌ ERROR: New version missing from localStorage (should not happen)');
+            // Show current version and arrow only when version is known and different
+            const hasTransition = currentVersion && currentVersion !== newVersion;
+            if (hasTransition) {
+                currentElem.textContent = currentVersion;
+                currentElem.classList.remove('hidden');
+                arrowElem.classList.remove('hidden');
             } else {
-                console.error('[SW_UPDATE] ❌ ERROR: Both versions missing from localStorage');
+                currentElem.textContent = '';
+                currentElem.classList.add('hidden');
+                arrowElem.classList.add('hidden');
+                if (!currentVersion) {
+                    console.warn('[SW_UPDATE] ⚠️ Current version missing (first install or localStorage cleared)');
+                }
+            }
+
+            if (!newVersion) {
+                console.error('[SW_UPDATE] ❌ ERROR: New version missing from localStorage (should not happen)');
             }
         }
 
@@ -633,13 +639,16 @@
 
             navigator.serviceWorker.register('/sw.min.js')
                 .then(async (registration) => {
-                    // Сохраняем текущую версию SW при загрузке
+                    // Save current SW version on load; skip if update pending (avoids X → X display)
                     if (navigator.serviceWorker.controller) {
-                        const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
-                        if (currentVersion) {
-                            localStorage.setItem(SW_VERSION_KEY, currentVersion);
-                        } else {
-                            console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
+                        const updatePending = localStorage.getItem(SW_UPDATE_AVAILABLE_KEY) === 'true';
+                        if (!updatePending) {
+                            const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
+                            if (currentVersion) {
+                                localStorage.setItem(SW_VERSION_KEY, currentVersion);
+                            } else {
+                                console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
+                            }
                         }
                     }
 
