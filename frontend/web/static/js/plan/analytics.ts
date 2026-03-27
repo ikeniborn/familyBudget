@@ -631,49 +631,49 @@ function buildCategoriesChartConfig(data: MonthlyAnalyticsData): any {
     };
   }
 
-  // Sort by current_month_total descending
-  const sorted = [...categories].sort((a, b) => b.current_month_total - a.current_month_total);
+  const CHART_MAX_CATEGORIES = 9;
+  const TOOLTIP_MAX_DETAIL = 9;
+  const OTHER_CATEGORY_NAME = 'Прочее';
+  const numFmt = new Intl.NumberFormat('ru-RU');
 
-  const MAX_VISIBLE = 9;
-  const topCategories = sorted.slice(0, MAX_VISIBLE);
-  const remainingCategories = sorted.slice(MAX_VISIBLE);
+  const sorted = [...categories].sort((a, b) => b.current_month_total - a.current_month_total);
+  const topCategories = sorted.slice(0, CHART_MAX_CATEGORIES);
+  const remainingCategories = sorted.slice(CHART_MAX_CATEGORIES);
 
   const displayCategories: CategoryComparison[] = [...topCategories];
   if (remainingCategories.length > 0) {
-    const otherCurrentTotal = remainingCategories.reduce((sum, c) => sum + c.current_month_total, 0);
-    const otherPreviousTotal = remainingCategories.reduce((sum, c) => sum + c.previous_month_total, 0);
+    const { current: otherCurrentTotal, previous: otherPreviousTotal } = remainingCategories.reduce(
+      (acc, c) => ({ current: acc.current + c.current_month_total, previous: acc.previous + c.previous_month_total }),
+      { current: 0, previous: 0 }
+    );
     displayCategories.push({
       category_id: -1,
-      category_name: 'Прочее',
+      category_name: OTHER_CATEGORY_NAME,
       category_type: sorted[0].category_type,
       current_month_total: otherCurrentTotal,
       previous_month_total: otherPreviousTotal,
     });
   }
 
-  // Pre-compute "Прочее" tooltip breakdown (remainingCategories is stable)
-  const tooltipOthers = remainingCategories.slice(0, MAX_VISIBLE);
-  const tooltipRest = remainingCategories.slice(MAX_VISIBLE);
+  const tooltipOthers = remainingCategories.slice(0, TOOLTIP_MAX_DETAIL);
+  const tooltipRest = remainingCategories.slice(TOOLTIP_MAX_DETAIL);
   const tooltipRestTotal = tooltipRest.reduce((sum, c) => sum + c.current_month_total, 0);
 
   const formatter = function(params: any[]) {
     if (!params || params.length === 0) return '';
-    const isOthers = params[0]?.axisValue === 'Прочее';
+    const isOthers = params[0]?.axisValue === OTHER_CATEGORY_NAME;
     let result = `<b>${params[0]?.axisValue}</b><br/>`;
     params.forEach((param: any) => {
-      const value = new Intl.NumberFormat('ru-RU').format(param.value);
-      result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
+      result += `${param.marker} ${param.seriesName}: ${numFmt.format(param.value)} ₽<br/>`;
     });
 
     if (isOthers && remainingCategories.length > 0) {
       result += '<div style="margin-top:6px;border-top:1px solid #e2e8f0;padding-top:4px"><small style="color:#64748b">Состав:</small><br/>';
       tooltipOthers.forEach((c: CategoryComparison) => {
-        const value = new Intl.NumberFormat('ru-RU').format(c.current_month_total);
-        result += `<small>• ${c.category_name}: ${value} ₽</small><br/>`;
+        result += `<small>• ${c.category_name}: ${numFmt.format(c.current_month_total)} ₽</small><br/>`;
       });
       if (tooltipRest.length > 0) {
-        const value = new Intl.NumberFormat('ru-RU').format(tooltipRestTotal);
-        result += `<small>• Прочее: ${value} ₽</small><br/>`;
+        result += `<small>• ${OTHER_CATEGORY_NAME}: ${numFmt.format(tooltipRestTotal)} ₽</small><br/>`;
       }
       result += '</div>';
     }
