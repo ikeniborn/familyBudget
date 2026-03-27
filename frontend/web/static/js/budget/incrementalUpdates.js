@@ -499,7 +499,7 @@
             if (window.HTMXWidgets && typeof window.HTMXWidgets.refreshWidget === 'function') {
                 window.HTMXWidgets.refreshWidget(widgetId);
             } else {
-                console.warn('[IncrementalUpdates] HTMXWidgets not available for fallback');
+                console.debug('[IncrementalUpdates] HTMXWidgets not available for fallback');
             }
         },
 
