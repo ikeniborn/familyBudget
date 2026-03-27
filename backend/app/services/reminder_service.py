@@ -8,6 +8,8 @@ from datetime import datetime
 
 import httpx
 from sqlmodel import select
+
+from backend.app.services.telegram_auth import _make_telegram_client
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import Settings, get_settings
@@ -446,14 +448,15 @@ class ReminderService:
             bool: True if message sent successfully
         """
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with _make_telegram_client() as client:
                 response = await client.post(
                     f"{self.telegram_api_url}/sendMessage",
                     json={
                         "chat_id": telegram_id,
                         "text": message,
                         "parse_mode": parse_mode,
-                    }
+                    },
+                    timeout=10.0,
                 )
                 response.raise_for_status()
                 return True
