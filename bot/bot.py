@@ -54,8 +54,17 @@ class BotApplication:
 
         # Configure proxy if set
         if self.settings.TELEGRAM_PROXY_URL:
-            builder = builder.proxy(self.settings.TELEGRAM_PROXY_URL).get_updates_proxy(self.settings.TELEGRAM_PROXY_URL)
-            logger.info(f"Telegram proxy configured: {self.settings.TELEGRAM_PROXY_URL}")
+            proxy_url = self.settings.TELEGRAM_PROXY_URL
+            if proxy_url.startswith("tg://"):
+                # tg://proxy?server=...&port=...&secret=... is Telegram client format — NOT supported
+                # by python-telegram-bot v21 (httpx backend). Use http://, https://, or socks5:// instead.
+                logger.error(
+                    "TELEGRAM_PROXY_URL uses unsupported tg:// MTProxy format. "
+                    "Use http://, https://, or socks5://host:port instead. Proxy NOT applied."
+                )
+            else:
+                builder = builder.proxy(proxy_url).get_updates_proxy(proxy_url)
+                logger.info(f"Telegram proxy configured: {proxy_url}")
 
         # Configure application settings
         if self.settings.USE_WEBHOOK:

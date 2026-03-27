@@ -45,7 +45,11 @@ class Settings:
     )
 
     # Proxy for Telegram API requests (optional)
-    # Supports: https://[user:pass@]host:port or mtproxy://[secret@]host:port
+    # Supported formats (PTB v21 + httpx backend):
+    #   http://host:port  or  http://user:pass@host:port
+    #   https://host:port
+    #   socks5://host:port  (needs: pip install "python-telegram-bot[socks]")
+    # NOT supported: tg://proxy?server=...&port=...&secret=...  (MTProxy Telegram client format)
     TELEGRAM_PROXY_URL: Optional[str] = os.getenv("TELEGRAM_PROXY_URL", None)
 
     # Security
