@@ -22,7 +22,9 @@ export function setupPlanTypeToggle(): void {
   );
 
   typeButtons.forEach((button) => {
-    // Add click listener to label
+    // Guard: prevent duplicate listeners on modal re-open
+    if (button.dataset.toggleListenerAttached === 'true') return;
+
     button.addEventListener('click', (e) => {
       e.preventDefault(); // Prevent default label behavior
 
@@ -37,6 +39,8 @@ export function setupPlanTypeToggle(): void {
 
       debugLog('[TypeToggle Plan] Plan type changed to:', type);
     });
+
+    button.dataset.toggleListenerAttached = 'true';
   });
 
   debugLog('[TypeToggle Plan] Plan type toggle listeners setup');

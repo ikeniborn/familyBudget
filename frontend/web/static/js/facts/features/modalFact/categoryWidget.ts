@@ -43,11 +43,21 @@ export function initTransactionCategoryTree(): void {
     const articleSelect = document.querySelector(TRANSACTION_ARTICLE_SELECTOR);
     if (!articleSelect) return;
 
-    // Read current type from record_type radio (matches dashboard convention)
+    // Get current type: prefer CSS active button state (persists across form.reset()),
+    // fall back to radio value, then default to 'expense'
+    const activeBtn = document.querySelector(
+        '#modal_fact-tab-transaction .transaction-type-btn.btn-active'
+    ) as HTMLElement | null;
     const typeInput = document.querySelector(
         '#modal_fact-tab-transaction input[name="record_type"]:checked'
     ) as HTMLInputElement | null;
-    const currentType = typeInput?.value || 'expense';
+    const currentType = (activeBtn?.dataset.type as 'expense' | 'income') || typeInput?.value || 'expense';
+    // Sync radio and hidden fact_type to match CSS state (form.reset() resets these but not CSS)
+    const radioToSync = document.querySelector(
+        `#modal_fact-tab-transaction input[name="record_type"][value="${currentType}"]`
+    ) as HTMLInputElement | null;
+    if (radioToSync) radioToSync.checked = true;
+    syncFactTypeHidden(currentType);
 
     const prev = getCreateCategoryTreeSelect();
     if (prev) {

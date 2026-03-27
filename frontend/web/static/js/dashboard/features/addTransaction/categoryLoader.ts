@@ -42,9 +42,16 @@ export async function loadTransactionCategories(): Promise<void> {
       return;
     }
 
-    // Get current transaction type
+    // Get current transaction type: prefer CSS active button state (persists across form.reset()),
+    // fall back to radio value, then default to 'expense'
+    const activeBtn = document.querySelector('#modal_fact-tab-transaction .transaction-type-btn.btn-active') as HTMLElement | null;
     const typeInput = document.querySelector('#modal_fact-tab-transaction input[name="record_type"]:checked') as HTMLInputElement | null;
-    const transactionType = typeInput?.value || 'expense';
+    const transactionType = (activeBtn?.dataset.type as 'expense' | 'income') || typeInput?.value || 'expense';
+    // Sync radio and hidden fact_type to match CSS state (form.reset() resets these but not CSS)
+    const radioToSync = document.querySelector(`#modal_fact-tab-transaction input[name="record_type"][value="${transactionType}"]`) as HTMLInputElement | null;
+    if (radioToSync) radioToSync.checked = true;
+    const hiddenFactType = document.querySelector('#modal_fact-tab-transaction input[name="fact_type"]') as HTMLInputElement | null;
+    if (hiddenFactType) hiddenFactType.value = transactionType;
 
     const state = getState();
 
