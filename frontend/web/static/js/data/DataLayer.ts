@@ -75,6 +75,14 @@ export interface ArticleFilters {
 }
 
 /**
+ * Options for DataLayer fetch methods
+ */
+export interface DataLayerFetchOptions {
+  /** Bypass PGlite cache and always fetch from REST API */
+  forceAPI?: boolean;
+}
+
+/**
  * Data Layer class
  * Provides unified API for reference data with Dexie-first, API-fallback strategy
  */
@@ -1054,7 +1062,7 @@ export class DataLayer {
    *
    * NEW STRATEGY (API-First with Opt-In PGlite)
    */
-  async getFacts(filters?: FactFilters): Promise<LocalBudgetFact[]> {
+  async getFacts(filters?: FactFilters, options?: DataLayerFetchOptions): Promise<LocalBudgetFact[]> {
     const startTime = performance.now();
 
     console.debug('[DATA_LAYER] getFacts', {
@@ -1063,8 +1071,8 @@ export class DataLayer {
     });
 
     try {
-      // API-FIRST
-      if (!this.shouldUsePGlite()) {
+      // API-FIRST or forced API
+      if (options?.forceAPI || !this.shouldUsePGlite()) {
         const result = await this.getFactsFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getFacts', duration);
@@ -1186,6 +1194,12 @@ export class DataLayer {
     if (filters?.date_to) {
       params.set('date_to', filters.date_to);
     }
+    if (filters?.article_type) {
+      params.set('article_type', filters.article_type);
+    }
+    if (filters?.search) {
+      params.set('search', filters.search);
+    }
 
     const response = await fetch(`/api/v1/facts?${params.toString()}`, {
       credentials: 'include'
@@ -1205,12 +1219,12 @@ export class DataLayer {
    * @param filters - Optional filters
    * @returns Count of matching facts
    */
-  async getFactsCount(filters?: FactFilters): Promise<number> {
+  async getFactsCount(filters?: FactFilters, options?: DataLayerFetchOptions): Promise<number> {
     const startTime = performance.now();
 
     try {
-      // API-FIRST
-      if (!this.shouldUsePGlite()) {
+      // API-FIRST or forced API
+      if (options?.forceAPI || !this.shouldUsePGlite()) {
         const count = await this.getFactsCountFromAPI(filters);
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getFactsCount', duration);
@@ -1280,6 +1294,12 @@ export class DataLayer {
     }
     if (filters?.date_to) {
       params.set('date_to', filters.date_to);
+    }
+    if (filters?.article_type) {
+      params.set('article_type', filters.article_type);
+    }
+    if (filters?.search) {
+      params.set('search', filters.search);
     }
 
     const response = await fetch(`/api/v1/facts/count?${params.toString()}`, {
