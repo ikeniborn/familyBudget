@@ -43,20 +43,13 @@ export function initTransactionCategoryTree(): void {
     const articleSelect = document.querySelector(TRANSACTION_ARTICLE_SELECTOR);
     if (!articleSelect) return;
 
-    // Get current type: prefer CSS active button state (persists across form.reset()),
-    // fall back to radio value, then default to 'expense'
-    const activeBtn = document.querySelector(
-        '#modal_fact-tab-transaction .transaction-type-btn.btn-active'
-    ) as HTMLElement | null;
+    // Radio is the source of truth (form.reset() correctly resets radio to default).
+    // CSS may be stale after form.reset(), so sync it from the radio state.
     const typeInput = document.querySelector(
         '#modal_fact-tab-transaction input[name="record_type"]:checked'
     ) as HTMLInputElement | null;
-    const currentType = (activeBtn?.dataset.type as 'expense' | 'income') || typeInput?.value || 'expense';
-    // Sync radio and hidden fact_type to match CSS state (form.reset() resets these but not CSS)
-    const radioToSync = document.querySelector(
-        `#modal_fact-tab-transaction input[name="record_type"][value="${currentType}"]`
-    ) as HTMLInputElement | null;
-    if (radioToSync) radioToSync.checked = true;
+    const currentType = (typeInput?.value as 'expense' | 'income') || 'expense';
+    syncTransactionTypeBtnsCSS(currentType);
     syncFactTypeHidden(currentType);
 
     const prev = getCreateCategoryTreeSelect();
@@ -98,11 +91,26 @@ export function initTransactionCategoryTree(): void {
 }
 
 /**
+ * Sync btn-active / opacity-50 CSS on the expense|income type buttons.
+ * Called on modal open (to fix stale CSS after form.reset()) and on type change.
+ */
+function syncTransactionTypeBtnsCSS(type: 'expense' | 'income'): void {
+    document.querySelectorAll<HTMLElement>(
+        '#modal_fact-tab-transaction .transaction-type-btn'
+    ).forEach(btn => {
+        const isActive = btn.dataset.type === type;
+        btn.classList.toggle('btn-active', isActive);
+        btn.classList.toggle('opacity-50', !isActive);
+    });
+}
+
+/**
  * Update ChoicesCategoryTree type when expense/income radio changes.
- * Also syncs the hidden fact_type field.
+ * Also syncs the hidden fact_type field and button CSS state.
  */
 export function updateTransactionCategoryTreeType(type: 'expense' | 'income'): void {
     syncFactTypeHidden(type);
+    syncTransactionTypeBtnsCSS(type);
 
     const instance = getCreateCategoryTreeSelect();
     if (instance?.updateType) {
