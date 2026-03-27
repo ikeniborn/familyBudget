@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_USERNAME: str | None = None  # Bot username for Telegram Login Widget (e.g., "ikenibornbudgetbot")
     # Note: If not provided, will be auto-fetched from Telegram API at startup
     ADMIN_TELEGRAM_ID: int  # Telegram ID of the admin user
+    TELEGRAM_PROXY_URL: str | None = None  # Optional HTTPS/HTTP/SOCKS5 proxy for Telegram API (e.g. https://[CREDENTIALS]@host:port)
 
     # Admin Email Authentication (optional - emergency access without 2FA)
     ADMIN_EMAIL: str | None = None  # Admin email for emergency login (bypasses 2FA)
