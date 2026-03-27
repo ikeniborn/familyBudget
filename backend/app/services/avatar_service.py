@@ -15,6 +15,8 @@ from pathlib import Path
 
 import httpx
 
+from backend.app.services.telegram_auth import make_telegram_client
+
 logger = logging.getLogger(__name__)
 
 # Configuration
@@ -68,7 +70,7 @@ async def download_user_avatar(
         AVATARS_DIR.mkdir(parents=True, exist_ok=True)
 
         # Download image from Telegram
-        async with httpx.AsyncClient() as client:
+        async with make_telegram_client() as client:
             response = await client.get(
                 telegram_photo_url,
                 timeout=REQUEST_TIMEOUT,

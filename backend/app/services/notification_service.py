@@ -19,6 +19,7 @@ from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
 from backend.app.models.notification import Notification
 from backend.app.models.user import User
+from backend.app.services.telegram_auth import make_telegram_client
 from backend.app.utils.timezone import now_local
 
 logger = get_logger(__name__)
@@ -51,14 +52,15 @@ class NotificationService:
             bool: True if message sent successfully
         """
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with make_telegram_client() as client:
                 response = await client.post(
                     f"{self.telegram_api_url}/sendMessage",
                     json={
                         "chat_id": telegram_id,
                         "text": message,
                         "parse_mode": parse_mode,
-                    }
+                    },
+                    timeout=10.0,
                 )
                 response.raise_for_status()
                 return True
