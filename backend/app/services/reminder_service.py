@@ -11,7 +11,6 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import Settings, get_settings
-from backend.app.services.telegram_auth import make_telegram_client
 from backend.app.core.json_utils import dumps as json_dumps
 from backend.app.core.logging import get_logger
 from backend.app.models.article import Article
@@ -20,6 +19,7 @@ from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.push_subscription import PushSubscription
 from backend.app.models.scheduled_reminder import ScheduledReminder
 from backend.app.models.user import User
+from backend.app.services.telegram_auth import make_telegram_client
 from backend.app.utils.timezone import now_local, now_utc
 
 logger = get_logger(__name__)

@@ -13,13 +13,13 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.config import Settings
-from backend.app.services.telegram_auth import make_telegram_client
 from backend.app.core.logging import get_logger
 from backend.app.db.session import get_session_context
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
 from backend.app.models.notification import Notification
 from backend.app.models.user import User
+from backend.app.services.telegram_auth import make_telegram_client
 from backend.app.utils.timezone import now_local
 
 logger = get_logger(__name__)
