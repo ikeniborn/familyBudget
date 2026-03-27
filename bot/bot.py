@@ -52,6 +52,11 @@ class BotApplication:
         # Build application
         builder = ApplicationBuilder().token(self.settings.TELEGRAM_BOT_TOKEN)
 
+        # Configure proxy if set
+        if self.settings.TELEGRAM_PROXY_URL:
+            builder = builder.proxy(self.settings.TELEGRAM_PROXY_URL).get_updates_proxy(self.settings.TELEGRAM_PROXY_URL)
+            logger.info(f"Telegram proxy configured: {self.settings.TELEGRAM_PROXY_URL}")
+
         # Configure application settings
         if self.settings.USE_WEBHOOK:
             logger.info("Bot configured for webhook mode")

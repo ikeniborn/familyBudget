@@ -44,6 +44,10 @@ class Settings:
         "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     )
 
+    # Proxy for Telegram API requests (optional)
+    # Supports: https://[user:pass@]host:port or mtproxy://[secret@]host:port
+    TELEGRAM_PROXY_URL: Optional[str] = os.getenv("TELEGRAM_PROXY_URL", None)
+
     # Security
     ALLOWED_TELEGRAM_IDS: Optional[str] = os.getenv("ALLOWED_TELEGRAM_IDS", None)
 
