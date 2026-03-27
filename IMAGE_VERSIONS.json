@@ -11,33 +11,33 @@
     ]
   },
   "bot": {
-    "version": "11.4.52",
-    "hash": "placeholder",
-    "lastModified": "2026-02-16T10:36:17Z",
+    "version": "0.6.77",
+    "hash": "46395376",
+    "lastModified": "2026-03-27T05:15:25Z",
     "paths": [
       "bot/"
     ]
   },
   "nginx": {
-    "version": "0.6.75",
-    "hash": "placeholder",
-    "lastModified": "2026-03-26T04:43:05Z",
+    "version": "0.6.77",
+    "hash": "413175d8",
+    "lastModified": "2026-03-27T05:15:25Z",
     "paths": [
       "nginx/"
     ]
   },
   "redis": {
-    "version": "9.0.3",
-    "hash": "placeholder",
-    "lastModified": "2026-01-21T09:58:25Z",
+    "version": "0.6.77",
+    "hash": "4eb5ebb0",
+    "lastModified": "2026-03-27T05:15:25Z",
     "paths": [
       "redis/"
     ]
   },
   "postgresql": {
-    "version": "9.0.3",
-    "hash": "placeholder",
-    "lastModified": "2026-01-21T09:58:25Z",
+    "version": "0.6.77",
+    "hash": "4eb5ebb0",
+    "lastModified": "2026-03-27T05:15:25Z",
     "paths": [
       "postgres/"
     ]
