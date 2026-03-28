@@ -1071,7 +1071,6 @@ export class DataLayer {
     });
 
     try {
-      // API-FIRST or forced API
       if (options?.forceAPI || !this.shouldUsePGlite()) {
         const result = await this.getFactsFromAPI(filters);
         const duration = performance.now() - startTime;
@@ -1163,16 +1162,8 @@ export class DataLayer {
     }
   }
 
-  /**
-   * Fetch budget facts from REST API
-   *
-   * @param filters - Optional filters
-   * @returns Array of budget facts
-   */
-  private async getFactsFromAPI(filters?: FactFilters): Promise<LocalBudgetFact[]> {
+  private buildFactFilterParams(filters?: FactFilters): URLSearchParams {
     const params = new URLSearchParams();
-    params.set('limit', '1000');
-
     if (filters?.user_id !== undefined) {
       params.set('user_id', filters.user_id.toString());
     }
@@ -1200,6 +1191,18 @@ export class DataLayer {
     if (filters?.search) {
       params.set('search', filters.search);
     }
+    return params;
+  }
+
+  /**
+   * Fetch budget facts from REST API
+   *
+   * @param filters - Optional filters
+   * @returns Array of budget facts
+   */
+  private async getFactsFromAPI(filters?: FactFilters): Promise<LocalBudgetFact[]> {
+    const params = this.buildFactFilterParams(filters);
+    params.set('limit', '1000');
 
     const response = await fetch(`/api/v1/facts?${params.toString()}`, {
       credentials: 'include'
@@ -1223,7 +1226,6 @@ export class DataLayer {
     const startTime = performance.now();
 
     try {
-      // API-FIRST or forced API
       if (options?.forceAPI || !this.shouldUsePGlite()) {
         const count = await this.getFactsCountFromAPI(filters);
         const duration = performance.now() - startTime;
@@ -1272,35 +1274,7 @@ export class DataLayer {
    * @returns Count of matching facts
    */
   private async getFactsCountFromAPI(filters?: FactFilters): Promise<number> {
-    const params = new URLSearchParams();
-
-    if (filters?.user_id !== undefined) {
-      params.set('user_id', filters.user_id.toString());
-    }
-    if (filters?.article_id !== undefined) {
-      params.set('article_id', filters.article_id.toString());
-    }
-    if (filters?.financial_center_id !== undefined) {
-      params.set('financial_center_id', filters.financial_center_id.toString());
-    }
-    if (filters?.cost_center_id !== undefined) {
-      params.set('cost_center_id', filters.cost_center_id.toString());
-    }
-    if (filters?.record_type) {
-      params.set('record_type', filters.record_type);
-    }
-    if (filters?.date_from) {
-      params.set('date_from', filters.date_from);
-    }
-    if (filters?.date_to) {
-      params.set('date_to', filters.date_to);
-    }
-    if (filters?.article_type) {
-      params.set('article_type', filters.article_type);
-    }
-    if (filters?.search) {
-      params.set('search', filters.search);
-    }
+    const params = this.buildFactFilterParams(filters);
 
     const response = await fetch(`/api/v1/facts/count?${params.toString()}`, {
       credentials: 'include'
