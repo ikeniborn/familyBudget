@@ -54,6 +54,9 @@ export interface CategoryComparison {
   previous_month_total: number;
 }
 
+// Shared number formatter — reused across all chart tooltip formatters
+const numFmt = new Intl.NumberFormat('ru-RU');
+
 // ============================================================================
 // State Management
 // ============================================================================
@@ -530,8 +533,7 @@ function buildComparisonChartConfig(data: MonthlyAnalyticsData): any {
       formatter: function (params: any[]) {
         let result = params[0].axisValue + '<br/>';
         params.forEach(param => {
-          const value = new Intl.NumberFormat('ru-RU').format(param.value);
-          result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
+          result += `${param.marker} ${param.seriesName}: ${numFmt.format(param.value)} ₽<br/>`;
         });
         return result;
       }
@@ -631,21 +633,58 @@ function buildCategoriesChartConfig(data: MonthlyAnalyticsData): any {
     };
   }
 
-  // Take top 10 categories
-  const topCategories = categories.slice(0, 10);
+  const CHART_MAX_CATEGORIES = 9;
+  const TOOLTIP_MAX_DETAIL = 9;
+  const OTHER_CATEGORY_NAME = 'Прочее';
+
+  const sorted = [...categories].sort((a, b) => b.current_month_total - a.current_month_total);
+  const remainingCategories = sorted.slice(CHART_MAX_CATEGORIES);
+
+  const displayCategories: CategoryComparison[] = sorted.slice(0, CHART_MAX_CATEGORIES);
+  if (remainingCategories.length > 0) {
+    const { current: otherCurrentTotal, previous: otherPreviousTotal } = remainingCategories.reduce(
+      (acc, c) => ({ current: acc.current + c.current_month_total, previous: acc.previous + c.previous_month_total }),
+      { current: 0, previous: 0 }
+    );
+    displayCategories.push({
+      category_id: -1,
+      category_name: OTHER_CATEGORY_NAME,
+      category_type: sorted[0].category_type,
+      current_month_total: otherCurrentTotal,
+      previous_month_total: otherPreviousTotal,
+    });
+  }
+
+  const tooltipOthers = remainingCategories.slice(0, TOOLTIP_MAX_DETAIL);
+  const tooltipRest = remainingCategories.slice(TOOLTIP_MAX_DETAIL);
+  const tooltipRestTotal = tooltipRest.reduce((sum, c) => sum + c.current_month_total, 0);
+
+  const formatter = function(params: any[]) {
+    if (!params || params.length === 0) return '';
+    const isOthers = params[0]?.axisValue === OTHER_CATEGORY_NAME;
+    let result = `<b>${params[0]?.axisValue}</b><br/>`;
+    params.forEach((param: any) => {
+      result += `${param.marker} ${param.seriesName}: ${numFmt.format(param.value)} ₽<br/>`;
+    });
+
+    if (isOthers) {
+      result += '<div style="margin-top:6px;border-top:1px solid #e2e8f0;padding-top:4px"><small style="color:#64748b">Состав:</small><br/>';
+      tooltipOthers.forEach((c: CategoryComparison) => {
+        result += `<small>• ${c.category_name}: ${numFmt.format(c.current_month_total)} ₽</small><br/>`;
+      });
+      if (tooltipRest.length > 0) {
+        result += `<small>• ${OTHER_CATEGORY_NAME}: ${numFmt.format(tooltipRestTotal)} ₽</small><br/>`;
+      }
+      result += '</div>';
+    }
+    return result;
+  };
 
   return {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      formatter: function (params: any[]) {
-        let result = params[0].axisValue + '<br/>';
-        params.forEach(param => {
-          const value = new Intl.NumberFormat('ru-RU').format(param.value);
-          result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
-        });
-        return result;
-      }
+      formatter
     },
     legend: {
       data: [data.previous_month.month_name, data.current_month.month_name],
@@ -660,7 +699,7 @@ function buildCategoriesChartConfig(data: MonthlyAnalyticsData): any {
     },
     xAxis: {
       type: 'category',
-      data: topCategories.map(c => c.category_name),
+      data: displayCategories.map(c => c.category_name),
       axisLabel: {
         rotate: 30,
         interval: 0,
@@ -684,13 +723,13 @@ function buildCategoriesChartConfig(data: MonthlyAnalyticsData): any {
       {
         name: data.previous_month.month_name,
         type: 'bar',
-        data: topCategories.map(c => c.previous_month_total),
+        data: displayCategories.map(c => c.previous_month_total),
         itemStyle: { color: '#94a3b8', opacity: 0.5 }
       },
       {
         name: data.current_month.month_name,
         type: 'bar',
-        data: topCategories.map(c => c.current_month_total),
+        data: displayCategories.map(c => c.current_month_total),
         itemStyle: { color: '#3b82f6' }
       }
     ]
