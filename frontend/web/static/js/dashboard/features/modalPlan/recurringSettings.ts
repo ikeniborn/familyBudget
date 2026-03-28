@@ -268,35 +268,15 @@ export function extractRecurringSettings(form: HTMLFormElement): any {
     frequencyValue = parseInt(monthdayValue); // Day of month (1-28)
   }
 
-  // Determine months_count based on duration
-  let monthsCount: number | null = null;
-  if (durationType === 'count' && occurrencesCount) {
-    const count = parseInt(occurrencesCount);
-    // Convert occurrences to months based on frequency
-    if (frequencyType === 'monthly') {
-      monthsCount = count; // 1 occurrence = 1 month
-    } else if (frequencyType === 'quarterly') {
-      monthsCount = count * 3; // 1 occurrence = 3 months
-    } else if (frequencyType === 'yearly') {
-      monthsCount = count * 12; // 1 occurrence = 12 months
-    }
-  } else if (durationType === 'end_date' && endDate) {
-    // Calculate months from start_month to end_date
-    // This requires start_month to be set
-    // For now, set to large number (backend will calculate)
-    monthsCount = 999; // Backend will calculate actual count
-  }
-
   return {
     frequency_type: frequencyType,
     frequency_value: frequencyValue,
-    months_count: monthsCount,
-    is_active: true,
+    occurrences_count: durationType === 'count' && occurrencesCount ? parseInt(occurrencesCount) : null,
+    end_date: durationType === 'end_date' && endDate ? endDate : null,
     // Reminder settings (if enabled)
     enable_reminder: enableReminder || false,
-    reminder_time: enableReminder && reminderHour && reminderMinute
-      ? `${reminderHour}:${reminderMinute}`
-      : null
+    reminder_hour: enableReminder && reminderHour ? parseInt(reminderHour) : null,
+    reminder_minute: enableReminder && reminderMinute ? parseInt(reminderMinute) : null,
   };
 }
 

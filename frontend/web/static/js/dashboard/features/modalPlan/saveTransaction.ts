@@ -24,8 +24,7 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
   if (recurringSettings) {
     // Recurring plan
     planData = {
-      record_type: 'plan', // Always 'plan' for budget plans
-      plan_month: formData.get('plan_month'), // YYYY-MM (start month)
+      record_type: 'plan',
       financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
       article_id: parseIntOrNull(formData.get('article_id'))!,
       cost_center_id: parseIntOrNull(formData.get('cost_center_id')),
@@ -34,35 +33,25 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
       // Recurring settings
       frequency_type: recurringSettings.frequency_type,
       frequency_value: recurringSettings.frequency_value,
-      months_count: recurringSettings.months_count,
-      start_month: formData.get('plan_month'), // YYYY-MM
-      is_active: recurringSettings.is_active,
+      start_date: (formData.get('plan_month') as string) + '-01', // YYYY-MM-DD
+      occurrences_count: recurringSettings.occurrences_count,
+      end_date: recurringSettings.end_date,
       // Reminder (optional)
       enable_reminder: recurringSettings.enable_reminder,
-      reminder_time: recurringSettings.reminder_time
+      reminder_hour: recurringSettings.reminder_hour,
+      reminder_minute: recurringSettings.reminder_minute,
     };
   } else {
     // One-time plan (regular or reminder mode)
     planData = {
-      record_type: 'plan', // Always 'plan' for budget plans
-      fact_date: formData.get('plan_month') + '-01', // Convert YYYY-MM → YYYY-MM-01 for FactCreate schema
+      record_type: 'plan',
+      fact_date: (formData.get('plan_month') as string) + '-01', // Convert YYYY-MM → YYYY-MM-01 for FactCreate schema
       financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
       article_id: parseIntOrNull(formData.get('article_id'))!,
       cost_center_id: parseIntOrNull(formData.get('cost_center_id')),
       amount: parseFloat(formData.get('amount') as string),
       description: formData.get('description') || null,
-      // One-time plan settings
-      frequency_type: 'monthly',
-      frequency_value: null,
-      months_count: 1,
-      start_month: formData.get('plan_month'), // YYYY-MM
-      is_active: true
     };
-
-    // Add reminder if reminder mode
-    if (reminderSettings) {
-      planData.reminder_datetime = reminderSettings.reminder_datetime;
-    }
   }
 
   // POST to appropriate endpoint based on plan mode
@@ -71,9 +60,23 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
     await postAPI('/api/v1/recurring-plans', planData, 'SavePlanModal');
   } else {
     // One-time plan (regular/reminder) → /api/v1/facts
-    await postAPI('/api/v1/facts', planData, 'SavePlanModal');
+    const responseData = await postAPI<any>('/api/v1/facts', planData, 'SavePlanModal');
+
+    // Create reminder if in reminder mode (separate API call)
+    if (reminderSettings) {
+      await postAPI(
+        `/api/v1/reminders/${responseData.id}`,
+        { reminder_datetime: reminderSettings.reminder_datetime },
+        'SavePlanModal'
+      );
+    }
   }
 
   // Update UI
   await refreshUIAfterPlanSave();
+
+  // Refresh recent records to show updated has_reminder state
+  if (typeof (window as any).loadRecentTransactions === 'function') {
+    await (window as any).loadRecentTransactions();
+  }
 }
