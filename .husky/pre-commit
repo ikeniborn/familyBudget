@@ -74,7 +74,7 @@ fi
 
 # Check for console.log in staged TypeScript files (exclude tests, E2E helpers, JSDoc, DEBUG_MODE guards)
 echo "1️⃣  Checking for console.log in staged files..."
-CONSOLE_LOG_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.ts$' | grep -v '\.test\.ts$' | grep -v '\.spec\.ts$' | grep -v 'logger\.ts$' | grep -v 'tests/e2e/' | xargs grep -n 'console\.log' 2>/dev/null | grep -v '^\s*//' | grep -v '^\s*\*' | grep -v 'DEBUG_MODE.*console\.log' | grep -v 'console\.log\.bind' || true)
+CONSOLE_LOG_FILES=$(git diff --cached --name-only --diff-filter=ACMR | grep '\.ts$' | grep -v '\.test\.ts$' | grep -v '\.spec\.ts$' | grep -v 'logger\.ts$' | grep -v 'tests/e2e/' | grep -v '/testing/' | xargs grep -n 'console\.log' 2>/dev/null | grep -v '^\s*//' | grep -v '^\s*\*' | grep -v 'DEBUG_MODE.*console\.log' | grep -v 'console\.log\.bind' || true)
 if [ -n "$CONSOLE_LOG_FILES" ]; then
   echo "$CONSOLE_LOG_FILES"
   echo "❌ console.log found in staged TypeScript files"
