@@ -110,7 +110,7 @@ declare global {
  * Called on DOMContentLoaded from inline script
  */
 export async function initialize(): Promise<void> {
-  log.info('Initializing plan page (Phase 2: Complete)...');
+  log.info('Initializing plan page...');
 
   try {
     // Инициализация делегирования событий (data-action вместо inline onclick)
@@ -137,16 +137,19 @@ export async function initialize(): Promise<void> {
     log.debug('Applying initial filters...');
     await applyFiltersAndLoadData();
 
-    // Load analytics
-    log.debug('Loading analytics...');
-    await PlanAnalytics.loadPlanAnalytics();
+    // Load analytics and recurring plans in parallel
+    log.debug('Loading analytics and recurring plans...');
+    await Promise.all([
+      PlanAnalytics.loadPlanAnalytics(),
+      window.loadRecurringPlans?.(),
+    ]);
 
     // Update filter indicator
     PlanFilters.updateFilterIndicator();
 
-    log.info('✅ Plan page initialized successfully');
+    log.info('Plan page initialized successfully');
   } catch (error) {
-    log.error('❌ Error initializing plan page:', error);
+    log.error('Error initializing plan page:', error);
     PlanHelpers.showNotification('Ошибка инициализации страницы: ' + (error as Error).message, 'error');
   }
 }
