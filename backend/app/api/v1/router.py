@@ -14,8 +14,8 @@ from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
     articles_router,
     auth_router,
-    p2p_router,
     budget_ws_router,
+    p2p_router,
     cache_metrics_router,
     consent_router,
     cost_centers_router,

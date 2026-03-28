@@ -33,6 +33,7 @@ from backend.app.schemas.article import (
     ArticleUpdate,
 )
 from backend.app.services import (
+    archive_recursive,
     get_ancestors,
     get_subtree,
     has_changes,
