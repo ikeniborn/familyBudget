@@ -54,6 +54,9 @@ export interface CategoryComparison {
   previous_month_total: number;
 }
 
+// Shared number formatter — reused across all chart tooltip formatters
+const numFmt = new Intl.NumberFormat('ru-RU');
+
 // ============================================================================
 // State Management
 // ============================================================================
@@ -530,8 +533,7 @@ function buildComparisonChartConfig(data: MonthlyAnalyticsData): any {
       formatter: function (params: any[]) {
         let result = params[0].axisValue + '<br/>';
         params.forEach(param => {
-          const value = new Intl.NumberFormat('ru-RU').format(param.value);
-          result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
+          result += `${param.marker} ${param.seriesName}: ${numFmt.format(param.value)} ₽<br/>`;
         });
         return result;
       }
@@ -634,13 +636,11 @@ function buildCategoriesChartConfig(data: MonthlyAnalyticsData): any {
   const CHART_MAX_CATEGORIES = 9;
   const TOOLTIP_MAX_DETAIL = 9;
   const OTHER_CATEGORY_NAME = 'Прочее';
-  const numFmt = new Intl.NumberFormat('ru-RU');
 
   const sorted = [...categories].sort((a, b) => b.current_month_total - a.current_month_total);
-  const topCategories = sorted.slice(0, CHART_MAX_CATEGORIES);
   const remainingCategories = sorted.slice(CHART_MAX_CATEGORIES);
 
-  const displayCategories: CategoryComparison[] = [...topCategories];
+  const displayCategories: CategoryComparison[] = sorted.slice(0, CHART_MAX_CATEGORIES);
   if (remainingCategories.length > 0) {
     const { current: otherCurrentTotal, previous: otherPreviousTotal } = remainingCategories.reduce(
       (acc, c) => ({ current: acc.current + c.current_month_total, previous: acc.previous + c.previous_month_total }),
@@ -667,7 +667,7 @@ function buildCategoriesChartConfig(data: MonthlyAnalyticsData): any {
       result += `${param.marker} ${param.seriesName}: ${numFmt.format(param.value)} ₽<br/>`;
     });
 
-    if (isOthers && remainingCategories.length > 0) {
+    if (isOthers) {
       result += '<div style="margin-top:6px;border-top:1px solid #e2e8f0;padding-top:4px"><small style="color:#64748b">Состав:</small><br/>';
       tooltipOthers.forEach((c: CategoryComparison) => {
         result += `<small>• ${c.category_name}: ${numFmt.format(c.current_month_total)} ₽</small><br/>`;
