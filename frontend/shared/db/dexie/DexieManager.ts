@@ -423,6 +423,14 @@ export class DexieManager {
         if (filters.date_from && fact.date < filters.date_from) return false;
         if (filters.date_to && fact.date > filters.date_to) return false;
 
+        // Search filter by comment field
+        // NOTE: article_type is not stored in LocalBudgetFact (only article_id), so it cannot be filtered here
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          const comment = fact.comment || '';
+          if (!comment.toLowerCase().includes(searchLower)) return false;
+        }
+
         return true;
       });
     }

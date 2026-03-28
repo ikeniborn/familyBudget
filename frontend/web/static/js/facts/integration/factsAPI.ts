@@ -12,6 +12,7 @@ import { buildFilterQuery } from '../operations/filterOperations';
 import { getFilters } from '../core/stateManager';
 import { getOffset, getLimit } from '../operations/paginationOperations';
 import { dataLayer } from '../../data/DataLayer';
+import type { DataLayerFetchOptions } from '../../data/DataLayer';
 import type {
     FactFilters,
     LocalBudgetFact,
@@ -174,15 +175,13 @@ async function loadEnrichmentMaps(userId: number): Promise<EnrichmentMaps> {
  * Load facts (Dexie-first with API fallback)
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
-export async function loadFacts(options?: { forceAPI?: boolean }): Promise<LoadFactsResponse> {
+export async function loadFacts(options?: DataLayerFetchOptions): Promise<LoadFactsResponse> {
     try {
         // Build filters
         const factFilters = buildFactFilters();
 
-        // Load facts: forceAPI bypasses Dexie cache (used after create/update to guarantee fresh data)
-        const localFacts = options?.forceAPI
-            ? await dataLayer.getFactsFromAPI(factFilters)
-            : await dataLayer.getFacts(factFilters);
+        // Load all facts via DataLayer (Dexie-first + API fallback)
+        const localFacts = await dataLayer.getFacts(factFilters, options);
 
         // Convert to UI types
         let allFacts: BudgetFact[];
@@ -228,13 +227,13 @@ export async function loadFacts(options?: { forceAPI?: boolean }): Promise<LoadF
  * Load facts count (Dexie-first with API fallback)
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
-export async function loadFactsCount(): Promise<number> {
+export async function loadFactsCount(options?: DataLayerFetchOptions): Promise<number> {
     try {
         // Build filters for Dexie
         const factFilters = buildFactFilters();
 
         // Get count via DataLayer (Dexie-first + API fallback)
-        const total = await dataLayer.getFactsCount(factFilters);
+        const total = await dataLayer.getFactsCount(factFilters, options);
 
         return total;
     } catch (error) {
@@ -247,13 +246,13 @@ export async function loadFactsCount(): Promise<number> {
  * Load facts and count in parallel
  * Returns both results for single API call optimization
  */
-export async function loadFactsWithCount(options?: { forceAPI?: boolean }): Promise<{
+export async function loadFactsWithCount(options?: DataLayerFetchOptions): Promise<{
     facts: BudgetFact[];
     total: number;
 }> {
     const [factsResponse, total] = await Promise.all([
         loadFacts(options),
-        loadFactsCount()
+        loadFactsCount(options)
     ]);
 
     return {

@@ -33,12 +33,12 @@ from backend.app.schemas.article import (
     ArticleUpdate,
 )
 from backend.app.services import (
+    archive_recursive,
     get_ancestors,
     get_subtree,
     has_changes,
 )
 from backend.app.services.article_service import (
-    apply_article_filters,
     build_article_responses,
     create_initial_history,
     execute_article_list_query,
@@ -47,7 +47,6 @@ from backend.app.services.article_service import (
     prepare_article_update,
     update_article_profile,
     update_financial_center_links,
-    validate_parent_id,
 )
 from backend.app.services.cache_service import cache_service
 from backend.app.utils.code_generator import generate_code

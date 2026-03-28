@@ -5,6 +5,7 @@
  * Validates that received facts are correctly persisted to IndexedDB.
  */
 
+/* global setTimeout */
 import { describe, it, expect } from 'vitest';
 import { P2PSyncProtocol } from '../../frontend/web/static/js/offline/p2p/P2PSyncProtocol.js';
 import { P2PMerge } from '../../frontend/web/static/js/offline/p2p/P2PMerge.js';

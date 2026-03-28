@@ -653,7 +653,7 @@ class SmartNetworkDetector {
      * @returns {{ capable: boolean, reason: string }}
      */
     detectP2PCapability(): { capable: boolean; reason: string } {
-        const isHttps = location.protocol === 'https:' || location.hostname === 'localhost';
+        const isHttps = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
         const hasRTC = typeof RTCPeerConnection !== 'undefined';
         const hasGetUserMedia = !!(navigator.mediaDevices?.getUserMedia);
 
