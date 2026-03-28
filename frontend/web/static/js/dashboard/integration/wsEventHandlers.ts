@@ -149,7 +149,7 @@ let _loadRecurringPlansTimer: ReturnType<typeof setTimeout> | null = null;
 function debouncedLoadRecurringPlans(): void {
   if (_loadRecurringPlansTimer) clearTimeout(_loadRecurringPlansTimer);
   _loadRecurringPlansTimer = setTimeout(() => {
-    (window as any).loadRecurringPlans?.();
+    window.loadRecurringPlans?.();
     _loadRecurringPlansTimer = null;
   }, 300);
 }

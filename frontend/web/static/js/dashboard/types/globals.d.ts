@@ -239,6 +239,9 @@ declare global {
     updateRecurringPreview?: (modalId: string) => void;
     collectRecurringSettings?: (modalId: string) => RecurringSettings | null;
 
+    // Recurring plans management (plan page)
+    loadRecurringPlans?: () => Promise<void>;
+
     // Edit modal
     openEditModal?: (recordType: 'fact' | 'plan', recordId: number) => Promise<void>;
     openEditPendingRecord?: (pendingId: number, entity: string) => Promise<void>;
