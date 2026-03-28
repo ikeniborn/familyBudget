@@ -8,7 +8,7 @@
 import { setupTabListeners, clearTabCache, switchTab } from './tabManager';
 import { getState, updateState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
-import { setupRecurringListeners } from './recurringSettings';
+import { setupRecurringListeners, togglePlanMode } from './recurringSettings';
 import { setupPlanTypeToggle } from './typeToggle';
 import { setupPlanPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
@@ -523,6 +523,12 @@ export function closeModalPlan(): void {
   // Clear form
   const form = document.getElementById('form_modal_plan') as HTMLFormElement;
   form?.reset();
+
+  // Reset plan mode sections visibility (form.reset() restores radio to "regular"
+  // but does not affect CSS classes on the panel sections)
+  if (form) {
+    togglePlanMode('modal_plan');
+  }
 
   // Clear tab cache
   clearTabCache();
