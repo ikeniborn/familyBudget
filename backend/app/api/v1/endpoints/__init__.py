@@ -38,10 +38,10 @@ from backend.app.api.v1.endpoints.import_templates import router as import_templ
 from backend.app.api.v1.endpoints.notifications import (
     router as notifications_router,
 )
+from backend.app.api.v1.endpoints.p2p import router as p2p_router
 from backend.app.api.v1.endpoints.product_groups import (
     router as product_groups_router,
 )
-from backend.app.api.v1.endpoints.p2p import router as p2p_router
 from backend.app.api.v1.endpoints.push import router as push_router
 from backend.app.api.v1.endpoints.recurring_plans import router as recurring_plans_router
 from backend.app.api.v1.endpoints.reminders import router as reminders_router

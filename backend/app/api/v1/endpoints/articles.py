@@ -38,7 +38,6 @@ from backend.app.services import (
     has_changes,
 )
 from backend.app.services.article_service import (
-    apply_article_filters,
     build_article_responses,
     create_initial_history,
     execute_article_list_query,
@@ -47,7 +46,6 @@ from backend.app.services.article_service import (
     prepare_article_update,
     update_article_profile,
     update_financial_center_links,
-    validate_parent_id,
 )
 from backend.app.services.cache_service import cache_service
 from backend.app.utils.code_generator import generate_code

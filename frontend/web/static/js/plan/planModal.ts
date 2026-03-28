@@ -38,7 +38,7 @@ export const ModalListenerManager = (() => {
     registerListener(
       element: HTMLElement,
       eventName: string,
-      handler: EventListenerOrEventListenerObject
+      handler: EventListener | EventListenerObject
     ): void {
       if (abortController) {
         abortController.abort();
