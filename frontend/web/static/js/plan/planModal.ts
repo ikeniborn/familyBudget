@@ -38,7 +38,8 @@ export const ModalListenerManager = (() => {
     registerListener(
       element: HTMLElement,
       eventName: string,
-      handler: EventListener | EventListenerObject
+      // eslint-disable-next-line no-undef
+      handler: EventListenerOrEventListenerObject
     ): void {
       if (abortController) {
         abortController.abort();

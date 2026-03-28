@@ -1,3 +1,4 @@
+/* global RTCPeerConnection, RTCIceCandidate */
 /**
  * P2PManager - WebRTC RTCPeerConnection lifecycle wrapper
  * Manages RTCDataChannel for offline peer-to-peer sync between devices.
