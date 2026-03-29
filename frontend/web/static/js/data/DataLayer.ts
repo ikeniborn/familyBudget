@@ -1330,7 +1330,7 @@ export class DataLayer {
     }
 
     const data = await response.json();
-    return data.count || 0;
+    return data.total || 0;
   }
 
   // =============================================================================
