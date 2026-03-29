@@ -91,7 +91,7 @@ setup_ssl_certificates() {
             if compose_cmd ps -q nginx > /dev/null 2>&1; then
                 info "Restarting nginx to pick up certificate..."
                 compose_cmd restart nginx >> "$LOG_FILE" 2>&1 || true
-                sleep 3
+                wait_for_service nginx 60
             fi
             success "SSL certificate valid for $domain - no changes needed"
             return 0
@@ -115,11 +115,11 @@ setup_ssl_certificates() {
         if ! compose_cmd ps -q nginx >/dev/null 2>&1; then
             info "Starting nginx..."
             compose_cmd start nginx >> "$LOG_FILE" 2>&1 || true
-            sleep 5
+            wait_for_service nginx 60
         else
             info "Restarting nginx to pick up new SSL certificate..."
             compose_cmd restart nginx >> "$LOG_FILE" 2>&1 || true
-            sleep 5
+            wait_for_service nginx 60
         fi
 
         success "SSL certificate setup completed!"
