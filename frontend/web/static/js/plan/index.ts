@@ -64,6 +64,12 @@ interface PlanAppGlobal {
   // Analytics Actions (exposed for onclick handlers)
   selectAnalyticsMonth: (month: string, btn: HTMLButtonElement) => Promise<void>;
 
+  // Analytics filter change handlers
+  onAnalyticsCFOChange: () => Promise<void>;
+  onAnalyticsArticleTypeChange: () => Promise<void>;
+  onAnalyticsArticleChange: () => Promise<void>;
+  collapseAnalytics: () => void;
+
   // Sync Actions (exposed for onclick handlers)
   syncFiltersToAnalytics: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
   syncAnalyticsToFilters: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
@@ -479,6 +485,12 @@ const planApp: typeof window.PlanApp = {
 
   // Analytics Actions (for onclick handlers)
   selectAnalyticsMonth: PlanAnalytics.selectAnalyticsMonth,
+
+  // Analytics filter change handlers
+  onAnalyticsCFOChange: PlanAnalytics.onAnalyticsCFOChange,
+  onAnalyticsArticleTypeChange: PlanAnalytics.onAnalyticsArticleTypeChange,
+  onAnalyticsArticleChange: PlanAnalytics.onAnalyticsArticleChange,
+  collapseAnalytics: PlanAnalytics.collapseAnalytics,
 
   // Sync Actions (for onclick handlers)
   syncFiltersToAnalytics: FilterAnalyticsSync.syncFiltersToAnalytics,
