@@ -930,7 +930,7 @@ export class DexieManager {
     };
   }> {
     const articlesCount = await this.getDB().articles.count();
-    const factsCount = await this.getDB().budgetFacts.count();
+    const factsCount = await this.getDB().budgetFacts.filter(f => f.record_type === 'fact').count();
     const shoppingListsCount = await this.getDB().shoppingLists.count();
     const financialCentersCount = await this.getDB().financialCenters.count();
     const costCentersCount = await this.getDB().costCenters.count();
