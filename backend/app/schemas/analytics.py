@@ -119,3 +119,42 @@ class FactHintsResponse(BaseModel):
         description="Article type: 'expense', 'income', 'debit', or 'credit'",
         examples=["expense", "income", "debit", "credit"]
     )
+
+
+class PlanFilterOptionFC(BaseModel):
+    """Financial center option for plan filter."""
+
+    id: int
+    name: str
+
+
+class PlanFilterOptionArticle(BaseModel):
+    """Article option for plan filter."""
+
+    id: int
+    name: str
+    type: str
+    parent_id: int | None
+
+
+class PlanFilterOptionsResponse(BaseModel):
+    """
+    Response schema for plans/filter-options endpoint.
+
+    Returns distinct filter values present in plan records (record_type='plan').
+    Used to populate filter dropdowns with only real data (not full dictionaries).
+
+    Example Usage:
+        GET /api/v1/analytics/plans/filter-options
+
+        Response:
+        {
+            "financial_centers": [{"id": 1, "name": "Sberbank"}],
+            "article_types": ["expense", "income"],
+            "articles": [{"id": 45, "name": "Продукты", "type": "expense", "parent_id": 10}]
+        }
+    """
+
+    financial_centers: list[PlanFilterOptionFC]
+    article_types: list[str]
+    articles: list[PlanFilterOptionArticle]

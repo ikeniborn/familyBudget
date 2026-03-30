@@ -3,6 +3,7 @@ Analytics API endpoints.
 
 Provides aggregated data for charts and dashboards.
 """
+import asyncio
 import calendar as cal_module
 import logging
 from datetime import date, datetime, timedelta
@@ -16,8 +17,12 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact as Fact
+from backend.app.models.financial_center import FinancialCenter
 from backend.app.schemas.analytics import (
     FactHintsResponse,
+    PlanFilterOptionArticle,
+    PlanFilterOptionFC,
+    PlanFilterOptionsResponse,
     PlanHintsResponse,
 )
 from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
@@ -2779,4 +2784,77 @@ async def get_plan_hints(
         article_id=article_id,
         article_name=article_name,
         article_type=article_type
+    )
+
+
+# ==================== Plan Filter Options ====================
+
+
+@router.get("/plans/filter-options", response_model=PlanFilterOptionsResponse)
+async def get_plans_filter_options(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+):
+    """
+    Get distinct filter options from plan records.
+
+    Returns unique values present in planning records (record_type='plan').
+    Used to populate filter dropdowns with only real data, not full dictionaries.
+
+    NOTE: Shared Family Budget - NO user_id filter (all users see all data)
+
+    Returns:
+        PlanFilterOptionsResponse with financial_centers, article_types, articles
+    """
+    # Financial centers from plan records (INNER JOIN excludes NULLs implicitly)
+    fc_query = (
+        select(FinancialCenter.id, FinancialCenter.name)
+        .select_from(Fact)
+        .join(FinancialCenter, Fact.financial_center_id == FinancialCenter.id)
+        .where(Fact.record_type == "plan")
+        .distinct()
+        .order_by(FinancialCenter.name)
+    )
+
+    # Article types from plan records
+    article_type_query = (
+        select(Article.type)
+        .select_from(Fact)
+        .join(Article, Fact.article_id == Article.id)
+        .where(Fact.record_type == "plan")
+        .distinct()
+    )
+
+    # Articles from plan records
+    articles_query = (
+        select(Article.id, Article.name, Article.type, Article.parent_id)
+        .select_from(Fact)
+        .join(Article, Fact.article_id == Article.id)
+        .where(Fact.record_type == "plan")
+        .distinct()
+        .order_by(Article.type, Article.name)
+    )
+
+    fc_result, article_type_result, articles_result = await asyncio.gather(
+        session.execute(fc_query),
+        session.execute(article_type_query),
+        session.execute(articles_query),
+    )
+
+    return PlanFilterOptionsResponse(
+        financial_centers=[
+            PlanFilterOptionFC(id=row.id, name=row.name)
+            for row in fc_result.all()
+        ],
+        article_types=[
+            row.type
+            for row in article_type_result.all()
+            if row.type is not None
+        ],
+        articles=[
+            PlanFilterOptionArticle(
+                id=row.id, name=row.name, type=row.type, parent_id=row.parent_id
+            )
+            for row in articles_result.all()
+        ],
     )
