@@ -194,6 +194,12 @@ export async function loadFacts(options?: DataLayerFetchOptions): Promise<LoadFa
             const userId = localFacts[0].user_id;
             const enrichmentMaps = await loadEnrichmentMaps(userId);
             allFacts = localFacts.map(fact => convertBudgetFact(fact, enrichmentMaps));
+
+            // Apply article_type filter post-enrichment as safety layer
+            // (primary filtering done in DexieManager.queryFacts via article join)
+            if (factFilters.article_type) {
+                allFacts = allFacts.filter(f => f.article_type === factFilters.article_type);
+            }
         } else {
             // Fallback: Dexie inactive — API data with API field names
             allFacts = localFacts.map(fact => convertAPIFact(fact as any));
