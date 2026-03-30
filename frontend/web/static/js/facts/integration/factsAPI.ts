@@ -160,6 +160,12 @@ export async function loadFacts(): Promise<LoadFactsResponse> {
 
             // Convert with enrichment (single pass - O(n))
             allFacts = localFacts.map(fact => convertBudgetFact(fact, enrichmentMaps));
+
+            // Apply article_type filter post-enrichment as safety layer
+            // (primary filtering done in DexieManager.queryFacts via article join)
+            if (factFilters.article_type) {
+                allFacts = allFacts.filter(f => f.article_type === factFilters.article_type);
+            }
         } else {
             // No enrichment needed (API provides full data or empty result)
             allFacts = localFacts.map(fact => convertBudgetFact(fact));

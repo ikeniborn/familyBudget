@@ -418,6 +418,13 @@ export class DexieManager {
 
         return true;
       });
+
+      // article_type filter: client-side join — article_type is not stored in LocalBudgetFact
+      if (filters.article_type) {
+        const matchingArticles = await this.queryArticles({ type: filters.article_type });
+        const validArticleIds = new Set(matchingArticles.map(a => a.id));
+        results = results.filter(fact => validArticleIds.has(fact.article_id));
+      }
     }
 
     // Convert amount from cents to dollars
