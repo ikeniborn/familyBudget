@@ -171,7 +171,8 @@ export async function downloadFacts(
       throw new Error(`Failed to fetch facts: ${response.status}`);
     }
 
-    const apiFacts: any[] = await response.json();
+    const responseData = await response.json();
+    const apiFacts: any[] = responseData.facts || [];
 
     // MAP API FIELDS → DEXIE SCHEMA (with error handling)
     const mappedFacts: LocalBudgetFact[] = [];
