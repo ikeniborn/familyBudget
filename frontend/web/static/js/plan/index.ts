@@ -412,26 +412,35 @@ export function collapseFiltersAction(): void {
  * @param button - Кнопка с data-form-id и data-modal-id
  */
 export async function savePlanModal(button: HTMLElement): Promise<void> {
-  if ((button as HTMLButtonElement).disabled) return;
+  const btn = button as HTMLButtonElement;
+  if (btn.disabled) return;
+  btn.disabled = true;
 
   const formId = button.dataset.formId;
   const modalId = button.dataset.modalId || 'modal_plan';
   const form = document.getElementById(formId || `form_${modalId}`) as HTMLFormElement | null;
-  if (!form) return;
+  if (!form) {
+    btn.disabled = false;
+    return;
+  }
 
-  if (modalId === 'modal_plan') {
-    // Для основного модала — TS-реализация из PlanCRUD (поддерживает recurring + offline)
-    const event = new Event('submit', { bubbles: true, cancelable: true });
-    Object.defineProperty(event, 'target', { value: form, writable: false });
-    await PlanCRUD.createPlan(event);
-  } else {
-    // Для остальных модалов (например modal_add_plan) — нативная отправка формы,
-    // которая триггерит зарегистрированный submit-обработчик из inline-скрипта
-    if (form.checkValidity()) {
-      form.requestSubmit();
+  try {
+    if (modalId === 'modal_plan') {
+      // Для основного модала — TS-реализация из PlanCRUD (поддерживает recurring + offline)
+      const event = new Event('submit', { bubbles: true, cancelable: true });
+      Object.defineProperty(event, 'target', { value: form, writable: false });
+      await PlanCRUD.createPlan(event);
     } else {
-      form.reportValidity();
+      // Для остальных модалов (например modal_add_plan) — нативная отправка формы,
+      // которая триггерит зарегистрированный submit-обработчик из inline-скрипта
+      if (form.checkValidity()) {
+        form.requestSubmit();
+      } else {
+        form.reportValidity();
+      }
     }
+  } finally {
+    btn.disabled = false;
   }
 }
 
