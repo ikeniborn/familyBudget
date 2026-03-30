@@ -4,6 +4,7 @@
  */
 
 import { db, toCents } from '../core/database';
+import { queryArticles } from './schemaOperations';
 import { logger } from '../utils/logger';
 import { validateFact } from '../utils/validation';
 import { calculateContentHash, generateUUID } from '../utils/hash';
@@ -234,6 +235,13 @@ export async function queryFacts(filters?: FactFilters): Promise<LocalBudgetFact
 
       return true;
     });
+
+    // article_type filter: client-side join — article_type is not stored in LocalBudgetFact
+    if (filters.article_type) {
+      const matchingArticles = await queryArticles({ type: filters.article_type });
+      const validArticleIds = new Set(matchingArticles.map(a => a.id));
+      results = results.filter(fact => validArticleIds.has(fact.article_id));
+    }
   }
 
   // amount already in rubles (stored via mapAPIFactToLocal without conversion)
