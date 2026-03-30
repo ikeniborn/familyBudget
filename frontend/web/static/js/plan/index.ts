@@ -51,6 +51,12 @@ interface PlanAppGlobal {
   // Analytics Actions (exposed for onclick handlers)
   selectAnalyticsMonth: (month: string, btn: HTMLButtonElement) => Promise<void>;
 
+  // Analytics filter change handlers
+  onAnalyticsCFOChange: () => Promise<void>;
+  onAnalyticsArticleTypeChange: () => Promise<void>;
+  onAnalyticsArticleChange: () => Promise<void>;
+  collapseAnalytics: () => void;
+
   // Sync Actions (exposed for onclick handlers)
   syncFiltersToAnalytics: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
   syncAnalyticsToFilters: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
@@ -93,8 +99,6 @@ declare global {
  * Called on DOMContentLoaded from inline script
  */
 export async function initialize(): Promise<void> {
-  console.log('[PLAN] Initializing plan page (Phase 2: Complete)...');
-
   try {
     // Initialize default period filter UI
     PlanFilters.initDefaultPeriodFilter();
@@ -103,7 +107,6 @@ export async function initialize(): Promise<void> {
     PlanAnalytics.initAnalyticsMonthButtons();
 
     // Load dropdown data in parallel
-    console.log('[PLAN] Loading dropdown data...');
     await Promise.all([
       loadUsersDropdown(),
       loadArticlesDropdown(),
@@ -114,19 +117,15 @@ export async function initialize(): Promise<void> {
     ]);
 
     // Apply filters and load initial data
-    console.log('[PLAN] Applying initial filters...');
     await applyFiltersAndLoadData();
 
     // Load analytics
-    console.log('[PLAN] Loading analytics...');
     await PlanAnalytics.loadPlanAnalytics();
 
     // Update filter indicator
     PlanFilters.updateFilterIndicator();
-
-    console.log('[PLAN] ✅ Plan page initialized successfully');
   } catch (error) {
-    console.error('[PLAN] ❌ Error initializing plan page:', error);
+    console.error('[PLAN] Error initializing plan page:', error);
     PlanHelpers.showNotification('Ошибка инициализации страницы: ' + (error as Error).message, 'error');
   }
 }
@@ -155,7 +154,6 @@ async function loadUsersDropdown(): Promise<void> {
       select.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${users.length} users`);
   } catch (error) {
     console.error('[PLAN] Error loading users:', error);
   }
@@ -257,7 +255,6 @@ async function loadArticlesDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${sortedNodes.length} articles (${articles.length} total)`);
   } catch (error) {
     console.error('[PLAN] Error loading articles:', error);
   }
@@ -283,7 +280,6 @@ async function loadFinancialCentersDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${centers.length} financial centers`);
   } catch (error) {
     console.error('[PLAN] Error loading financial centers:', error);
     PlanHelpers.showToast('Ошибка загрузки счетов: ' + (error as Error).message, 'error');
@@ -310,7 +306,6 @@ async function loadCostCentersDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${centers.length} cost centers`);
   } catch (error) {
     console.error('[PLAN] Error loading cost centers:', error);
     PlanHelpers.showToast('Ошибка загрузки мест затрат: ' + (error as Error).message, 'error');
@@ -335,8 +330,6 @@ export async function applyFiltersAndLoadData(): Promise<void> {
 
     // Sync filters to analytics (debounced to prevent cascading reloads)
     FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
-
-    console.log('[PLAN] Filters applied and data reloaded');
   } catch (error) {
     console.error('[PLAN] Error applying filters:', error);
     PlanHelpers.showNotification('Ошибка применения фильтров: ' + (error as Error).message, 'error');
@@ -357,8 +350,6 @@ export async function resetFiltersAndLoadData(): Promise<void> {
 
     // Sync filters to analytics (debounced to prevent cascading reloads)
     FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
-
-    console.log('[PLAN] Filters reset and data reloaded');
   } catch (error) {
     console.error('[PLAN] Error resetting filters:', error);
     PlanHelpers.showNotification('Ошибка сброса фильтров: ' + (error as Error).message, 'error');
@@ -405,6 +396,12 @@ window.PlanApp = {
   // Analytics Actions (for onclick handlers)
   selectAnalyticsMonth: PlanAnalytics.selectAnalyticsMonth,
 
+  // Analytics filter change handlers
+  onAnalyticsCFOChange: PlanAnalytics.onAnalyticsCFOChange,
+  onAnalyticsArticleTypeChange: PlanAnalytics.onAnalyticsArticleTypeChange,
+  onAnalyticsArticleChange: PlanAnalytics.onAnalyticsArticleChange,
+  collapseAnalytics: PlanAnalytics.collapseAnalytics,
+
   // Sync Actions (for onclick handlers)
   syncFiltersToAnalytics: FilterAnalyticsSync.syncFiltersToAnalytics,
   syncAnalyticsToFilters: FilterAnalyticsSync.syncAnalyticsToFilters,
@@ -432,7 +429,6 @@ window.PlanApp = {
   updateEditReminderDatetime: PlanCRUD.updateEditReminderDatetime
 };
 
-console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 4 complete)');
 
 // FAB toolbar compatibility (v10.1.11)
 // REMOVED: window.openModalPlan = PlanCRUD.openAddPlanModal

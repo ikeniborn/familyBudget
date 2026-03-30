@@ -170,9 +170,9 @@ export async function selectAnalyticsMonth(month: string, clickedBtn: HTMLButton
   // Reload analytics
   await loadPlanAnalytics();
 
-  // Sync to filters section (imported at runtime to avoid circular dependency)
-  if (typeof (window as any).syncAnalyticsToFilters === 'function') {
-    await (window as any).syncAnalyticsToFilters();
+  // Sync to filters section via PlanApp (avoids circular dependency)
+  if (typeof window.PlanApp?.syncAnalyticsToFilters === 'function') {
+    await window.PlanApp.syncAnalyticsToFilters();
   }
 }
 
@@ -707,4 +707,40 @@ function updateCategoriesChart(data: MonthlyAnalyticsData): void {
   const option = buildCategoriesChartConfig(data);
   const categories = data.categories_comparison || [];
   analyticsCategoriesChart.setOption(option, categories.length === 0);
+}
+
+// ============================================================================
+// Analytics Filter Handlers (called from analytics_section.html onchange)
+// ============================================================================
+
+/**
+ * Sync analytics state to filters without updating date range.
+ * Avoids circular dependency by routing through window.PlanApp.
+ */
+async function syncToFiltersNoDateUpdate(): Promise<void> {
+  if (typeof window.PlanApp?.syncAnalyticsToFilters === 'function') {
+    await window.PlanApp.syncAnalyticsToFilters({ updateDateRange: false });
+  }
+}
+
+export async function onAnalyticsCFOChange(): Promise<void> {
+  await loadPlanAnalytics();
+  await syncToFiltersNoDateUpdate();
+}
+
+export async function onAnalyticsArticleTypeChange(): Promise<void> {
+  const typeSelect = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
+  await loadAnalyticsArticleFilter(typeSelect?.value || null);
+  await loadCategoriesChartData();
+  await syncToFiltersNoDateUpdate();
+}
+
+export async function onAnalyticsArticleChange(): Promise<void> {
+  await loadCategoriesChartData();
+  await syncToFiltersNoDateUpdate();
+}
+
+export function collapseAnalytics(): void {
+  const toggle = document.getElementById('analytics-toggle') as HTMLInputElement | null;
+  if (toggle) toggle.checked = false;
 }
