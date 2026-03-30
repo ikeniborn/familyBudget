@@ -1031,7 +1031,7 @@ export class DexieManager {
       dbSizeKB: dbSize / 1024,
       tables: {
         articles: articlesCount,
-        budgetFacts: factsCount,
+        budgetFacts: factsCount + plansCount,
         shoppingLists: shoppingListsCount,
         financialCenters: financialCentersCount,
         costCenters: costCentersCount
