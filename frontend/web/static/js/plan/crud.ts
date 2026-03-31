@@ -1367,6 +1367,24 @@ export async function createPlan(event: Event): Promise<void> {
       const financialCenterId = parseInt(formData.get('financial_center_id') as string);
       const costCenterId = formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id') as string) : null;
 
+      // Frontend validation
+      if (isNaN(articleId) || articleId <= 0) {
+        showToast('Выберите категорию', 'warning');
+        setSubmitLoading(form, false);
+        return;
+      }
+      if (isNaN(financialCenterId) || financialCenterId <= 0) {
+        showToast('Выберите счет', 'warning');
+        setSubmitLoading(form, false);
+        return;
+      }
+      const amount = parseFloat(formData.get('amount') as string);
+      if (isNaN(amount) || amount <= 0) {
+        showToast('Укажите корректную сумму', 'warning');
+        setSubmitLoading(form, false);
+        return;
+      }
+
       const articleSelect = document.querySelector(`#${modalId} select[name="article_id"]`) as HTMLSelectElement | null;
       const financialCenterSelect = document.querySelector(`#${modalId} select[name="financial_center_id"]`) as HTMLSelectElement | null;
       const costCenterSelect = document.querySelector(`#${modalId} select[name="cost_center_id"]`) as HTMLSelectElement | null;
@@ -1395,7 +1413,7 @@ export async function createPlan(event: Event): Promise<void> {
         article_id: articleId,
         financial_center_id: financialCenterId,
         cost_center_id: costCenterId,
-        amount: parseFloat(formData.get('amount') as string),
+        amount: amount,
         description: formData.get('description') || null,
         record_type: 'plan',
         frequency_type: recurringSettings.frequency_type,
@@ -1487,7 +1505,15 @@ export async function createPlan(event: Event): Promise<void> {
           setupCreatePlanPeriodButtons();
         } else {
           const error = await response.json();
-          showToast('Ошибка: ' + (error.detail || 'Не удалось создать регулярный платеж'), 'error');
+          let errorMsg = 'Не удалось создать регулярный платеж';
+          if (Array.isArray(error.detail)) {
+            errorMsg = error.detail.map((e: any) => e.msg || e.message || 'Ошибка').join('; ');
+          } else if (error.detail && typeof error.detail === 'object' && error.detail.message) {
+            errorMsg = error.detail.message;
+          } else if (typeof error.detail === 'string') {
+            errorMsg = error.detail;
+          }
+          showToast('Ошибка: ' + errorMsg, 'error');
         }
       }
       return;
