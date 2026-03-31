@@ -193,6 +193,20 @@ export async function selectAnalyticsMonth(month: string, clickedBtn: HTMLButton
   clickedBtn.classList.remove('btn-outline');
   clickedBtn.classList.add('btn-primary');
 
+  // Reload filter options for this month (cascade: FC, article types)
+  const filterOptions = await loadAnalyticsFilterOptions({ planning_month: month });
+  if (filterOptions) {
+    await loadAnalyticsCFOFilter(filterOptions.financial_centers);
+    populateArticleTypeFilter(filterOptions.article_types);
+    // Reload articles: use selected type if any, else use plan-filtered articles
+    const typeSelect = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
+    if (typeSelect?.value) {
+      await loadAnalyticsArticleFilter(typeSelect.value);
+    } else {
+      await loadAnalyticsArticleFilter(null, filterOptions.articles);
+    }
+  }
+
   // Reload analytics
   await loadPlanAnalytics();
 
@@ -282,18 +296,33 @@ function buildArticleOptions(select: HTMLSelectElement, sortedNodes: PlanHelpers
  *
  * @returns PlanFilterOptionsResponse or null on error
  */
-export async function loadAnalyticsFilterOptions(): Promise<PlanFilterOptionsResponse | null> {
-  if (cachedFilterOptions) {
+export async function loadAnalyticsFilterOptions(
+  params?: { planning_month?: string; financial_center_id?: string | number }
+): Promise<PlanFilterOptionsResponse | null> {
+  // Use cache only when no params (initial/global load)
+  if (!params && cachedFilterOptions) {
     return cachedFilterOptions;
   }
 
   try {
-    const response = await fetch('/api/v1/analytics/plans/filter-options');
+    let url = '/api/v1/analytics/plans/filter-options';
+    if (params) {
+      const qp = new URLSearchParams();
+      if (params.planning_month) qp.set('planning_month', params.planning_month);
+      if (params.financial_center_id) qp.set('financial_center_id', String(params.financial_center_id));
+      if (qp.toString()) url += '?' + qp.toString();
+    }
+
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    cachedFilterOptions = await response.json();
-    return cachedFilterOptions;
+    const result: PlanFilterOptionsResponse = await response.json();
+    // Cache only the global (no-param) result
+    if (!params) {
+      cachedFilterOptions = result;
+    }
+    return result;
   } catch (error) {
     console.error('[PlanAnalytics] Error loading filter options:', error);
     return null;
@@ -357,6 +386,11 @@ export async function loadAnalyticsCFOFilter(
     const select = document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null;
     if (!select) return;
 
+    // Clear existing options except "Все счета" default
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+
     centerList.forEach(center => {
       const option = document.createElement('option');
       option.value = String(center.id);
@@ -369,12 +403,12 @@ export async function loadAnalyticsCFOFilter(
 }
 
 /**
- * Load article filter options for analytics
- * Filters by article type if provided.
- * Uses filter-options articles if provided; falls back to /api/v1/articles
+ * Load article filter options for analytics.
+ * When articleType is specified: fetches full hierarchy from /api/v1/articles?type=...
+ * When no type: uses allArticles (plan-used subset) or full API as fallback.
  *
  * @param articleType - Article type filter ('expense' | 'income' | 'debit' | 'credit') or null
- * @param allArticles - Pre-fetched articles from filter-options or null for fallback
+ * @param allArticles - Pre-fetched articles from filter-options (used only when articleType is null)
  */
 export async function loadAnalyticsArticleFilter(
   articleType: string | null = null,
@@ -383,25 +417,26 @@ export async function loadAnalyticsArticleFilter(
   try {
     let articles: PlanHelpers.Article[];
 
-    if (allArticles !== null) {
-      // Use pre-fetched articles, filter by type if needed
-      const filtered = articleType
-        ? allArticles.filter(a => a.type === articleType)
-        : allArticles;
-      articles = filtered as PlanHelpers.Article[];
-    } else {
-      // Fallback: fetch from /api/v1/articles
-      let url = '/api/v1/articles?limit=1000&sort_by=usage_count';
-      if (articleType) {
-        url += `&type=${articleType}`;
-      }
-
+    if (articleType !== null) {
+      // Type selected → fetch full hierarchy from API for proper tree display
+      const url = `/api/v1/articles?limit=1000&sort_by=usage_count&type=${encodeURIComponent(articleType)}`;
       const response = await fetch(url);
       if (!response.ok) {
         console.warn('[PlanAnalytics] Failed to load articles:', response.status);
         return;
       }
-
+      const data = await response.json();
+      articles = Array.isArray(data) ? data : data.articles || [];
+    } else if (allArticles !== null) {
+      // No type filter + pre-fetched plan articles → use them
+      articles = allArticles as PlanHelpers.Article[];
+    } else {
+      // Fallback: fetch all articles
+      const response = await fetch('/api/v1/articles?limit=1000&sort_by=usage_count');
+      if (!response.ok) {
+        console.warn('[PlanAnalytics] Failed to load articles:', response.status);
+        return;
+      }
       const data = await response.json();
       articles = Array.isArray(data) ? data : data.articles || [];
     }
@@ -866,14 +901,42 @@ async function syncToFiltersNoDateUpdate(): Promise<void> {
 }
 
 export async function onAnalyticsCFOChange(): Promise<void> {
+  const cfoCurrent = (document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null)?.value || undefined;
+  const params: { planning_month?: string; financial_center_id?: string } = {};
+  if (currentAnalyticsMonth) params.planning_month = currentAnalyticsMonth;
+  if (cfoCurrent) params.financial_center_id = cfoCurrent;
+
+  // Reload article types and articles for current month + selected FC
+  const filterOptions = await loadAnalyticsFilterOptions(Object.keys(params).length ? params : undefined);
+  if (filterOptions) {
+    populateArticleTypeFilter(filterOptions.article_types);
+    const typeSelect = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
+    if (typeSelect?.value) {
+      await loadAnalyticsArticleFilter(typeSelect.value);
+    } else {
+      await loadAnalyticsArticleFilter(null, filterOptions.articles);
+    }
+  }
+
   await loadPlanAnalytics();
   await syncToFiltersNoDateUpdate();
 }
 
 export async function onAnalyticsArticleTypeChange(): Promise<void> {
   const typeSelect = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
-  const cached = await loadAnalyticsFilterOptions();
-  await loadAnalyticsArticleFilter(typeSelect?.value || null, cached ? cached.articles : null);
+  const typeValue = typeSelect?.value || null;
+  if (typeValue) {
+    // Type selected → fetch full hierarchy from API for proper tree display
+    await loadAnalyticsArticleFilter(typeValue);
+  } else {
+    // Type cleared → show plan-filtered articles for current month + FC
+    const cfoCurrent = (document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null)?.value || undefined;
+    const params: { planning_month?: string; financial_center_id?: string } = {};
+    if (currentAnalyticsMonth) params.planning_month = currentAnalyticsMonth;
+    if (cfoCurrent) params.financial_center_id = cfoCurrent;
+    const filterOptions = await loadAnalyticsFilterOptions(Object.keys(params).length ? params : undefined);
+    await loadAnalyticsArticleFilter(null, filterOptions?.articles || null);
+  }
   await loadCategoriesChartData();
   await syncToFiltersNoDateUpdate();
 }

@@ -416,7 +416,27 @@ export async function loadRecurringPlans(): Promise<void> {
     }
 
     emptyState?.classList.add('hidden');
-    container?.classList.remove('hidden');
+    if (container) {
+      // Replace spinner with table structure
+      container.innerHTML = `
+        <div class="overflow-x-auto">
+          <table class="table table-sm">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Категория</th>
+                <th>Счёт</th>
+                <th>Сумма</th>
+                <th>Частота</th>
+                <th>Длительность</th>
+                <th>Следующий платёж</th>
+              </tr>
+            </thead>
+            <tbody id="recurring-plans-tbody"></tbody>
+          </table>
+        </div>`;
+      container.classList.remove('hidden');
+    }
     renderRecurringPlansTable(data.items);
   } catch (error) {
     PlanHelpers.showToast(

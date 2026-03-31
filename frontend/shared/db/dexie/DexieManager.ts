@@ -33,6 +33,7 @@ import {
   syncCostCenters,
   syncRecurringPlans
 } from './operations/referenceSync';
+import { fullFactSync } from './operations/factSync';
 import type {
   LocalArticle,
   LocalFinancialCenter,
@@ -751,6 +752,21 @@ export class DexieManager {
   async syncRecurringPlans(userId: number): Promise<{ success: boolean; count: number }> {
     logger.debug('[DexieManager] syncRecurringPlans', { userId });
     return await syncRecurringPlans(userId);
+  }
+
+  /**
+   * Full facts sync: upload pending operations then download server facts.
+   * Uses configured sync period (getSyncPeriodDays) for the date range.
+   *
+   * @param userId - User ID for sync
+   * @returns Sync result with uploaded/downloaded counts
+   */
+  async syncFacts(userId: number): Promise<{ success: boolean; uploaded: number; downloaded: number; failed: number }> {
+    logger.debug('[DexieManager] syncFacts', { userId });
+    const days = this.getSyncPeriodDays();
+    const dateTo = new Date().toISOString().split('T')[0];
+    const dateFrom = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    return await fullFactSync(userId, dateFrom, dateTo);
   }
 
   // ============================================================

@@ -10,7 +10,7 @@ from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
-from sqlalchemy import case
+from sqlalchemy import and_, case
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -2345,43 +2345,76 @@ async def get_plan_hints(
 async def get_plans_filter_options(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
+    planning_month: str | None = Query(None, description="Month in YYYY-MM format for date range filter"),
+    financial_center_id: int | None = Query(None, description="Filter by financial center ID"),
 ):
     """
     Get distinct filter options from plan records.
 
     Returns unique values present in planning records (record_type='plan').
-    Used to populate filter dropdowns with only real data, not full dictionaries.
+    Supports cascading filters: planning_month → financial_centers, article_types.
 
     NOTE: Shared Family Budget - NO user_id filter (all users see all data)
+
+    Args:
+        planning_month: Optional YYYY-MM to restrict to that month's plans
+        financial_center_id: Optional FC to restrict article types/articles
 
     Returns:
         PlanFilterOptionsResponse with financial_centers, article_types, articles
     """
-    # Financial centers from plan records (INNER JOIN excludes NULLs implicitly)
+    # Parse planning_month once for reuse across all queries
+    month_start = month_end = None
+    if planning_month:
+        try:
+            parsed = datetime.strptime(planning_month, "%Y-%m")
+            month_start = parsed.replace(day=1).date()
+            last_day = cal_module.monthrange(parsed.year, parsed.month)[1]
+            month_end = parsed.replace(day=last_day).date()
+        except ValueError:
+            pass  # Invalid format — ignore the filter
+
+    # Build base WHERE conditions
+    base_conditions = [Fact.record_type == "plan"]
+    if month_start and month_end:
+        base_conditions.append(Fact.fact_date >= month_start)
+        base_conditions.append(Fact.fact_date <= month_end)
+
+    if financial_center_id:
+        base_conditions.append(Fact.financial_center_id == financial_center_id)
+
+    base_where = and_(*base_conditions)
+
+    # Financial centers from plan records (always without FC filter — shows which FCs have plans)
+    fc_base = [Fact.record_type == "plan"]
+    if month_start and month_end:
+        fc_base.append(Fact.fact_date >= month_start)
+        fc_base.append(Fact.fact_date <= month_end)
+
     fc_query = (
         select(FinancialCenter.id, FinancialCenter.name)
         .select_from(Fact)
         .join(FinancialCenter, Fact.financial_center_id == FinancialCenter.id)
-        .where(Fact.record_type == "plan")
+        .where(and_(*fc_base))
         .distinct()
         .order_by(FinancialCenter.name)
     )
 
-    # Article types from plan records
+    # Article types from plan records (filtered by month + FC)
     article_type_query = (
         select(Article.type)
         .select_from(Fact)
         .join(Article, Fact.article_id == Article.id)
-        .where(Fact.record_type == "plan")
+        .where(base_where)
         .distinct()
     )
 
-    # Articles from plan records
+    # Articles from plan records (filtered by month + FC)
     articles_query = (
         select(Article.id, Article.name, Article.type, Article.parent_id)
         .select_from(Fact)
         .join(Article, Fact.article_id == Article.id)
-        .where(Fact.record_type == "plan")
+        .where(base_where)
         .distinct()
         .order_by(Article.type, Article.name)
     )
