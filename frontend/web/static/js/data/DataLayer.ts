@@ -1122,6 +1122,9 @@ export class DataLayer {
         const duration = performance.now() - startTime;
         performanceMonitor.trackAPICall('getFacts', duration);
         console.debug('[DATA_LAYER] API returned', { count: result.length, source: 'API', durationMs: duration.toFixed(2) });
+        if (this.shouldUseDexie() && result.length > 0) {
+          this.cacheFactsInDexieBackground(result);
+        }
         return result;
       }
 
@@ -1206,6 +1209,27 @@ export class DataLayer {
       performanceMonitor.trackAPICall('getFacts', performance.now() - startTime);
       return result;
     }
+  }
+
+  private cacheFactsInDexieBackground(apiResult: LocalBudgetFact[]): void {
+    (async () => {
+      try {
+        const dexie = await this.getDexie();
+        if (!dexie.isReady()) return;
+        const mappedFacts: LocalBudgetFact[] = [];
+        for (const apiFact of apiResult) {
+          try {
+            mappedFacts.push(mapAPIFactToLocal(apiFact));
+          } catch { /* skip malformed */ }
+        }
+        if (mappedFacts.length > 0) {
+          await dexie.bulkInsertFacts(mappedFacts);
+          console.debug('[DATA_LAYER] Background cached facts in Dexie', { count: mappedFacts.length });
+        }
+      } catch (e) {
+        console.warn('[DATA_LAYER] Background Dexie cache error', e);
+      }
+    })();
   }
 
   private buildFactFilterParams(filters?: FactFilters): URLSearchParams {
