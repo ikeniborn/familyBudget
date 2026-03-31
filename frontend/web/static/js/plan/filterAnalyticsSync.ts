@@ -129,7 +129,6 @@ export function debouncedSyncFiltersToAnalytics(
   // Cancel pending sync
   if (syncDebounceTimer !== null) {
     clearTimeout(syncDebounceTimer);
-    if (window.DEBUG_MODE) console.log('[FILTER_SYNC] Debounced - canceling pending sync'); // DEBUG_MODE guard
   }
 
   // Schedule new sync
@@ -178,7 +177,6 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
 
   // Prevent infinite loops
   if (isSyncInProgress) {
-    if (window.DEBUG_MODE) console.log('[syncFiltersToAnalytics] Sync already in progress, skipping'); // DEBUG_MODE guard
     return;
   }
 
@@ -194,13 +192,6 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
       const currentAnalyticsMonth = PlanAnalytics.getCurrentAnalyticsMonth();
 
       if (monthFromRange && monthFromRange !== currentAnalyticsMonth) {
-        if (window.DEBUG_MODE) console.log( // DEBUG_MODE guard
-          '[syncFiltersToAnalytics] Month changed:',
-          currentAnalyticsMonth,
-          '→',
-          monthFromRange
-        );
-
         // Update month selection
         PlanAnalytics.setCurrentAnalyticsMonth(monthFromRange);
 
@@ -213,6 +204,13 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
         });
 
         needsReload = true;
+      } else if (!monthFromRange && currentAnalyticsMonth) {
+        // Partial month or multi-month range — clear all button selections
+        const buttons = document.querySelectorAll<HTMLButtonElement>('#analytics-month-buttons button');
+        buttons.forEach(btn => {
+          btn.classList.remove('btn-primary');
+          btn.classList.add('btn-outline');
+        });
       }
     }
 
@@ -223,15 +221,9 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
     if (filterArticleType && analyticsArticleType) {
       const newValue = filterArticleType.value || '';
       if (analyticsArticleType.value !== newValue) {
-        if (window.DEBUG_MODE) console.log( // DEBUG_MODE guard
-          '[syncFiltersToAnalytics] Article type changed:',
-          analyticsArticleType.value,
-          '→',
-          newValue
-        );
         analyticsArticleType.value = newValue;
-        // Reload article dropdown for analytics (filtered by type)
-        await PlanAnalytics.loadAnalyticsArticleFilter(newValue || null);
+        const cached = await PlanAnalytics.loadAnalyticsFilterOptions();
+        await PlanAnalytics.loadAnalyticsArticleFilter(newValue || null, cached ? cached.articles : null);
         needsReload = true;
       }
     }
@@ -245,11 +237,8 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
       // Check if option exists in analytics dropdown
       const optionExists = analyticsArticle.querySelector(`option[value="${newValue}"]`);
       if (optionExists && analyticsArticle.value !== newValue) {
-        if (window.DEBUG_MODE) console.log('[syncFiltersToAnalytics] Article changed:', analyticsArticle.value, '→', newValue); // DEBUG_MODE guard
         analyticsArticle.value = newValue;
         needsReload = true;
-      } else if (!optionExists && newValue) {
-        if (window.DEBUG_MODE) console.log('[syncFiltersToAnalytics] Article option not found in analytics dropdown, skipping'); // DEBUG_MODE guard
       }
     }
 
@@ -260,7 +249,6 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
     if (filterFC && analyticsCFO) {
       const newValue = filterFC.value || '';
       if (analyticsCFO.value !== newValue) {
-        if (window.DEBUG_MODE) console.log('[syncFiltersToAnalytics] CFO changed:', analyticsCFO.value, '→', newValue); // DEBUG_MODE guard
         analyticsCFO.value = newValue;
         needsReload = true;
       }
@@ -268,7 +256,6 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
 
     // 5. Reload charts if any value changed
     if (needsReload && !skipReload) {
-      if (window.DEBUG_MODE) console.log('[syncFiltersToAnalytics] Reloading charts...'); // DEBUG_MODE guard
       await PlanAnalytics.loadPlanAnalytics();
     }
   } catch (error) {
@@ -295,7 +282,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
 
   // Prevent infinite loops
   if (isSyncInProgress) {
-    if (window.DEBUG_MODE) console.log('[syncAnalyticsToFilters] Sync already in progress, skipping'); // DEBUG_MODE guard
     return;
   }
 
@@ -311,17 +297,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
       const filters = PlanFilters.getFilters();
 
       if (filters.date_from !== from || filters.date_to !== to) {
-        if (window.DEBUG_MODE) console.log( // DEBUG_MODE guard
-          '[syncAnalyticsToFilters] Date range changed:',
-          filters.date_from,
-          '-',
-          filters.date_to,
-          '→',
-          from,
-          '-',
-          to
-        );
-
         // Update filters object
         PlanFilters.setFilters({ date_from: from, date_to: to });
 
@@ -348,7 +323,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
     if (analyticsArticleType && filterArticleType) {
       const newValue = analyticsArticleType.value || '';
       if (filterArticleType.value !== newValue) {
-        if (window.DEBUG_MODE) console.log('[syncAnalyticsToFilters] Article type changed:', filterArticleType.value, '→', newValue); // DEBUG_MODE guard
         filterArticleType.value = newValue;
 
         // Update filters object immediately
@@ -358,7 +332,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
         if (filterArticle) {
           filterArticle.value = '';
           PlanFilters.setFilters({ article_id: null });
-          if (window.DEBUG_MODE) console.log('[syncAnalyticsToFilters] Article filter reset due to type change'); // DEBUG_MODE guard
         }
 
         needsReload = true;
@@ -373,12 +346,9 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
       // Check if option exists in filter dropdown
       const optionExists = filterArticle.querySelector(`option[value="${newValue}"]`);
       if (optionExists && filterArticle.value !== newValue) {
-        if (window.DEBUG_MODE) console.log('[syncAnalyticsToFilters] Article changed:', filterArticle.value, '→', newValue); // DEBUG_MODE guard
         filterArticle.value = newValue;
         PlanFilters.setFilters({ article_id: parseInt(newValue) || null });
         needsReload = true;
-      } else if (!optionExists && newValue) {
-        if (window.DEBUG_MODE) console.log('[syncAnalyticsToFilters] Article option not found in filter dropdown, skipping'); // DEBUG_MODE guard
       }
     }
 
@@ -389,7 +359,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
     if (analyticsCFO && filterFC) {
       const newValue = analyticsCFO.value || '';
       if (filterFC.value !== newValue) {
-        if (window.DEBUG_MODE) console.log('[syncAnalyticsToFilters] CFO changed:', filterFC.value, '→', newValue); // DEBUG_MODE guard
         filterFC.value = newValue;
         PlanFilters.setFilters({ financial_center_id: parseInt(newValue) || null });
         needsReload = true;
@@ -398,11 +367,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
 
     // 5. Reload facts table if any value changed
     if (needsReload && !skipReload) {
-      if (window.DEBUG_MODE) console.log('[syncAnalyticsToFilters] Reloading facts table with filters:', { // DEBUG_MODE guard
-        article_type: filterArticleType?.value || null,
-        article_id: filterArticle?.value || null,
-        financial_center_id: filterFC?.value || null
-      });
       PlanFactsTable.setCurrentPage(0);
       await PlanFactsTable.loadFacts();
       PlanFilters.updateFilterIndicator();

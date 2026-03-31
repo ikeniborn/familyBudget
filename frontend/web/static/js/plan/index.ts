@@ -135,8 +135,7 @@ export async function initialize(): Promise<void> {
       loadArticlesDropdown(),
       loadFinancialCentersDropdown(),
       loadCostCentersDropdown(),
-      PlanAnalytics.loadAnalyticsCFOFilter(),
-      PlanAnalytics.loadAnalyticsArticleFilter()
+      PlanAnalytics.populateAllAnalyticsFilters()
     ]);
 
     // Apply filters and load initial data

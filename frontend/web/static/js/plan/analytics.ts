@@ -13,6 +13,34 @@ import * as PlanHelpers from './helpers';
 declare const echarts: any;
 
 // ============================================================================
+// Filter Options Interface & Cache
+// ============================================================================
+
+/**
+ * Filter options response from /api/v1/analytics/plans/filter-options
+ */
+export interface PlanFilterOptionsResponse {
+  financial_centers: Array<{ id: number; name: string }>;
+  article_types: string[];
+  articles: Array<{ id: number; name: string; type: string; parent_id: number | null }>;
+}
+
+/**
+ * Cached filter options from API
+ */
+let cachedFilterOptions: PlanFilterOptionsResponse | null = null;
+
+/**
+ * Human-readable labels for article types
+ */
+const ARTICLE_TYPE_LABELS: Record<string, string> = {
+  expense: 'Расходы',
+  income: 'Доходы',
+  debit: 'Списание',
+  credit: 'Пополнение'
+};
+
+// ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
@@ -136,18 +164,13 @@ export function initAnalyticsMonthButtons(): void {
     const label = `${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
 
     const btn = document.createElement('button');
-    btn.className = offset === 0 ? 'join-item btn btn-primary' : 'join-item btn btn-outline';
+    btn.className = 'join-item btn btn-outline';
     btn.style.height = '3rem';
     btn.textContent = label;
     btn.dataset.month = yearMonth;
     btn.onclick = () => selectAnalyticsMonth(yearMonth, btn);
 
     container.appendChild(btn);
-
-    // Set initial month
-    if (offset === 0) {
-      currentAnalyticsMonth = yearMonth;
-    }
   }
 }
 
@@ -250,20 +273,91 @@ function buildArticleOptions(select: HTMLSelectElement, sortedNodes: PlanHelpers
 }
 
 // ============================================================================
+// Filter Options - Dynamic from API
+// ============================================================================
+
+/**
+ * Load and cache filter options from /api/v1/analytics/plans/filter-options
+ * Returns cached result on subsequent calls
+ *
+ * @returns PlanFilterOptionsResponse or null on error
+ */
+export async function loadAnalyticsFilterOptions(): Promise<PlanFilterOptionsResponse | null> {
+  if (cachedFilterOptions) {
+    return cachedFilterOptions;
+  }
+
+  try {
+    const response = await fetch('/api/v1/analytics/plans/filter-options');
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    cachedFilterOptions = await response.json();
+    return cachedFilterOptions;
+  } catch (error) {
+    console.error('[PlanAnalytics] Error loading filter options:', error);
+    return null;
+  }
+}
+
+/**
+ * Populate article type select with dynamic values from filter options
+ * @param types - Array of article type strings from API
+ */
+export function populateArticleTypeFilter(types: string[]): void {
+  const select = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
+  if (!select) return;
+
+  // Remove all options except the first "Все типы" default
+  while (select.options.length > 1) {
+    select.remove(1);
+  }
+
+  types.forEach(type => {
+    const option = document.createElement('option');
+    option.value = type;
+    option.textContent = ARTICLE_TYPE_LABELS[type] || type;
+    select.appendChild(option);
+  });
+}
+
+/**
+ * Populate all analytics filter dropdowns using cached filter options
+ * Calls loadAnalyticsFilterOptions() internally; falls back to legacy endpoints on error
+ */
+export async function populateAllAnalyticsFilters(): Promise<void> {
+  const filterOptions = await loadAnalyticsFilterOptions();
+
+  if (filterOptions && filterOptions.article_types.length > 0) {
+    populateArticleTypeFilter(filterOptions.article_types);
+  }
+
+  await Promise.all([
+    loadAnalyticsCFOFilter(filterOptions ? filterOptions.financial_centers : null),
+    loadAnalyticsArticleFilter(null, filterOptions ? filterOptions.articles : null)
+  ]);
+}
+
+// ============================================================================
 // Filter Dropdowns
 // ============================================================================
 
 /**
  * Load CFO (financial center) filter options for analytics
+ * Uses filter-options data if provided; falls back to PlanHelpers.loadFinancialCenters()
+ *
+ * @param centers - Pre-fetched financial centers or null for fallback
  */
-export async function loadAnalyticsCFOFilter(): Promise<void> {
+export async function loadAnalyticsCFOFilter(
+  centers: Array<{ id: number; name: string }> | null = null
+): Promise<void> {
   try {
-    const centers = await PlanHelpers.loadFinancialCenters();
-    const select = document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null;
+    const centerList = centers !== null ? centers : await PlanHelpers.loadFinancialCenters();
 
+    const select = document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null;
     if (!select) return;
 
-    centers.forEach(center => {
+    centerList.forEach(center => {
       const option = document.createElement('option');
       option.value = String(center.id);
       option.textContent = center.name;
@@ -276,25 +370,41 @@ export async function loadAnalyticsCFOFilter(): Promise<void> {
 
 /**
  * Load article filter options for analytics
- * Filters by article type if provided
+ * Filters by article type if provided.
+ * Uses filter-options articles if provided; falls back to /api/v1/articles
  *
- * @param articleType - Article type filter ('expense' | 'income' | 'debit' | 'credit')
+ * @param articleType - Article type filter ('expense' | 'income' | 'debit' | 'credit') or null
+ * @param allArticles - Pre-fetched articles from filter-options or null for fallback
  */
-export async function loadAnalyticsArticleFilter(articleType: string | null = null): Promise<void> {
+export async function loadAnalyticsArticleFilter(
+  articleType: string | null = null,
+  allArticles: Array<{ id: number; name: string; type: string; parent_id: number | null }> | null = null
+): Promise<void> {
   try {
-    let url = '/api/v1/articles?limit=1000&sort_by=usage_count';
-    if (articleType) {
-      url += `&type=${articleType}`;
-    }
+    let articles: PlanHelpers.Article[];
 
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.warn('[PlanAnalytics] Failed to load articles:', response.status);
-      return;
-    }
+    if (allArticles !== null) {
+      // Use pre-fetched articles, filter by type if needed
+      const filtered = articleType
+        ? allArticles.filter(a => a.type === articleType)
+        : allArticles;
+      articles = filtered as PlanHelpers.Article[];
+    } else {
+      // Fallback: fetch from /api/v1/articles
+      let url = '/api/v1/articles?limit=1000&sort_by=usage_count';
+      if (articleType) {
+        url += `&type=${articleType}`;
+      }
 
-    const data = await response.json();
-    const articles: PlanHelpers.Article[] = Array.isArray(data) ? data : data.articles || [];
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.warn('[PlanAnalytics] Failed to load articles:', response.status);
+        return;
+      }
+
+      const data = await response.json();
+      articles = Array.isArray(data) ? data : data.articles || [];
+    }
 
     const select = document.getElementById('analytics-article') as HTMLSelectElement | null;
     if (!select) return;
@@ -508,13 +618,6 @@ function initCategoriesChart(): void {
  * @returns ECharts option object
  */
 function buildComparisonChartConfig(data: MonthlyAnalyticsData): any {
-  const typeLabels: Record<string, string> = {
-    expense: 'Расходы',
-    income: 'Доходы',
-    debit: 'Списание',
-    credit: 'Пополнение'
-  };
-
   const typeColors: Record<string, string> = {
     expense: '#ef4444',
     income: '#22c55e',
@@ -551,7 +654,7 @@ function buildComparisonChartConfig(data: MonthlyAnalyticsData): any {
     },
     xAxis: {
       type: 'category',
-      data: types.map(t => typeLabels[t]),
+      data: types.map(t => ARTICLE_TYPE_LABELS[t]),
       axisLine: { lineStyle: { color: '#e5e7eb' } },
       axisTick: { lineStyle: { color: '#e5e7eb' } },
       axisLabel: { color: '#374151' }
