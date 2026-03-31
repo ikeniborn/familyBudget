@@ -186,14 +186,10 @@
             {% include "partials/facts/facts_table_container.html" %}
 
             <!-- Pagination -->
-            <div class="flex justify-center items-center gap-4 mt-4" id="pagination-controls" style="display: none;">
-                <button class="btn btn-sm btn-outline" id="prev-btn" data-action="previous-page" disabled>
-                    ← Предыдущая
-                </button>
-                <span class="font-medium" id="page-info">Страница 1</span>
-                <button class="btn btn-sm btn-outline" id="next-btn" data-action="next-page" disabled>
-                    Следующая →
-                </button>
+            <div class="flex flex-wrap justify-center items-center gap-2 sm:gap-4 mt-4" id="pagination-controls" style="display: none;">
+                <button class="btn btn-sm btn-outline" id="prev-btn" data-action="previous-page" disabled>← Пред.</button>
+                <span class="font-medium text-sm" id="page-info">Страница 1</span>
+                <button class="btn btn-sm btn-outline" id="next-btn" data-action="next-page" disabled>След. →</button>
             </div>
         </div>
     </div>
