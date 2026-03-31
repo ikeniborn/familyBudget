@@ -367,4 +367,4 @@ backend/.env.test
 
 # Sphinx build output
 docs/sphinx/_build/.doctrees/
-
+.claude/worktrees
