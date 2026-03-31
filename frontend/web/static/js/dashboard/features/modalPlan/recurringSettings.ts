@@ -6,7 +6,7 @@
  */
 
 import { getState, updateState } from '../../core/DashboardState';
-import { initReminderCalendarWidget } from '../addPlan/reminderSettings';
+import { initReminderCalendarWidget, getCurrentTimeRounded, updateReminderDatetime } from '../addPlan/reminderSettings';
 
 declare const debugLog: (...args: any[]) => void;
 
@@ -64,6 +64,21 @@ export function togglePlanMode(modalId: string): void {
     debugLog('[togglePlanMode] Reminder section shown');
     // Initialize CalendarWidget for reminder date field
     initReminderCalendarWidget(modalId);
+
+    // Explicitly show inner container (in case it was hidden)
+    const reminderSettings = document.getElementById(`reminder-settings-${modalId}`);
+    if (reminderSettings) {
+      reminderSettings.classList.remove('hidden');
+    }
+
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`) as HTMLSelectElement | null;
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`) as HTMLSelectElement | null;
+    if (hourSelect && minuteSelect) {
+      const defaultTime = getCurrentTimeRounded();
+      hourSelect.value = defaultTime.hour;
+      minuteSelect.value = defaultTime.minute;
+      updateReminderDatetime(modalId);
+    }
   } else {
     debugLog('[togglePlanMode] Regular mode - no additional sections shown');
   }
