@@ -431,7 +431,23 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
 
   try {
     if (modalId === 'modal_plan') {
-      // Для основного модала — TS-реализация из PlanCRUD (поддерживает recurring + offline)
+      // Check active tab via hidden field (updated by tabManagerFactory in dashboard.min.js)
+      const activeTabInput = document.getElementById(`${modalId}-active-tab`) as HTMLInputElement | null;
+      const activeTab = activeTabInput?.value || 'transaction';
+
+      if (activeTab === 'transfer') {
+        // Delegate to dashboard's savePlanModal — it correctly routes to savePlanTransfer.
+        // window.Dashboard.savePlanModal is set by dashboard.min.js before plan.bundle.js
+        // overrides window.savePlanModal, so window.Dashboard.savePlanModal remains correct.
+        btn.disabled = false;
+        const dashboardFn = (window as any).Dashboard?.savePlanModal;
+        if (typeof dashboardFn === 'function') {
+          dashboardFn(button);
+        }
+        return;
+      }
+
+      // Transaction tab — TS-реализация из PlanCRUD (поддерживает recurring + offline)
       const event = new Event('submit', { bubbles: true, cancelable: true });
       Object.defineProperty(event, 'target', { value: form, writable: false });
       await PlanCRUD.createPlan(event);

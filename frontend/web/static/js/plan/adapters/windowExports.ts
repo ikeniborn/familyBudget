@@ -108,6 +108,9 @@ export function setupWindowExports(
   (window as any).updateBatchDeleteRecurringPlansButtonState = PlanModal.updateBatchDeleteRecurringPlansButtonState;
   (window as any).selectedRecurringPlanIds = PlanModal.selectedRecurringPlanIds;
 
+  // reloadPlans — алиас для refreshUIAfterPlanSave() в dashboard после сохранения перевода
+  (window as any).reloadPlans = planApp.loadFacts;
+
   // prefillReminderDateTime и resetReminderFields — делегируем в dashboard
   // (реализации в dashboard.min.js, экспортируются через window.Dashboard)
   (window as any).prefillReminderDateTime = (modalId: string) =>
