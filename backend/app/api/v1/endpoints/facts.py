@@ -130,6 +130,9 @@ async def _load_recurring_plan_data(
             "record_type": plan.record_type, "is_active": plan.is_active,
             "next_generation_date": plan.next_generation_date,
             "last_generated_date": plan.last_generated_date,
+            "enable_reminder": plan.enable_reminder,
+            "reminder_hour": plan.reminder_hour,
+            "reminder_minute": plan.reminder_minute,
             "created_at": plan.created_at, "updated_at": plan.updated_at,
         }
     except (SQLAlchemyError, ValueError, AttributeError) as e:
