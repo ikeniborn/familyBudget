@@ -18,6 +18,7 @@ import {
     setEditCategoryTreeSelect
 } from '../../core/stateManager';
 import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
+import { setupTransferFCExclusion, cleanupExclusionFlag } from '../../../dashboard/shared/utils/transferFCExclusion';
 
 const TRANSACTION_ARTICLE_SELECTOR = '#modal_fact-tab-transaction select[name="article_id"]';
 const TRANSACTION_FC_SELECTOR      = '#modal_fact-tab-transaction select[name="financial_center_id"]';
@@ -271,6 +272,20 @@ function setupTransferFCListeners(): void {
         });
         toFcSelect.dataset.listenerAttached = 'true';
     }
+
+    if (fromFcSelect && toFcSelect) {
+        setupTransferFCExclusion({
+            fromSelect: fromFcSelect,
+            toSelect: toFcSelect,
+            onToClear: () => {
+                const toTree = getCreateTransferToTree();
+                if (toTree) {
+                    toTree.clearSelection();
+                    toTree.disable();
+                }
+            }
+        });
+    }
 }
 
 // ============================================================================
@@ -314,6 +329,9 @@ export function destroyEditCategoryTree(): void {
  * Destroy all category tree instances (called on modal close if needed).
  */
 export function destroyCategoryTrees(): void {
+    const fromFcEl = document.querySelector<HTMLSelectElement>(FROM_FC_SELECTOR);
+    cleanupExclusionFlag(fromFcEl);
+
     const transaction = getCreateCategoryTreeSelect();
     if (transaction) {
         try { transaction.destroy(); } catch (_) {}
