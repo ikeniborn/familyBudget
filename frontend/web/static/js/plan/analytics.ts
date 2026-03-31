@@ -872,7 +872,8 @@ export async function onAnalyticsCFOChange(): Promise<void> {
 
 export async function onAnalyticsArticleTypeChange(): Promise<void> {
   const typeSelect = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
-  await loadAnalyticsArticleFilter(typeSelect?.value || null);
+  const cached = await loadAnalyticsFilterOptions();
+  await loadAnalyticsArticleFilter(typeSelect?.value || null, cached ? cached.articles : null);
   await loadCategoriesChartData();
   await syncToFiltersNoDateUpdate();
 }
