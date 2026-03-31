@@ -8,7 +8,8 @@
  */
 
 import { applyFiltersAction, resetFiltersAction, collapseFilters } from '../operations/filterOperations';
-import { batchDelete, exportFilteredFacts, applyFiltersAndReload, resetFiltersAndReload } from '../operations/factsController';
+import { batchDelete, exportFilteredFacts, applyFiltersAndReload, resetFiltersAndReload, goToPreviousPage, goToNextPage } from '../operations/factsController';
+import { previousPage, nextPage } from '../operations/paginationOperations';
 
 /**
  * Setup event delegation for all clickable elements
@@ -62,6 +63,18 @@ function handleClick(event: Event): void {
 
         case 'batch-delete':
             batchDelete();
+            break;
+
+        case 'previous-page':
+            if (previousPage()) {
+                goToPreviousPage();
+            }
+            break;
+
+        case 'next-page':
+            if (nextPage()) {
+                goToNextPage();
+            }
             break;
 
         default:
