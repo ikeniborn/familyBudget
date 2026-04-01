@@ -801,12 +801,13 @@ export class DataLayer {
       const list = await dexie.getDB().shoppingLists.where('id').equals(listId).first();
       if (!list || !list.temp_id) {
         console.warn('[DATA_LAYER] List not found in Dexie or missing temp_id, using API fallback');
-        const result = await this.getShoppingListItemsFromAPI(listId, filters);
+        const apiResult = await this.fetchEnrichAndCacheItems(listId, undefined, filters);
         performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
-        return result;
+        console.debug('[DATA_LAYER] API fallback returned (no list temp_id)', { count: apiResult.length });
+        return apiResult;
       }
 
-      const listTempId = list.temp_id;  // ← Use Dexie temp_id for FK query
+      const listTempId = list.temp_id;
       let result = await dexie.queryShoppingListItems(listTempId);
       const duration = performance.now() - startTime;
 
@@ -858,26 +859,7 @@ export class DataLayer {
 
       if (result.length === 0) {
         console.debug('[DATA_LAYER] Dexie returned empty, using API fallback');
-        let apiResult = await this.getShoppingListItemsFromAPI(listId, filters);
-
-        // CRITICAL FIX: Ensure temp_id exists for all API items (for bulk delete compatibility)
-        apiResult = apiResult.map(item => ({
-          ...item,
-          temp_id: item.temp_id || `item_${item.id}_${Date.now()}`,
-          shopping_list_temp_id: item.shopping_list_temp_id || listTempId,
-          sync_status: item.sync_status || 'synced',
-        }));
-
-        // Cache API items in Dexie so next offline access doesn't lose data
-        if (apiResult.length > 0) {
-          try {
-            await dexie.getDB().shoppingListItems.bulkPut(apiResult);
-            console.debug('[DATA_LAYER] Cached API items in Dexie', { count: apiResult.length });
-          } catch (cacheError) {
-            console.warn('[DATA_LAYER] Failed to cache API items in Dexie', cacheError);
-          }
-        }
-
+        const apiResult = await this.fetchEnrichAndCacheItems(listId, listTempId, filters);
         performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
         console.debug('[DATA_LAYER] API fallback returned', { count: apiResult.length });
         return apiResult;
@@ -893,6 +875,41 @@ export class DataLayer {
       performanceMonitor.trackAPICall('getShoppingListItems', performance.now() - startTime);
       return result;
     }
+  }
+
+  /**
+   * Fetch items from API, enrich with temp_ids, and cache in Dexie.
+   * Used for both "list not in Dexie" and "Dexie returned empty" fallback paths.
+   *
+   * @param listId - Shopping list numeric ID
+   * @param listTempId - Known temp_id for the list; derived from items if absent
+   * @param filters - Optional filters
+   */
+  private async fetchEnrichAndCacheItems(
+    listId: number,
+    listTempId: string | undefined,
+    filters?: ShoppingListItemFilters
+  ): Promise<LocalShoppingListItem[]> {
+    let items = await this.getShoppingListItemsFromAPI(listId, filters);
+    const resolvedListTempId = listTempId
+      || items.find(i => i.shopping_list_temp_id)?.shopping_list_temp_id
+      || `list_${listId}_temp`;
+    items = items.map(item => ({
+      ...item,
+      temp_id: item.temp_id || `item_${item.id}_${Date.now()}`,
+      shopping_list_temp_id: item.shopping_list_temp_id || resolvedListTempId,
+      sync_status: item.sync_status || 'synced',
+    }));
+    if (items.length > 0) {
+      try {
+        const dexie = await this.getDexie();
+        await dexie.getDB().shoppingListItems.bulkPut(items);
+        console.debug('[DATA_LAYER] Cached API items in Dexie', { count: items.length });
+      } catch (cacheError) {
+        console.warn('[DATA_LAYER] Failed to cache API items in Dexie', cacheError);
+      }
+    }
+    return items;
   }
 
   /**
