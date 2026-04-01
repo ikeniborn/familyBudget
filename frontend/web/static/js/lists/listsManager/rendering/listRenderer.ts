@@ -11,7 +11,7 @@
 import { getState, updateState } from '../core/ListsState';
 import { loadShoppingLists, loadShoppingListItems } from '../core/stateManager';
 import { renderCurrentView } from './tableBuilder';
-import { updateHideCompletedButton } from '../features/searchFilter';
+import { updateHideCompletedButton, updateFABButtons } from '../features/searchFilter';
 
 // ============================================================================
 // Type Definitions
@@ -543,6 +543,7 @@ export async function renderDetailView(listId: number): Promise<void> {
 
   // Update FAB visibility after rendering
   updateFABVisibility();
+  updateFABButtons();  // re-evaluate with populated items: updateHideCompletedButton() ran earlier with empty state
 
   // Initialize Choices.js for store and product group selectors in modal
   // NOTE: These should be moved to modalManager.ts in Phase 3.3

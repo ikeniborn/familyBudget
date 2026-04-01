@@ -486,16 +486,19 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
  * Dexie-first with API fallback (task-015 Phase 4.2)
  *
  * @param itemIds - Array of item IDs to delete
+ * @param skipConfirm - Skip confirmation dialog (default: false)
  */
-export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
+export async function deleteMultipleItems(itemIds: number[], skipConfirm: boolean = false): Promise<void> {
   if (itemIds.length === 0) return;
 
-  const confirmed = await showConfirmDialog(
-    `Удалить выбранные товары (${itemIds.length})?\nЭто действие необратимо.`,
-    '🗑️ Удаление товаров'
-  );
-  if (!confirmed) {
-    return;
+  if (!skipConfirm) {
+    const confirmed = await showConfirmDialog(
+      `Удалить выбранные товары (${itemIds.length})?\nЭто действие необратимо.`,
+      '🗑️ Удаление товаров'
+    );
+    if (!confirmed) {
+      return;
+    }
   }
 
   const state = getState();
