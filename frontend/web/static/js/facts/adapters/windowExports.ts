@@ -18,6 +18,7 @@ import {
     updateFact as updateFactAction,
     deleteFromEditModal as deleteFromEditModalAction,
     createFact as createFactAction,
+    reloadFacts,
     exportFilteredFacts as exportFilteredFactsAction,
     applyFiltersAndReload,
     resetFiltersAndReload,
@@ -57,6 +58,7 @@ export function setupWindowExports(): void {
     window.deleteFromEditModal = deleteFromEditModal;
     window.exportFilteredFacts = exportFilteredFacts;
     window.createFact = createFact;
+    window.reloadFacts = reloadFacts;
 
     // Modal operations
     window.openCreateModal = openCreateModal;

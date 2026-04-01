@@ -42,6 +42,7 @@ declare global {
         openCreateModal?: () => void;
         createFact?: (event: Event) => Promise<void>;
         createTransfer?: (event: Event) => Promise<void>;
+        reloadFacts?: () => Promise<void>;
         filterEditCostCenters?: (financialCenterId: string) => Promise<void>;
 
         // Note: These are declared in dashboard/types/globals.d.ts with compatible types:
