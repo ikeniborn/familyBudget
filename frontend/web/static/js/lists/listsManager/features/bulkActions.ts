@@ -64,7 +64,7 @@ export async function deleteCompleted(): Promise<void> {
   }
 
   const itemIds = completedItems.map((i) => i.id);
-  await deleteMultipleItems(itemIds);
+  await deleteMultipleItems(itemIds, true);  // caller already confirmed
 
   renderCurrentView();
   showToast(`Удалено: ${completedItems.length}`, 'success');
