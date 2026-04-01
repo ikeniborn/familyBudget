@@ -42,6 +42,7 @@ declare global {
         openCreateModal?: () => void;
         createFact?: (event: Event) => Promise<void>;
         createTransfer?: (event: Event) => Promise<void>;
+        reloadFacts?: () => Promise<void>;
         filterEditCostCenters?: (financialCenterId: string) => Promise<void>;
         saveFactModal?: (button: HTMLElement) => Promise<void>;
 
