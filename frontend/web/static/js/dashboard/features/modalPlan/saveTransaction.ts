@@ -105,8 +105,7 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
   // Update UI
   await refreshUIAfterPlanSave();
 
-  // Refresh recent records to show updated has_reminder state
-  if (typeof (window as any).loadRecentTransactions === 'function') {
-    await (window as any).loadRecentTransactions();
+  if (typeof window.loadRecentTransactions === 'function') {
+    await window.loadRecentTransactions();
   }
 }

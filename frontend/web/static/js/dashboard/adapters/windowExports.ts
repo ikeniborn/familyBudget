@@ -778,6 +778,7 @@ export function initWindowExports(): void {
   window.refreshRecentTransactions = refreshRecentTransactionsImpl;
   window.refreshQuickStats = refreshQuickStatsImpl;
   window.refreshAccountBalances = refreshAccountBalancesImpl;
+  window.loadRecentTransactions = loadRecentTransactions;
 
   // Expose pending records delete function globally (Phase 2)
   window.deleteFailedRecords = deleteFailedRecords;

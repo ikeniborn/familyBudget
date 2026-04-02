@@ -266,6 +266,9 @@ declare global {
     refreshQuickStats?: () => void;
     refreshAccountBalances?: () => void;
 
+    // Recent Transactions (client-side refresh)
+    loadRecentTransactions?: () => Promise<void>;
+
     // Dashboard-specific (HTML onclick handlers)
     openEditFromDashboard?: (factId: number) => Promise<void>;
     deleteRecordFromDashboard?: (factId: number) => Promise<void>;
