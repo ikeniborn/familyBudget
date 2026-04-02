@@ -12,6 +12,7 @@ Features:
     - Aggregation endpoint for summaries
 """
 
+import html as html_module
 import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -46,6 +47,7 @@ from backend.app.schemas.fact import (
 from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
 from backend.app.services.id_generator import get_next_fact_id
 from backend.app.services.write_behind_service import write_behind_service
+from backend.app.utils.template_filters import amount_color, format_date_full, format_money_recent
 
 # WebSocket broadcast functions (lazy import to avoid circular dependencies)
 _budget_ws_module = None
@@ -1187,6 +1189,105 @@ async def get_facts_count(
     total = result.scalar_one()
 
     return {"total": total}
+
+
+@router.get("/{fact_id}/row-html", response_class=HTMLResponse)
+async def get_fact_row_html(
+    fact_id: int,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> str:
+    """
+    Return HTML for a single fact/plan row (desktop tr + mobile card).
+
+    Used by the frontend for incremental table updates after CRUD operations
+    instead of reloading the entire table.
+
+    **Returns:**
+    - 200 OK: HTML fragment with desktop <tr> and mobile <div> for the fact
+    - 404 Not Found: Fact not found
+    """
+    statement = (
+        select(BudgetFact, Article, FinancialCenter, CostCenter)
+        .join(Article, BudgetFact.article_id == Article.id)
+        .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
+        .outerjoin(CostCenter, BudgetFact.cost_center_id == CostCenter.id)
+        .where(BudgetFact.id == fact_id)
+    )
+    result = await session.execute(statement)
+    row = result.one_or_none()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found"
+        )
+
+    fact, article, financial_center, cost_center = row
+
+    fact_date_full = format_date_full(fact.fact_date)
+    fact_date_short = fact_date_full[:5]  # DD.MM
+    amount_class = amount_color(article.type)
+    amount_str = format_money_recent(fact.amount, article.type)
+    article_color_class = amount_class.split()[0]  # e.g. "text-error" without "font-bold"
+
+    def _truncate(text: str, max_len: int) -> str:
+        return text[:max_len] + "..." if len(text) > max_len else text
+
+    _e = html_module.escape  # shorthand for XSS-safe interpolation
+
+    fc_name_raw = financial_center.name if financial_center else ""
+    cc_name_raw = cost_center.name if cost_center else ""
+    description_raw = fact.description or ""
+
+    fc_name = _e(fc_name_raw) if fc_name_raw else "—"
+    cc_name = _e(cc_name_raw) if cc_name_raw else "—"
+    description = _e(description_raw) if description_raw else "—"
+    article_name = _e(_truncate(article.name, 30))
+    description_display = _e(_truncate(description_raw, 30)) if description_raw else "—"
+    fc_name_display = _e(_truncate(fc_name_raw, 20)) if fc_name_raw else "—"
+    cc_name_display = _e(_truncate(cc_name_raw, 20)) if cc_name_raw else "—"
+    mobile_badge_text = "План" if fact.record_type == "plan" else "Факт"
+
+    line2_parts = [fact_date_short]
+    if fc_name_raw:
+        line2_parts.append(_e(fc_name_raw))
+    if description_raw:
+        line2_parts.append(_e(_truncate(description_raw, 30)))
+    line2_text = " • ".join(line2_parts)
+
+    desktop_row = f"""<tr data-id="{fact.id}">
+            <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="{fact.id}"></td>
+            <td>{fact_date_full}</td>
+            <td><span class="{article_color_class}">{article_name}</span></td>
+            <td class="{amount_class} whitespace-nowrap">{amount_str}</td>
+            <td class="max-w-xs truncate" title="{fc_name}">{fc_name_display}</td>
+            <td class="max-w-xs truncate" title="{cc_name}">{cc_name_display}</td>
+            <td class="max-w-xs truncate" title="{description}">{description_display}</td>
+            <td>
+                <div class="flex gap-1">
+                    <button class="btn btn-xs btn-primary gap-1" onclick="window.FactsManager?.showEditModal?.({fact.id})">✏️</button>
+                    <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); window.FactsManager?.deleteFact?.({fact.id})" title="Удалить">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                    </button>
+                </div>
+            </td>
+        </tr>"""
+
+    mobile_card = f"""<div class="transaction-item py-2" data-id="{fact.id}" onclick="window.FactsManager?.showEditModal?.({fact.id})">
+            <div class="flex items-center gap-2">
+                <span class="badge badge-primary badge-xs shrink-0">{mobile_badge_text}</span>
+                <span class="flex-1 font-medium truncate">{article_name}</span>
+                <span class="{amount_class} whitespace-nowrap">{amount_str}</span>
+            </div>
+            <div class="text-xs text-base-content/60 mt-1 truncate">
+                {line2_text}
+            </div>
+        </div>"""
+
+    return desktop_row + "\n" + mobile_card
 
 
 @router.get(
