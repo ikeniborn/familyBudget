@@ -1927,7 +1927,6 @@ export async function batchDeleteRecurringPlans(): Promise<void> {
   const btn = document.getElementById('batch-delete-recurring-plans-btn') as HTMLButtonElement | null;
   if (!btn) return;
 
-  const originalText = btn.textContent || '';
   btn.disabled = true;
   btn.classList.add('loading', 'loading-spinner');
   btn.textContent = `Удаление... (${count})`;
@@ -1975,8 +1974,7 @@ export async function batchDeleteRecurringPlans(): Promise<void> {
     showNotification(`❌ Ошибка массового удаления: ${(error as any)?.message}`, 'error');
   } finally {
     btn.classList.remove('loading', 'loading-spinner');
-    btn.textContent = originalText;
-    btn.disabled = false;
+    updateBatchDeleteRecurringPlansButtonState();
   }
 }
 
