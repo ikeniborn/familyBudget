@@ -648,7 +648,7 @@ export function renderFactRow(fact: FactRow): string {
         : '—';
 
     return `
-        <tr>
+        <tr data-id="${fact.id}">
             <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="${fact.id}"></td>
             <td>${escapeHtml(dateFormatted)}</td>
             <td><span class="${articleColorClass}">${articleName}</span></td>
@@ -704,7 +704,7 @@ export function renderFactMobileCard(fact: FactRow): string {
     const description = commentText ? TableFormatters.truncateText(commentText, 30) : '—';  // Already escaped
 
     return `
-        <div class="transaction-item py-2" onclick="window.FactsManager?.showEditModal?.(${fact.id})">
+        <div class="transaction-item py-2" data-id="${fact.id}" onclick="window.FactsManager?.showEditModal?.(${fact.id})">
             <!-- Line 1: Badge + Category + Amount -->
             <div class="flex items-center gap-2">
                 <span class="badge badge-primary badge-xs shrink-0">Факт</span>

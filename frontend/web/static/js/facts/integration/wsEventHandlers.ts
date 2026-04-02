@@ -2,12 +2,15 @@
  * Facts Manager - WebSocket Event Handlers
  *
  * Registers WebSocket event handlers for real-time updates.
+ * Uses incremental row updates for fact_created, fact_updated, fact_deleted
+ * to avoid full table reloads on every WebSocket event.
  *
  * Phase 3: WebSocket Integration
  */
 
 import { loadFacts } from '../operations/factsController';
 import { buildFilterQuery } from '../operations/filterOperations';
+import { getCurrentPage } from '../core/stateManager';
 import type { BudgetFact } from '../types/models';
 
 // ============================================================================
@@ -20,6 +23,7 @@ let wsReloadTimeout: NodeJS.Timeout | null = null;
 /**
  * Debounced reload via loadFacts()
  * Prevents multiple reloads within 500ms window
+ * Used as fallback when incremental update fails
  */
 function debouncedReloadFacts(): void {
     if (wsReloadTimeout) {
@@ -100,36 +104,217 @@ function matchesCurrentFilters(fact: Partial<BudgetFact>): boolean {
 }
 
 // ============================================================================
+// Incremental Row Update Helpers
+// ============================================================================
+
+/**
+ * Fetch HTML for a single fact row from the backend
+ *
+ * @param factId - Fact ID to fetch
+ * @returns HTML string (desktop tr + mobile div) or null on error
+ */
+async function fetchRowHtml(factId: number): Promise<string | null> {
+    try {
+        const response = await fetch(`/api/v1/facts/${factId}/row-html`, {
+            headers: { 'Accept': 'text/html' }
+        });
+        if (!response.ok) {
+            return null;
+        }
+        return await response.text();
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Parse HTML fragment into desktop <tr> and mobile <div> elements
+ *
+ * @param html - Raw HTML string from /row-html endpoint
+ * @returns Object with tr and mobileCard elements, or null if parsing fails
+ */
+function parseRowHtml(html: string): { tr: HTMLTableRowElement; mobileCard: HTMLDivElement } | null {
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html;
+
+    const tr = wrapper.querySelector('tr[data-id]') as HTMLTableRowElement | null;
+    const mobileCard = wrapper.querySelector('div[data-id]') as HTMLDivElement | null;
+
+    if (!tr || !mobileCard) {
+        return null;
+    }
+
+    return { tr, mobileCard };
+}
+
+/**
+ * Prepend a new row to the facts table (desktop tbody + mobile list)
+ * Only runs when on page 1.
+ *
+ * @param tr - Desktop table row element
+ * @param mobileCard - Mobile card div element
+ */
+function prependRowToTable(tr: HTMLTableRowElement, mobileCard: HTMLDivElement): void {
+    const container = document.getElementById('facts-table-container');
+    if (!container) {
+        return;
+    }
+
+    const tbody = container.querySelector('.facts-desktop-table tbody');
+    if (tbody && tbody.firstChild) {
+        tbody.insertBefore(tr, tbody.firstChild);
+    } else if (tbody) {
+        tbody.appendChild(tr);
+    }
+
+    const mobileList = container.querySelector('.facts-mobile-list');
+    if (mobileList && mobileList.firstChild) {
+        mobileList.insertBefore(mobileCard, mobileList.firstChild);
+    } else if (mobileList) {
+        mobileList.appendChild(mobileCard);
+    }
+}
+
+/**
+ * Replace an existing row in the facts table with updated HTML
+ *
+ * @param factId - ID of the fact to replace
+ * @param tr - New desktop row element
+ * @param mobileCard - New mobile card element
+ * @returns true if row was found and replaced
+ */
+function replaceRowInTable(
+    factId: number,
+    tr: HTMLTableRowElement,
+    mobileCard: HTMLDivElement
+): boolean {
+    const container = document.getElementById('facts-table-container');
+    if (!container) {
+        return false;
+    }
+
+    let replaced = false;
+
+    const existingTr = container.querySelector(`tr[data-id="${factId}"]`);
+    if (existingTr) {
+        existingTr.replaceWith(tr);
+        replaced = true;
+    }
+
+    const existingCard = container.querySelector(`div[data-id="${factId}"]`);
+    if (existingCard) {
+        existingCard.replaceWith(mobileCard);
+        replaced = true;
+    }
+
+    return replaced;
+}
+
+/**
+ * Animate fade-out and remove a row from the facts table
+ *
+ * @param factId - ID of the fact to remove
+ */
+function animateAndRemoveRow(factId: number): void {
+    const container = document.getElementById('facts-table-container');
+    if (!container) {
+        return;
+    }
+
+    const elements = container.querySelectorAll<HTMLElement>(
+        `tr[data-id="${factId}"], div[data-id="${factId}"]`
+    );
+
+    elements.forEach(el => {
+        el.style.transition = 'opacity 0.3s ease';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 300);
+    });
+}
+
+// ============================================================================
 // Event Handlers
 // ============================================================================
 
 /**
  * Handle fact_created WebSocket event
- * Reloads table if fact matches current filters
+ * Fetches row HTML and prepends to table (page 1 only).
+ * Falls back to debounced full reload on error.
  */
-function handleFactCreated(data: Partial<BudgetFact>): void {
-    // Only reload if fact matches current filters
-    if (matchesCurrentFilters(data)) {
-        debouncedReloadFacts();
+async function handleFactCreated(data: Partial<BudgetFact>): Promise<void> {
+    if (!matchesCurrentFilters(data)) {
+        return;
     }
+
+    if (!data.id) {
+        debouncedReloadFacts();
+        return;
+    }
+
+    // Only prepend on page 1 — other pages don't show the newest record
+    if (getCurrentPage() !== 0) {
+        return;
+    }
+
+    const html = await fetchRowHtml(data.id);
+    if (!html) {
+        debouncedReloadFacts();
+        return;
+    }
+
+    const parsed = parseRowHtml(html);
+    if (!parsed) {
+        debouncedReloadFacts();
+        return;
+    }
+
+    prependRowToTable(parsed.tr, parsed.mobileCard);
 }
 
 /**
  * Handle fact_updated WebSocket event
- * Always reloads table (fact might have moved in/out of filter)
+ * Finds the existing row in DOM and replaces it with fresh HTML.
+ * If row not in current view, skips silently.
  */
-function handleFactUpdated(_data: Partial<BudgetFact>): void {
-    // Reload unconditionally (fact might have moved in/out of filters)
-    debouncedReloadFacts();
+async function handleFactUpdated(data: Partial<BudgetFact>): Promise<void> {
+    if (!data.id) {
+        return;
+    }
+
+    const container = document.getElementById('facts-table-container');
+    if (!container) {
+        return;
+    }
+
+    // Only update if the row is currently visible in the DOM
+    const existingTr = container.querySelector(`tr[data-id="${data.id}"]`);
+    if (!existingTr) {
+        return;
+    }
+
+    const html = await fetchRowHtml(data.id);
+    if (!html) {
+        return;
+    }
+
+    const parsed = parseRowHtml(html);
+    if (!parsed) {
+        return;
+    }
+
+    replaceRowInTable(data.id, parsed.tr, parsed.mobileCard);
 }
 
 /**
  * Handle fact_deleted WebSocket event
- * Reloads table to remove deleted fact
+ * Animates and removes the row from DOM.
+ * No API call required.
  */
-function handleFactDeleted(_data: { id: number }): void {
-    // Reload to remove deleted fact
-    debouncedReloadFacts();
+function handleFactDeleted(data: { id: number }): void {
+    if (!data.id) {
+        return;
+    }
+    animateAndRemoveRow(data.id);
 }
 
 /**
@@ -137,7 +322,6 @@ function handleFactDeleted(_data: { id: number }): void {
  * Reloads table after bulk deletion
  */
 function handleBatchDeleteCompleted(_data: { deleted_count: number; failed_count: number }): void {
-    // Reload table after batch deletion
     debouncedReloadFacts();
 }
 
@@ -146,7 +330,6 @@ function handleBatchDeleteCompleted(_data: { deleted_count: number; failed_count
  * Transfers create two facts, reload table
  */
 function handleTransferCreated(_data: any): void {
-    // Transfers create facts, reload table
     debouncedReloadFacts();
 }
 
@@ -155,7 +338,6 @@ function handleTransferCreated(_data: any): void {
  * Reload dropdowns (handled by AdminFactsCommon if available)
  */
 function handleArticleUpdated(_data: any): void {
-    // Reload table to reflect updated article names
     debouncedReloadFacts();
 }
 
