@@ -788,6 +788,17 @@ async def get_recent_facts(
         result = await session.execute(statement)
         rows = result.all()
 
+        # Load scheduled reminders in batch (one query for all facts)
+        fact_ids = [fact.id for fact, *_ in rows]
+        reminders: dict[int, bool] = {}
+        if fact_ids:
+            reminders_stmt = select(ScheduledReminder.fact_id).where(
+                ScheduledReminder.fact_id.in_(fact_ids),
+                ScheduledReminder.status == "pending",
+            )
+            reminders_result = await session.execute(reminders_stmt)
+            reminders = {fid: True for fid in reminders_result.scalars().all()}
+
         # Enrich facts with article and center data
         enriched_facts = []
         for fact, article, financial_center, cost_center, user in rows:
@@ -820,7 +831,7 @@ async def get_recent_facts(
                 "is_offline_sync": fact.is_offline_sync,
                 "recurring_plan_id": fact.recurring_plan_id,
                 "recurring_plan": None,  # Not loaded for performance (list endpoint)
-                "has_reminder": False,  # Not loaded for performance (list endpoint)
+                "has_reminder": reminders.get(fact.id, False),
                 "created_at": fact.created_at,
                 "updated_at": fact.updated_at,
             }
