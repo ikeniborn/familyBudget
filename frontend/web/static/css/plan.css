@@ -130,3 +130,16 @@
         display: none;
     }
 }
+
+/* Recurring Plans Mobile Cards */
+.recurring-mobile-cards .recurring-card-item {
+    cursor: default;
+}
+
+/* Touch-friendly checkboxes on mobile */
+@media (max-width: 767px) {
+    .recurring-mobile-cards .checkbox {
+        width: 1.25rem;
+        height: 1.25rem;
+    }
+}

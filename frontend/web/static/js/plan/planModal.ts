@@ -356,36 +356,59 @@ function getDurationDisplayText(plan: any): string {
 
 function renderRecurringPlansTable(plans: any[]): void {
   const tbody = document.getElementById('recurring-plans-tbody');
+  const cardsContainer = document.getElementById('recurring-plans-cards');
   if (!tbody) return;
 
   tbody.innerHTML = '';
+  if (cardsContainer) cardsContainer.innerHTML = '';
   selectedRecurringPlanIds.clear();
   updateBatchDeleteRecurringPlansButtonState();
 
   plans.forEach(plan => {
-    const tr = document.createElement('tr');
-    tr.dataset.planId = String(plan.id);
-
     const articleName = plan.article_name || String(plan.article_id) || '—';
     const fcName = plan.financial_center_name || '—';
     const amount = plan.amount
       ? parseFloat(plan.amount).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
       : '—';
     const nextDate = plan.next_execution_date || '—';
+    const frequencyText = getFrequencyDisplayText(plan.frequency_type, plan.frequency_value);
+    const durationText = getDurationDisplayText(plan);
 
+    const tr = document.createElement('tr');
+    tr.dataset.planId = String(plan.id);
     tr.innerHTML = `
       <td><input type="checkbox" class="checkbox checkbox-sm recurring-plan-checkbox" data-plan-id="${plan.id}"></td>
       <td class="text-sm">${escapeHtml(articleName)}</td>
       <td class="text-sm">${escapeHtml(fcName)}</td>
       <td class="text-sm font-mono">${escapeHtml(amount)}</td>
-      <td class="text-sm">${escapeHtml(getFrequencyDisplayText(plan.frequency_type, plan.frequency_value))}</td>
-      <td class="text-sm">${escapeHtml(getDurationDisplayText(plan))}</td>
+      <td class="text-sm">${escapeHtml(frequencyText)}</td>
+      <td class="text-sm">${escapeHtml(durationText)}</td>
       <td class="text-sm">${escapeHtml(String(nextDate))}</td>
     `;
     tbody.appendChild(tr);
+
+    if (cardsContainer) {
+      const card = document.createElement('div');
+      card.className = 'recurring-card-item py-3 px-1 flex items-start gap-2';
+      card.dataset.planId = String(plan.id);
+      card.innerHTML = `
+        <input type="checkbox" class="checkbox checkbox-sm recurring-plan-checkbox mt-0.5" data-plan-id="${plan.id}">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2">
+            <span class="flex-1 font-medium text-sm truncate">${escapeHtml(articleName)}</span>
+            <span class="text-sm font-mono whitespace-nowrap">${escapeHtml(amount)}</span>
+          </div>
+          <div class="text-xs text-base-content/60 mt-0.5 truncate">
+            ${escapeHtml(fcName)} • ${escapeHtml(frequencyText)} • ${escapeHtml(durationText)} • ${escapeHtml(String(nextDate))}
+          </div>
+        </div>
+      `;
+      cardsContainer.appendChild(card);
+    }
   });
 
-  tbody.querySelectorAll<HTMLInputElement>('.recurring-plan-checkbox').forEach(cb => {
+  const checkboxScope = tbody.closest('#recurring-plans-table-container') ?? document;
+  checkboxScope.querySelectorAll<HTMLInputElement>('.recurring-plan-checkbox').forEach(cb => {
     cb.addEventListener('change', () => {
       const planId = parseInt(cb.dataset.planId || '0');
       if (cb.checked) selectedRecurringPlanIds.add(planId);
@@ -417,9 +440,9 @@ export async function loadRecurringPlans(): Promise<void> {
 
     emptyState?.classList.add('hidden');
     if (container) {
-      // Replace spinner with table structure
+      // Replace spinner with table + mobile cards structure
       container.innerHTML = `
-        <div class="overflow-x-auto">
+        <div class="hidden md:block overflow-x-auto recurring-desktop-table">
           <table class="table table-sm">
             <thead>
               <tr>
@@ -434,7 +457,8 @@ export async function loadRecurringPlans(): Promise<void> {
             </thead>
             <tbody id="recurring-plans-tbody"></tbody>
           </table>
-        </div>`;
+        </div>
+        <div class="block md:hidden recurring-mobile-cards divide-y divide-base-200" id="recurring-plans-cards"></div>`;
       container.classList.remove('hidden');
     }
     renderRecurringPlansTable(data.items);
