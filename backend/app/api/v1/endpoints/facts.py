@@ -12,6 +12,7 @@ Features:
     - Aggregation endpoint for summaries
 """
 
+import html as _html
 import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -1187,6 +1188,144 @@ async def get_facts_count(
     total = result.scalar_one()
 
     return {"total": total}
+
+
+@router.get("/{fact_id}/row-html", response_class=HTMLResponse)
+async def get_fact_row_html(
+    fact_id: int,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    record_type: Annotated[str, Query(pattern="^(fact|plan)$")] = "fact",
+) -> str:
+    """
+    Return HTML for a single fact/plan row (desktop tr + mobile li).
+
+    Used by incremental table updates after CRUD operations and WebSocket events
+    to refresh only the affected row without reloading the entire table.
+
+    **Parameters:**
+    - fact_id: ID of the fact/plan record
+    - record_type: 'fact' or 'plan' (affects badge styling)
+
+    **Returns:**
+    - HTML fragment: desktop <tr> + mobile <div> wrapped in a container
+    - 404 if fact not found
+    """
+    statement = (
+        select(BudgetFact, Article, FinancialCenter, CostCenter, User, ScheduledReminder)
+        .join(Article, BudgetFact.article_id == Article.id)
+        .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
+        .outerjoin(CostCenter, BudgetFact.cost_center_id == CostCenter.id)
+        .outerjoin(User, BudgetFact.user_id == User.id)
+        .outerjoin(
+            ScheduledReminder,
+            (ScheduledReminder.fact_id == BudgetFact.id)
+            & ScheduledReminder.status.in_(["pending", "sent"]),
+        )
+        .where(BudgetFact.id == fact_id)
+    )
+    result = await session.execute(statement)
+    row = result.one_or_none()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found"
+        )
+
+    fact, article, financial_center, cost_center, user, reminder = row
+
+    def _format_amount(amount: Decimal, art_type: str) -> str:
+        value = int(float(amount))
+        formatted = f"{abs(value):,}".replace(",", " ")
+        if art_type in ("expense", "debit"):
+            return f"-{formatted}"
+        elif art_type in ("income", "credit"):
+            return f"+{formatted}"
+        return formatted
+
+    # Determine CSS class for amount/article
+    type_class_map = {
+        "expense": "text-error",
+        "income": "text-success",
+        "debit": "text-info",
+        "credit": "text-warning",
+    }
+    article_color_class = type_class_map.get(article.type, "")
+
+    fc_name = _html.escape(financial_center.name if financial_center else "—")
+    cc_name = _html.escape(cost_center.name if cost_center else "—")
+    article_name = _html.escape(article.name)
+    description = _html.escape(fact.description or "—")
+    description_truncated = (description[:30] + "...") if len(description) > 30 else description
+
+    user_name = "—"
+    if user:
+        user_name = _html.escape(
+            user.first_name or user.username or user.last_name
+            or (f"User {user.telegram_id}" if user.telegram_id else None)
+            or f"#{user.id}"
+        )
+
+    formatted_date = fact.fact_date.strftime("%d.%m.%Y")
+    short_date = fact.fact_date.strftime("%d.%m")
+    formatted_amount = _format_amount(fact.amount, article.type)
+
+    # Reminder icon
+    reminder_icon = '<span class="text-info" title="Напоминание установлено">🔔</span>' if reminder is not None else ""
+
+    # Recurring icon
+    recurring_icon = (
+        '<span class="text-secondary" title="Регламентный платеж">🔄</span>'
+        if fact.recurring_plan_id else ""
+    )
+
+    # Offline icon
+    offline_icon = '<span class="text-xs" title="Создано offline">☁️</span>' if fact.is_offline_sync else ""
+
+    # Desktop table row — matches factsTable.ts renderFactsTable() structure
+    desktop_row = f"""
+<tr data-plan-id="{fact.id}">
+  <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="{fact.id}" onchange="window.PlanApp.FactsTable.updateBatchDeleteButton()"></td>
+  <td><code class="badge badge-ghost">{fact.id}</code></td>
+  <td>{formatted_date}</td>
+  <td class="max-w-xs truncate" title="{fc_name}">{fc_name}</td>
+  <td class="max-w-xs truncate" title="{cc_name}">{cc_name}</td>
+  <td><span class="{article_color_class}">{article_name}</span></td>
+  <td class="{article_color_class} font-bold">{formatted_amount}</td>
+  <td class="max-w-xs truncate" title="{description}">{description_truncated}</td>
+  <td>{user_name}</td>
+  <td class="text-center">{reminder_icon}</td>
+  <td class="text-center">{recurring_icon}</td>
+  <td class="text-center">{offline_icon}</td>
+  <td>
+    <div class="flex gap-1">
+      <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal({fact.id})">✏️</button>
+      <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" data-fact-id="{fact.id}" onclick="event.stopPropagation(); deleteFact({fact.id})" title="Удалить">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+    </div>
+  </td>
+</tr>"""
+
+    # Mobile list item — matches factsTable.ts renderFactsTable() structure
+    mobile_icons = " ".join(filter(None, [recurring_icon, reminder_icon, offline_icon]))
+    mobile_row = f"""
+<div class="transaction-item py-2" data-plan-id="{fact.id}" onclick="showEditModal({fact.id})">
+  <div class="flex items-center gap-2">
+    <span class="badge badge-info badge-xs shrink-0">План</span>
+    <span class="flex-1 font-medium truncate">{article_name}</span>
+    <span class="{article_color_class} font-bold whitespace-nowrap">{formatted_amount}</span>
+    {mobile_icons}
+  </div>
+  <div class="text-xs text-base-content/60 mt-1 truncate">
+    {short_date} • {fc_name} • {description}
+  </div>
+</div>"""
+
+    return f'<template data-plan-row="{fact.id}">{desktop_row}|||{mobile_row}</template>'
 
 
 @router.get(

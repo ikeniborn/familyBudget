@@ -505,6 +505,140 @@ function updatePagination(): void {
   }
 }
 
+// ============================================================================
+// Incremental Row Updates
+// ============================================================================
+
+/**
+ * Parse an HTML string into a DOM element using a template element.
+ */
+function parseHtml(html: string): Element | null {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html.trim();
+  return tpl.content.firstElementChild ?? null;
+}
+
+/**
+ * Check if we are on page 1 (0-indexed) with no user-defined extra filters.
+ * "Extra filters" means any filter beyond the default date range.
+ */
+function isPage1NoExtraFilters(): boolean {
+  if (currentPage !== 0) {
+    return false;
+  }
+  const f = PlanFilters.getFilters();
+  if (
+    f.user_id ||
+    f.article_id ||
+    f.article_type ||
+    f.financial_center_id ||
+    f.cost_center_id ||
+    f.search ||
+    f.has_recurring_plan ||
+    f.has_reminder
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Fetch row HTML from backend for a single plan record.
+ * Returns parsed { desktopRow, mobileRow } or null on failure.
+ */
+async function fetchPlanRowHtml(
+  planId: number
+): Promise<{ desktopRow: string; mobileRow: string } | null> {
+  try {
+    const resp = await fetch(`/api/v1/facts/${planId}/row-html?record_type=plan`, {
+      credentials: 'include'
+    });
+    if (!resp.ok) {
+      return null;
+    }
+    const html = await resp.text();
+    // Backend returns: <template data-plan-row="ID">desktop_tr|||mobile_div</template>
+    const match = html.match(/<template[^>]*>([\s\S]*?)\|\|\|([\s\S]*?)<\/template>/);
+    if (!match) {
+      return null;
+    }
+    return { desktopRow: match[1].trim(), mobileRow: match[2].trim() };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch a plan row from the backend and inject it into the table.
+ * - operation 'create': prepend to beginning of table
+ * - operation 'update': find existing row by data-plan-id and replace it
+ *
+ * Returns true if the injection succeeded, false if a full loadFacts() is needed.
+ */
+export async function fetchAndInjectPlanRow(
+  planId: number,
+  operation: 'create' | 'update'
+): Promise<boolean> {
+  if (!isPage1NoExtraFilters()) {
+    return false;
+  }
+
+  const rows = await fetchPlanRowHtml(planId);
+  if (!rows) {
+    return false;
+  }
+
+  const { desktopRow, mobileRow } = rows;
+  const desktopTbody = document.querySelector<HTMLElement>('.facts-desktop-table tbody');
+  const mobileList = document.querySelector<HTMLElement>('.facts-mobile-list');
+
+  if (operation === 'create') {
+    if (desktopTbody) {
+      const trEl = parseHtml(desktopRow);
+      if (trEl) desktopTbody.prepend(trEl);
+    }
+    if (mobileList) {
+      const divEl = parseHtml(mobileRow);
+      if (divEl) mobileList.prepend(divEl);
+    }
+    return true;
+  }
+
+  if (operation === 'update') {
+    const existingTr = document.querySelector<HTMLElement>(`tr[data-plan-id="${planId}"]`);
+    if (existingTr) {
+      const trEl = parseHtml(desktopRow);
+      if (trEl) existingTr.replaceWith(trEl);
+    }
+    const existingDiv = document.querySelector<HTMLElement>(`div[data-plan-id="${planId}"]`);
+    if (existingDiv) {
+      const divEl = parseHtml(mobileRow);
+      if (divEl) existingDiv.replaceWith(divEl);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Remove a plan row from the table with a fade animation.
+ * Used for single-fact deletes to avoid a full table reload.
+ */
+export function removePlanRow(planId: number): void {
+  const fadeAndRemove = (el: HTMLElement): void => {
+    el.style.transition = 'opacity 0.3s ease';
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 300);
+  };
+
+  const trEl = document.querySelector<HTMLElement>(`tr[data-plan-id="${planId}"]`);
+  const divEl = document.querySelector<HTMLElement>(`div[data-plan-id="${planId}"]`);
+
+  if (trEl) fadeAndRemove(trEl);
+  if (divEl) fadeAndRemove(divEl);
+}
+
 /**
  * Navigate to previous page
  * Called from pagination button onclick handler
