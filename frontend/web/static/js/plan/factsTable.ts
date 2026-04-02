@@ -349,11 +349,11 @@ function renderFactsTable(facts: BudgetFact[]): void {
     tableHtml += `
       <tr data-plan-id="${fact.id}">
         <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="window.PlanApp.FactsTable.updateBatchDeleteButton()"></td>
-        <td><code class="badge badge-ghost">${fact.id}</code></td>
+        <td class="text-base-content/50 text-xs">${fact.id}</td>
         <td>${formattedDate}</td>
         <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
         <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
-        <td><span class="${articleColorClass}">${articleName}</span></td>
+        <td>${articleName}</td>
         <td class="${articleColorClass} font-bold">${TableFormatters.formatAmount(fact.amount, fact.article_type)}</td>
         <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
         <td>${userName}</td>
