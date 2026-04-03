@@ -271,8 +271,8 @@ jobs:
                 -H "Accept: application/vnd.github+json" \
                 "/users/${{ github.repository_owner }}/packages/container/familybudget-${service}/versions?per_page=100" \
                 --jq "[.[] | select(.metadata.container.tags | contains([\"${version}\"]))] | length" \
-                2>/dev/null || echo "0")
-              if [[ "$found" == "0" || -z "$found" ]]; then
+                2>/dev/null | awk '{s+=$1} END {print s+0}' || echo "0")
+              if [[ -z "$found" || "$found" -eq 0 ]]; then
                 echo "⚠️ ${service}:${version} not found in registry — forcing rebuild" >&2
                 return 0
               fi
