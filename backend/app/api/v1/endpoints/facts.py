@@ -47,6 +47,7 @@ from backend.app.schemas.fact import (
 from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
 from backend.app.services.id_generator import get_next_fact_id
 from backend.app.services.write_behind_service import write_behind_service
+from backend.app.utils.template_filters import amount_color, format_money_recent
 
 # WebSocket broadcast functions (lazy import to avoid circular dependencies)
 _budget_ws_module = None
@@ -1301,6 +1302,154 @@ async def get_facts_count(
     total = result.scalar_one()
 
     return {"total": total}
+
+
+def _render_fact_row_html(
+    fact: "BudgetFact",
+    article: "Article",
+    financial_center: "FinancialCenter | None",
+    reminder: "ScheduledReminder | None",
+) -> str:
+    """Render desktop <tr> + mobile <div> HTML for a single fact/plan row.
+
+    Returns two ``<template>`` elements — one for the desktop table row and
+    one for the mobile list item — identified by ``data-fact-id`` attributes.
+    """
+    if fact.record_type == "plan":
+        record_type_badge = '<span class="badge badge-info badge-xs">План</span>'
+        record_type_badge_sm = '<span class="badge badge-info badge-sm">План</span>'
+    else:
+        record_type_badge = '<span class="badge badge-success badge-xs">Факт</span>'
+        record_type_badge_sm = '<span class="badge badge-success badge-sm">Факт</span>'
+
+    fact_date_full = fact.fact_date.strftime("%d.%m.%Y")
+    fact_date_short = fact.fact_date.strftime("%d.%m")
+
+    amount_class = amount_color(article.type)
+    fc_name = financial_center.name if financial_center else "—"
+
+    description = fact.description if fact.description else "—"
+    description_truncated = description[:30] + "..." if len(description) > 30 else description
+
+    offline_icon = "☁️" if fact.is_offline_sync else ""
+    offline_title = "Создано offline" if fact.is_offline_sync else ""
+
+    recurring_icon = "🔄" if fact.recurring_plan_id else ""
+    recurring_title = "Регламентный платеж" if fact.recurring_plan_id else ""
+
+    reminder_icon = "🔔" if reminder else ""
+    if reminder:
+        if reminder.status == "pending":
+            reminder_title = f"Напоминание: {reminder.reminder_datetime.strftime('%d.%m.%Y %H:%M')}"
+        else:
+            reminder_title = f"Отправлено: {reminder.sent_at.strftime('%d.%m.%Y %H:%M') if reminder.sent_at else 'н/д'}"
+    else:
+        reminder_title = ""
+
+    edit_button = f'<button class="btn btn-xs btn-primary gap-1" onclick="openEditFromDashboard({fact.id})">✏️</button>'
+    delete_button = f'<button class="btn btn-xs btn-error gap-1" onclick="deleteFactFromDashboard({fact.id}, {1 if fact.recurring_plan_id else 0})">🗑️</button>'
+
+    amount_formatted = format_money_recent(fact.amount, article.type)
+
+    desktop_tr = f"""
+                    <tr>
+                        <td>{record_type_badge_sm}</td>
+                        <td class="whitespace-nowrap">{fact_date_full}</td>
+                        <td class="whitespace-nowrap">{fc_name}</td>
+                        <td>{article.name}</td>
+                        <td class="{amount_class} whitespace-nowrap">{amount_formatted}</td>
+                        <td class="max-w-xs truncate" title="{description}">{description_truncated}</td>
+                        <td class="text-center" title="{reminder_title}">{reminder_icon}</td>
+                        <td class="text-center" title="{recurring_title}">{recurring_icon}</td>
+                        <td class="text-center" title="{offline_title}">{offline_icon}</td>
+                        <td class="text-center">{edit_button}</td>
+                        <td class="text-center">{delete_button}</td>
+                    </tr>
+    """
+
+    line2_parts = [fact_date_short]
+    if fc_name != "—":
+        line2_parts.append(fc_name)
+    if description != "—":
+        line2_parts.append(description)
+    line2_text = " • ".join(line2_parts)
+
+    offline_span = f'<span class="text-xs" title="{offline_title}">{offline_icon}</span>' if offline_icon else ""
+    recurring_span = f'<span class="text-secondary text-xs" title="{recurring_title}">{recurring_icon}</span>' if recurring_icon else ""
+    reminder_span = f'<span class="text-warning text-xs" title="{reminder_title}">{reminder_icon}</span>' if reminder_icon else ""
+
+    mobile_div = f"""
+            <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+                 onclick="openEditFromDashboard({fact.id})">
+                <div class="flex items-center gap-2">
+                    {record_type_badge}
+                    <span class="flex-1 font-medium truncate">{article.name}</span>
+                    {reminder_span}
+                    {recurring_span}
+                    {offline_span}
+                    <span class="{amount_class} whitespace-nowrap">{amount_formatted}</span>
+                </div>
+                <div class="text-xs text-base-content/60 mt-1 truncate">
+                    {line2_text}
+                </div>
+            </div>
+    """
+
+    return f'<template data-fact-id="{fact.id}" data-desktop-row="1">{desktop_tr}</template>' \
+           f'<template data-fact-id="{fact.id}" data-mobile-row="1">{mobile_div}</template>'
+
+
+@router.get(
+    "/{fact_id}/row-html",
+    response_class=HTMLResponse,
+    responses=get_common_responses(include_404=True),
+)
+async def get_fact_row_html(
+    fact_id: int,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> str:
+    """Return HTML for a single fact row (desktop tr + mobile li).
+
+    Used for incremental table updates after CRUD operations — only the
+    affected row is refreshed instead of reloading the entire table.
+
+    **Access control:**
+    - All authenticated users can access any transaction (shared family budget)
+
+    **Returns:**
+    - 200 OK: Two ``<template>`` elements — desktop row and mobile row
+    - 404 Not Found: Fact not found
+    """
+    statement = (
+        select(BudgetFact, Article, FinancialCenter)
+        .join(Article, BudgetFact.article_id == Article.id)
+        .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
+        .where(BudgetFact.id == fact_id)
+    )
+    result = await session.execute(statement)
+    row = result.one_or_none()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found",
+        )
+
+    fact, article, financial_center = row
+
+    reminder_stmt = (
+        select(ScheduledReminder)
+        .where(
+            ScheduledReminder.fact_id == fact_id,
+            ScheduledReminder.status.in_(["pending", "sent"]),
+        )
+        .limit(1)
+    )
+    reminder_result = await session.execute(reminder_stmt)
+    reminder = reminder_result.scalar_one_or_none()
+
+    return _render_fact_row_html(fact, article, financial_center, reminder)
 
 
 @router.get(
