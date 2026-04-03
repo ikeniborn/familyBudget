@@ -1127,6 +1127,108 @@ async def get_recent_facts_html(
         """
 
 
+@router.get("/{fact_id}/row-html", response_class=HTMLResponse)
+async def get_fact_row_html(
+    fact_id: int,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> str:
+    """Return HTML for a single fact/plan row (desktop tr + mobile div).
+
+    Used by frontend for incremental WebSocket updates — replaces or prepends
+    a single row without reloading the entire table.
+
+    **Returns:**
+    - HTML fragment: one <tr data-id="..."> + one <div data-id="..."> for mobile
+    - 404 if fact not found
+    """
+    from backend.app.utils.template_filters import amount_color, format_money_recent
+
+    statement = select(BudgetFact).where(BudgetFact.id == fact_id)
+    result = await session.execute(statement)
+    fact = result.scalar_one_or_none()
+
+    if not fact:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found"
+        )
+
+    # Load article, financial center, and cost center in parallel queries
+    article_stmt = select(Article).where(Article.id == fact.article_id)
+    article_result = await session.execute(article_stmt)
+    article = article_result.scalar_one_or_none()
+
+    if not article:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Article for fact id={fact_id} not found"
+        )
+
+    financial_center = None
+    if fact.financial_center_id:
+        fc_stmt = select(FinancialCenter).where(FinancialCenter.id == fact.financial_center_id)
+        fc_result = await session.execute(fc_stmt)
+        financial_center = fc_result.scalar_one_or_none()
+
+    cost_center = None
+    if fact.cost_center_id:
+        cc_stmt = select(CostCenter).where(CostCenter.id == fact.cost_center_id)
+        cc_result = await session.execute(cc_stmt)
+        cost_center = cc_result.scalar_one_or_none()
+
+    amount_formatted = format_money_recent(fact.amount, article.type)
+    article_color_class = amount_color(article.type)
+
+    fact_date_full = fact.fact_date.strftime("%d.%m.%Y")
+    fact_date_short = fact.fact_date.strftime("%d.%m")
+
+    fc_name = financial_center.name if financial_center else "—"
+    cc_name = cost_center.name if cost_center else "—"
+
+    description = fact.description if fact.description else "—"
+    description_truncated = description[:30] + "..." if len(description) > 30 else description
+
+    desktop_row = f"""<tr data-id="{fact.id}">
+        <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="{fact.id}"></td>
+        <td>{fact_date_full}</td>
+        <td><span class="{article_color_class}">{article.name}</span></td>
+        <td class="{article_color_class} font-bold">{amount_formatted}</td>
+        <td class="max-w-xs truncate" title="{fc_name}">{fc_name}</td>
+        <td class="max-w-xs truncate" title="{cc_name}">{cc_name}</td>
+        <td class="max-w-xs truncate" title="{description}">{description_truncated}</td>
+        <td>
+            <div class="flex gap-1">
+                <button class="btn btn-xs btn-primary gap-1" onclick="window.FactsManager?.showEditModal?.({fact.id})">✏️</button>
+                <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="event.stopPropagation(); window.FactsManager?.deleteFact?.({fact.id})" title="Удалить">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                </button>
+            </div>
+        </td>
+    </tr>"""
+
+    # Mobile card
+    line2_parts = [fact_date_short, fc_name]
+    if description != "—":
+        line2_parts.append(description)
+    line2_text = " • ".join(line2_parts)
+
+    mobile_card = f"""<div class="transaction-item py-2" data-id="{fact.id}" onclick="window.FactsManager?.showEditModal?.({fact.id})">
+        <div class="flex items-center gap-2">
+            <span class="badge badge-primary badge-xs shrink-0">Факт</span>
+            <span class="flex-1 font-medium truncate">{article.name}</span>
+            <span class="{article_color_class} font-bold whitespace-nowrap">{amount_formatted}</span>
+        </div>
+        <div class="text-xs text-base-content/60 mt-1 truncate">
+            {line2_text}
+        </div>
+    </div>"""
+
+    return desktop_row + "\n" + mobile_card
+
+
 @router.get(
     "/summary",
     response_model=FactSummary,
