@@ -16,6 +16,7 @@ import * as FilterAnalyticsSync from './filterAnalyticsSync';
 import * as PlanCRUD from './crud';
 import { setupEventDelegation } from './adapters/eventDelegation';
 import { setupWindowExports } from './adapters/windowExports';
+import { registerWSHandlers } from './wsEventHandlers';
 
 // Logger из utils/logger.js (загружается глобально через bundle)
 declare class Logger {
@@ -151,6 +152,9 @@ export async function initialize(): Promise<void> {
 
     // Update filter indicator
     PlanFilters.updateFilterIndicator();
+
+    // Register WebSocket event handlers for real-time updates
+    registerWSHandlers();
 
     log.info('Plan page initialized successfully');
   } catch (error) {
