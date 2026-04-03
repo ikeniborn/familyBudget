@@ -20,7 +20,7 @@
   },
   "nginx": {
     "version": "0.6.77",
-    "hash": "413175d8",
+    "hash": "00000000",
     "lastModified": "2026-03-27T05:15:25Z",
     "paths": [
       "nginx/"
@@ -28,7 +28,7 @@
   },
   "redis": {
     "version": "0.6.77",
-    "hash": "4eb5ebb0",
+    "hash": "00000000",
     "lastModified": "2026-03-27T05:15:25Z",
     "paths": [
       "redis/"
