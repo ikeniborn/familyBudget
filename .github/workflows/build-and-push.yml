@@ -267,8 +267,9 @@ jobs:
             if [[ -n "$version" ]]; then
               local found
               found=$(gh api \
+                --paginate \
                 -H "Accept: application/vnd.github+json" \
-                "/users/${{ github.repository_owner }}/packages/container/familybudget-${service}/versions" \
+                "/users/${{ github.repository_owner }}/packages/container/familybudget-${service}/versions?per_page=100" \
                 --jq "[.[] | select(.metadata.container.tags | contains([\"${version}\"]))] | length" \
                 2>/dev/null || echo "0")
               if [[ "$found" == "0" || -z "$found" ]]; then
@@ -480,6 +481,21 @@ jobs:
             PROTECTED_TAGS=$(jq -r '.[].version' IMAGE_VERSIONS.json 2>/dev/null | sort -u)
             echo "   Protected tags: $(echo $PROTECTED_TAGS | tr '\n' ' ')"
 
+            # Get total version count for this package (to protect the last one)
+            TOTAL_VERSIONS=$(gh api \
+              --paginate \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions?per_page=100" \
+              --jq '.[].id' 2>/dev/null | wc -l || echo "0")
+            echo "   Total versions in registry: $TOTAL_VERSIONS"
+
+            # Never delete if package has 2 or fewer versions total (keep at least 1 as buffer)
+            if [[ "$TOTAL_VERSIONS" -le 2 ]]; then
+              echo "   🛡️ Skipping cleanup — package has only $TOTAL_VERSIONS version(s), keeping all"
+              continue
+            fi
+
             # Get all untagged versions older than cutoff date
             OLD_VERSIONS=$(gh api \
               --paginate \
@@ -496,18 +512,37 @@ jobs:
             COUNT=$(echo "$OLD_VERSIONS" | wc -l)
             echo "   Found $COUNT old untagged images to delete"
 
+            # Safety: never delete more versions than (total - 1) to keep at least one
+            VERSIONS_TO_DELETE=0
             # Delete each old version, skipping any that match a protected tag
             while IFS= read -r VERSION_ID; do
-              # Get tags for this version
-              VERSION_TAGS=$(gh api \
+              [[ -z "$VERSION_ID" ]] && continue
+
+              # Stop if deleting this would leave 0 versions
+              REMAINING=$((TOTAL_VERSIONS - VERSIONS_TO_DELETE))
+              if [[ "$REMAINING" -le 1 ]]; then
+                echo "   🛡️ Stopping cleanup — would leave package empty (total=$TOTAL_VERSIONS, deleted=$VERSIONS_TO_DELETE)"
+                break
+              fi
+
+              # Verify this version has no tags (re-fetch to guard against race conditions)
+              VERSION_DATA=$(gh api \
                 -H "Accept: application/vnd.github+json" \
                 -H "X-GitHub-Api-Version: 2022-11-28" \
                 "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions/$VERSION_ID" \
-                --jq '.metadata.container.tags[]?' 2>/dev/null || echo "")
+                2>/dev/null || echo "")
+
+              if [[ -z "$VERSION_DATA" ]]; then
+                echo "   ⚠️ Could not fetch data for version $VERSION_ID, skipping"
+                continue
+              fi
+
+              VERSION_TAGS=$(echo "$VERSION_DATA" | jq -r '.metadata.container.tags[]?' 2>/dev/null || echo "")
 
               # Skip if any tag is in the protected list
               PROTECTED=false
               while IFS= read -r TAG; do
+                [[ -z "$TAG" ]] && continue
                 if echo "$PROTECTED_TAGS" | grep -qx "$TAG"; then
                   echo "   🛡️ Skipping protected version $VERSION_ID (tag: $TAG is in IMAGE_VERSIONS.json)"
                   PROTECTED=true
@@ -516,6 +551,13 @@ jobs:
               done <<< "$VERSION_TAGS"
               [[ "$PROTECTED" == "true" ]] && continue
 
+              # Double-check: skip if version still has any tags (guard against race condition)
+              TAG_COUNT=$(echo "$VERSION_DATA" | jq '.metadata.container.tags | length' 2>/dev/null || echo "1")
+              if [[ "$TAG_COUNT" -gt 0 ]]; then
+                echo "   🛡️ Skipping version $VERSION_ID — still has $TAG_COUNT tag(s) (race condition guard)"
+                continue
+              fi
+
               if gh api \
                 --method DELETE \
                 -H "Accept: application/vnd.github+json" \
@@ -523,6 +565,7 @@ jobs:
                 "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions/$VERSION_ID" \
                 2>/dev/null; then
                 TOTAL_DELETED=$((TOTAL_DELETED + 1))
+                VERSIONS_TO_DELETE=$((VERSIONS_TO_DELETE + 1))
                 echo "   ✓ Deleted image ID: $VERSION_ID"
               else
                 echo "   ✗ Failed to delete image ID: $VERSION_ID"
