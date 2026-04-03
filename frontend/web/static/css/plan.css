@@ -143,3 +143,17 @@
         height: 1.25rem;
     }
 }
+
+/* Extra-small screens (< 420px): prevent card overflow */
+@media (max-width: 419px) {
+    .recurring-mobile-cards .recurring-card-item {
+        padding-left: 0.25rem;
+        padding-right: 0.25rem;
+    }
+    .recurring-mobile-cards .recurring-card-item .flex-1.min-w-0 > div:first-child {
+        flex-wrap: wrap;
+    }
+    .recurring-mobile-cards .recurring-card-item .font-mono {
+        font-size: 0.7rem;
+    }
+}
