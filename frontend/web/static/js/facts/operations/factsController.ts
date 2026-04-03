@@ -7,7 +7,7 @@
  */
 
 import { loadFactsWithCount } from '../integration/factsAPI';
-import { setTotalFacts, getCurrentPage, getPageSize, setCurrentPage } from '../core/stateManager';
+import { setTotalFacts, getCurrentPage, getPageSize, setCurrentPage, getFilters } from '../core/stateManager';
 import { buildFilterQuery } from './filterOperations';
 import type { CreateFactData, UpdateFactData, FactRow } from '../types/models';
 import { escapeHtml, sanitizeErrorMessage } from '../../shared/htmlSanitizer';
@@ -123,6 +123,110 @@ export async function goToNextPage(): Promise<void> {
 }
 
 // ============================================================================
+// Incremental Table Update Helpers
+// ============================================================================
+
+/**
+ * Check if current state allows incremental row injection.
+ * Returns true only on page 1 with no extra filters (only date range is OK).
+ */
+function canInjectRow(): boolean {
+    if (getCurrentPage() !== 0) {
+        return false;
+    }
+    const filters = getFilters();
+    if (filters.user_id) return false;
+    if (filters.article_id) return false;
+    if (filters.article_type) return false;
+    if (filters.financial_center_id) return false;
+    if (filters.cost_center_id) return false;
+    if (filters.search) return false;
+    return true;
+}
+
+/**
+ * Fetch HTML for a single row from the backend and inject it into the table.
+ * For 'create': prepend to tbody.
+ * For 'update': replace existing tr[data-id] and div[data-id].
+ * Returns true on success, false if fallback (full reload) is needed.
+ */
+async function fetchAndInjectRow(factId: number, operation: 'create' | 'update'): Promise<boolean> {
+    if (!canInjectRow()) {
+        return false;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/facts/${factId}/row-html`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            logger.warn(`fetchAndInjectRow: HTTP ${response.status} for fact ${factId}`);
+            return false;
+        }
+
+        const html = await response.text();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(`<table><tbody>${html}</tbody></table>`, 'text/html');
+        const newTr = doc.querySelector('tr[data-id]');
+        const newMobileDiv = doc.querySelector('div.transaction-item[data-id]');
+
+        if (operation === 'create') {
+            const tbody = document.querySelector('.facts-desktop-table tbody');
+            if (tbody && newTr) {
+                tbody.insertBefore(newTr, tbody.firstChild);
+            }
+            const mobileList = document.querySelector('.facts-mobile-list');
+            if (mobileList && newMobileDiv) {
+                mobileList.insertBefore(newMobileDiv, mobileList.firstChild);
+            }
+            return !!(tbody || mobileList);
+        }
+
+        if (operation === 'update') {
+            const existingTr = document.querySelector(`tr[data-id="${factId}"]`);
+            if (existingTr && newTr) {
+                existingTr.replaceWith(newTr);
+            }
+            const existingMobile = document.querySelector(`div.transaction-item[data-id="${factId}"]`);
+            if (existingMobile && newMobileDiv) {
+                existingMobile.replaceWith(newMobileDiv);
+            }
+            return !!(existingTr || existingMobile);
+        }
+
+        return false;
+    } catch (error) {
+        logger.warn('fetchAndInjectRow failed:', error);
+        return false;
+    }
+}
+
+/**
+ * Remove a fact row from the table with a fade-out animation.
+ * Returns true if the row was found and removed, false otherwise.
+ */
+function removeRowFromTable(factId: number): boolean {
+    const desktopRow = document.querySelector(`tr[data-id="${factId}"]`);
+    const mobileRow = document.querySelector(`div.transaction-item[data-id="${factId}"]`);
+
+    if (!desktopRow && !mobileRow) {
+        return false;
+    }
+
+    desktopRow?.classList.add('opacity-0', 'transition-opacity', 'duration-200');
+    mobileRow?.classList.add('opacity-0', 'transition-opacity', 'duration-200');
+
+    setTimeout(() => {
+        desktopRow?.remove();
+        mobileRow?.remove();
+    }, 200);
+
+    return true;
+}
+
+// ============================================================================
 // CRUD Operations
 // ============================================================================
 
@@ -147,8 +251,11 @@ export async function deleteFact(factId: number): Promise<void> {
 
         showToast('Факт успешно удален', 'success');
 
-        // Reload facts from API (bypass Dexie cache)
-        await loadFacts({ forceAPI: true });
+        // Incremental update: remove row without full reload
+        const removed = removeRowFromTable(factId);
+        if (!removed) {
+            await loadFacts({ forceAPI: true });
+        }
     } catch (error) {
         logger.error(' Error deleting fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -224,8 +331,11 @@ export async function updateFact(event: Event): Promise<void> {
 
         showToast('Факт успешно обновлен', 'success');
 
-        // Reload facts from API (bypass Dexie cache)
-        await loadFacts({ forceAPI: true });
+        // Incremental update: replace row without full reload
+        const injected = await fetchAndInjectRow(factId, 'update');
+        if (!injected) {
+            await loadFacts({ forceAPI: true });
+        }
     } catch (error) {
         logger.error(' Error updating fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -287,15 +397,22 @@ export async function createFact(event: Event): Promise<void> {
             }
         }
 
-        await createFn(createData);
+        const created = await createFn(createData);
 
         // Close modal (if AdminFactsCommon available)
         if (window.AdminFactsCommon?.closeCreateModal) {
             window.AdminFactsCommon.closeCreateModal();
         }
 
-        // Reload facts from API (bypass Dexie cache to guarantee fresh data)
-        await loadFacts({ forceAPI: true });
+        // Incremental update: prepend new row without full reload
+        const newFactId = created?.id;
+        let injected = false;
+        if (newFactId && newFactId > 0) {
+            injected = await fetchAndInjectRow(newFactId, 'create');
+        }
+        if (!injected) {
+            await loadFacts({ forceAPI: true });
+        }
     } catch (error) {
         logger.error(' Error creating fact:', error);
         throw error; // Propagate to caller (saveFactModalFacts) for unified toast handling
@@ -690,7 +807,7 @@ interface FactRowParts {
 
 function buildFactRowHtml(fact: FactRow, p: FactRowParts): string {
     return `
-        <tr>
+        <tr data-id="${fact.id}">
             <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="${fact.id}"></td>
             <td class="text-base-content/50 text-xs">${fact.id}</td>
             <td>${escapeHtml(p.dateFormatted)}</td>
@@ -749,7 +866,7 @@ export function renderFactMobileCard(fact: FactRow): string {
     const description = commentText ? TableFormatters.truncateText(commentText, 30) : '—';  // Already escaped
 
     return `
-        <div class="transaction-item py-2" onclick="window.FactsManager?.showEditModal?.(${fact.id})">
+        <div class="transaction-item py-2" data-id="${fact.id}" onclick="window.FactsManager?.showEditModal?.(${fact.id})">
             <!-- Line 1: Badge + Category + Amount -->
             <div class="flex items-center gap-2">
                 <span class="badge badge-primary badge-xs shrink-0">Факт</span>
