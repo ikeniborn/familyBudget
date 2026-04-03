@@ -17,6 +17,7 @@ import * as PlanCRUD from './crud';
 import { setupEventDelegation } from './adapters/eventDelegation';
 import { setupWindowExports } from './adapters/windowExports';
 import { registerWSHandlers } from './wsEventHandlers';
+import { savePlanTransfer } from '../dashboard/features/modalPlan/saveTransfer';
 
 // Logger из utils/logger.js (загружается глобально через bundle)
 declare class Logger {
@@ -435,10 +436,19 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
 
   try {
     if (modalId === 'modal_plan') {
-      // Для основного модала — TS-реализация из PlanCRUD (поддерживает recurring + offline)
-      const event = new Event('submit', { bubbles: true, cancelable: true });
-      Object.defineProperty(event, 'target', { value: form, writable: false });
-      await PlanCRUD.createPlan(event);
+      const activeTabInput = document.getElementById(`${modalId}-active-tab`) as HTMLInputElement | null;
+      const activeTab = activeTabInput?.value || 'transaction';
+      if (activeTab === 'transfer') {
+        await savePlanTransfer(form);
+        (document.getElementById(modalId) as HTMLDialogElement)?.close();
+        PlanHelpers.showToast('Перевод по плану сохранён', 'success');
+        await PlanFactsTable.loadFacts();
+      } else {
+        // Для основного модала — TS-реализация из PlanCRUD (поддерживает recurring + offline)
+        const event = new Event('submit', { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'target', { value: form, writable: false });
+        await PlanCRUD.createPlan(event);
+      }
     } else {
       // Для остальных модалов (например modal_add_plan) — нативная отправка формы,
       // которая триггерит зарегистрированный submit-обработчик из inline-скрипта
