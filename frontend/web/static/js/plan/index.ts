@@ -16,6 +16,7 @@ import * as FilterAnalyticsSync from './filterAnalyticsSync';
 import * as PlanCRUD from './crud';
 import { setupEventDelegation } from './adapters/eventDelegation';
 import { setupWindowExports } from './adapters/windowExports';
+import { savePlanTransfer } from '../dashboard/features/modalPlan/saveTransfer';
 
 // Logger из utils/logger.js (загружается глобально через bundle)
 declare class Logger {
@@ -436,14 +437,10 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
       const activeTab = activeTabInput?.value || 'transaction';
 
       if (activeTab === 'transfer') {
-        // Delegate to dashboard's savePlanModal — it correctly routes to savePlanTransfer.
-        // window.Dashboard.savePlanModal is set by dashboard.min.js before plan.bundle.js
-        // overrides window.savePlanModal, so window.Dashboard.savePlanModal remains correct.
-        btn.disabled = false;
-        const dashboardFn = (window as any).Dashboard?.savePlanModal;
-        if (typeof dashboardFn === 'function') {
-          dashboardFn(button);
-        }
+        await savePlanTransfer(form);
+        (document.getElementById(modalId) as HTMLDialogElement)?.close();
+        PlanHelpers.showToast('Перевод по плану сохранён', 'success');
+        await PlanFactsTable.loadFacts();
         return;
       }
 
