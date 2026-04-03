@@ -141,9 +141,8 @@ export function initAnalyticsMonthButtons(): void {
 
     container.appendChild(btn);
 
-    // Set initial month
     if (offset === 0) {
-      currentAnalyticsMonth = yearMonth;
+      setCurrentAnalyticsMonth(yearMonth);
     }
   }
 }
