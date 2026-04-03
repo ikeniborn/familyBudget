@@ -164,13 +164,17 @@ export function initAnalyticsMonthButtons(): void {
     const label = `${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
 
     const btn = document.createElement('button');
-    btn.className = 'join-item btn btn-outline';
+    btn.className = offset === 0 ? 'join-item btn btn-primary' : 'join-item btn btn-outline';
     btn.style.height = '3rem';
     btn.textContent = label;
     btn.dataset.month = yearMonth;
     btn.onclick = () => selectAnalyticsMonth(yearMonth, btn);
 
     container.appendChild(btn);
+
+    if (offset === 0) {
+      setCurrentAnalyticsMonth(yearMonth);
+    }
   }
 }
 
