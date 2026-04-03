@@ -19,6 +19,7 @@ import {
     deleteFromEditModal as deleteFromEditModalAction,
     createFact as createFactAction,
     reloadFacts,
+    fetchAndInjectRow,
     exportFilteredFacts as exportFilteredFactsAction,
     applyFiltersAndReload,
     resetFiltersAndReload,
@@ -81,6 +82,7 @@ export function setupWindowExports(): void {
         getFilters,
         getPagination,
         getSelectedIds,
+        fetchAndInjectRow,
     };
 
     // Transaction operations (delegated to external modules when available)

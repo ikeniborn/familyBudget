@@ -150,7 +150,7 @@ function canInjectRow(): boolean {
  * For 'update': replace existing tr[data-id] and div[data-id].
  * Returns true on success, false if fallback (full reload) is needed.
  */
-async function fetchAndInjectRow(factId: number, operation: 'create' | 'update'): Promise<boolean> {
+export async function fetchAndInjectRow(factId: number, operation: 'create' | 'update'): Promise<boolean> {
     if (!canInjectRow()) {
         return false;
     }

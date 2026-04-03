@@ -8,7 +8,7 @@
  * Phase 3: WebSocket Integration
  */
 
-import { loadFacts } from '../operations/factsController';
+import { loadFacts, fetchAndInjectRow } from '../operations/factsController';
 import { buildFilterQuery } from '../operations/filterOperations';
 import { getCurrentPage } from '../core/stateManager';
 import type { BudgetFact } from '../types/models';
@@ -327,10 +327,19 @@ function handleBatchDeleteCompleted(_data: { deleted_count: number; failed_count
 
 /**
  * Handle transfer_created WebSocket event
- * Transfers create two facts, reload table
+ * Incrementally inserts two fact rows (expense + income).
+ * Falls back to full reload if incremental fails or user is not on page 0.
  */
-function handleTransferCreated(_data: any): void {
-    debouncedReloadFacts();
+async function handleTransferCreated(data: { expense_fact_id?: number; income_fact_id?: number }): Promise<void> {
+    if (getCurrentPage() !== 0) {
+        debouncedReloadFacts();
+        return;
+    }
+    const ids = [data.expense_fact_id, data.income_fact_id].filter(Boolean) as number[];
+    const results = await Promise.all(ids.map(id => fetchAndInjectRow(id, 'create')));
+    if (!results.some(Boolean)) {
+        debouncedReloadFacts();
+    }
 }
 
 /**

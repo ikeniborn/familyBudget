@@ -60,6 +60,7 @@ declare global {
             showEditModal?: (factId: number) => Promise<void> | void;
             deleteFact?: (factId: number) => Promise<void> | void;
             toggleSelectAll?: (checkbox: HTMLInputElement) => void;
+            fetchAndInjectRow: (factId: number, operation: 'create' | 'update') => Promise<boolean>;
         };
     }
 }
