@@ -40,8 +40,17 @@ export async function saveFactTransfer(form: HTMLFormElement): Promise<void> {
   };
 
   // POST /api/v1/transfers
-  await postAPI('/api/v1/transfers', data, 'SaveFactModal');
+  const transferData = await postAPI<{ expense_fact_id?: number; income_fact_id?: number }>(
+    '/api/v1/transfers', data, 'SaveFactModal'
+  );
 
-  // Update UI
+  // Try incremental row injection for facts page; fall back to full reload if unavailable
+  const injectRow = (window as any).FactsManager?.fetchAndInjectRow;
+  if (typeof injectRow === 'function') {
+    const ids = [transferData.expense_fact_id, transferData.income_fact_id].filter(Boolean) as number[];
+    const results = await Promise.all(ids.map(id => injectRow(id, 'create') as Promise<boolean>));
+    if (results.some(Boolean)) return;
+  }
+
   await refreshUIAfterFactSave();
 }
