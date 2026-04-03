@@ -921,7 +921,7 @@ SAFE_FACT_FIELDS = {
 }
 
 SAFE_TRANSFER_FIELDS = {
-    "id", "source_fact_id", "target_fact_id",
+    "id", "expense_fact_id", "income_fact_id",
     "amount", "transfer_date", "description",
 }
 

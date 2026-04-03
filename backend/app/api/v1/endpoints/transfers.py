@@ -324,8 +324,8 @@ async def create_transfer(
         ws = _get_budget_ws_broadcast()
         transfer_data = {
             "id": transfer_id,
-            "source_fact_id": expense_fact.id,
-            "target_fact_id": income_fact.id,
+            "expense_fact_id": expense_fact.id,
+            "income_fact_id": income_fact.id,
             "amount": float(transfer.amount),
             "transfer_date": str(transfer.transfer_date),
             "description": transfer.description,
