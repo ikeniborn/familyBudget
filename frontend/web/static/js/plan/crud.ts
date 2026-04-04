@@ -1537,7 +1537,10 @@ export async function createPlan(event: Event): Promise<void> {
       const reminderSettings = document.getElementById('reminder-settings-modal_plan');
       if (reminderSettings) reminderSettings.classList.add('hidden');
       resetReminderFields('modal_plan');
-      await loadFacts(); // Перезагрузить список планов
+      if (result._offline) {
+        await loadFacts(); // только для offline (нет WS-события)
+      }
+      // для online: WS-событие plan_created обновит таблицу инкрементально
 
       // Переинициализировать кнопки периода
       setupCreatePlanPeriodButtons();
@@ -1573,7 +1576,7 @@ export async function createPlan(event: Event): Promise<void> {
         const reminderSettings = document.getElementById('reminder-settings-modal_plan');
         if (reminderSettings) reminderSettings.classList.add('hidden');
         resetReminderFields('modal_plan');
-        await loadFacts(); // Перезагрузить список планов
+        // WS-событие plan_created обновит таблицу инкрементально
 
         // Переинициализировать кнопки периода
         setupCreatePlanPeriodButtons();
