@@ -1024,7 +1024,9 @@ export class DexieManager {
     const factsCount = await this.getDB().budgetFacts.filter(f => f.record_type === 'fact').count();
     const plansCount = await this.getDB().budgetFacts.filter(f => f.record_type === 'plan').count();
     const shoppingListsCount = await this.getDB().shoppingLists.count();
-    const shoppingListItemsCount = await this.getDB().shoppingListItems.count();
+    const shoppingListItemsCount = await this.getDB().shoppingListItems
+      .where('sync_status').notEqual('deleted')
+      .count();
     const financialCentersCount = await this.getDB().financialCenters.count();
     const costCentersCount = await this.getDB().costCenters.count();
     const recurringPlansCount = await this.getDB().recurringPlans.count();

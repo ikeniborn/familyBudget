@@ -23,7 +23,7 @@ export async function uploadPendingShoppingOperations(): Promise<{
 
   // Get pending shopping list items
   const pendingItems = await db.shoppingListItems
-    .where('sync_status').equals('pending')
+    .where('sync_status').anyOf(['pending', 'deleted'])
     .toArray();
 
   if (pendingItems.length === 0) {
@@ -63,6 +63,29 @@ async function uploadShoppingItem(item: LocalShoppingListItem): Promise<void> {
     temp_id: item.temp_id,
     id: item.id
   });
+
+  // Handle soft-deleted items — send DELETE to server then hard-delete locally
+  if (item.sync_status === 'deleted') {
+    if (item.id === null) {
+      // Never synced to server — just remove locally
+      await db.shoppingListItems.where('temp_id').equals(item.temp_id).delete();
+      logger.info('[shoppingSync] ✅ Local-only item removed', { temp_id: item.temp_id });
+      return;
+    }
+    const response = await fetchWithTimeout(`/api/v1/shopping-list-items/${item.id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+    if (!response.ok && response.status !== 404) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+    await db.shoppingListItems.where('temp_id').equals(item.temp_id).delete();
+    logger.info('[shoppingSync] ✅ Item deleted on server and locally', {
+      temp_id: item.temp_id,
+      id: item.id
+    });
+    return;
+  }
 
   let endpoint: string;
   let method: string;
