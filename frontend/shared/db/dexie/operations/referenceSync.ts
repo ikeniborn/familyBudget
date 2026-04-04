@@ -12,11 +12,13 @@ import {
   bulkInsertCostCenters,
   bulkInsertArticleHierarchy
 } from './schemaOperations';
+import { mapAPIFactToLocal, validateMappedFact } from '../utils/apiMapper';
 import type {
   LocalArticle,
   LocalFinancialCenter,
   LocalCostCenter,
   LocalArticleHierarchy,
+  LocalBudgetFact,
   LocalRecurringPlan,
   LocalSyncMetadata
 } from '../types/models';
@@ -417,6 +419,109 @@ export async function syncRecurringPlans(
 }
 
 /**
+ * Sync budget plans from server for a given date range (v11.5.0+)
+ *
+ * Preserves local pending/deleted plan records — they are awaiting upload
+ * and must not be overwritten by fresh server data.
+ *
+ * @param userId - User ID
+ * @param fromDate - Start date (YYYY-MM-DD)
+ * @param toDate - End date (YYYY-MM-DD)
+ * @returns Sync result
+ */
+export async function syncPlans(
+  userId: number,
+  fromDate: string,
+  toDate: string
+): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing plans...', { userId, fromDate, toDate });
+
+  try {
+    const params = new URLSearchParams({
+      user_id: String(userId),
+      date_from: fromDate,
+      date_to: toDate,
+      record_type: 'plan'
+    });
+
+    const response = await fetchWithTimeout(`/api/v1/facts?${params.toString()}`, {
+      method: 'GET',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch plans: ${response.status}`);
+    }
+
+    const apiFacts: any[] = await response.json();
+
+    // Map API fields to Dexie schema (fact_date → date, description → comment, etc.)
+    const mappedPlans: LocalBudgetFact[] = [];
+    for (const apiFact of apiFacts) {
+      try {
+        const mapped = mapAPIFactToLocal(apiFact);
+        validateMappedFact(mapped);
+        mappedPlans.push({ ...mapped, amount: toCents(mapped.amount) });
+      } catch (err) {
+        logger.warn('[referenceSync] Skipping malformed plan', { id: apiFact.id, error: (err as Error).message });
+      }
+    }
+
+    // Collect IDs of pending/deleted plans before transaction — they must not be overwritten
+    const protectedPlans = await db.budgetFacts
+      .where('[user_id+date]')
+      .between([userId, fromDate], [userId, toDate + '\uffff'])
+      .filter((f: LocalBudgetFact) =>
+        f.record_type === 'plan' && (f.sync_status === 'pending' || f.sync_status === 'deleted')
+      )
+      .toArray();
+
+    const protectedPlanIds = new Set<number>(
+      protectedPlans
+        .filter((p: LocalBudgetFact) => p.id != null)
+        .map((p: LocalBudgetFact) => p.id!)
+    );
+
+    // Replace server-synced plans in the date window; preserve pending/conflict/deleted local records
+    let insertedCount = 0;
+    await db.transaction('rw', db.budgetFacts, async () => {
+      // Delete only synced plans — deleted records are still waiting for upload
+      await db.budgetFacts
+        .where('[user_id+date]')
+        .between([userId, fromDate], [userId, toDate + '\uffff'])
+        .filter((f: LocalBudgetFact) =>
+          f.record_type === 'plan' && f.sync_status === 'synced'
+        )
+        .delete();
+
+      // Insert only plans that do not conflict with local pending/deleted records
+      const safePlans = mappedPlans.filter((p: LocalBudgetFact) =>
+        !p.id || !protectedPlanIds.has(p.id)
+      );
+      insertedCount = safePlans.length;
+      if (safePlans.length > 0) {
+        await db.budgetFacts.bulkPut(safePlans);
+      }
+    });
+
+    await updateSyncMetadata('plans', mappedPlans.length);
+
+    logger.info('[referenceSync] ✅ Plans synced', {
+      count: mappedPlans.length,
+      fromDate,
+      toDate,
+      protected: protectedPlanIds.size,
+      inserted: insertedCount
+    });
+
+    return { success: true, count: mappedPlans.length };
+  } catch (error) {
+    logger.error('[referenceSync] ❌ Plans sync failed:', error);
+    return { success: false, count: 0 };
+  }
+}
+
+/**
  * Initial sync - синхронизация всех справочников
  * v11.4.3: Restored shoppingLists (transactional data for offline /lists)
  * v11.4.6: Restored recurringPlans (proactive sync with working endpoint)
@@ -434,6 +539,18 @@ export async function initialReferenceSync(
   const dexieManager = await import('../DexieManager').then(m => m.getDexieManager());
   const syncPeriodMonths = (await dexieManager).getSyncPeriodMonths?.() ?? 3;
 
+  // Upload pending fact operations (create/update/delete) before downloading server data.
+  // This ensures local deletions/edits reach the server before we overwrite them with fresh data.
+  try {
+    const { uploadPendingOperations } = await import('./factSync');
+    await uploadPendingOperations();
+    logger.info('[referenceSync] Pending fact operations uploaded before sync');
+  } catch (uploadError) {
+    logger.warn('[referenceSync] Failed to upload pending fact operations (continuing sync)', uploadError);
+  }
+
+  const { fromDate, toDate } = calculateFullMonthsRange(syncPeriodMonths);
+
   const results = {
     articles: await syncArticles(userId),
     financialCenters: await syncFinancialCenters(userId),
@@ -442,7 +559,8 @@ export async function initialReferenceSync(
     stores: await syncStores(),  // v11.4.2+ (global reference data, no userId)
     productGroups: await syncProductGroups(),  // v11.4.2+ (global reference data, no userId)
     shoppingLists: await syncShoppingLists(userId),  // v11.4.3+ (transactional data for offline /lists)
-    recurringPlans: await syncRecurringPlans(userId, syncPeriodMonths)  // v11.5.0: Month-based sync
+    recurringPlans: await syncRecurringPlans(userId, syncPeriodMonths),  // v11.5.0: Month-based sync
+    plans: await syncPlans(userId, fromDate, toDate)  // v11.5.0+: Budget plans with pending protection
   };
 
   // Critical syncs (required for app to work)
@@ -450,7 +568,7 @@ export async function initialReferenceSync(
   const success = criticalSyncs.every(key => results[key as keyof typeof results].success);
 
   // Non-critical syncs (nice to have, but app works without them)
-  const nonCriticalSyncs = ['stores', 'productGroups', 'shoppingLists', 'recurringPlans'];
+  const nonCriticalSyncs = ['stores', 'productGroups', 'shoppingLists', 'recurringPlans', 'plans'];
   nonCriticalSyncs.forEach(key => {
     if (!results[key as keyof typeof results].success) {
       logger.warn(`[referenceSync] ${key} sync failed, but continuing (non-critical)`);
