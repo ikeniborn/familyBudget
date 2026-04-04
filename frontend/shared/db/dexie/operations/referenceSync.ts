@@ -22,7 +22,7 @@ import type {
   LocalSyncMetadata,
   LocalShoppingListItem
 } from '../types/models';
-import { mapAPIFactToLocal } from '../utils/apiMapper';
+import { mapAPIFactToLocal, validateMappedFact } from '../utils/apiMapper';
 
 /**
  * Sync articles from server
@@ -452,21 +452,21 @@ export async function syncPlans(
     const data = await response.json();
     const rawPlans = data.facts || data.items || [];
 
-    // Map API response → LocalBudgetFact (generates temp_id, normalises field names)
-    // IMPORTANT: API returns objects with server `id` but NO `temp_id`.
-    // Without this mapping bulkPut throws:
-    //   "DataError: Evaluating the object store's key path did not yield a value"
-    // because `budgetFacts` uses `temp_id` as its primary key.
-    // mapAPIFactToLocal generates temp_id = "server-{id}" for stable re-sync identity.
-    const plans: LocalBudgetFact[] = rawPlans.map((plan: Record<string, unknown>) =>
-      mapAPIFactToLocal(plan)
-    );
-
-    // Convert amounts to cents before storing
-    const plansWithCents = plans.map((plan: LocalBudgetFact) => ({
-      ...plan,
-      amount: toCents(plan.amount)
-    }));
+    // Map API response → LocalBudgetFact (generates temp_id, normalises field names, validates)
+    // Per-item error handling: skip malformed plans instead of failing the whole sync
+    const mappedPlans: LocalBudgetFact[] = [];
+    for (const rawPlan of rawPlans) {
+      try {
+        const mapped = mapAPIFactToLocal(rawPlan as Record<string, unknown>);
+        validateMappedFact(mapped);
+        mappedPlans.push({ ...mapped, amount: toCents(mapped.amount) });
+      } catch (err) {
+        logger.warn('[referenceSync] Skipping malformed plan', {
+          id: (rawPlan as any).id,
+          error: (err as Error).message
+        });
+      }
+    }
 
     // Collect server IDs of locally pending/deleted plans before modifying DB
     // These must not be overwritten by stale server data
@@ -494,7 +494,7 @@ export async function syncPlans(
         .delete();
 
       // Skip plans whose local version has unsent edits or pending deletion
-      const safePlans = plansWithCents.filter(
+      const safePlans = mappedPlans.filter(
         (p: LocalBudgetFact) => !p.id || !protectedPlanIds.has(p.id)
       );
       if (safePlans.length > 0) {
@@ -502,10 +502,10 @@ export async function syncPlans(
       }
     });
 
-    await updateSyncMetadata('plans', plans.length);
+    await updateSyncMetadata('plans', mappedPlans.length);
 
-    logger.info('[referenceSync] ✅ Plans synced', { count: plans.length, fromDate, toDate });
-    return { success: true, count: plans.length };
+    logger.info('[referenceSync] ✅ Plans synced', { count: mappedPlans.length, fromDate, toDate });
+    return { success: true, count: mappedPlans.length };
   } catch (error) {
     logger.error('[referenceSync] ❌ Plans sync failed:', error);
     return { success: false, count: 0 };
