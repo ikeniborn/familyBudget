@@ -14,6 +14,18 @@ import * as PlanFactsTable from './factsTable';
 import * as PlanAnalytics from './analytics';
 import * as FilterAnalyticsSync from './filterAnalyticsSync';
 import * as PlanCRUD from './crud';
+import { savePlanTransfer } from '../dashboard/features/modalPlan/saveTransfer';
+import { setButtonLoading } from '../dashboard/shared/utils/buttonState';
+
+// Logger из utils/logger.js (загружается глобально через bundle)
+declare class Logger {
+  constructor(prefix: string, moduleKey: string);
+  debug(...args: any[]): void;
+  info(...args: any[]): void;
+  warn(...args: any[]): void;
+  error(...args: any[]): void;
+}
+const log = new Logger('[PLAN]', 'PLAN');
 
 // Re-export modules for external use
 export { PlanHelpers, PlanFilters, PlanFactsTable, PlanAnalytics, FilterAnalyticsSync, PlanCRUD };
@@ -55,6 +67,9 @@ interface PlanAppGlobal {
   syncFiltersToAnalytics: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
   syncAnalyticsToFilters: (options?: FilterAnalyticsSync.SyncOptions) => Promise<void>;
 
+  // Modal Save Actions
+  savePlanModal: (button: HTMLElement) => Promise<void>;
+
   // CRUD Actions (exposed for onclick handlers - Phase 3: Week 3-4)
   closeEditModal: () => void;
   deleteFact: (factId: number) => Promise<void>;
@@ -93,7 +108,7 @@ declare global {
  * Called on DOMContentLoaded from inline script
  */
 export async function initialize(): Promise<void> {
-  console.log('[PLAN] Initializing plan page (Phase 2: Complete)...');
+  log.info('Initializing plan page...');
 
   try {
     // Initialize default period filter UI
@@ -103,7 +118,7 @@ export async function initialize(): Promise<void> {
     PlanAnalytics.initAnalyticsMonthButtons();
 
     // Load dropdown data in parallel
-    console.log('[PLAN] Loading dropdown data...');
+    log.debug('Loading dropdown data...');
     await Promise.all([
       loadUsersDropdown(),
       loadArticlesDropdown(),
@@ -114,19 +129,19 @@ export async function initialize(): Promise<void> {
     ]);
 
     // Apply filters and load initial data
-    console.log('[PLAN] Applying initial filters...');
+    log.debug('Applying initial filters...');
     await applyFiltersAndLoadData();
 
     // Load analytics
-    console.log('[PLAN] Loading analytics...');
+    log.debug('Loading analytics...');
     await PlanAnalytics.loadPlanAnalytics();
 
     // Update filter indicator
     PlanFilters.updateFilterIndicator();
 
-    console.log('[PLAN] ✅ Plan page initialized successfully');
+    log.info('Plan page initialized successfully');
   } catch (error) {
-    console.error('[PLAN] ❌ Error initializing plan page:', error);
+    log.error('Error initializing plan page:', error);
     PlanHelpers.showNotification('Ошибка инициализации страницы: ' + (error as Error).message, 'error');
   }
 }
@@ -144,7 +159,7 @@ async function loadUsersDropdown(): Promise<void> {
     const select = document.getElementById('filter-user') as HTMLSelectElement | null;
 
     if (!select) {
-      console.warn('[PLAN] User dropdown not found');
+      log.warn('User dropdown not found');
       return;
     }
 
@@ -155,9 +170,9 @@ async function loadUsersDropdown(): Promise<void> {
       select.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${users.length} users`);
+    log.debug(`Loaded ${users.length} users`);
   } catch (error) {
-    console.error('[PLAN] Error loading users:', error);
+    log.error('Error loading users:', error);
   }
 }
 
@@ -248,7 +263,7 @@ async function loadArticlesDropdown(): Promise<void> {
     const filterSelect = document.getElementById('filter-article') as HTMLSelectElement | null;
 
     if (!filterSelect) {
-      console.warn('[PLAN] Article dropdown not found');
+      log.warn('Article dropdown not found');
       return;
     }
 
@@ -257,9 +272,9 @@ async function loadArticlesDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${sortedNodes.length} articles (${articles.length} total)`);
+    log.debug(`Loaded ${sortedNodes.length} articles (${articles.length} total)`);
   } catch (error) {
-    console.error('[PLAN] Error loading articles:', error);
+    log.error('Error loading articles:', error);
   }
 }
 
@@ -272,7 +287,7 @@ async function loadFinancialCentersDropdown(): Promise<void> {
     const filterSelect = document.getElementById('filter-financial-center') as HTMLSelectElement | null;
 
     if (!filterSelect) {
-      console.warn('[PLAN] Financial center dropdown not found');
+      log.warn('Financial center dropdown not found');
       return;
     }
 
@@ -283,9 +298,9 @@ async function loadFinancialCentersDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${centers.length} financial centers`);
+    log.debug(`Loaded ${centers.length} financial centers`);
   } catch (error) {
-    console.error('[PLAN] Error loading financial centers:', error);
+    log.error('Error loading financial centers:', error);
     PlanHelpers.showToast('Ошибка загрузки счетов: ' + (error as Error).message, 'error');
   }
 }
@@ -299,7 +314,7 @@ async function loadCostCentersDropdown(): Promise<void> {
     const filterSelect = document.getElementById('filter-cost-center') as HTMLSelectElement | null;
 
     if (!filterSelect) {
-      console.warn('[PLAN] Cost center dropdown not found');
+      log.warn('Cost center dropdown not found');
       return;
     }
 
@@ -310,9 +325,9 @@ async function loadCostCentersDropdown(): Promise<void> {
       filterSelect.appendChild(option);
     });
 
-    console.log(`[PLAN] Loaded ${centers.length} cost centers`);
+    log.debug(`Loaded ${centers.length} cost centers`);
   } catch (error) {
-    console.error('[PLAN] Error loading cost centers:', error);
+    log.error('Error loading cost centers:', error);
     PlanHelpers.showToast('Ошибка загрузки мест затрат: ' + (error as Error).message, 'error');
   }
 }
@@ -336,9 +351,9 @@ export async function applyFiltersAndLoadData(): Promise<void> {
     // Sync filters to analytics (debounced to prevent cascading reloads)
     FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
 
-    console.log('[PLAN] Filters applied and data reloaded');
+    log.debug('Filters applied and data reloaded');
   } catch (error) {
-    console.error('[PLAN] Error applying filters:', error);
+    log.error('Error applying filters:', error);
     PlanHelpers.showNotification('Ошибка применения фильтров: ' + (error as Error).message, 'error');
   }
 }
@@ -358,9 +373,9 @@ export async function resetFiltersAndLoadData(): Promise<void> {
     // Sync filters to analytics (debounced to prevent cascading reloads)
     FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
 
-    console.log('[PLAN] Filters reset and data reloaded');
+    log.debug('Filters reset and data reloaded');
   } catch (error) {
-    console.error('[PLAN] Error resetting filters:', error);
+    log.error('Error resetting filters:', error);
     PlanHelpers.showNotification('Ошибка сброса фильтров: ' + (error as Error).message, 'error');
   }
 }
@@ -370,6 +385,64 @@ export async function resetFiltersAndLoadData(): Promise<void> {
  */
 export function collapseFiltersAction(): void {
   PlanFilters.collapseFilters();
+}
+
+// ============================================================================
+// Modal Save Actions
+// ============================================================================
+
+/**
+ * Обработчик кнопки «Сохранить» в modal_plan.
+ * Вызывается через onclick="savePlanModal(this)".
+ *
+ * @param button - Кнопка с data-form-id и data-modal-id
+ */
+export async function savePlanModal(button: HTMLElement): Promise<void> {
+  const btn = button as HTMLButtonElement;
+  if (btn.disabled) return;
+
+  const formId = button.dataset.formId;
+  const modalId = button.dataset.modalId || 'modal_plan';
+  const form = document.getElementById(formId || `form_${modalId}`) as HTMLFormElement | null;
+  if (!form) return;
+
+  setButtonLoading(btn, true);
+
+  try {
+    if (modalId === 'modal_plan') {
+      const activeTabInput = document.getElementById(`${modalId}-active-tab`) as HTMLInputElement | null;
+      const activeTab = activeTabInput?.value || 'transaction';
+      if (activeTab === 'transfer') {
+        await savePlanTransfer(form);
+        (document.getElementById(modalId) as HTMLDialogElement)?.close();
+        PlanHelpers.showToast('Перевод по плану сохранён', 'success');
+        form.reset();
+        // Re-disable article selects (enabled by FC selection, not restored by form.reset)
+        const transferDiv = form.querySelector('[data-tab="transfer"]') as HTMLElement | null;
+        if (transferDiv) {
+          const fromArticle = transferDiv.querySelector<HTMLSelectElement>('select[name="from_article_id"]');
+          const toArticle = transferDiv.querySelector<HTMLSelectElement>('select[name="to_article_id"]');
+          if (fromArticle) fromArticle.disabled = true;
+          if (toArticle) toArticle.disabled = true;
+          // Re-activate first period button (others deactivated by form.reset not restoring btn-active)
+          transferDiv.querySelectorAll<HTMLButtonElement>('.transfer-period-btn')
+            .forEach((pb, idx) => pb.classList.toggle('btn-active', idx === 0));
+        }
+      } else {
+        const event = new Event('submit', { bubbles: true, cancelable: true });
+        Object.defineProperty(event, 'target', { value: form, writable: false });
+        await PlanCRUD.createPlan(event);
+      }
+    } else {
+      if (form.checkValidity()) {
+        form.requestSubmit();
+      } else {
+        form.reportValidity();
+      }
+    }
+  } finally {
+    setButtonLoading(btn, false);
+  }
 }
 
 // ============================================================================
@@ -409,6 +482,9 @@ window.PlanApp = {
   syncFiltersToAnalytics: FilterAnalyticsSync.syncFiltersToAnalytics,
   syncAnalyticsToFilters: FilterAnalyticsSync.syncAnalyticsToFilters,
 
+  // Modal Save Actions (for onclick handlers)
+  savePlanModal,
+
   // CRUD Actions (for onclick handlers - Phase 3: Week 3-4)
   closeEditModal: PlanCRUD.closeEditModal,
   deleteFact: PlanCRUD.deleteFact,
@@ -432,7 +508,7 @@ window.PlanApp = {
   updateEditReminderDatetime: PlanCRUD.updateEditReminderDatetime
 };
 
-console.log('[PLAN] PlanApp exposed to window object (Phase 3: Week 4 complete)');
+log.debug('PlanApp exposed to window object');
 
 // FAB toolbar compatibility (v10.1.11)
 // REMOVED: window.openModalPlan = PlanCRUD.openAddPlanModal
