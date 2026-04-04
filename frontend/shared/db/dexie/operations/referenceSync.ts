@@ -18,7 +18,8 @@ import type {
   LocalCostCenter,
   LocalArticleHierarchy,
   LocalRecurringPlan,
-  LocalSyncMetadata
+  LocalSyncMetadata,
+  LocalShoppingListItem
 } from '../types/models';
 
 /**
@@ -286,7 +287,79 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
       await db.shoppingLists.bulkPut(transformedLists);
     }
 
-    logger.info('[referenceSync] ✅ Shopping lists synced', { count: transformedLists.length });
+    // Sync items for each list
+    let totalItems = 0;
+    for (const list of transformedLists) {
+      const itemsResponse = await fetchWithTimeout(
+        `/api/v1/shopping-lists/${list.id}/with-items`,
+        { method: 'GET', credentials: 'include' }
+      );
+
+      if (!itemsResponse.ok) {
+        logger.warn('[referenceSync] ⚠️ Could not fetch items for list', {
+          list_id: list.id,
+          status: itemsResponse.status
+        });
+        continue;
+      }
+
+      const itemsData = await itemsResponse.json();
+      const items: any[] = itemsData.items || [];
+
+      // Preserve existing temp_ids so items keep stable primary keys across re-syncs
+      const existingItems = await db.shoppingListItems
+        .where('shopping_list_temp_id').equals(list.temp_id)
+        .toArray();
+      const existingTempIdByItemServerId = new Map(
+        existingItems
+          .filter((i: LocalShoppingListItem) => i.id != null)
+          .map((i: LocalShoppingListItem) => [i.id!, i.temp_id])
+      );
+
+      // Server IDs of items with pending/deleted status — must not be overwritten by server data
+      const protectedItemIds = new Set<number>(
+        existingItems
+          .filter((i: LocalShoppingListItem) =>
+            (i.sync_status === 'pending' || i.sync_status === 'deleted') && i.id != null)
+          .map((i: LocalShoppingListItem) => i.id!)
+      );
+
+      // Clear only SYNCED items for this list (preserve pending/unsent items)
+      await db.shoppingListItems
+        .where('shopping_list_temp_id')
+        .equals(list.temp_id)
+        .filter(item => item.sync_status === 'synced')
+        .delete();
+
+      if (items.length > 0) {
+        const transformedItems: LocalShoppingListItem[] = items.map((item: any) => ({
+          ...item,
+          temp_id: existingTempIdByItemServerId.get(item.id) ?? item.temp_id ?? item.id,
+          shopping_list_temp_id: list.temp_id,
+          sync_status: 'synced' as const,
+          sync_hash: null,
+          content_hash: null,
+          synced_at: new Date(),
+          created_at: item.created_at ? new Date(item.created_at) : new Date(),
+          updated_at: item.updated_at ? new Date(item.updated_at) : new Date(),
+          completed_at: item.completed_at ? new Date(item.completed_at) : null,
+          deleted_at: item.deleted_at ? new Date(item.deleted_at) : null
+        }));
+
+        const safeItems = transformedItems.filter((i: LocalShoppingListItem) =>
+          !i.id || !protectedItemIds.has(i.id)
+        );
+        if (safeItems.length > 0) {
+          await db.shoppingListItems.bulkPut(safeItems);
+        }
+        totalItems += safeItems.length;
+      }
+    }
+
+    logger.info('[referenceSync] ✅ Shopping lists synced', {
+      count: transformedLists.length,
+      items: totalItems
+    });
     return { success: true, count: transformedLists.length };
   } catch (error) {
     logger.error('[referenceSync] ❌ Shopping lists sync failed:', error);
