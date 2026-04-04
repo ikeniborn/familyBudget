@@ -130,10 +130,26 @@ async function uploadOperation(op: LocalPendingOperation): Promise<void> {
     if (op.temp_id) {
       await confirmPendingOperation(op.temp_id, serverId);
     }
-  } else {
-    // Для update/delete просто удаляем из pending queue
+  } else if (op.operation === 'update') {
     if (op.temp_id) {
-      await db.pendingOperations.where('temp_id').equals(op.temp_id).delete();
+      const tempId = op.temp_id;
+      // Atomically mark synced and remove from pending queue
+      await db.transaction('rw', [db.budgetFacts, db.pendingOperations], async () => {
+        await db.pendingOperations.where('temp_id').equals(tempId).delete();
+        await db.budgetFacts.where('temp_id').equals(tempId).modify({
+          sync_status: 'synced',
+          synced_at: new Date()
+        });
+      });
+    }
+  } else if (op.operation === 'delete') {
+    if (op.temp_id) {
+      const tempId = op.temp_id;
+      // Atomically hard-delete from Dexie and remove pending op (server confirmed deletion)
+      await db.transaction('rw', [db.budgetFacts, db.pendingOperations], async () => {
+        await db.pendingOperations.where('temp_id').equals(tempId).delete();
+        await db.budgetFacts.where('temp_id').equals(tempId).delete();
+      });
     }
   }
 
@@ -205,8 +221,17 @@ export async function downloadFacts(
       });
     }
 
+    // Server facts whose local counterpart has unsent edits/deletes must not be overwritten
+    const protectedFacts = await db.budgetFacts
+      .where('sync_status').anyOf(['pending', 'deleted'])
+      .toArray();
+    const protectedServerIds = new Set(
+      protectedFacts.filter(f => f.id != null).map(f => f.id!)
+    );
+    const safeToInsert = mappedFacts.filter(f => !f.id || !protectedServerIds.has(f.id));
+
     // Bulk insert (amount уже в cents от сервера)
-    await bulkInsertFacts(mappedFacts);
+    await bulkInsertFacts(safeToInsert);
 
     // Update sync metadata
     await db.syncMetadata.put({
@@ -216,7 +241,11 @@ export async function downloadFacts(
       total_records: mappedFacts.length
     });
 
-    logger.info('[factSync] ✅ Facts downloaded', { count: mappedFacts.length });
+    logger.info('[factSync] ✅ Facts downloaded', {
+      count: mappedFacts.length,
+      inserted: safeToInsert.length,
+      skipped: mappedFacts.length - safeToInsert.length
+    });
     return { success: true, count: mappedFacts.length };
   } catch (error) {
     logger.error('[factSync] ❌ Facts download failed:', error);

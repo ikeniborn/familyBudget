@@ -279,6 +279,14 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
         .map(l => [l.id!, l.temp_id])
     );
 
+    // Collect server IDs of pending/deleted lists — they must not be overwritten
+    const pendingOrDeletedLists = existingListsInDexie.filter(
+      l => l.sync_status === 'pending' || l.sync_status === 'deleted'
+    );
+    const pendingListServerIds = new Set(
+      pendingOrDeletedLists.filter(l => l.id != null).map(l => l.id!)
+    );
+
     // Transform API data: preserve existing temp_id if list already exists locally
     const transformedLists = lists.map((list: any) => ({
       ...list,
@@ -291,12 +299,18 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
       updated_at: list.updated_at ? new Date(list.updated_at) : new Date()
     }));
 
-    // Clear existing user's lists (after preserving temp_ids)
-    await db.shoppingLists.where('creator_id').equals(userId).delete();
+    // Only delete synced lists — pending/deleted ones are awaiting upload
+    await db.shoppingLists
+      .where('creator_id').equals(userId)
+      .filter(l => l.sync_status === 'synced')
+      .delete();
 
-    // Bulk insert
-    if (transformedLists.length > 0) {
-      await db.shoppingLists.bulkPut(transformedLists);
+    // Skip lists whose local version has unsent edits or pending deletion
+    const safeToInsert = transformedLists.filter(
+      (l: any) => !l.id || !pendingListServerIds.has(l.id)
+    );
+    if (safeToInsert.length > 0) {
+      await db.shoppingLists.bulkPut(safeToInsert);
     }
 
     // Sync shopping list items for each list (v11.6.1+)
@@ -322,7 +336,18 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
         }
 
         const itemsData = await itemsResponse.json();
-        const items = itemsData.items || [];
+        // Filter soft-deleted items (API already excludes them, but guard defensively)
+        const items = (itemsData.items || []).filter((item: any) => !item.deleted_at);
+
+        // Preserve existing temp_ids so items keep stable primary keys across re-syncs
+        const existingItems = await db.shoppingListItems
+          .where('shopping_list_temp_id').equals(list.temp_id)
+          .toArray();
+        const existingTempIdByItemServerId = new Map(
+          existingItems
+            .filter((i: LocalShoppingListItem) => i.id != null)
+            .map((i: LocalShoppingListItem) => [i.id!, i.temp_id])
+        );
 
         // Clear only SYNCED items for this list (preserve pending/unsent items)
         await db.shoppingListItems
@@ -335,7 +360,7 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
         if (items.length > 0) {
           const transformedItems: LocalShoppingListItem[] = items.map((item: any) => ({
             ...item,
-            temp_id: item.temp_id || `item_${item.id}_${Date.now()}`,
+            temp_id: existingTempIdByItemServerId.get(item.id) || item.temp_id || `server-item-${item.id}`,
             shopping_list_temp_id: list.temp_id, // Link to the Dexie list by temp_id
             sync_status: 'synced',
             synced_at: new Date(),
@@ -443,19 +468,37 @@ export async function syncPlans(
       amount: toCents(plan.amount)
     }));
 
-    // Replace server-synced plans in the date window; preserve pending/conflict local records
+    // Collect server IDs of locally pending/deleted plans before modifying DB
+    // These must not be overwritten by stale server data
+    const protectedPlans = await db.budgetFacts
+      .where('[user_id+date]')
+      .between([userId, fromDate], [userId, toDate + '\uffff'])
+      .filter((f: LocalBudgetFact) =>
+        f.record_type === 'plan' &&
+        (f.sync_status === 'pending' || f.sync_status === 'deleted')
+      )
+      .toArray();
+    const protectedPlanIds = new Set(
+      protectedPlans.filter((p: LocalBudgetFact) => p.id != null).map((p: LocalBudgetFact) => p.id!)
+    );
+
+    // Replace server-synced plans in the date window; preserve pending/deleted local records
     await db.transaction('rw', db.budgetFacts, async () => {
+      // Only delete synced plans — deleted ones are awaiting upload and must stay invisible
       await db.budgetFacts
         .where('[user_id+date]')
         .between([userId, fromDate], [userId, toDate + '\uffff'])
         .filter((f: LocalBudgetFact) =>
-          f.record_type === 'plan' &&
-          (f.sync_status === 'synced' || f.sync_status === 'deleted')
+          f.record_type === 'plan' && f.sync_status === 'synced'
         )
         .delete();
 
-      if (plansWithCents.length > 0) {
-        await db.budgetFacts.bulkPut(plansWithCents);
+      // Skip plans whose local version has unsent edits or pending deletion
+      const safePlans = plansWithCents.filter(
+        (p: LocalBudgetFact) => !p.id || !protectedPlanIds.has(p.id)
+      );
+      if (safePlans.length > 0) {
+        await db.budgetFacts.bulkPut(safePlans);
       }
     });
 
@@ -555,6 +598,16 @@ export async function initialReferenceSync(
     logger.info('[referenceSync] Pending shopping operations uploaded before sync');
   } catch (uploadError) {
     logger.warn('[referenceSync] Failed to upload pending shopping operations (continuing sync)', uploadError);
+  }
+
+  // Upload pending fact operations (create/update/delete) before downloading server data
+  // Ensures local deletions and edits reach server before plans/facts are refreshed
+  try {
+    const { uploadPendingOperations } = await import('./factSync');
+    await uploadPendingOperations();
+    logger.info('[referenceSync] Pending fact operations uploaded before sync');
+  } catch (uploadError) {
+    logger.warn('[referenceSync] Failed to upload pending fact operations (continuing sync)', uploadError);
   }
 
   const results = {
