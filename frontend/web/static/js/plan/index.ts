@@ -18,6 +18,7 @@ import { setupEventDelegation } from './adapters/eventDelegation';
 import { setupWindowExports } from './adapters/windowExports';
 import { registerWSHandlers } from './wsEventHandlers';
 import { savePlanTransfer } from '../dashboard/features/modalPlan/saveTransfer';
+import { setButtonLoading } from '../dashboard/shared/utils/buttonState';
 
 // Logger из utils/logger.js (загружается глобально через bundle)
 declare class Logger {
@@ -424,15 +425,13 @@ export function collapseFiltersAction(): void {
 export async function savePlanModal(button: HTMLElement): Promise<void> {
   const btn = button as HTMLButtonElement;
   if (btn.disabled) return;
-  btn.disabled = true;
 
   const formId = button.dataset.formId;
   const modalId = button.dataset.modalId || 'modal_plan';
   const form = document.getElementById(formId || `form_${modalId}`) as HTMLFormElement | null;
-  if (!form) {
-    btn.disabled = false;
-    return;
-  }
+  if (!form) return;
+
+  setButtonLoading(btn, true);
 
   try {
     if (modalId === 'modal_plan') {
@@ -442,7 +441,19 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
         await savePlanTransfer(form);
         (document.getElementById(modalId) as HTMLDialogElement)?.close();
         PlanHelpers.showToast('Перевод по плану сохранён', 'success');
-        await PlanFactsTable.loadFacts();
+        form.reset();
+        // Re-disable article selects (enabled by FC selection, not restored by form.reset)
+        const transferDiv = form.querySelector('[data-tab="transfer"]') as HTMLElement | null;
+        if (transferDiv) {
+          const fromArticle = transferDiv.querySelector<HTMLSelectElement>('select[name="from_article_id"]');
+          const toArticle = transferDiv.querySelector<HTMLSelectElement>('select[name="to_article_id"]');
+          if (fromArticle) fromArticle.disabled = true;
+          if (toArticle) toArticle.disabled = true;
+          // Reset period buttons: first active, others inactive
+          transferDiv.querySelectorAll<HTMLButtonElement>('.transfer-period-btn')
+            .forEach((pb, idx) => pb.classList.toggle('btn-active', idx === 0));
+        }
+        // No loadFacts() — WS plan_created event handles incremental update
       } else {
         // Для основного модала — TS-реализация из PlanCRUD (поддерживает recurring + offline)
         const event = new Event('submit', { bubbles: true, cancelable: true });
@@ -459,7 +470,7 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
       }
     }
   } finally {
-    btn.disabled = false;
+    setButtonLoading(btn, false);
   }
 }
 
