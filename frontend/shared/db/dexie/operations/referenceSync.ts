@@ -349,6 +349,14 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
             .map((i: LocalShoppingListItem) => [i.id!, i.temp_id])
         );
 
+        // Server IDs of items with pending/deleted status — must not be overwritten by server data
+        const protectedItemIds = new Set<number>(
+          existingItems
+            .filter((i: LocalShoppingListItem) =>
+              (i.sync_status === 'pending' || i.sync_status === 'deleted') && i.id != null)
+            .map((i: LocalShoppingListItem) => i.id!)
+        );
+
         // Clear only SYNCED items for this list (preserve pending/unsent items)
         await db.shoppingListItems
           .where('shopping_list_temp_id')
@@ -356,7 +364,6 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
           .filter(item => item.sync_status === 'synced')
           .delete();
 
-        // Transform and store items
         if (items.length > 0) {
           const transformedItems: LocalShoppingListItem[] = items.map((item: any) => ({
             ...item,
@@ -374,8 +381,14 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
             last_modified_by: item.last_modified_by || null,
             conflict_data: undefined
           }));
-          await db.shoppingListItems.bulkPut(transformedItems);
-          totalItems += transformedItems.length;
+          // Skip items whose local version has unsent edits or pending deletion
+          const safeItems = transformedItems.filter((i: LocalShoppingListItem) =>
+            !i.id || !protectedItemIds.has(i.id)
+          );
+          if (safeItems.length > 0) {
+            await db.shoppingListItems.bulkPut(safeItems);
+          }
+          totalItems += safeItems.length;
         }
       } catch (itemError) {
         logger.warn('[referenceSync] Error fetching items for list (non-critical)', {
