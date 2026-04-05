@@ -277,9 +277,11 @@ export async function getPendingOperations(): Promise<LocalPendingOperation[]> {
   logger.debug('[Dexie] getPendingOperations');
 
   const now = new Date();
-  const allOperations = await db.pendingOperations
-    .orderBy('created_at')
-    .toArray();
+  const allOperations = await db.pendingOperations.toArray();
+  // Sort by created_at in JS (field is not indexed in Dexie schema)
+  allOperations.sort((a, b) =>
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
 
   // Filter out operations that are waiting for backoff to expire
   const readyOperations = allOperations.filter(op => {
