@@ -18,15 +18,6 @@ declare const BudgetShared: {
     isValidDisplayFormat: (displayDate: string) => boolean;
   };
   CalendarWidget: any; // Constructor
-  ConfirmDialog: {
-    show: (options: {
-      title: string;
-      message: string;
-      confirmText?: string;
-      cancelText?: string;
-      confirmClass?: string;
-    }) => Promise<boolean>;
-  };
   ChoicesCategoryTree: any; // Constructor
 };
 
@@ -843,20 +834,17 @@ function escapeHtml(unsafe: string): string {
 
 /**
  * Show confirmation dialog
- * Wrapper around BudgetShared.ConfirmDialog
+ * Wrapper around window.showConfirmDialog with native confirm fallback
  *
  * @param message - Confirmation message
  * @param title - Dialog title
  * @returns Promise that resolves to true if confirmed, false otherwise
  */
 async function showConfirmDialog(message: string, title: string): Promise<boolean> {
-  return await BudgetShared.ConfirmDialog.show({
-    title,
-    message,
-    confirmText: 'Удалить',
-    cancelText: 'Отмена',
-    confirmClass: 'btn-error'
-  });
+  if (typeof (window as any).showConfirmDialog === 'function') {
+    return await (window as any).showConfirmDialog(message, title);
+  }
+  return confirm(message);
 }
 
 /**
