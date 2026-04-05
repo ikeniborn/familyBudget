@@ -21,27 +21,43 @@ export async function uploadPendingShoppingOperations(): Promise<{
 }> {
   logger.info('[shoppingSync] Uploading pending shopping operations...');
 
-  // Get pending shopping list items
-  const pendingItems = await db.shoppingListItems
-    .where('sync_status').equals('pending')
-    .toArray();
+  // Get pending (create/update) and deleted items in parallel
+  const [pendingItems, deletedItems] = await Promise.all([
+    db.shoppingListItems.where('sync_status').equals('pending').toArray(),
+    db.shoppingListItems.where('sync_status').equals('deleted').toArray()
+  ]);
 
-  if (pendingItems.length === 0) {
+  if (pendingItems.length === 0 && deletedItems.length === 0) {
     logger.info('[shoppingSync] No pending shopping operations');
     return { success: true, uploaded: 0, failed: 0 };
   }
 
-  logger.info('[shoppingSync] Found pending items', { count: pendingItems.length });
+  logger.info('[shoppingSync] Found pending items', {
+    pending: pendingItems.length,
+    deleted: deletedItems.length
+  });
 
   let uploaded = 0;
   let failed = 0;
 
+  // Upload pending creates/updates
   for (const item of pendingItems) {
     try {
       await uploadShoppingItem(item);
       uploaded++;
     } catch (error) {
       logger.error('[shoppingSync] ❌ Item upload failed:', error);
+      failed++;
+    }
+  }
+
+  // Upload deletes
+  for (const item of deletedItems) {
+    try {
+      await uploadShoppingItemDelete(item);
+      uploaded++;
+    } catch (error) {
+      logger.error('[shoppingSync] ❌ Item delete upload failed:', error);
       failed++;
     }
   }
@@ -104,6 +120,34 @@ async function uploadShoppingItem(item: LocalShoppingListItem): Promise<void> {
   }
 
   logger.info('[shoppingSync] ✅ Item uploaded', { temp_id: item.temp_id });
+}
+
+/**
+ * Upload single shopping item DELETE to server, then remove from local Dexie
+ */
+async function uploadShoppingItemDelete(item: LocalShoppingListItem): Promise<void> {
+  logger.debug('[shoppingSync] Uploading shopping item delete', {
+    temp_id: item.temp_id,
+    id: item.id
+  });
+
+  if (item.id !== null) {
+    // Item has a server ID — send DELETE to API
+    const response = await fetchWithTimeout(`/api/v1/shopping-items/${item.id}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+  }
+  // If item.id is null, it was never synced to the server — just remove locally
+
+  // Remove from local Dexie (hard delete — server is already notified)
+  await db.shoppingListItems.where('temp_id').equals(item.temp_id).delete();
+
+  logger.info('[shoppingSync] ✅ Item delete uploaded', { temp_id: item.temp_id, id: item.id });
 }
 
 /**

@@ -22,7 +22,8 @@ import {
   addItemToList,
   updateShoppingListItem,
   toggleItemCompleted as toggleItemCompletedDexie,
-  deleteShoppingListItem
+  deleteShoppingListItem,
+  uploadPendingShoppingOperations
 } from '@db/dexie';
 import { getCurrentUserId } from '@shared/utils/userHelpers';
 
@@ -402,6 +403,12 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
       await deleteShoppingListItem(item.temp_id);
       debugLog('[LIST_OPS] Item deleted in PGlite', { temp_id: item.temp_id });
 
+      // Background upload: push delete to server before any cache reset
+      // Fire-and-forget — UI already reflects local state from Dexie
+      uploadPendingShoppingOperations().catch((err: unknown) => {
+        console.warn('[LIST_OPS] Background delete upload failed:', err);
+      });
+
       // Reload items from PGlite
       if (state.currentListId) {
         await loadShoppingListItems(state.currentListId);
@@ -488,6 +495,12 @@ export async function deleteMultipleItems(itemIds: number[]): Promise<void> {
       // Delete each item in PGlite (parallel)
       await Promise.all(tempIds.map(temp_id => deleteShoppingListItem(temp_id)));
       debugLog('[LIST_OPS] Bulk deleted items in PGlite', { count: tempIds.length });
+
+      // Background upload: push deletes to server before any cache reset
+      // Fire-and-forget — UI already reflects local state from Dexie
+      uploadPendingShoppingOperations().catch((err: unknown) => {
+        console.warn('[LIST_OPS] Background bulk delete upload failed:', err);
+      });
 
       // Reload items from PGlite
       if (state.currentListId) {
