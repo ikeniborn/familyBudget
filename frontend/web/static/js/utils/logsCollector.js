@@ -210,7 +210,9 @@ class LogsCollector {
                 });
 
                 // sendBeacon is more reliable than fetch during unload
-                navigator.sendBeacon('/api/v1/admin/logs/browser', data);
+                // Wrap in Blob with JSON content-type (plain string sends as text/plain → 422)
+                const blob = new Blob([data], { type: 'application/json' });
+                navigator.sendBeacon('/api/v1/admin/logs/browser', blob);
             }
         });
 
