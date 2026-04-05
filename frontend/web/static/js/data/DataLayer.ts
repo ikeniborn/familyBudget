@@ -657,7 +657,13 @@ export class DataLayer {
         // Cache API lists in Dexie so next access (including item FK lookup) works offline
         if (apiResult.length > 0) {
           try {
-            await dexie.getDB().shoppingLists.bulkPut(apiResult);
+            // Ensure temp_id (Dexie primary key) exists — API may not return it
+            const listsWithKeys = apiResult.map((list: any) => ({
+              ...list,
+              temp_id: list.temp_id || list.id?.toString(),
+              sync_status: list.sync_status || 'synced'
+            }));
+            await dexie.getDB().shoppingLists.bulkPut(listsWithKeys);
             console.debug('[DATA_LAYER] Cached API lists in Dexie', { count: apiResult.length });
           } catch (cacheError) {
             console.warn('[DATA_LAYER] Failed to cache lists in Dexie', cacheError);
