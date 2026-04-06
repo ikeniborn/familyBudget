@@ -58,7 +58,7 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
   // POST to appropriate endpoint based on plan mode
   if (recurringSettings) {
     // Recurring plan → /api/v1/recurring-plans
-    const responseData = await postAPI<any>('/api/v1/recurring-plans', planData, 'SavePlanModal');
+    const responseData = await postAPI<any>('/api/v1/recurring-plans/', planData, 'SavePlanModal');
 
     // Write recurring plan to Dexie immediately
     if (isDexieActive()) {

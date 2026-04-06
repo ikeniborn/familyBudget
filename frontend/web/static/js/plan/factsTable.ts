@@ -600,10 +600,22 @@ export async function fetchAndInjectPlanRow(
     if (desktopTbody) {
       const trEl = parseHtml(desktopRow);
       if (trEl) desktopTbody.prepend(trEl);
+
+      // Trim excess rows beyond pageSize
+      const allRows = desktopTbody.querySelectorAll('tr');
+      for (let i = allRows.length - 1; i >= pageSize; i--) {
+        allRows[i].remove();
+      }
     }
     if (mobileList) {
       const divEl = parseHtml(mobileRow);
       if (divEl) mobileList.prepend(divEl);
+
+      // Trim excess items beyond pageSize
+      const allItems = mobileList.querySelectorAll('.transaction-item');
+      for (let i = allItems.length - 1; i >= pageSize; i--) {
+        allItems[i].remove();
+      }
     }
     return true;
   }

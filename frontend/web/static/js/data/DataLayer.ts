@@ -1518,7 +1518,7 @@ export class DataLayer {
       params.set('to_date', filters.to_date);
     }
 
-    const response = await fetch(`/api/v1/recurring-plans?${params.toString()}`, {
+    const response = await fetch(`/api/v1/recurring-plans/?${params.toString()}`, {
       credentials: 'include'
     });
     if (!response.ok) {

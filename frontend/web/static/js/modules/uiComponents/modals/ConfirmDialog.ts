@@ -69,6 +69,12 @@ export class ConfirmDialog {
         return;
       }
 
+      // Cancel any pending dialog before showing new one
+      if (instance.pendingResolve) {
+        instance.pendingResolve(false);
+        instance.pendingResolve = null;
+      }
+
       instance.pendingResolve = resolve;
       titleEl.textContent = title;
       messageEl.textContent = message;
@@ -83,16 +89,17 @@ export class ConfirmDialog {
    */
   static resolve(result: boolean): void {
     const instance = ConfirmDialog.getInstance();
+
+    if (!instance.pendingResolve) return; // Already resolved
+
     const modal = document.getElementById(instance.modalId) as HTMLDialogElement | null;
 
     if (modal) {
       modal.close();
     }
 
-    if (instance.pendingResolve) {
-      instance.pendingResolve(result);
-      instance.pendingResolve = null;
-    }
+    instance.pendingResolve(result);
+    instance.pendingResolve = null;
   }
 }
 

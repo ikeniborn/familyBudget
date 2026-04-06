@@ -54,10 +54,14 @@ export function togglePlanMode(modalId: string): void {
   onetimeReminderSection.classList.add('hidden');
   debugLog('[togglePlanMode] All sections hidden');
 
+  // Toggle required on duration_type (hidden fields block HTML5 validation)
+  const durationTypeSelect = form.querySelector<HTMLSelectElement>('select[name="duration_type"]');
+
   // Show relevant section
   if (selectedMode === 'recurring') {
     recurringSettings.classList.remove('hidden');
     debugLog('[togglePlanMode] Recurring settings shown');
+    if (durationTypeSelect) durationTypeSelect.setAttribute('required', 'required');
     initializeRecurringDefaults(modalId);
   } else if (selectedMode === 'reminder') {
     onetimeReminderSection.classList.remove('hidden');
@@ -81,6 +85,11 @@ export function togglePlanMode(modalId: string): void {
     }
   } else {
     debugLog('[togglePlanMode] Regular mode - no additional sections shown');
+  }
+
+  // Remove required from duration_type when not in recurring mode
+  if (selectedMode !== 'recurring' && durationTypeSelect) {
+    durationTypeSelect.removeAttribute('required');
   }
 
   debugLog('[RecurringSettings] Plan mode changed:', selectedMode);

@@ -422,14 +422,17 @@ export function collapseFiltersAction(): void {
  *
  * @param button - Кнопка с data-form-id и data-modal-id
  */
+let isSubmitting = false;
+
 export async function savePlanModal(button: HTMLElement): Promise<void> {
   const btn = button as HTMLButtonElement;
-  if (btn.disabled) return;
+  if (btn.disabled || isSubmitting) return;
+  isSubmitting = true;
 
   const formId = button.dataset.formId;
   const modalId = button.dataset.modalId || 'modal_plan';
   const form = document.getElementById(formId || `form_${modalId}`) as HTMLFormElement | null;
-  if (!form) return;
+  if (!form) { isSubmitting = false; return; }
 
   setButtonLoading(btn, true);
 
@@ -459,6 +462,9 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
         const event = new Event('submit', { bubbles: true, cancelable: true });
         Object.defineProperty(event, 'target', { value: form, writable: false });
         await PlanCRUD.createPlan(event);
+        // Ensure modal is closed after save (backup for edge cases)
+        const modal = document.getElementById(modalId) as HTMLDialogElement | null;
+        if (modal?.open) modal.close();
       }
     } else {
       // Для остальных модалов (например modal_add_plan) — нативная отправка формы,
@@ -470,6 +476,7 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
       }
     }
   } finally {
+    isSubmitting = false;
     setButtonLoading(btn, false);
   }
 }
