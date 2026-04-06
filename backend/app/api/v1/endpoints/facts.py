@@ -1397,10 +1397,28 @@ async def get_fact_row_html(
     # Offline icon
     offline_icon = '<span class="text-xs" title="Создано offline">☁️</span>' if fact.is_offline_sync else ""
 
+    # Data attribute and onclick handlers differ by record_type:
+    # - fact: data-id + window.FactsManager namespace (facts page)
+    # - plan: data-plan-id + global functions (plan page)
+    if record_type == "fact":
+        data_attr = f'data-id="{fact.id}"'
+        edit_onclick = f"window.FactsManager?.showEditModal?.({fact.id})"
+        delete_onclick = f"event.stopPropagation(); window.FactsManager?.deleteFact?.({fact.id})"
+        mobile_onclick = f"window.FactsManager?.showEditModal?.({fact.id})"
+        badge_html = f'<span class="badge badge-success badge-xs shrink-0">Факт</span>'
+        checkbox_onchange = "window.updateBatchDeleteButton?.()"
+    else:
+        data_attr = f'data-plan-id="{fact.id}"'
+        edit_onclick = f"showEditModal({fact.id})"
+        delete_onclick = f"event.stopPropagation(); deleteFact({fact.id})"
+        mobile_onclick = f"showEditModal({fact.id})"
+        badge_html = '<span class="badge badge-info badge-xs shrink-0">План</span>'
+        checkbox_onchange = "window.PlanApp.FactsTable.updateBatchDeleteButton()"
+
     # Desktop table row — matches factsTable.ts renderFactsTable() structure
     desktop_row = f"""
-<tr data-plan-id="{fact.id}">
-  <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="{fact.id}" onchange="window.PlanApp.FactsTable.updateBatchDeleteButton()"></td>
+<tr {data_attr}>
+  <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="{fact.id}" onchange="{checkbox_onchange}"></td>
   <td><code class="badge badge-ghost">{fact.id}</code></td>
   <td>{formatted_date}</td>
   <td class="max-w-xs truncate" title="{fc_name}">{fc_name}</td>
@@ -1414,8 +1432,8 @@ async def get_fact_row_html(
   <td class="text-center">{offline_icon}</td>
   <td>
     <div class="flex gap-1">
-      <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal({fact.id})">✏️</button>
-      <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" data-fact-id="{fact.id}" onclick="event.stopPropagation(); deleteFact({fact.id})" title="Удалить">
+      <button class="btn btn-xs btn-primary gap-1" onclick="{edit_onclick}">✏️</button>
+      <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" data-fact-id="{fact.id}" onclick="{delete_onclick}" title="Удалить">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
         </svg>
@@ -1427,9 +1445,9 @@ async def get_fact_row_html(
     # Mobile list item — matches factsTable.ts renderFactsTable() structure
     mobile_icons = " ".join(filter(None, [recurring_icon, reminder_icon, offline_icon]))
     mobile_row = f"""
-<div class="transaction-item py-2" data-plan-id="{fact.id}" onclick="showEditModal({fact.id})">
+<div class="transaction-item py-2" {data_attr} onclick="{mobile_onclick}">
   <div class="flex items-center gap-2">
-    <span class="badge badge-info badge-xs shrink-0">План</span>
+    {badge_html}
     <span class="flex-1 font-medium truncate">{article_name}</span>
     <span class="{article_color_class} font-bold whitespace-nowrap">{formatted_amount}</span>
     {mobile_icons}

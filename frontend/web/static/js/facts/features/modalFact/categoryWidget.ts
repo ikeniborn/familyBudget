@@ -249,8 +249,12 @@ function setupTransferFCListeners(): void {
                 if (!fcId) {
                     fromTree.clearSelection();
                     fromTree.disable();
+                    const fromArticle = document.querySelector<HTMLSelectElement>(FROM_ARTICLE_SELECTOR);
+                    if (fromArticle) fromArticle.setAttribute('disabled', 'disabled');
                 } else {
                     fromTree.enable();
+                    const fromArticle = document.querySelector<HTMLSelectElement>(FROM_ARTICLE_SELECTOR);
+                    if (fromArticle) fromArticle.removeAttribute('disabled');
                 }
             }
         });
@@ -265,8 +269,12 @@ function setupTransferFCListeners(): void {
                 if (!fcId) {
                     toTree.clearSelection();
                     toTree.disable();
+                    const toArticle = document.querySelector<HTMLSelectElement>(TO_ARTICLE_SELECTOR);
+                    if (toArticle) toArticle.setAttribute('disabled', 'disabled');
                 } else {
                     toTree.enable();
+                    const toArticle = document.querySelector<HTMLSelectElement>(TO_ARTICLE_SELECTOR);
+                    if (toArticle) toArticle.removeAttribute('disabled');
                 }
             }
         });
@@ -282,6 +290,8 @@ function setupTransferFCListeners(): void {
                 if (toTree) {
                     toTree.clearSelection();
                     toTree.disable();
+                    const toArticle = document.querySelector<HTMLSelectElement>(TO_ARTICLE_SELECTOR);
+                    if (toArticle) toArticle.setAttribute('disabled', 'disabled');
                 }
             }
         });

@@ -204,6 +204,9 @@
 <!-- v9.0 Tabbed Modals -->
 {{ modal_fact('modal_fact') }}
 
+<!-- Confirmation Dialog (from macro) -->
+{{ confirm_modal() }}
+
 {% endblock %}
 
 {% block extra_styles %}
@@ -319,11 +322,6 @@
     }
 }
 </style>
-{% endblock %}
-
-{% block extra_modals %}
-<!-- Confirmation Dialog (from macro) -->
-{{ confirm_modal() }}
 {% endblock %}
 
 {% block extra_scripts %}

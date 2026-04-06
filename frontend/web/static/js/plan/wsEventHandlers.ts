@@ -76,6 +76,18 @@ function handleFactsBatchDeleted(data: { record_type?: string }): void {
   }
 }
 
+async function handleTransferCreated(data: { expense_fact_id?: number; income_fact_id?: number }): Promise<void> {
+  const ids = [data.expense_fact_id, data.income_fact_id].filter(Boolean) as number[];
+  if (ids.length === 0) {
+    debouncedReloadFacts();
+    return;
+  }
+  const results = await Promise.all(ids.map(id => PlanFactsTable.fetchAndInjectPlanRow(id, 'create')));
+  if (!results.some(Boolean)) {
+    debouncedReloadFacts();
+  }
+}
+
 // ============================================================================
 // Registration
 // ============================================================================
@@ -99,6 +111,7 @@ export function registerWSHandlers(): void {
   window.budgetWSClient.on('recurring_plan_facts_generated', handleRecurringPlanChanged);
 
   window.budgetWSClient.on('facts_batch_deleted', handleFactsBatchDeleted);
+  window.budgetWSClient.on('transfer_created', handleTransferCreated);
 }
 
 /**
@@ -119,4 +132,5 @@ export function unregisterWSHandlers(): void {
   window.budgetWSClient.off('recurring_plan_facts_generated', handleRecurringPlanChanged);
 
   window.budgetWSClient.off('facts_batch_deleted', handleFactsBatchDeleted);
+  window.budgetWSClient.off('transfer_created', handleTransferCreated);
 }
