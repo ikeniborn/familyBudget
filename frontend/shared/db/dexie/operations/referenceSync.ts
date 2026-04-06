@@ -547,7 +547,7 @@ export async function syncRecurringPlans(
       limit: '500'
     });
 
-    const response = await fetchWithTimeout(`/api/v1/recurring-plans?${params.toString()}`, {
+    const response = await fetchWithTimeout(`/api/v1/recurring-plans/?${params.toString()}`, {
       method: 'GET',
       credentials: 'include'
     });
