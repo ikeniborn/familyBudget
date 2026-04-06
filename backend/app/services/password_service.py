@@ -178,45 +178,45 @@ def validate_password_strength(password: str) -> tuple[bool, str]:
 
     Example:
         >>> validate_password_strength("weak")
-        (False, "Password must be at least 12 characters")
+        (False, "Пароль должен содержать минимум 12 символов")
 
         >>> validate_password_strength("StrongP@ssw0rd!")
         (True, "")
     """
     # Minimum length (OWASP recommends 12+ for modern systems)
     if len(password) < 12:
-        return False, "Password must be at least 12 characters"
+        return False, "Пароль должен содержать минимум 12 символов"
 
     # Maximum length (prevent DoS via large passwords)
     if len(password) > 128:
-        return False, "Password must be at most 128 characters"
+        return False, "Пароль должен содержать не более 128 символов"
 
     # Uppercase letter
     if not re.search(r'[A-Z]', password):
-        return False, "Password must contain at least one uppercase letter"
+        return False, "Пароль должен содержать хотя бы одну заглавную букву"
 
     # Lowercase letter
     if not re.search(r'[a-z]', password):
-        return False, "Password must contain at least one lowercase letter"
+        return False, "Пароль должен содержать хотя бы одну строчную букву"
 
     # Digit
     if not re.search(r'\d', password):
-        return False, "Password must contain at least one number"
+        return False, "Пароль должен содержать хотя бы одну цифру"
 
     # Special character
     if not re.search(r'[!@#$%^&*(),.?":{}|<>\-_=+\[\]\\;\'`~]', password):
-        return False, "Password must contain at least one special character"
+        return False, "Пароль должен содержать хотя бы один спецсимвол"
 
     # Check against common passwords (top 100)
     # Remove digits and special characters to check base word
     # Example: "Password123!" -> "password" (blocked)
     password_alpha = re.sub(r'[^a-zA-Z]', '', password).lower()
     if password_alpha in COMMON_PASSWORDS:
-        return False, "This password is too common. Please choose a stronger password"
+        return False, "Этот пароль слишком распространённый. Выберите более надёжный пароль"
 
     # Also check full password (for cases like "password")
     if password.lower() in COMMON_PASSWORDS:
-        return False, "This password is too common. Please choose a stronger password"
+        return False, "Этот пароль слишком распространённый. Выберите более надёжный пароль"
 
     return True, ""
 

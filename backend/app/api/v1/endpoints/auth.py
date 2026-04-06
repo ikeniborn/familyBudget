@@ -246,7 +246,7 @@ async def telegram_callback(
     if missing_fields:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Missing required parameters: {', '.join(missing_fields)}",
+            detail=f"Отсутствуют обязательные параметры: {', '.join(missing_fields)}",
         )
 
     # Step 2: Validate Telegram OAuth hash (CRITICAL SECURITY)
@@ -255,7 +255,7 @@ async def telegram_callback(
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication data - hash validation failed",
+            detail="Неверные данные аутентификации — проверка хеша не пройдена",
         )
 
     # Step 3: Get existing user OR create new inactive user ⚠️ SECURITY CRITICAL
@@ -294,8 +294,8 @@ async def telegram_callback(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=(
-                "Your account is pending activation. "
-                "Please contact admin or start the bot @ikenibornbudgetbot to request access."
+                "Ваш аккаунт ожидает активации. "
+                "Свяжитесь с администратором или запустите бот @ikenibornbudgetbot для запроса доступа."
             ),
         )
 
@@ -508,7 +508,7 @@ async def telegram_login(
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication data - hash validation failed",
+            detail="Неверные данные аутентификации — проверка хеша не пройдена",
         )
 
     # Step 3: Get existing user (NO auto-creation) ⚠️ SECURITY CRITICAL
@@ -521,7 +521,7 @@ async def telegram_login(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied - user not registered by administrator. Please contact admin to create your account.",
+            detail="Доступ запрещён — пользователь не зарегистрирован администратором. Свяжитесь с администратором для создания аккаунта.",
         )
 
     # Step 3.1.5: Download and cache avatar if provided
@@ -702,7 +702,7 @@ async def refresh_access_token(
     if not refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token required - No token provided"
+            detail="Требуется refresh token — токен не предоставлен"
         )
 
     # Step 2: Decode and validate JWT structure
@@ -711,7 +711,7 @@ async def refresh_access_token(
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token - Token malformed or expired"
+            detail="Недействительный refresh token — токен повреждён или истёк"
         )
 
     # Step 3: Look up token in database (check revocation status)
@@ -727,14 +727,14 @@ async def refresh_access_token(
     if db_token is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token - Token not found in database"
+            detail="Недействительный refresh token — токен не найден в базе данных"
         )
 
     # Step 4: Check if token is valid (not revoked, not expired)
     if not db_token.is_valid():
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token - Token revoked or expired"
+            detail="Недействительный refresh token — токен отозван или истёк"
         )
 
     # Step 5: Load user from database (for response)
@@ -747,7 +747,7 @@ async def refresh_access_token(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found - Account may have been deleted"
+            detail="Пользователь не найден — аккаунт мог быть удалён"
         )
 
     # Step 6: Generate new access token (using telegram_id for SCD Type 2 compatibility)
@@ -926,7 +926,7 @@ async def register_email(
         # Generic error to prevent email enumeration
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Registration failed. Please try again or contact support."
+            detail="Ошибка регистрации. Попробуйте снова или обратитесь в поддержку."
         )
 
     # Step 2: Validate password strength
@@ -1000,7 +1000,7 @@ async def login_email(
         )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            detail="Неверный email или пароль"
         )
 
     # Step 2: Check if user is active
@@ -1012,7 +1012,7 @@ async def login_email(
         )
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account pending activation. Please contact administrator."
+            detail="Аккаунт ожидает активации. Свяжитесь с администратором."
         )
 
     # ========================================================================
@@ -1181,7 +1181,7 @@ async def verify_2fa(
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired session. Please login again."
+            detail="Недействительная или истёкшая сессия. Войдите снова."
         )
 
     # Step 2: Load user
@@ -1189,7 +1189,7 @@ async def verify_2fa(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     # Step 3: Verify TOTP or backup code
@@ -1212,7 +1212,7 @@ async def verify_2fa(
     if not is_valid:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid 2FA code"
+            detail="Неверный код 2FA"
         )
 
     # Step 4: Consume 2FA session (single-use)
@@ -1313,7 +1313,7 @@ async def setup_and_verify_2fa(
     if user_id is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired session. Please login again."
+            detail="Недействительная или истёкшая сессия. Войдите снова."
         )
 
     # Step 2: Load user
@@ -1321,14 +1321,14 @@ async def setup_and_verify_2fa(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     # Step 3: Check if user already has 2FA enabled
     if user.two_factor_enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="2FA is already enabled. Use /verify-2fa instead."
+            detail="2FA уже включена. Используйте /verify-2fa."
         )
 
     # Step 4: Verify TOTP code with provided secret
@@ -1336,13 +1336,13 @@ async def setup_and_verify_2fa(
     if not code.isdigit() or len(code) != 6:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid code format. Must be 6 digits."
+            detail="Неверный формат кода. Должно быть 6 цифр."
         )
 
     if not verify_totp(data.totp_secret, code):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid 2FA code. Please try again."
+            detail="Неверный код 2FA. Попробуйте снова."
         )
 
     # Step 5: Enable 2FA for user
@@ -1448,7 +1448,7 @@ async def setup_2fa(
     if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
+            detail="Требуется аутентификация"
         )
 
     # Load user by user_id (works for both Telegram and email-only users)
@@ -1458,21 +1458,21 @@ async def setup_2fa(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     # Check if user has email set (required for 2FA)
     if not user.email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email required. Please add email before setting up 2FA."
+            detail="Требуется email. Добавьте email перед настройкой 2FA."
         )
 
     # Check if user has password set (required for 2FA)
     if not user.password_hash:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Password required. Please set password before setting up 2FA."
+            detail="Требуется пароль. Установите пароль перед настройкой 2FA."
         )
 
     # Generate new TOTP secret
@@ -1521,7 +1521,7 @@ async def verify_2fa_setup(
     if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
+            detail="Требуется аутентификация"
         )
 
     user_id = request.state.user_id
@@ -1530,21 +1530,21 @@ async def verify_2fa_setup(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     # Check if 2FA secret is set
     if not user.two_factor_secret:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="2FA not initiated. Please call /auth/setup-2fa first."
+            detail="2FA не инициирована. Сначала вызовите /auth/setup-2fa."
         )
 
     # Verify TOTP code
     if not verify_totp(user.two_factor_secret, data.code):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid code. Please check your authenticator app."
+            detail="Неверный код. Проверьте приложение-аутентификатор."
         )
 
     # Generate backup codes
@@ -1586,7 +1586,7 @@ async def disable_2fa(
     if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
+            detail="Требуется аутентификация"
         )
 
     user_id = request.state.user_id
@@ -1595,21 +1595,21 @@ async def disable_2fa(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     # Verify password
     if not user.password_hash or not verify_password(data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid password"
+            detail="Неверный пароль"
         )
 
     # Verify TOTP code
     if not user.two_factor_secret or not verify_totp(user.two_factor_secret, data.code):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid 2FA code"
+            detail="Неверный код 2FA"
         )
 
     # Disable 2FA
@@ -1645,7 +1645,7 @@ async def regenerate_backup_codes(
     if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
+            detail="Требуется аутентификация"
         )
 
     user_id = request.state.user_id
@@ -1654,13 +1654,13 @@ async def regenerate_backup_codes(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     if not user.two_factor_enabled:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="2FA not enabled"
+            detail="2FA не включена"
         )
 
     # Generate new backup codes
@@ -1703,7 +1703,7 @@ async def add_email_endpoint(
     if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
+            detail="Требуется аутентификация"
         )
 
     user_id = request.state.user_id
@@ -1712,7 +1712,7 @@ async def add_email_endpoint(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     # Add email
@@ -1720,7 +1720,7 @@ async def add_email_endpoint(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email already in use by another account"
+            detail="Email уже используется другим аккаунтом"
         )
 
     return MessageResponse(message="Email added successfully")
@@ -1750,7 +1750,7 @@ async def set_password_endpoint(
     if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
+            detail="Требуется аутентификация"
         )
 
     user_id = request.state.user_id
@@ -1759,14 +1759,14 @@ async def set_password_endpoint(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     # Check if email is set
     if not user.email:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email required. Please add email first."
+            detail="Требуется email. Сначала добавьте email."
         )
 
     # Validate password strength
@@ -1808,7 +1808,7 @@ async def link_telegram_endpoint(
     if not hasattr(request.state, 'user_id'):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required"
+            detail="Требуется аутентификация"
         )
 
     user_id = request.state.user_id
@@ -1817,14 +1817,14 @@ async def link_telegram_endpoint(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     # Check if user already has Telegram linked
     if user.telegram_id is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Telegram already linked to this account"
+            detail="Telegram уже привязан к этому аккаунту"
         )
 
     # Validate Telegram auth data
@@ -1843,7 +1843,7 @@ async def link_telegram_endpoint(
     if not validate_telegram_auth(auth_data):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid Telegram authentication data"
+            detail="Неверные данные аутентификации Telegram"
         )
 
     # Check if this Telegram ID is already linked to another account
@@ -1851,7 +1851,7 @@ async def link_telegram_endpoint(
     if existing_user is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This Telegram account is already linked to another user"
+            detail="Этот Telegram аккаунт уже привязан к другому пользователю"
         )
 
     # Link Telegram to user
@@ -1868,7 +1868,7 @@ async def link_telegram_endpoint(
     if not success:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to link Telegram account"
+            detail="Не удалось привязать Telegram аккаунт"
         )
 
     return MessageResponse(message="Telegram linked successfully")
@@ -1921,7 +1921,7 @@ async def check_auth_methods(
         logger.warning("[AUTH_METHODS] User not found: identifier_hash=%s", hash_email_for_logging(identifier))
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found"
+            detail="Пользователь не найден"
         )
 
     # Check available methods
