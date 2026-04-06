@@ -54,13 +54,22 @@ export function createTabManager(config: TabManagerConfig): TabManager {
     saveCurrentTabData(currentTab);
 
     // Toggle visibility
-    if (newTab === 'transaction') {
-      transactionTab.classList.remove('hidden');
-      transferTab.classList.add('hidden');
-    } else {
-      transactionTab.classList.add('hidden');
-      transferTab.classList.remove('hidden');
-    }
+    const hiddenTab = newTab === 'transaction' ? transferTab : transactionTab;
+    const visibleTab = newTab === 'transaction' ? transactionTab : transferTab;
+
+    visibleTab.classList.remove('hidden');
+    hiddenTab.classList.add('hidden');
+
+    // Disable HTML5 validation on hidden tab fields (browser validates all fields regardless of visibility)
+    hiddenTab.querySelectorAll<HTMLElement>('[required]').forEach(el => {
+      el.removeAttribute('required');
+      el.setAttribute('data-was-required', 'true');
+    });
+    // Restore validation on visible tab fields
+    visibleTab.querySelectorAll<HTMLElement>('[data-was-required]').forEach(el => {
+      el.setAttribute('required', 'required');
+      el.removeAttribute('data-was-required');
+    });
 
     // Update radio buttons
     const tabInputs = document.querySelectorAll<HTMLInputElement>(`[name="${modalId}_tabs"]`);

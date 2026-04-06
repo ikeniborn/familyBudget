@@ -439,26 +439,8 @@ function formatPeriodYYYYMM(date: Date): string {
  * Setup save button click listener as fallback
  * Ensures save button works even if onclick attribute fails
  */
-function setupSaveButtonListener(): void {
-  const saveButton = document.querySelector('#modal_plan button[onclick*="savePlanModal"]') as HTMLButtonElement;
-
-  if (saveButton && !saveButton.dataset.listenerAttached) {
-    saveButton.addEventListener('click', async function(event) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      // Call the global savePlanModal function
-      if (typeof (window as any).savePlanModal === 'function') {
-        (window as any).savePlanModal(this);
-      } else {
-        debugLog('[ModalPlan] savePlanModal not found on window');
-      }
-    });
-
-    saveButton.dataset.listenerAttached = 'true';
-    debugLog('[ModalPlan] Save button listener attached');
-  }
-}
+// setupSaveButtonListener removed — redundant with inline onclick="savePlanModal(this)" on the save button.
+// Having both caused double POST requests (BUG-3).
 
 /**
  * Open modal plan
@@ -525,8 +507,7 @@ export async function openModalPlan(): Promise<void> {
       (window as any).setPlanTransferPeriod(0); // Transfer tab: 0 = current month
     }
 
-    // Setup save button click handler (fallback if onclick doesn't work)
-    setupSaveButtonListener();
+    // setupSaveButtonListener() removed — caused double POST (BUG-3)
 
     // UX: Setup keyboard shortcuts (Escape to close, Ctrl+Enter to save)
     keyboardShortcutsCleanup = setupModalKeyboardShortcuts(

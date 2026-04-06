@@ -689,6 +689,9 @@ export async function deleteFact(factId: number): Promise<void> {
     return;
   }
 
+  // Mark as deleting BEFORE async confirm dialog to prevent race condition on double-click
+  deletingFactIds.add(factId);
+
   // Find fact in factsData to check if it's recurring
   const factsData = PlanFactsTable.getFactsData();
   const fact = factsData.find(f => f.id === factId);
@@ -699,7 +702,8 @@ export async function deleteFact(factId: number): Promise<void> {
     const choice = await showRecurringDeleteDialog();
 
     if (!choice) {
-      // User cancelled
+      // User cancelled — release guard
+      deletingFactIds.delete(factId);
       return;
     }
 
@@ -712,15 +716,14 @@ export async function deleteFact(factId: number): Promise<void> {
     );
 
     if (!confirmed) {
+      // User cancelled — release guard
+      deletingFactIds.delete(factId);
       return;
     }
   }
 
   // Find button by data-fact-id attribute
   const button = document.querySelector(`button[data-fact-id="${factId}"]`) as HTMLButtonElement | null;
-
-  // Mark fact as being deleted
-  deletingFactIds.add(factId);
 
   // Disable button and show loading state
   if (button) {
@@ -1466,7 +1469,7 @@ export async function createPlan(event: Event): Promise<void> {
         setupCreatePlanPeriodButtons();
       } else {
         // Fallback to direct fetch if OfflineManager not available
-        const response = await fetch('/api/v1/recurring-plans', {
+        const response = await fetch('/api/v1/recurring-plans/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(recurringData)
