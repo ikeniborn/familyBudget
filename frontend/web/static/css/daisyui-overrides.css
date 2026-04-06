@@ -682,3 +682,28 @@ dialog.modal::backdrop {
     height: 3rem !important;
     min-height: 3rem;
 }
+
+/* ============================================== */
+/* 13. Modal Pointer Events Fix (Bug #5)          */
+/* ============================================== */
+
+/**
+ * DaisyUI sets .modal-backdrop { z-index: -1 } which prevents
+ * it from blocking clicks on content behind the modal on mobile (375px).
+ * Fix: raise backdrop to z-index: 0 when modal is open so it intercepts
+ * pointer events, and keep modal-box at z-index: 1 above it.
+ */
+
+/* When modal is open, backdrop must block clicks on content behind */
+.modal[open] .modal-backdrop,
+.modal.modal-open .modal-backdrop {
+    pointer-events: auto;
+    z-index: 0;
+}
+
+/* Ensure modal-box stays above backdrop within stacking context */
+.modal[open] .modal-box,
+.modal.modal-open .modal-box {
+    position: relative;
+    z-index: 1;
+}
