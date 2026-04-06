@@ -617,6 +617,9 @@ export async function fetchAndInjectPlanRow(
         allItems[i].remove();
       }
     }
+    totalFacts++;
+    updateStats();
+    updatePagination();
     return true;
   }
 
@@ -650,6 +653,12 @@ export function removePlanRow(planId: number): void {
 
   const trEl = document.querySelector<HTMLElement>(`tr[data-plan-id="${planId}"]`);
   const divEl = document.querySelector<HTMLElement>(`div[data-plan-id="${planId}"]`);
+
+  if (trEl || divEl) {
+    totalFacts = Math.max(0, totalFacts - 1);
+    updateStats();
+    updatePagination();
+  }
 
   if (trEl) fadeAndRemove(trEl);
   if (divEl) fadeAndRemove(divEl);

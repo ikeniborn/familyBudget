@@ -10,7 +10,7 @@
 
 import { loadFacts, fetchAndInjectRow } from '../operations/factsController';
 import { buildFilterQuery } from '../operations/filterOperations';
-import { getCurrentPage } from '../core/stateManager';
+import { getCurrentPage, getTotalFacts, setTotalFacts } from '../core/stateManager';
 import type { BudgetFact } from '../types/models';
 
 // ============================================================================
@@ -232,6 +232,18 @@ function animateAndRemoveRow(factId: number): void {
     });
 }
 
+/**
+ * Adjust the displayed total facts counter by delta (+1 or -1).
+ * Used after incremental add/delete to keep the counter in sync
+ * without a full table reload.
+ */
+function adjustStatTotal(delta: number): void {
+    const newTotal = Math.max(0, getTotalFacts() + delta);
+    setTotalFacts(newTotal);
+    const el = document.getElementById('stat-total');
+    if (el) el.textContent = String(newTotal);
+}
+
 // ============================================================================
 // Event Handlers
 // ============================================================================
@@ -269,6 +281,7 @@ async function handleFactCreated(data: Partial<BudgetFact>): Promise<void> {
     }
 
     prependRowToTable(parsed.tr, parsed.mobileCard);
+    adjustStatTotal(+1);
 }
 
 /**
@@ -315,6 +328,7 @@ function handleFactDeleted(data: { id: number }): void {
         return;
     }
     animateAndRemoveRow(data.id);
+    adjustStatTotal(-1);
 }
 
 /**
@@ -337,8 +351,11 @@ async function handleTransferCreated(data: { expense_fact_id?: number; income_fa
     }
     const ids = [data.expense_fact_id, data.income_fact_id].filter(Boolean) as number[];
     const results = await Promise.all(ids.map(id => fetchAndInjectRow(id, 'create')));
-    if (!results.some(Boolean)) {
+    const injectedCount = results.filter(Boolean).length;
+    if (injectedCount === 0) {
         debouncedReloadFacts();
+    } else {
+        adjustStatTotal(injectedCount);
     }
 }
 

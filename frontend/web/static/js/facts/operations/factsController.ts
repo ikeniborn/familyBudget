@@ -7,7 +7,7 @@
  */
 
 import { loadFactsWithCount } from '../integration/factsAPI';
-import { setTotalFacts, getCurrentPage, getPageSize, setCurrentPage, getFilters } from '../core/stateManager';
+import { setTotalFacts, getTotalFacts, getCurrentPage, getPageSize, setCurrentPage, getFilters } from '../core/stateManager';
 import { buildFilterQuery } from './filterOperations';
 import type { CreateFactData, UpdateFactData, FactRow } from '../types/models';
 import { escapeHtml, sanitizeErrorMessage } from '../../shared/htmlSanitizer';
@@ -222,6 +222,11 @@ function removeRowFromTable(factId: number): boolean {
         desktopRow?.remove();
         mobileRow?.remove();
     }, 200);
+
+    const newTotal = Math.max(0, getTotalFacts() - 1);
+    setTotalFacts(newTotal);
+    const statEl = document.getElementById('stat-total');
+    if (statEl) statEl.textContent = String(newTotal);
 
     return true;
 }
