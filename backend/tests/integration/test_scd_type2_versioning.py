@@ -12,7 +12,7 @@ Tests complete versioning scenarios across all entities:
 These tests verify SCD Type 2 implementation works correctly end-to-end.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 import pytest
@@ -21,6 +21,7 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.article import Article
+from backend.app.models.article_history import ArticleHistory
 from backend.app.models.fact import BudgetFact
 from backend.app.models.user import User
 
@@ -192,7 +193,7 @@ async def test_user_versioning_name_change(client: AsyncClient, session: AsyncSe
 
 
 @pytest.mark.asyncio
-async def test_article_versioning_name_change(auth_client: AsyncClient, session: AsyncSession):
+async def test_article_versioning_name_change(auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession):
     """
     Test article versioning when name changes.
 
@@ -205,36 +206,31 @@ async def test_article_versioning_name_change(auth_client: AsyncClient, session:
     # Create article
     create_response = await auth_client.post(
         "/api/v1/articles",
-        json={
-            "code": "FOOD",
-            "name": "Food",
-            "type": "expense",
-            "parent_id": None,
-        },
+        json={"name": "Food", "type": "expense", "parent_id": None},
     )
     article_id = create_response.json()["id"]
 
-    # Update article name
-    update_response = await auth_client.put(
+    # Update article name (admin-only operation)
+    update_response = await admin_client.put(
         f"/api/v1/articles/{article_id}",
         json={"name": "Food & Dining"},
     )
 
     assert update_response.status_code == 200
 
-    # Verify two versions exist
-    stmt = select(Article).where(Article.id == article_id)
+    # Verify two versions exist in ArticleHistory (SCD Type 2)
+    stmt = select(ArticleHistory).where(ArticleHistory.article_id == article_id)
     result = await session.execute(stmt)
     articles = result.scalars().all()
 
     assert len(articles) == 2
 
-    # Old version
+    # Old version (CREATE record, closed by UPDATE)
     old_version = [a for a in articles if a.name == "Food"][0]
     assert old_version.is_current is False
-    assert old_version.valid_to < datetime(9999, 1, 1)
+    assert old_version.valid_to < datetime(9999, 1, 1, tzinfo=timezone.utc)
 
-    # New version
+    # New version (UPDATE record, currently active)
     new_version = [a for a in articles if a.name == "Food & Dining"][0]
     assert new_version.is_current is True
     assert new_version.valid_to.year == 9999
@@ -245,14 +241,14 @@ async def test_article_versioning_name_change(auth_client: AsyncClient, session:
 
 
 @pytest.mark.asyncio
-async def test_article_versioning_code_change(auth_client: AsyncClient, session: AsyncSession):
+async def test_article_versioning_code_change(auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession):
     """
-    Test article versioning when code changes.
+    Test article versioning when name changes.
 
     Workflow:
-    1. Create article (code="TRANS")
-    2. Update article (code="TRANSPORT")
-    3. Verify new version created
+    1. Create article (name="Transport")
+    2. Update article (name="Transportation")
+    3. Verify new version created in ArticleHistory
     """
     # Create article
     create_response = await auth_client.post(
@@ -261,29 +257,29 @@ async def test_article_versioning_code_change(auth_client: AsyncClient, session:
     )
     article_id = create_response.json()["id"]
 
-    # Update name
-    update_response = await auth_client.put(
+    # Update name (admin-only operation)
+    update_response = await admin_client.put(
         f"/api/v1/articles/{article_id}",
         json={"name": "Transportation"},
     )
 
     assert update_response.status_code == 200
 
-    # Verify two versions
-    stmt = select(Article).where(Article.id == article_id)
+    # Verify two versions exist in ArticleHistory (SCD Type 2)
+    stmt = select(ArticleHistory).where(ArticleHistory.article_id == article_id)
     result = await session.execute(stmt)
     articles = result.scalars().all()
 
     assert len(articles) == 2
 
-    codes = {a.code for a in articles}
-    assert "TRANS" in codes
-    assert "TRANSPORT" in codes
+    names = {a.name for a in articles}
+    assert "Transport" in names
+    assert "Transportation" in names
 
 
 @pytest.mark.asyncio
 async def test_article_versioning_multiple_updates(
-    auth_client: AsyncClient, session: AsyncSession
+    auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession
 ):
     """
     Test article versioning with multiple sequential updates.
@@ -298,18 +294,18 @@ async def test_article_versioning_multiple_updates(
     # Create article
     create_response = await auth_client.post(
         "/api/v1/articles",
-        json={"code": "TEST", "name": "V1", "type": "expense", "parent_id": None},
+        json={"name": "V1", "type": "expense", "parent_id": None},
     )
     article_id = create_response.json()["id"]
 
-    # Update to V2
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    # Update to V2 (admin-only operation)
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
 
     # Update to V3
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
 
-    # Verify three versions
-    stmt = select(Article).where(Article.id == article_id)
+    # Verify three versions in ArticleHistory (SCD Type 2)
+    stmt = select(ArticleHistory).where(ArticleHistory.article_id == article_id)
     result = await session.execute(stmt)
     articles = result.scalars().all()
 
@@ -490,7 +486,7 @@ async def test_fact_versioning_date_change(auth_client: AsyncClient, session: As
 
 @pytest.mark.asyncio
 async def test_historical_query_article_at_point_in_time(
-    auth_client: AsyncClient, session: AsyncSession
+    auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession
 ):
     """
     Test querying article data as it existed at a specific point in time.
@@ -504,25 +500,28 @@ async def test_historical_query_article_at_point_in_time(
     # Create article (V1)
     create_response = await auth_client.post(
         "/api/v1/articles",
-        json={"code": "HISTORY", "name": "V1", "type": "expense", "parent_id": None},
+        json={"name": "V1", "type": "expense", "parent_id": None},
     )
     article_id = create_response.json()["id"]
 
-    # Capture timestamp after creation
-    stmt = select(Article).where(Article.id == article_id, Article.is_active)
-    result = await session.execute(stmt)
-    v1_article = result.scalar_one()
-    t1 = v1_article.created_at
+    # Capture T1 from CREATE history record (timezone-aware valid_from)
+    stmt_create = select(ArticleHistory).where(
+        ArticleHistory.article_id == article_id,
+        ArticleHistory.change_type == "CREATE",
+    )
+    result_create = await session.execute(stmt_create)
+    create_record = result_create.scalar_one()
+    t1 = create_record.valid_from  # timezone-aware UTC datetime
 
-    # Update to V2
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    # Update to V2 (admin-only operation)
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
 
-    # Query at T1 (should return V1)
+    # Query ArticleHistory at T1 (should return V1 version)
     stmt_historical = (
-        select(Article)
-        .where(Article.id == article_id)
-        .where(Article.valid_from <= t1)
-        .where(Article.valid_to > t1)
+        select(ArticleHistory)
+        .where(ArticleHistory.article_id == article_id)
+        .where(ArticleHistory.valid_from <= t1)
+        .where(ArticleHistory.valid_to > t1)
     )
     result_historical = await session.execute(stmt_historical)
     historical_article = result_historical.scalar_one()
@@ -532,7 +531,7 @@ async def test_historical_query_article_at_point_in_time(
 
 @pytest.mark.asyncio
 async def test_current_query_always_returns_latest_version(
-    auth_client: AsyncClient, session: AsyncSession
+    auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession
 ):
     """
     Test that queries with is_current=True always return latest version.
@@ -546,13 +545,13 @@ async def test_current_query_always_returns_latest_version(
     # Create and update article multiple times
     create_response = await auth_client.post(
         "/api/v1/articles",
-        json={"code": "CURRENT", "name": "V1", "type": "expense", "parent_id": None},
+        json={"name": "V1", "type": "expense", "parent_id": None},
     )
     article_id = create_response.json()["id"]
 
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V4"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V4"})
 
     # Query current version
     stmt = select(Article).where(Article.id == article_id, Article.is_active)
@@ -570,40 +569,55 @@ async def test_current_query_always_returns_latest_version(
 
 @pytest.mark.asyncio
 async def test_soft_delete_creates_final_version(
-    auth_client: AsyncClient, session: AsyncSession
+    auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession
 ):
     """
-    Test that soft delete marks latest version as is_current=False.
+    Test that soft delete (admin only) archives article and creates ARCHIVE history record.
+
+    Soft delete is a SCD Type 1 operation: sets Article.is_active=False.
+    archive_recursive() also creates an ArticleHistory record with change_type='ARCHIVE'.
 
     Workflow:
-    1. Create article
-    2. Delete article (soft delete)
-    3. Verify latest version has is_current=False
-    4. Verify valid_to set to deletion time
+    1. Create article → CREATE history record (is_current=True)
+    2. Soft delete (admin) → Article.is_active=False + ARCHIVE history record (is_current=False)
+    3. Verify Article is archived
+    4. Verify ARCHIVE history record exists
     """
     # Create article
     create_response = await auth_client.post(
         "/api/v1/articles",
-        json={"code": "DELETE_TEST", "name": "To Delete", "type": "expense", "parent_id": None},
+        json={"name": "To Delete", "type": "expense", "parent_id": None},
     )
     article_id = create_response.json()["id"]
 
-    # Delete article
-    delete_response = await auth_client.delete(f"/api/v1/articles/{article_id}")
+    # Soft delete (admin-only operation)
+    delete_response = await admin_client.delete(f"/api/v1/articles/{article_id}")
     assert delete_response.status_code == 204
 
-    # Query all versions
+    # Verify article is archived (SCD Type 1: in-place update)
     stmt = select(Article).where(Article.id == article_id)
     result = await session.execute(stmt)
-    articles = result.scalars().all()
+    article = result.scalar_one()
+    assert article.is_active is False
 
-    # All versions should have is_current=False after deletion
-    current_count = sum(1 for a in articles if a.is_current)
-    assert current_count == 0
+    # Verify ArticleHistory: CREATE record + ARCHIVE record
+    stmt_history = (
+        select(ArticleHistory)
+        .where(ArticleHistory.article_id == article_id)
+        .order_by(ArticleHistory.valid_from)
+    )
+    result_history = await session.execute(stmt_history)
+    histories = result_history.scalars().all()
 
-    # Latest version should have valid_to set to deletion time
-    latest = max(articles, key=lambda a: a.valid_from)
-    assert latest.valid_to < datetime(9999, 1, 1)
+    assert len(histories) == 2  # CREATE + ARCHIVE
+    change_types = {h.change_type for h in histories}
+    assert "CREATE" in change_types
+    assert "ARCHIVE" in change_types
+
+    # ARCHIVE record has is_current=False (audit trail, not a live version)
+    archive_record = next(h for h in histories if h.change_type == "ARCHIVE")
+    assert archive_record.is_current is False
+    assert "is_active" in (archive_record.changed_fields or [])
 
 
 # ============================================================================
@@ -612,7 +626,7 @@ async def test_soft_delete_creates_final_version(
 
 
 @pytest.mark.asyncio
-async def test_version_chain_no_gaps(auth_client: AsyncClient, session: AsyncSession):
+async def test_version_chain_no_gaps(auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession):
     """
     Test that version chains have no gaps (valid_to of V1 = valid_from of V2).
 
@@ -624,31 +638,35 @@ async def test_version_chain_no_gaps(auth_client: AsyncClient, session: AsyncSes
     # Create article
     create_response = await auth_client.post(
         "/api/v1/articles",
-        json={"code": "CHAIN", "name": "V1", "type": "expense", "parent_id": None},
+        json={"name": "V1", "type": "expense", "parent_id": None},
     )
     article_id = create_response.json()["id"]
 
-    # Multiple updates
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
+    # Multiple updates (admin-only operation)
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
 
-    # Get all versions sorted by valid_from
-    stmt = select(Article).where(Article.id == article_id).order_by(Article.valid_from)
+    # Get all versions from ArticleHistory sorted by valid_from
+    stmt = (
+        select(ArticleHistory)
+        .where(ArticleHistory.article_id == article_id)
+        .order_by(ArticleHistory.valid_from)
+    )
     result = await session.execute(stmt)
     versions = result.scalars().all()
 
-    # Check version chain continuity
+    # Check version chain continuity (CREATE → V2 → V3)
     for i in range(len(versions) - 1):
         current_version = versions[i]
         next_version = versions[i + 1]
 
-        # valid_to of current should equal valid_from of next (within tolerance)
+        # valid_to of closed version should equal valid_from of next (within tolerance)
         time_diff = abs((next_version.valid_from - current_version.valid_to).total_seconds())
         assert time_diff < 5  # Within 5 seconds tolerance
 
 
 @pytest.mark.asyncio
-async def test_version_chain_ordered_by_time(auth_client: AsyncClient, session: AsyncSession):
+async def test_version_chain_ordered_by_time(auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession):
     """
     Test that versions are correctly ordered chronologically.
 
@@ -660,20 +678,24 @@ async def test_version_chain_ordered_by_time(auth_client: AsyncClient, session: 
     # Create article
     create_response = await auth_client.post(
         "/api/v1/articles",
-        json={"code": "ORDER", "name": "V1", "type": "expense", "parent_id": None},
+        json={"name": "V1", "type": "expense", "parent_id": None},
     )
     article_id = create_response.json()["id"]
 
-    # Multiple updates
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
+    # Multiple updates (admin-only operation)
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V3"})
 
-    # Get all versions
-    stmt = select(Article).where(Article.id == article_id).order_by(Article.valid_from)
+    # Get all versions from ArticleHistory ordered by valid_from
+    stmt = (
+        select(ArticleHistory)
+        .where(ArticleHistory.article_id == article_id)
+        .order_by(ArticleHistory.valid_from)
+    )
     result = await session.execute(stmt)
     versions = result.scalars().all()
 
-    # Verify order
+    # Verify chronological order (CREATE → V2 → V3)
     names = [v.name for v in versions]
     assert names == ["V1", "V2", "V3"]
 
@@ -689,7 +711,7 @@ async def test_version_chain_ordered_by_time(auth_client: AsyncClient, session: 
 
 @pytest.mark.asyncio
 async def test_fact_references_current_article_version(
-    auth_client: AsyncClient, session: AsyncSession
+    auth_client: AsyncClient, admin_client: AsyncClient, session: AsyncSession
 ):
     """
     Test that facts reference articles correctly even when article is versioned.
@@ -719,8 +741,8 @@ async def test_fact_references_current_article_version(
     )
     fact_id = fact_response.json()["id"]
 
-    # Update article
-    await auth_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
+    # Update article (admin-only operation)
+    await admin_client.put(f"/api/v1/articles/{article_id}", json={"name": "V2"})
 
     # Verify fact still accessible
     fact_get_response = await auth_client.get(f"/api/v1/facts/{fact_id}")

@@ -231,7 +231,7 @@ export const handlers = [
     }
 
     return HttpResponse.json({
-      count: filteredFacts.length
+      total: filteredFacts.length
     });
   }),
 

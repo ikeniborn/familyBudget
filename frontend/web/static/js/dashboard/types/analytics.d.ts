@@ -1,6 +1,6 @@
 /**
  * TypeScript type definitions for dashboard analytics
- * Used by factsManager for PGlite queries and API fallback
+ * Used by factsManager for Dexie queries and API fallback
  */
 
 export interface QuickStats {

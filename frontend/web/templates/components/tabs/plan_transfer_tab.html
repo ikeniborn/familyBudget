@@ -1,6 +1,6 @@
 <!-- Plan Transfer Tab Content -->
 <!-- Период -->
-<div class="form-control mb-3">
+<div class="form-control">
     <label class="label py-1">
         <span class="label-text font-semibold">Период планирования *</span>
     </label>
@@ -13,7 +13,7 @@
 </div>
 
 <!-- FROM Section -->
-<div class="border border-error/20 rounded-lg p-3 bg-error/5">
+<div class="mt-2 border border-error/20 rounded-lg p-3 bg-error/5">
     <h4 class="font-semibold text-error text-sm mb-2">Откуда (списание)</h4>
 
     <!-- From Account -->
@@ -21,7 +21,7 @@
         <label class="label py-0.5">
             <span class="label-text text-xs">Счет *</span>
         </label>
-        <select name="from_financial_center_id" required class="select select-bordered h-12">
+        <select name="from_financial_center_id" required class="select select-bordered">
             <option value="">-- Выберите счет --</option>
         </select>
     </div>
@@ -31,7 +31,7 @@
         <label class="label py-0.5">
             <span class="label-text text-xs">Категория *</span>
         </label>
-        <select name="from_article_id" required class="select select-bordered select-sm">
+        <select name="from_article_id" required class="select select-bordered select-sm" disabled>
             <option value="">-- Выберите категорию --</option>
         </select>
     </div>
@@ -56,7 +56,7 @@
         <label class="label py-0.5">
             <span class="label-text text-xs">Счет *</span>
         </label>
-        <select name="to_financial_center_id" required class="select select-bordered h-12">
+        <select name="to_financial_center_id" required class="select select-bordered">
             <option value="">-- Выберите счет --</option>
         </select>
     </div>
@@ -66,7 +66,7 @@
         <label class="label py-0.5">
             <span class="label-text text-xs">Категория *</span>
         </label>
-        <select name="to_article_id" required class="select select-bordered select-sm">
+        <select name="to_article_id" required class="select select-bordered select-sm" disabled>
             <option value="">-- Выберите категорию --</option>
         </select>
     </div>
@@ -87,7 +87,7 @@
     <label class="label py-1">
         <span class="label-text">Сумма *</span>
     </label>
-    <input type="number" name="transfer_amount" step="1" min="1" required
+    <input type="number" name="amount" step="1" min="1" required
            class="input input-bordered" placeholder="0" />
 </div>
 
@@ -96,6 +96,6 @@
     <label class="label py-1">
         <span class="label-text">Описание</span>
     </label>
-    <textarea name="transfer_description" class="textarea textarea-bordered"
+    <textarea name="description" class="textarea textarea-bordered"
               placeholder="Комментарий" rows="1"></textarea>
 </div>

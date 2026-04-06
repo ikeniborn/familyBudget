@@ -2,7 +2,10 @@
 
 This file provides guidance to Claude Code when working with code in this repository.
 
-!**NEVER** edit CLAUDE.md. Only user can add or delete tgis file.
+**NEVER**: 
+- Edit CLAUDE.md. Only user can add or delete this file.
+- Delete volume docker. Only after approve user.
+- Никогда не запускай сборку на сервере. Все изменения доставляются на сервер через cicd после обновления VERSION. Автоматически подымается версия на один шаг в рамках патча major.minor.patch (0.0.1>0.0.2)
 
 ## Project Overview
 
@@ -18,6 +21,36 @@ Family Budget is a family budget management system with Telegram bot and web int
 - 🔄 Change history (SCD Type 1 + History tables)
 
 **Stack:** FastAPI 0.121.2 | PostgreSQL 16 | python-telegram-bot 21.10 | Docker Compose | Dexie.js 4.0+ (offline)
+
+## Architecture
+
+```
+backend/app/
+├── api/v1/endpoints/    # REST API endpoints
+├── api/web/             # Web page routes (HTML responses)
+├── models/              # SQLAlchemy models
+├── schemas/             # Pydantic schemas
+├── services/            # Business logic
+├── db/                  # DB session, health
+├── middleware/          # Auth, logging middleware
+└── main.py              # FastAPI app entry point
+
+frontend/web/
+├── templates/           # Jinja2 HTML templates (HTMX)
+├── static/css/          # CSS sources → .min.css (build time)
+└── static/js/           # TypeScript → .bundle.js/.min.js (Rollup)
+
+bot/
+├── handlers/            # Telegram bot command handlers
+├── jobs/                # Scheduled tasks
+└── main.py              # Bot entry point
+
+tests/
+├── unit/                # Vitest (frontend) + pytest (backend)
+├── integration/         # pytest backend integration
+├── e2e/                 # Playwright browser tests
+└── run-tests.sh         # Test runner helper
+```
 
 ## Core Rules
 
@@ -35,253 +68,71 @@ Family Budget is a family budget management system with Telegram bot and web int
 После разработки решения:
 - Проводить повторную проверку архитектурных решений
 - Верифицировать соответствие требованиям из всех перспектив
-- Задавать уточнющие вопросы на этапе анализа и планирования
+- Задавать уточняющие вопросы на этапе анализа и планирования
 
-## Quick Start
+**3. Architecture-First Workflow**
 
-### Local Development & Testing
+При каждой задаче доработки или правки:
+1. **До начала работы**: использовать индекс `docs/llms.txt` и `docs/llms-full.txt` для быстрого поиска по архитектуре и документации Sphinx. Прочитать связанные разделы для понимания контекста
+2. **После внесения изменений**: перечитать затронутые модули и проверить:
+   - Не нарушена ли существующая архитектура
+   - Соответствуют ли изменения паттернам проекта (Window exports, Closure Table, SCD и т.д.)
+   - Нужно ли обновить документацию в `docs/` при изменении API, моделей или структуры
 
-**Automated Testing (Recommended):** Use `@skill:test-code` in PHASE 4 of Execution Flow for automatic test selection and execution based on git diff.
-
-**Manual Testing (for local debugging only):**
-- Virtual environment required: `backend/.venv/`
-- Install dependencies: `backend/.venv/bin/pip install -r requirements-dev.txt -r requirements.txt`
-
-### Local Testing Setup
-
-**Automated Testing (Recommended):**
-- `@skill:test-code` automatically selects and runs appropriate tests based on git diff
-- Executes pytest (backend), TypeScript checks (frontend), Playwright (e2e)
-- Handles test environment setup and teardown
-
-**Manual Testing (for debugging):**
-```bash
-# Run all tests
-./tests/run-tests.sh all
-
-# Run specific test suite
-./tests/run-tests.sh backend   # Backend pytest tests
-./tests/run-tests.sh frontend  # TypeScript type checking
-./tests/run-tests.sh e2e       # Playwright E2E tests
-```
-
-**Initial Setup (one-time):**
-```bash
-# Create virtual environment and install dependencies
-cd backend
-python3 -m venv .venv
-.venv/bin/pip install -r requirements-dev.txt -r requirements.txt
-
-# Start test database
-docker-compose -f docker-compose-test.yml up -d
-
-# Apply migrations
-DATABASE_URL="postgresql://familybudget:test_password_12345678901234567890@localhost:5433/familybudget_test" \
-  backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
-```
-
-**Test Dependencies:** pytest 8.3.4, pytest-asyncio 0.24.0, pytest-cov 6.0.0, pytest-xdist 3.6.1, httpx 0.28.1, black 24.10.0, ruff 0.8.4
-
-**Test Organization:** `tests/api/` (API tests), `tests/services/` (business logic), `tests/integration/` (DB-dependent)
-
-**Important:**
-- ❌ DO NOT run services locally (uvicorn, docker compose up)
-- ✅ Tests use test PostgreSQL database (docker-compose-test.yml)
-- ✅ Frontend/Docker builds happen in CI/CD (GitHub Actions)
-
-### E2E Testing (Playwright)
-
-**Automated Testing (Recommended):**
-- `@skill:test-code` automatically runs E2E tests when frontend changes are detected
-- Uses Playwright with 6 browser configurations (chromium, firefox, webkit, mobile)
-
-**Manual Testing (for debugging):**
-
-**Prerequisites:**
-```bash
-npx playwright install
-cat > .env.test << 'EOF'
-TEST_USER_EMAIL=e2e-test@example.com
-TEST_USER_PASSWORD=E2eTestPassword123!
-BASE_URL=https://fbd.ikeniborn.ru
-EOF
-```
-
-**Run Tests:**
-```bash
-npm run test:e2e              # All tests (6 browsers)
-npm run test:e2e:chromium     # Specific browser
-npm run test:e2e:ui           # Interactive UI mode (best for development)
-npm run test:e2e:headed       # Headed mode (see browser)
-```
-
-**E2E Test Suites (10 files):**
-- Basic: loading, form submission, mobile navigation, modal responsive
-- Features: offline functionality, recurring plans, shopping lists, transfers, CSV import
-- Visual: regression testing (4 components)
-
-**Configuration:**
-- Config: `config/playwright.config.ts`
-- Tests: `tests/e2e/webapp/`
-- Reports: `playwright-report/`
-- Runtime: ~5-6 minutes (10 tests × 6 browsers)
-
-### Environments
+## Environments
 
 | Environment | URL | Purpose |
 |-------------|-----|---------|
 | **Production** | https://fb.ikeniborn.ru/ | Live users |
 | **Development** | https://fbd.ikeniborn.ru/ | Feature testing |
 
-For analysis logs connect to test server via "ssh budget-test".
-Work directory "/opt/budget"
-Git directory "~/familyBudget"
+- For analysis logs connect to test server via "ssh budget-test".
+- Work directory "/opt/budget"
+- Git directory "~/familyBudget"
 
-## Documentation Index
+## Versioning & Deploy
 
-**Primary source of truth.** Always check docs before implementation.
+- Файл `VERSION` — единственный источник истины для версии
+- Pre-commit hook автоматически синхронизирует `package.json` и `package-lock.json` с `VERSION`
+- CI/CD (`build-and-push.yml`) собирает Docker images и обновляет `IMAGE_VERSIONS.json`
+- Деплой на сервер: `ssh budget-test` → `cd /opt/budget` → `./deploy.sh`
 
-### Architecture (Core Concepts)
+## Git requests
+- Only create requests to test branch from dev/* branches
+- Never use branch prod for source for development, copy, create for agent.
 
-| Document | Purpose | When to Read |
-|----------|---------|--------------|
-| [README.md](docs/architecture/README.md) | Dependency graph, recent changes | Start of any task |
-| [authentication.md](docs/architecture/core/authentication.md) | JWT, OAuth, WebAuthn | Auth implementation |
-| [pwa.md](docs/architecture/core/pwa.md) | PWA, offline, Service Worker | Offline sync, caching |
-| **[dexie-integration.md](docs/architecture/core/dexie-integration.md)** | **Dexie.js offline mode (v11.0+)** | **Offline CRUD, cents conversion** |
-| [websocket.md](docs/architecture/core/websocket.md) | Real-time updates, Redis Pub/Sub | WebSocket features |
-| [build-system.md](docs/architecture/core/build-system.md) | Build pipeline, TypeScript, Vite | Build issues, module errors |
-| [es-modules-migration.md](docs/architecture/migrations/es-modules-migration.md) | ES Modules migration (v7.0.0) | Module system changes |
+## Commands
 
-### Database & Backend
+```bash
+# Frontend
+npm run type-check          # TypeScript validation
+npm run build:css           # Tailwind + CSS minification
+npm run bundle              # Rollup JS bundles
+npm run build               # type-check + CSS + bundles + verify
 
-| Document | Purpose | When to Read |
-|----------|---------|--------------|
-| [database/](docs/architecture/backend/database/) | Schema, SCD Type 2, Closure Table | DB schema changes |
-| [endpoints/](docs/architecture/backend/endpoints/) | API documentation | API development |
-| [transfers-system.md](docs/architecture/features/transfers-system.md) | Transfer deduplication | Transfer operations |
-| [recurring-plans.md](docs/architecture/features/recurring-plans.md) | Recurring payments (MMDD encoding) | Recurring plans |
+# Backend tests (из корня проекта)
+cd tests && ./run-tests.sh backend    # Backend integration tests
+cd tests && ./run-tests.sh all        # Все тесты
 
-### Frontend
+# Frontend tests
+npm run test:coverage                  # Vitest unit tests + coverage
+npm run test:e2e                       # Playwright E2E (headless)
+npm run test:e2e:headed                # Playwright E2E (с браузером)
 
-| Document | Purpose | When to Read |
-|----------|---------|--------------|
-| [frontend/responsive-design.md](docs/architecture/frontend/responsive-design.md) | Responsive, iOS Safari quirks | UI bugs, mobile issues |
-| [frontend/z-index-layering.md](docs/architecture/frontend/z-index-layering.md) | Z-Index hierarchy (13 layers) | Overlay conflicts |
-| [frontend/modal-architecture.md](docs/architecture/frontend/modal-architecture.md) | Tab-based modals (v10.x+) | Modal implementation |
-
-### Deployment & Operations
-
-| Document | Purpose | When to Read |
-|----------|---------|--------------|
-| [ci-cd-build-deploy.md](docs/architecture/operations/ci-cd-build-deploy.md) | CI/CD Pipeline v2.0 | CI/CD troubleshooting |
-| [docker.md](docs/architecture/core/docker.md) | Docker multi-stage builds (5 images) | Docker issues |
-| [deployment-troubleshooting.md](docs/architecture/operations/deployment-troubleshooting.md) | Deployment issues | Deploy failures |
-| [disaster-recovery.md](docs/architecture/operations/disaster-recovery.md) | Disaster recovery | Critical failures |
-| [backup-operations.md](docs/architecture/operations/backup-operations.md) | Backup procedures | Backup/restore tasks |
-
-### Features & Optimization
-
-| Document | Purpose | When to Read |
-|----------|---------|--------------|
-| [notifications.md](docs/architecture/features/notifications.md) | Web Push + Telegram | Notifications |
-| [bulk-delete-optimization.md](docs/architecture/features/bulk-delete-optimization.md) | Bulk operations, WebSocket summary | Bulk delete |
-| [caching-strategy.md](docs/architecture/optimization/caching-strategy.md) | HTTP caching | Performance |
-| [backup-system.md](docs/architecture/features/backup-system.md) | Backup + restore | Backup system |
-| [installation-resilience.md](docs/architecture/optimization/installation-resilience.md) | Installation framework | Installation issues |
-
-### Product & User Guides
-
-| Document | Purpose | When to Read |
-|----------|---------|--------------|
-| [docs/prd/](docs/prd/) | Product requirements | Feature planning |
-
-### Plans
-
-Результаты работы агента по планированию сохраняй всегда в docs/plans/
-
----
-
-## Execution Flow
-
+# Lint
+npm run lint                           # ESLint
 ```
-PHASE 0 → Context & Complexity Assessment
-   @skill:context-awareness → {project_context}
-   @skill:doc-explorer → {documentation_context}
-      → Interactive documentation exploration with guided tours
-      → Helps understand project architecture before implementation
-   @skill:lsp-integration → {lsp_status} [optional]
-   @skill:context7-integration → {library_docs} [optional]
-   @skill:adaptive-workflow → {complexity, workflow_mode, skip[], required[]}
 
-PHASE 1 → Analysis & Planning
-   @skill:thinking-framework → COT reasoning
-   @skill:structured-planning → {task_plan}
-   @skill:plan-validation → {plan_validation_result}
-      → Validates plan BEFORE execution (4-level validation)
-      → BLOCKS approval if blocking_issues detected
+## UXUI
 
-   TaskCreate [for non-trivial tasks]
+- Все решения по веб функциональности должны тестироваться для мобильных, планшетов, десктопов
+- Веб должен поддерживать PWA и браузерную версию для Yandex Browser, Chrome, Safary 14+
 
-PHASE 1.5 → Pre-Approval Actions [MANDATORY]
-   ⚠️ Execute BEFORE approval
+## Gotchas
 
-   IF plan_validation_result.passed == false:
-      BLOCK execution, show blocking_issues, require fixes
+- **Pre-commit hook** проверяет: 1) `console.log` в `.ts` файлах (использовать `debugLog()`), 2) TypeScript type-check. Пропустить для WIP: `SKIP_TESTS=1`
+- **`.min.css` и `.min.js`** файлы в `.gitignore` — генерируются при сборке, не коммитятся
+- **JS bundles** подключаются с `?v=PLACEHOLDER` — CI заменяет на реальную версию для cache busting
+- **Конфиги не в корне**: `tsconfig.json` в корне, но `tailwind.config.js`, `vitest.config.ts`, `playwright.config.ts` — в `config/`
+- **Window exports**: публичные функции для `onclick` экспортируются через `adapters/windowExports.ts` (не inline JS)
 
-   @skill:git-workflow [mode: create-branch]
-   → Input: {branch_name, base_branch}
-   → Output: {git_branch_result.switched === true}
-
-PHASE 2 → Approval [conditional: skip if minimal]
-   @skill:approval-gates → {user_approval}
-      → Reads plan_validation_result (blocks if failed)
-
-PHASE 3 → Execution
-   Domain skills execution
-   @skill:code-review
-   @skill:error-handling [on recoverable errors]
-   @skill:rollback-recovery [on critical failures]
-
-   TaskUpdate: pending → in_progress → completed
-
-PHASE 4 → Post-Execution Validation
-   @skill:validation-framework → {validation_results}
-      → Validates execution results (acceptance criteria, tests, completion)
-      → Triggers error-handling if validation fails
-
-   @skill:test-code → {test_results} [adaptive, based on git diff]
-      → Automatic test selection: syntax, quality, runtime, dependencies, e2e
-      → Runs pytest (backend), TypeScript checks (frontend), Playwright (e2e)
-      → Triggers error-handling if tests fail
-
-PHASE 5A → Git Commit & Push
-   @skill:git-workflow [mode: commit-and-push] → {commit_result}
-
-PHASE 5B → Documentation Sync [conditional: if code or docs changed]
-   @skill:doc-sync → {sync_result}
-      → Detects outdated documentation by comparing code changes
-      → Generates documentation updates (LSP integration for API changes)
-      → BLOCKS commit if critical documentation drift detected
-
-   @skill:architecture-documentation → {arch_docs} [optional]
-      → Generates YAML/TOON architectural documentation
-      → Creates component dependency diagrams
-
-PHASE 5C → PR Automation [optional]
-   @skill:pr-automation → {pr_result}
-
-PHASE 5D → Task Summary
-   @skill:git-workflow → @template:task-summary
-```
-## Key Principles
-
-**SGR (Structured Generation & Reasoning):**
-- Thinking → Structured Output → Execute → Validate → Commit
-
-**Progress Tracking:**
-- task_plan (static blueprint) - created in PHASE 1
-- TaskCreate (dynamic tracking) - updated in PHASE 3
-
-**Data Flow:**
-- PHASE N output → PHASE N+1 input

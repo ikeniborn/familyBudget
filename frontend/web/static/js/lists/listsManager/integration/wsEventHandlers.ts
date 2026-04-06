@@ -11,7 +11,7 @@
 import { getState, updateState } from '../core/ListsState';
 import { updateItemsCache } from '../core/listOperations';
 import { renderCurrentView } from '../rendering/tableBuilder';
-import { updateFABVisibility } from '../rendering/listRenderer';
+import { updateFABVisibility, renderLandingView, renderShoppingListCards } from '../rendering/listRenderer';
 import { updateFABButtons } from '../features/searchFilter';
 
 // ============================================================================
@@ -46,11 +46,31 @@ export function handleItemCreated(item: any): void {
     return;
   }
 
-  // Check if item already exists (avoid duplicates)
-  const exists = state.currentItems.some(i => i.id === item.id);
-  if (exists) {
-    debugLog('[ListsManager] Item already exists, updating instead:', item.id);
-    handleItemUpdated(item);
+  // Check if item already exists (avoid duplicates).
+  // Extended deduplication: match by server id OR by temp_id when local item
+  // has a virtual negative id (pending sync). This handles the race where:
+  // 1. createItem() writes to Dexie with id=null → convertShoppingListItem()
+  //    assigns a virtual negative id via tempIdToVirtualId(temp_id)
+  // 2. WS event arrives with the real positive server id → old check
+  //    (i.id === item.id) fails because virtual id ≠ server id → duplicate
+  const existingIndex = state.currentItems.findIndex(
+    i => i.id === item.id ||
+         (item.temp_id && i.temp_id && i.temp_id === item.temp_id)
+  );
+
+  if (existingIndex !== -1) {
+    // Replace the pending virtual-id item with the server item so the id
+    // transitions from negative virtual → real positive without a full reload.
+    debugLog('[ListsManager] Replacing pending item with server item (temp_id match):', item.id, item.temp_id);
+    const newItems = [...state.currentItems];
+    newItems[existingIndex] = { ...newItems[existingIndex], ...item };
+    updateState({ currentItems: newItems });
+
+    // Re-render and update UI silently (no toast — user already sees the item)
+    renderCurrentView();
+    updateFABVisibility();
+    updateFABButtons();
+    updateItemsCache();
     return;
   }
 
@@ -212,4 +232,110 @@ export function handleItemCompletedToggled(itemId: number, isCompleted: boolean,
   updateFABButtons();
   updateFABVisibility();
   updateItemsCache();
+}
+
+/**
+ * Handle shopping list updated event from WebSocket
+ *
+ * Updates item stats (total_items, completed_items, completion_percentage) in global state
+ * and re-renders landing page cards if currently on the landing view.
+ *
+ * Called when: items are added/deleted/completed on another device (after Phase 1 backend fix)
+ *
+ * @param shoppingListData - Updated shopping list data from server (includes stats)
+ */
+export function handleShoppingListUpdated(shoppingListData: any): void {
+  if (!shoppingListData || !shoppingListData.id) {
+    debugLog('[ListsManager] Invalid data for handleShoppingListUpdated');
+    return;
+  }
+
+  const state = getState();
+
+  // Find the list in current state
+  const listIndex = state.shoppingLists.findIndex(list => list.id === shoppingListData.id);
+  if (listIndex === -1) {
+    debugLog('[ListsManager] Shopping list not found in state for update:', shoppingListData.id);
+    // List not in state - trigger full reload on landing view
+    const landingView = document.getElementById('landing-view');
+    if (landingView && !landingView.classList.contains('hidden')) {
+      renderShoppingListCards();
+    }
+    return;
+  }
+
+  // Update stats in state (merge new stats into existing list entry)
+  const updatedList = {
+    ...state.shoppingLists[listIndex],
+    ...(shoppingListData.total_items !== undefined && { total_items: shoppingListData.total_items }),
+    ...(shoppingListData.completed_items !== undefined && { completed_items: shoppingListData.completed_items }),
+    ...(shoppingListData.completion_percentage !== undefined && { completion_percentage: shoppingListData.completion_percentage }),
+    ...(shoppingListData.name !== undefined && { name: shoppingListData.name }),
+  };
+
+  const newLists = [...state.shoppingLists];
+  newLists[listIndex] = updatedList;
+  updateState({ shoppingLists: newLists });
+
+  debugLog('[ListsManager] Updated shopping list stats from WebSocket:', {
+    id: shoppingListData.id,
+    total_items: shoppingListData.total_items,
+    completed_items: shoppingListData.completed_items,
+  });
+
+  // Re-render landing page cards if on landing view
+  const landingView = document.getElementById('landing-view');
+  if (landingView && !landingView.classList.contains('hidden')) {
+    renderShoppingListCards();
+    debugLog('[ListsManager] Re-rendered landing page cards with updated stats');
+  }
+}
+
+/**
+ * Handle shopping list deleted event from WebSocket
+ *
+ * Removes shopping list from global state and triggers UI reload
+ *
+ * @param shoppingListId - Shopping list ID to remove
+ */
+export function handleShoppingListDeleted(shoppingListId: number): void {
+  if (!shoppingListId) {
+    debugLog('[ListsManager] Invalid shoppingListId for handleShoppingListDeleted');
+    return;
+  }
+
+  const state = getState();
+
+  // Find the list in current lists
+  const listIndex = state.shoppingLists.findIndex(list => list.id === shoppingListId);
+  if (listIndex === -1) {
+    debugLog('[ListsManager] Shopping list not found for removal:', shoppingListId);
+    return;
+  }
+
+  const removedList = state.shoppingLists[listIndex];
+
+  // Remove from shopping lists array
+  const newLists = [...state.shoppingLists];
+  newLists.splice(listIndex, 1);
+
+  updateState({ shoppingLists: newLists });
+  debugLog('[ListsManager] Removed shopping list from WebSocket:', shoppingListId);
+
+  // If currently viewing this list, redirect to landing view
+  if (state.currentListId === shoppingListId) {
+    debugLog('[ListsManager] Deleted list was active, returning to landing view');
+    // Handle async function with error handling
+    renderLandingView().catch(err => {
+      console.error('[ListsManager] Failed to render landing view after list deletion:', err);
+      // Fallback: just refresh the cards
+      renderShoppingListCards();
+    });
+  } else {
+    // Otherwise, just refresh the cards view
+    renderShoppingListCards();
+  }
+
+  // Show notification
+  showToast(`Список удалён: ${removedList.name}`, 'info');
 }

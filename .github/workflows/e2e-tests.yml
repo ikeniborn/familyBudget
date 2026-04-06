@@ -1,0 +1,116 @@
+name: E2E Tests (Playwright)
+
+on:
+  workflow_dispatch:
+    inputs:
+      browser:
+        description: 'Browser(s) to test'
+        required: false
+        default: 'chromium+mobile-safari'
+        type: choice
+        options:
+          - chromium+mobile-safari
+          - chromium
+          - mobile-safari
+          - full
+      base_url:
+        description: 'Target URL'
+        required: false
+        default: 'https://fbd.ikeniborn.ru'
+
+# Only allow manual runs from test branch
+# (enforced by branch protection — workflow_dispatch is available on any branch,
+#  but we limit concurrency to one run at a time)
+concurrency:
+  group: e2e-tests
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: E2E Tests (${{ inputs.browser || 'chromium+mobile-safari' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: ./.github/actions/setup-node
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: |
+          INPUT="${{ inputs.browser || 'chromium+mobile-safari' }}"
+          # Always install chromium (needed for auth setup project)
+          npx playwright install --with-deps chromium
+          # Install webkit for Mobile Safari / full suite
+          if [[ "$INPUT" == *"mobile-safari"* || "$INPUT" == "full" ]]; then
+            npx playwright install --with-deps webkit
+          fi
+          # Install firefox for full suite
+          if [[ "$INPUT" == "full" ]]; then
+            npx playwright install --with-deps firefox
+          fi
+
+      - name: Run E2E tests
+        timeout-minutes: 25
+        env:
+          CI: true
+          BASE_URL: ${{ inputs.base_url || 'https://fbd.ikeniborn.ru' }}
+          TEST_USER_EMAIL: ${{ secrets.TEST_USER_EMAIL }}
+          TEST_USER_PASSWORD: ${{ secrets.TEST_USER_PASSWORD }}
+        run: |
+          INPUT="${{ inputs.browser || 'chromium+mobile-safari' }}"
+          echo "🎭 Running Playwright E2E tests"
+          echo "  Browser: $INPUT"
+          echo "  URL: $BASE_URL"
+          echo ""
+
+          case "$INPUT" in
+            chromium+mobile-safari)
+              npm run test:e2e
+              ;;
+            chromium)
+              npm run test:e2e:chromium
+              ;;
+            mobile-safari)
+              npx playwright test --config=config/playwright.config.ts --project='Mobile Safari'
+              ;;
+            full)
+              npm run test:e2e:full
+              ;;
+          esac
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ inputs.browser || 'chromium+mobile-safari' }}
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results-${{ inputs.browser || 'chromium+mobile-safari' }}
+          path: test-results/
+          retention-days: 7
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 🎭 E2E Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Browser:** \`${{ inputs.browser || 'chromium+mobile-safari' }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ inputs.base_url || 'https://fbd.ikeniborn.ru' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📊 [View Playwright Report](../artifacts)" >> $GITHUB_STEP_SUMMARY

@@ -11,12 +11,10 @@
 import { getState, updateState, type ShoppingList } from '../core/ListsState';
 import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
+import { loadShoppingLists } from '../core/stateManager';
 import { setupProductAutocomplete } from '../features/autocomplete';
-import { generateNumericTempId } from '@db/dexie';
-
-declare const window: Window & {
-  dexieManager?: any;
-};
+import { getDexieManager, isDexieActive, db as dexieDb } from '@db/dexie';
+import { getNetworkDelay, isDexieDisabledForTesting, isVerboseLoggingEnabled } from '../testing/debugUtils';
 
 // ============================================================================
 // Type Definitions
@@ -36,7 +34,7 @@ interface ChoicesInstance {
 /** API response interface for shopping list creation */
 interface CreateListAPIResponse {
   id: number;
-  temp_id?: number;
+  temp_id?: string;
   name: string;
   description?: string;
   is_active?: boolean;
@@ -83,14 +81,9 @@ export async function handleCreateList(event: Event): Promise<void> {
   const form = event.target as HTMLFormElement;
   const formData = new FormData(form);
 
-  // Generate numeric temp_id on client (crypto-secure random int53)
-  // CRITICAL FIX (v11.6.0): Client-side generation eliminates fallback bug
-  const temp_id = generateNumericTempId();
-
   const data = {
     name: formData.get('name'),
-    description: formData.get('description') || null,
-    temp_id: temp_id  // Send numeric temp_id to backend
+    description: formData.get('description') || null
   };
 
   try {
@@ -117,7 +110,7 @@ export async function handleCreateList(event: Event): Promise<void> {
     // This eliminates race condition with Dexie sync latency
     const newList: ShoppingList = {
       id: result.id,
-      temp_id: result.temp_id || temp_id, // Use client-generated temp_id as fallback (should never happen)
+      temp_id: result.temp_id, // Always use API (backend guarantees UUID)
       name: result.name,
       description: result.description || undefined,
       is_active: result.is_active ?? true,
@@ -146,38 +139,60 @@ export async function handleCreateList(event: Event): Promise<void> {
       debugLog('[ListsManager] Added new list to state', { listId: newList.id });
     }
 
-    // Trigger background sync to Dexie (non-blocking)
-    queueMicrotask(async () => {
+    // Start background sync (non-blocking, with proper error handling)
+    (async () => {
       try {
-        if (window.dexieManager) {
-          const dexie = window.dexieManager;
-
-          // Convert to LocalShoppingList type for Dexie
-          const localList = {
-            id: newList.id,
-            temp_id: newList.temp_id,
-            name: newList.name,
-            description: newList.description || null,
-            is_active: newList.is_active,
-            creator_id: (window as any).userData?.id || null,
-            created_at: new Date(newList.created_at),
-            updated_at: new Date(newList.updated_at),
-            sync_status: 'synced' as const,
-            sync_hash: null,
-            content_hash: null,
-            synced_at: new Date(),
-            deleted_at: null
-          };
-
-          // Use Dexie database.shoppingLists.put() directly
-          await dexie.getDB().shoppingLists.put(localList);
-          debugLog('[ListsManager] List synced to Dexie', { listId: newList.id });
+        // Validate creator_id (fallback to null if not available)
+        const creatorId = (window as any).userData?.id || null;
+        if (!creatorId) {
+          console.warn('[ListsManager] creator_id not available, using null');
         }
+
+        // Validate temp_id (critical for Dexie consistency)
+        if (!newList.temp_id) {
+          console.error('[ListsManager] ❌ temp_id missing from API response, cannot sync to Dexie');
+          showToast('Оффлайн-синхронизация недоступна', 'warning');
+          return;
+        }
+
+        // Convert to LocalShoppingList type for Dexie
+        const localList = {
+          id: newList.id,
+          temp_id: newList.temp_id,  // ✅ Now guaranteed UUID from backend
+          name: newList.name,
+          description: newList.description || null,
+          is_active: newList.is_active,
+          creator_id: creatorId,
+          created_at: new Date(newList.created_at),
+          updated_at: new Date(newList.updated_at),
+          sync_status: 'synced' as const,
+          sync_hash: null,
+          content_hash: null,
+          synced_at: new Date(),
+          deleted_at: null
+        };
+
+        // Use Dexie db directly (public API, no private method access)
+        await dexieDb.shoppingLists.put(localList);
+        debugLog('[ListsManager] ✅ List synced to Dexie', {
+          listId: newList.id,
+          tempId: newList.temp_id
+        });
+
       } catch (error) {
-        console.warn('[ListsManager] Dexie sync failed (non-critical):', error);
-        // Don't throw - API write succeeded, Dexie is cache only
+        console.error('[ListsManager] ❌ Dexie sync failed:', error);
+
+        // Show user-facing warning if critical
+        if (error instanceof Error && error.message.includes('temp_id')) {
+          showToast('Оффлайн-синхронизация недоступна', 'warning');
+        }
       }
-    });
+    })();
+
+    // Reload shopping lists from Dexie to ensure state is up-to-date before entering detail view
+    // This guarantees state.shoppingLists contains the new list with temp_id,
+    // which is required by createItem() for Dexie-first item creation
+    await loadShoppingLists();
 
     // Open the newly created list immediately
     await renderDetailView(newList.id);
@@ -511,6 +526,21 @@ export async function confirmDeleteList(): Promise<void> {
 
     debugLog('[DeleteList] Deleting list:', listId);
 
+    // CRITICAL: Get temp_id BEFORE DELETE API call to avoid race condition
+    // (WebSocket event may remove list from state before we can read it)
+    const state = getState();
+    const deletedList = state.shoppingLists.find(list => list.id === listId);
+    const deletedListTempId = deletedList?.temp_id;
+
+    // DEBUG: Network delay simulation for race condition testing
+    const networkDelay = getNetworkDelay();
+    if (networkDelay > 0) {
+      if (isVerboseLoggingEnabled()) {
+        debugLog(`[DeleteList] 🐌 Simulating slow network: ${networkDelay}ms delay`);
+      }
+      await new Promise(resolve => setTimeout(resolve, networkDelay));
+    }
+
     // Call DELETE endpoint
     const response = await fetch(`/api/v1/shopping-lists/${listId}`, {
       method: 'DELETE',
@@ -527,6 +557,13 @@ export async function confirmDeleteList(): Promise<void> {
         // Failed to parse JSON, use status code
       }
 
+      // Handle 404 Not Found (already deleted)
+      if (response.status === 404) {
+        showToast('Список уже удалён', 'info');
+        await renderLandingView();  // Refresh UI anyway
+        return;
+      }
+
       // Handle 403 Forbidden (not creator)
       if (response.status === 403) {
         throw new Error('Только создатель списка может его удалить');
@@ -540,7 +577,28 @@ export async function confirmDeleteList(): Promise<void> {
 
     debugLog('[DeleteList] List deleted successfully:', listId);
 
-    // Reload shopping lists
+    // Force Dexie cache invalidation + fresh API load
+    if (deletedListTempId) {
+      // DEBUG: Skip Dexie operations if disabled for testing
+      if (isDexieDisabledForTesting()) {
+        console.warn('[DeleteList] ⚠️  Dexie disabled for testing - skipping cache invalidation');
+      } else {
+        try {
+          const dexie = await getDexieManager();
+          if (isDexieActive() && dexie.isReady()) {
+            // Invalidate Dexie cache
+            const { deleteShoppingList } = await import('@db/dexie');
+            await deleteShoppingList(deletedListTempId);
+            debugLog('[DeleteList] Dexie cache invalidated for list:', deletedListTempId);
+          }
+        } catch (dexieError) {
+          // Log but don't fail - cache invalidation is non-critical
+          console.warn('[DeleteList] Failed to invalidate Dexie cache:', dexieError);
+        }
+      }
+    }
+
+    // Reload landing view (will now fetch fresh data from API)
     await renderLandingView();
 
   } catch (error) {

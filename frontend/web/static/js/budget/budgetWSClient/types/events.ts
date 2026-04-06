@@ -115,6 +115,31 @@ export interface ItemCompletedEvent {
 }
 
 // ============================================================================
+// Shopping List Events
+// ============================================================================
+
+export interface ShoppingListCreatedEvent {
+  id: number;
+  name: string;
+  description: string | null;
+  creator_id: number;
+  is_active: boolean;
+  total_items: number;
+  completed_items: number;
+  completion_percentage: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ShoppingListUpdatedEvent extends ShoppingListCreatedEvent {
+  // Same structure as created
+}
+
+export interface ShoppingListDeletedEvent {
+  id: number;
+}
+
+// ============================================================================
 // Multi-Tab Coordination Events
 // ============================================================================
 
@@ -246,7 +271,6 @@ export interface SyncIncrementalResponse {
   data: {
     created: Array<{
       id: number;
-      temp_id: number;                // Numeric temp_id from server
       user_id: number;
       article_id: number;
       financial_center_id: number | null;
@@ -266,7 +290,6 @@ export interface SyncIncrementalResponse {
     }>;
     updated: Array<{
       id: number;
-      temp_id: number;                // Numeric temp_id from server
       user_id: number;
       article_id: number;
       financial_center_id: number | null;
@@ -284,7 +307,7 @@ export interface SyncIncrementalResponse {
       created_at: string;
       updated_at: string;
     }>;
-    deleted: number[]; // Array of temp_ids (numeric)
+    deleted: number[]; // Array of fact IDs
     sync_timestamp: string; // Server timestamp for next sync
   };
 }
@@ -301,7 +324,7 @@ export interface SyncClientChangesRequest {
   data: {
     user_id: number;
     operations: Array<{
-      temp_id: number;                    // Numeric int53 temp_id
+      temp_id: string;                    // UUID v4 for creates
       operation: 'create' | 'update' | 'delete';
       entity_type: string;                // 'fact' | 'plan' (future)
       payload: Record<string, unknown>;   // Operation data (JSONB)
@@ -317,7 +340,7 @@ export interface SyncClientChangesResponse {
   event: 'sync_client_changes_response';
   data: {
     results: Array<{
-      temp_id: number;                    // Client's numeric temp_id (int53)
+      temp_id: string;                    // Client's temp_id
       server_id: number | null;           // Server-assigned ID (null on error)
       status: 'success' | 'error' | 'conflict';
       error?: string;                     // Error message (if status != success)

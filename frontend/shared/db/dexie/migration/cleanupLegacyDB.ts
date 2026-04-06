@@ -89,12 +89,12 @@ export async function cleanupLegacyDatabase(): Promise<void> {
       // Mark as migrated
       localStorage.setItem(MIGRATION_FLAG, 'true');
       logger.info('[Migration] ✅ Migration complete');
-    } else if (version === 1) {
-      // Already on Dexie v1
-      logger.debug('[Migration] Already using Dexie v1');
+    } else if (version >= 1 && version < 5) {
+      // Valid modern Dexie database (v1-v4)
+      logger.debug(`[Migration] Modern Dexie database (v${version}), no migration needed`);
       localStorage.setItem(MIGRATION_FLAG, 'true');
     } else {
-      logger.warn(`[Migration] Unknown database version: ${version}`);
+      logger.warn(`[Migration] Unrecognized database version: ${version}`);
     }
   } catch (error) {
     logger.error('[Migration] Cleanup failed:', error);

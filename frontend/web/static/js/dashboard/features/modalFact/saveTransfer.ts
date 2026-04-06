@@ -22,21 +22,35 @@ export async function saveFactTransfer(form: HTMLFormElement): Promise<void> {
     throw new Error('Failed to convert date to API format');
   }
 
+  // Get values from transfer tab fields (form has duplicate field names across tabs)
+  const transferTab = form.querySelector('[data-tab="transfer"]') as HTMLElement;
+  const amountInput = transferTab?.querySelector('input[name="amount"]') as HTMLInputElement;
+  const descriptionInput = transferTab?.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+
   // Build request data
   const data = {
     record_type: 'fact',
     transfer_date: apiDate, // YYYY-MM-DD (converted from DD.MM.YYYY)
     from_financial_center_id: parseIntOrNull(formData.get('from_financial_center_id'))!,
     to_financial_center_id: parseIntOrNull(formData.get('to_financial_center_id'))!,
-    from_article_id: parseIntOrNull(formData.get('from_article_id'))!, // required field (HTML required attr ensures non-null)
-    to_article_id: parseIntOrNull(formData.get('to_article_id'))!,     // required field (HTML required attr ensures non-null)
-    amount: parseFloat(formData.get('transfer_amount') as string), // Prefixed to avoid conflict with transaction tab
-    description: formData.get('transfer_description') || null // Prefixed to avoid conflict with transaction tab
+    from_article_id: parseIntOrNull(formData.get('from_article_id')),
+    to_article_id: parseIntOrNull(formData.get('to_article_id')),
+    amount: parseFloat(amountInput?.value || '0'),
+    description: descriptionInput?.value || null
   };
 
   // POST /api/v1/transfers
-  await postAPI('/api/v1/transfers', data, 'SaveFactModal');
+  const transferData = await postAPI<{ expense_fact_id?: number; income_fact_id?: number }>(
+    '/api/v1/transfers', data, 'SaveFactModal'
+  );
 
-  // Update UI
+  // Try incremental row injection for facts page; fall back to full reload if unavailable
+  const injectRow = (window as any).FactsManager?.fetchAndInjectRow;
+  if (typeof injectRow === 'function') {
+    const ids = [transferData.expense_fact_id, transferData.income_fact_id].filter(Boolean) as number[];
+    const results = await Promise.all(ids.map(id => injectRow(id, 'create') as Promise<boolean>));
+    if (results.some(Boolean)) return;
+  }
+
   await refreshUIAfterFactSave();
 }

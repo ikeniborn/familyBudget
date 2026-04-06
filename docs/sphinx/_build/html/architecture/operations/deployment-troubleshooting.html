@@ -1,0 +1,1886 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Deployment Troubleshooting Guide - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/operations/deployment-troubleshooting.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="deployment-troubleshooting-guide">
+<h1>Deployment Troubleshooting Guide<a class="headerlink" href="#deployment-troubleshooting-guide" title="Link to this heading">¶</a></h1>
+<p>This guide helps diagnose and resolve common deployment issues in the Family Budget project.</p>
+<hr class="docutils" />
+<section id="important-registry-first-architecture-v9-0">
+<h2>⚠️ IMPORTANT: Registry-First Architecture (v9.0+)<a class="headerlink" href="#important-registry-first-architecture-v9-0" title="Link to this heading">¶</a></h2>
+<p><strong>Since v9.0</strong>, deployment uses <strong>registry-first mode</strong>:</p>
+<ul class="simple">
+<li><p>✅ All building happens in GitHub Actions CI/CD</p></li>
+<li><p>✅ Server only <strong>pulls ready Docker images</strong> from ghcr.io</p></li>
+<li><p>❌ <strong>No npm/Node.js required</strong> on production server</p></li>
+<li><p>❌ <strong>No local building</strong> (frontend, dependencies)</p></li>
+</ul>
+<p><strong>Old troubleshooting sections</strong> (npm installation, build errors) are <strong>OBSOLETE</strong> in v9.0.</p>
+<p>See <a class="reference internal" href="#registry-first-migration-v90"><span class="xref myst">Registry-First Migration Guide</span></a> below for updated workflows.</p>
+</section>
+<hr class="docutils" />
+<section id="network-hang-during-npm-installation-obsolete-in-v9-0">
+<h2>~~Network Hang During npm Installation~~ (OBSOLETE in v9.0)<a class="headerlink" href="#network-hang-during-npm-installation-obsolete-in-v9-0" title="Link to this heading">¶</a></h2>
+<p><strong>DEPRECATED:</strong> This section applies to <strong>legacy v8.x build mode only</strong>.</p>
+<p>In <strong>v9.0+ registry-first mode</strong>, npm is <strong>NOT used</strong> on production server:</p>
+<ul class="simple">
+<li><p>Frontend builds in GitHub Actions CI/CD</p></li>
+<li><p>Dependencies embedded in Docker images</p></li>
+<li><p>Server pulls ready images from ghcr.io</p></li>
+</ul>
+<p><strong>If you see npm errors in v9.0</strong>, your deployment is misconfigured. See <a class="reference internal" href="#registry-first-migration-v90"><span class="xref myst">Registry-First Migration</span></a>.</p>
+<section id="automatic-recovery-v6-5-5">
+<h3>Automatic Recovery (v6.5.5+)<a class="headerlink" href="#automatic-recovery-v6-5-5" title="Link to this heading">¶</a></h3>
+<p>The deployment script now includes automatic timeout and retry:</p>
+<ol class="arabic simple">
+<li><p><strong>Timeout after 15 minutes</strong> → npm command killed (exit code 124)</p></li>
+<li><p><strong>Wait 5-60 seconds</strong> (exponential backoff: 5s → 10s → 20s)</p></li>
+<li><p><strong>Retry</strong> (up to 3 attempts total)</p></li>
+<li><p><strong>Success on any attempt</strong> → deployment continues</p></li>
+<li><p><strong>Failure after 3 attempts</strong> → deployment aborts with clear error</p></li>
+</ol>
+<p><strong>Example output:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>INFO<span class="o">]</span><span class="w"> </span>Installing<span class="w"> </span>npm<span class="w"> </span>packages<span class="w"> </span><span class="o">(</span>timeout:<span class="w"> </span>900s,<span class="w"> </span>retry:<span class="w"> </span>3x<span class="o">)</span>...
+<span class="o">[</span>INFO<span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="m">1</span>/3<span class="o">]</span><span class="w"> </span>npm<span class="w"> </span>ci...
+<span class="c1"># ... timeout after 15 minutes ...</span>
+<span class="o">[</span>WARNING<span class="o">]</span><span class="w"> </span>Attempt<span class="w"> </span><span class="m">1</span><span class="w"> </span>failed<span class="w"> </span><span class="o">(</span><span class="nb">exit</span><span class="w"> </span>code<span class="w"> </span><span class="m">124</span><span class="w"> </span>-<span class="w"> </span>timeout<span class="o">)</span>.<span class="w"> </span>Retrying<span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="m">5</span><span class="w"> </span>seconds...
+<span class="o">[</span>INFO<span class="o">]</span><span class="w"> </span><span class="o">[</span><span class="m">2</span>/3<span class="o">]</span><span class="w"> </span>npm<span class="w"> </span>ci...
+<span class="c1"># ... succeeds ...</span>
+<span class="o">[</span>SUCCESS<span class="o">]</span><span class="w"> </span>npm<span class="w"> </span>ci<span class="w"> </span><span class="o">(</span>succeeded<span class="w"> </span>on<span class="w"> </span>attempt<span class="w"> </span><span class="m">2</span><span class="o">)</span>
+</pre></div>
+</div>
+</section>
+<section id="manual-diagnostics">
+<h3>Manual Diagnostics<a class="headerlink" href="#manual-diagnostics" title="Link to this heading">¶</a></h3>
+<p>If automatic recovery fails after 3 attempts, perform these checks:</p>
+<section id="check-network-connectivity">
+<h4>1. Check Network Connectivity<a class="headerlink" href="#check-network-connectivity" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Ping npm registry</span>
+ping<span class="w"> </span>-c<span class="w"> </span><span class="m">5</span><span class="w"> </span>registry.npmjs.org
+
+<span class="c1"># HTTP connectivity test</span>
+curl<span class="w"> </span>-I<span class="w"> </span>https://registry.npmjs.org
+
+<span class="c1"># DNS resolution test</span>
+nslookup<span class="w"> </span>registry.npmjs.org
+</pre></div>
+</div>
+<p><strong>Expected:</strong> Successful responses within 1-2 seconds</p>
+<p><strong>If fails:</strong> Network/firewall issue preventing npm access</p>
+</section>
+<section id="check-npm-registry-configuration">
+<h4>2. Check npm Registry Configuration<a class="headerlink" href="#check-npm-registry-configuration" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Verify registry URL</span>
+npm<span class="w"> </span>config<span class="w"> </span>get<span class="w"> </span>registry
+<span class="c1"># Expected: https://registry.npmjs.org/</span>
+
+<span class="c1"># Check proxy settings (if corporate network)</span>
+npm<span class="w"> </span>config<span class="w"> </span>get<span class="w"> </span>proxy
+npm<span class="w"> </span>config<span class="w"> </span>get<span class="w"> </span>https-proxy
+</pre></div>
+</div>
+<p><strong>If proxy required:</strong> Configure npm proxy:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>npm<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>proxy<span class="w"> </span>http://proxy.company.com:8080
+npm<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>https-proxy<span class="w"> </span>http://proxy.company.com:8080
+</pre></div>
+</div>
+</section>
+<section id="check-disk-space">
+<h4>3. Check Disk Space<a class="headerlink" href="#check-disk-space" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check available space</span>
+df<span class="w"> </span>-h<span class="w"> </span>/opt/budget
+df<span class="w"> </span>-h<span class="w"> </span>~/.npm
+
+<span class="c1"># Expected: At least 2GB free</span>
+</pre></div>
+</div>
+<p><strong>If low:</strong> Clean npm cache:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>npm<span class="w"> </span>cache<span class="w"> </span>clean<span class="w"> </span>--force
+</pre></div>
+</div>
+</section>
+</section>
+<section id="manual-workarounds">
+<h3>Manual Workarounds<a class="headerlink" href="#manual-workarounds" title="Link to this heading">¶</a></h3>
+<section id="workaround-1-increase-timeout-slow-network">
+<h4>Workaround 1: Increase Timeout (Slow Network)<a class="headerlink" href="#workaround-1-increase-timeout-slow-network" title="Link to this heading">¶</a></h4>
+<p>For very slow networks, increase the npm timeout:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Set custom timeout (30 minutes instead of 15)</span>
+<span class="nv">TIMEOUT_NPM_INSTALL</span><span class="o">=</span><span class="m">1800</span><span class="w"> </span>sudo<span class="w"> </span>-E<span class="w"> </span>./deploy.sh
+
+<span class="c1"># Or set permanently in .env</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;TIMEOUT_NPM_INSTALL=1800&quot;</span><span class="w"> </span>&gt;&gt;<span class="w"> </span>.env
+sudo<span class="w"> </span>./deploy.sh
+</pre></div>
+</div>
+</section>
+<section id="workaround-2-pre-download-packages">
+<h4>Workaround 2: Pre-download Packages<a class="headerlink" href="#workaround-2-pre-download-packages" title="Link to this heading">¶</a></h4>
+<p>Install packages manually before deployment:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Navigate to repository</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+
+<span class="c1"># Install packages locally (with retry)</span>
+npm<span class="w"> </span>ci<span class="w"> </span>--prefer-offline<span class="w"> </span>--no-audit
+
+<span class="c1"># Verify node_modules created</span>
+ls<span class="w"> </span>-la<span class="w"> </span>node_modules/
+
+<span class="c1"># Deploy with sync-mode update (copies node_modules)</span>
+sudo<span class="w"> </span>./deploy.sh<span class="w"> </span>--sync-mode<span class="w"> </span>update<span class="w"> </span>--cleanup-mode<span class="w"> </span>smart
+</pre></div>
+</div>
+</section>
+<section id="workaround-3-use-mirror-registry">
+<h4>Workaround 3: Use Mirror Registry<a class="headerlink" href="#workaround-3-use-mirror-registry" title="Link to this heading">¶</a></h4>
+<p>If npm registry is blocked, use a mirror:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># China mirror (Taobao)</span>
+npm<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>registry<span class="w"> </span>https://registry.npmmirror.com
+
+<span class="c1"># Alternative: Yarn registry</span>
+npm<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>registry<span class="w"> </span>https://registry.yarnpkg.com
+
+<span class="c1"># Deploy</span>
+sudo<span class="w"> </span>./deploy.sh
+
+<span class="c1"># Restore default registry</span>
+npm<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>registry<span class="w"> </span>https://registry.npmjs.org/
+</pre></div>
+</div>
+</section>
+<section id="workaround-4-emergency-skip-dangerous">
+<h4>Workaround 4: Emergency Skip (Dangerous)<a class="headerlink" href="#workaround-4-emergency-skip-dangerous" title="Link to this heading">¶</a></h4>
+<p><strong>WARNING:</strong> Only use if /opt/budget/node_modules already exists and is up-to-date</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Skip npm install entirely</span>
+sudo<span class="w"> </span>./deploy.sh<span class="w"> </span>--sync-mode<span class="w"> </span>skip
+</pre></div>
+</div>
+<p><strong>Risks:</strong></p>
+<ul class="simple">
+<li><p>Outdated dependencies</p></li>
+<li><p>Missing new packages</p></li>
+<li><p>Version mismatches</p></li>
+</ul>
+</section>
+</section>
+<section id="prevention-strategies">
+<h3>Prevention Strategies<a class="headerlink" href="#prevention-strategies" title="Link to this heading">¶</a></h3>
+<section id="enable-offline-mode">
+<h4>1. Enable Offline Mode<a class="headerlink" href="#enable-offline-mode" title="Link to this heading">¶</a></h4>
+<p>Configure npm to prefer offline cache:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Already default in deploy.sh</span>
+npm<span class="w"> </span>ci<span class="w"> </span>--prefer-offline<span class="w"> </span>--no-audit
+</pre></div>
+</div>
+</section>
+<section id="configure-npm-cache">
+<h4>2. Configure npm Cache<a class="headerlink" href="#configure-npm-cache" title="Link to this heading">¶</a></h4>
+<p>Pre-populate npm cache on slow networks:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Set npm cache location</span>
+npm<span class="w"> </span>config<span class="w"> </span><span class="nb">set</span><span class="w"> </span>cache<span class="w"> </span>~/.npm-cache
+
+<span class="c1"># Pre-download all dependencies</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+npm<span class="w"> </span>ci
+
+<span class="c1"># Cache now populated - next install faster</span>
+</pre></div>
+</div>
+</section>
+<section id="monitor-network-quality">
+<h4>3. Monitor Network Quality<a class="headerlink" href="#monitor-network-quality" title="Link to this heading">¶</a></h4>
+<p>Before deployment, test network to npm registry:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Simple connectivity test</span>
+<span class="nb">time</span><span class="w"> </span>curl<span class="w"> </span>-I<span class="w"> </span>https://registry.npmjs.org
+
+<span class="c1"># Expected: &lt; 2 seconds</span>
+<span class="c1"># If &gt; 5 seconds: Slow network - consider increasing timeout</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="related-configuration">
+<h3>Related Configuration<a class="headerlink" href="#related-configuration" title="Link to this heading">¶</a></h3>
+<p><strong>Environment variables</strong> (optional override in .env or command line):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># npm timeout (seconds)</span>
+<span class="nv">TIMEOUT_NPM_INSTALL</span><span class="o">=</span><span class="m">900</span><span class="w">   </span><span class="c1"># Default: 15 minutes</span>
+
+<span class="c1"># Retry attempts</span>
+<span class="nv">MAX_RETRY_ATTEMPTS</span><span class="o">=</span><span class="m">3</span><span class="w">      </span><span class="c1"># Default: 3 retries</span>
+
+<span class="c1"># Retry delays (exponential backoff)</span>
+<span class="nv">RETRY_BASE_DELAY</span><span class="o">=</span><span class="m">5</span><span class="w">        </span><span class="c1"># Default: 5 seconds initial</span>
+<span class="nv">RETRY_MAX_DELAY</span><span class="o">=</span><span class="m">60</span><span class="w">        </span><span class="c1"># Default: 60 seconds maximum</span>
+</pre></div>
+</div>
+<p><strong>Example custom configuration:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># .env file</span>
+<span class="nv">TIMEOUT_NPM_INSTALL</span><span class="o">=</span><span class="m">1800</span><span class="w">  </span><span class="c1"># 30 minutes for very slow networks</span>
+<span class="nv">MAX_RETRY_ATTEMPTS</span><span class="o">=</span><span class="m">5</span><span class="w">      </span><span class="c1"># 5 retries instead of 3</span>
+</pre></div>
+</div>
+</section>
+<section id="see-also">
+<h3>See Also<a class="headerlink" href="#see-also" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference internal" href="#../installation-resilience.md"><span class="xref myst">Installation Resilience Framework</span></a> - Timeout and retry infrastructure</p></li>
+<li><p><a class="reference internal" href="../README.html#deployment-resilience-v655"><span class="std std-ref">Architecture README</span></a> - v6.5.5 changes</p></li>
+<li><p><a class="reference download internal" download="" href="../../_downloads/e3cc6d81115cfba14b4d2eef2080c1be/deploy.sh"><span class="xref download myst">Deploy Script</span></a> - Implementation details</p></li>
+<li><p><a class="reference download internal" download="" href="../../_downloads/a67173ae91cc312791c7038cefc74881/timeout.sh"><span class="xref download myst">Timeout Module</span></a> - Retry logic</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="backup-automation-not-working">
+<h2>Backup Automation Not Working<a class="headerlink" href="#backup-automation-not-working" title="Link to this heading">¶</a></h2>
+<p><strong>Since:</strong> v6.8.1 - Critical error visibility improved</p>
+<section id="symptoms">
+<h3>Symptoms<a class="headerlink" href="#symptoms" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>✅ Manual backup works: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">bash</span> <span class="pre">/opt/budget/scripts/backup.sh</span></code></p></li>
+<li><p>❌ Automatic daily backups do NOT run</p></li>
+<li><p>No backup files created for recent days (gaps in <code class="docutils literal notranslate"><span class="pre">/opt/budget/backups/</span></code>)</p></li>
+<li><p>S3 uploads do NOT happen automatically</p></li>
+</ul>
+</section>
+<section id="root-cause">
+<h3>Root Cause<a class="headerlink" href="#root-cause" title="Link to this heading">¶</a></h3>
+<p><strong>cron package NOT installed</strong> on the server</p>
+<p>During deployment, <code class="docutils literal notranslate"><span class="pre">setup_backup_cron()</span></code> checks for <code class="docutils literal notranslate"><span class="pre">crontab</span></code> command:</p>
+<ul class="simple">
+<li><p>If NOT found → shows CRITICAL ERROR (v6.8.1+)</p></li>
+<li><p>Previously (v6.8.0 and earlier) → silent warning, easily missed</p></li>
+</ul>
+</section>
+<section id="diagnostic-steps">
+<h3>Diagnostic Steps<a class="headerlink" href="#diagnostic-steps" title="Link to this heading">¶</a></h3>
+<p><strong>1. Check if cron is installed:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>which<span class="w"> </span>crontab
+<span class="c1"># Expected: /usr/bin/crontab</span>
+<span class="c1"># If error: command not found → cron NOT installed</span>
+</pre></div>
+</div>
+<p><strong>2. Check cron daemon status:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>systemctl<span class="w"> </span>status<span class="w"> </span>cron
+<span class="c1"># Expected: Active: active (running)</span>
+<span class="c1"># If error: Unit cron.service not found → cron NOT installed</span>
+</pre></div>
+</div>
+<p><strong>3. Check crontab entries:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>crontab<span class="w"> </span>-l
+<span class="c1"># Expected: 0 2 * * * /bin/bash /opt/budget/scripts/backup.sh ...</span>
+<span class="c1"># If error: crontab: command not found → cron NOT installed</span>
+</pre></div>
+</div>
+<p><strong>4. Check backup logs:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ls<span class="w"> </span>-lh<span class="w"> </span>/opt/budget/backups/logs/
+<span class="c1"># Should see daily logs: backup_YYYYMMDD.log</span>
+<span class="c1"># If missing days → backups not running</span>
+</pre></div>
+</div>
+</section>
+<section id="solution">
+<h3>Solution<a class="headerlink" href="#solution" title="Link to this heading">¶</a></h3>
+<p><strong>Step 1: Install cron</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># On budget-prod server</span>
+sudo<span class="w"> </span>apt-get<span class="w"> </span>update
+sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>cron
+sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>cron
+sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>cron
+sudo<span class="w"> </span>systemctl<span class="w"> </span>status<span class="w"> </span>cron<span class="w">  </span><span class="c1"># Verify running</span>
+</pre></div>
+</div>
+<p><strong>Step 2: Configure backup cron job</strong></p>
+<p><strong>Option A: Re-run deployment (recommended)</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/familyBudget
+git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>main<span class="w">  </span><span class="c1"># Get latest with cron fixes</span>
+sudo<span class="w"> </span>./deploy.sh
+<span class="c1"># deploy.sh will automatically call setup_backup_cron()</span>
+</pre></div>
+</div>
+<p><strong>Option B: Manual crontab configuration</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>crontab<span class="w"> </span>-e
+<span class="c1"># Add this line:</span>
+<span class="m">0</span><span class="w"> </span><span class="m">2</span><span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>*<span class="w"> </span>/bin/bash<span class="w"> </span>/opt/budget/scripts/backup.sh<span class="w"> </span>&gt;&gt;<span class="w"> </span>/opt/budget/logs/backup.log<span class="w"> </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span>
+</pre></div>
+</div>
+<p><strong>Step 3: Verify cron job configured</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>crontab<span class="w"> </span>-l<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>backup
+<span class="c1"># Expected output:</span>
+<span class="c1"># 0 2 * * * /bin/bash /opt/budget/scripts/backup.sh &gt;&gt; /opt/budget/logs/backup.log 2&gt;&amp;1</span>
+</pre></div>
+</div>
+<p><strong>Step 4: Test automated backup</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Option 1: Wait until 2:00 AM and check logs next day</span>
+cat<span class="w"> </span>/opt/budget/backups/logs/backup_<span class="k">$(</span>date<span class="w"> </span>+%Y%m%d<span class="k">)</span>.log
+
+<span class="c1"># Option 2: Trigger cron manually for immediate test</span>
+sudo<span class="w"> </span>run-parts<span class="w"> </span>/etc/cron.daily<span class="w">  </span><span class="c1"># If backup.sh is in cron.daily</span>
+<span class="c1"># OR</span>
+sudo<span class="w"> </span>-i<span class="w"> </span>/bin/bash<span class="w"> </span>/opt/budget/scripts/backup.sh<span class="w"> </span>--verbose
+</pre></div>
+</div>
+</section>
+<section id="prevention">
+<h3>Prevention<a class="headerlink" href="#prevention" title="Link to this heading">¶</a></h3>
+<p><strong>install.sh now installs cron automatically (v6.8.1+)</strong></p>
+<p>New servers should run:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/familyBudget
+sudo<span class="w"> </span>./install.sh<span class="w">  </span><span class="c1"># Installs cron + all dependencies</span>
+</pre></div>
+</div>
+<p><strong>Deployment warning improved (v6.8.1+)</strong></p>
+<p>If cron missing, deployment shows:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+CRITICAL: cron package NOT installed!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️  WITHOUT CRON:
+  • Daily backups will NOT run automatically
+  • S3 uploads will NOT happen
+  • Risk of DATA LOSS
+
+REQUIRED ACTION:
+  sudo apt-get install -y cron &amp;&amp; sudo systemctl enable cron
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+</pre></div>
+</div>
+</section>
+<section id="verification-checklist">
+<h3>Verification Checklist<a class="headerlink" href="#verification-checklist" title="Link to this heading">¶</a></h3>
+<p>After fixing, verify automation works:</p>
+<ul class="simple">
+<li><p>[ ] <code class="docutils literal notranslate"><span class="pre">which</span> <span class="pre">crontab</span></code> → returns <code class="docutils literal notranslate"><span class="pre">/usr/bin/crontab</span></code></p></li>
+<li><p>[ ] <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">systemctl</span> <span class="pre">status</span> <span class="pre">cron</span></code> → Active: active (running)</p></li>
+<li><p>[ ] <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">crontab</span> <span class="pre">-l</span></code> → shows backup job at 2:00 AM</p></li>
+<li><p>[ ] Wait 24 hours, check <code class="docutils literal notranslate"><span class="pre">/opt/budget/backups/</span></code> for new backup file</p></li>
+<li><p>[ ] Check S3 bucket for new backup: <code class="docutils literal notranslate"><span class="pre">python3</span> <span class="pre">scripts/s3_backup.py</span> <span class="pre">list</span> <span class="pre">--bucket</span> <span class="pre">&lt;name&gt;</span></code></p></li>
+</ul>
+</section>
+<section id="id1">
+<h3>See Also<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference internal" href="#../backup-system.md#%D0%BA%D1%80%D0%B8%D1%82%D0%B8%D1%87%D0%B5%D1%81%D0%BA%D0%B8%D0%B5-%D0%B7%D0%B0%D0%B2%D0%B8%D1%81%D0%B8%D0%BC%D0%BE%D1%81%D1%82%D0%B8"><span class="xref myst">Backup System Architecture</span></a> - Cron dependency details</p></li>
+<li><p><a class="reference internal" href="backup-operations.html"><span class="std std-doc">Backup Operations Guide</span></a> - Daily/weekly checks</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="build-artifact-validation-failures">
+<h2>Build Artifact Validation Failures<a class="headerlink" href="#build-artifact-validation-failures" title="Link to this heading">¶</a></h2>
+<p><strong>Since:</strong> v6.6.1 - Comprehensive artifact validation prevents stale asset deployment</p>
+<section id="id2">
+<h3>Symptoms<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul>
+<li><p>Deployment aborts after frontend build with error:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>▶ Validating Build Artifacts
+[INFO] Checking critical build artifacts...
+
+[ERROR] ❌ Missing: lists.min.js
+[ERROR] ❌ Bundle too small: budgetShared.min.js (234B, expected &gt;1KB)
+
+═══════════════════════════════════════════════════════════
+      BUILD ARTIFACT VALIDATION FAILED
+═══════════════════════════════════════════════════════════
+
+Some critical files are missing or invalid after build.
+Checksums will NOT be saved - next deploy will rebuild.
+
+DEPLOYMENT ABORTED
+</pre></div>
+</div>
+</li>
+<li><p>Service Worker PLACEHOLDER not replaced:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[ERROR] ❌ CACHE_VERSION_PLACEHOLDER still present in sw.min.js
+[ERROR]    Cache busting failed - PWA will not work correctly
+</pre></div>
+</div>
+</li>
+<li><p>Legacy minification failure (hierarchyView.js or lists.css):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">ERROR</span><span class="p">]</span> <span class="n">Failed</span> <span class="n">to</span> <span class="n">minify</span> <span class="n">hierarchyView</span><span class="o">.</span><span class="n">js</span>
+<span class="p">[</span><span class="n">ERROR</span><span class="p">]</span> <span class="n">This</span> <span class="n">file</span> <span class="ow">is</span> <span class="n">critical</span> <span class="o">-</span> <span class="n">cannot</span> <span class="k">continue</span>
+</pre></div>
+</div>
+</li>
+</ul>
+</section>
+<section id="what-changed-v6-6-1">
+<h3>What Changed (v6.6.1)<a class="headerlink" href="#what-changed-v6-6-1" title="Link to this heading">¶</a></h3>
+<p><strong>Before v6.6.1:</strong></p>
+<ul class="simple">
+<li><p>Frontend build checksums saved <strong>immediately after build</strong></p></li>
+<li><p>If build succeeded but produced incomplete artifacts → checksums still saved</p></li>
+<li><p>Next deployment skipped rebuild → deployed stale/missing assets</p></li>
+</ul>
+<p><strong>After v6.6.1:</strong></p>
+<ul class="simple">
+<li><p>Added comprehensive <code class="docutils literal notranslate"><span class="pre">validate_build_artifacts()</span></code> function</p></li>
+<li><p>Validates ALL critical files before saving checksums:</p>
+<ul>
+<li><p>Service Worker: <code class="docutils literal notranslate"><span class="pre">sw.min.js</span></code> + <code class="docutils literal notranslate"><span class="pre">sw.min.js.gz</span></code></p></li>
+<li><p>CSS files: <code class="docutils literal notranslate"><span class="pre">tailwind-daisyui.min.css</span></code>, <code class="docutils literal notranslate"><span class="pre">custom.min.css</span></code>, <code class="docutils literal notranslate"><span class="pre">choices-tailwind.min.css</span></code>, <code class="docutils literal notranslate"><span class="pre">daisyui-overrides.min.css</span></code></p></li>
+<li><p>Bundles: <code class="docutils literal notranslate"><span class="pre">lists.min.js</span></code>, <code class="docutils literal notranslate"><span class="pre">budgetShared.min.js</span></code> (must be &gt; 1KB)</p></li>
+<li><p>Legacy files: <code class="docutils literal notranslate"><span class="pre">hierarchyView.min.js</span></code>, <code class="docutils literal notranslate"><span class="pre">lists.min.css</span></code></p></li>
+<li><p>PLACEHOLDER tokens replaced in Service Worker</p></li>
+</ul>
+</li>
+<li><p>Checksums saved ONLY after successful validation</p></li>
+<li><p>Legacy minification failures now <strong>abort deployment</strong> (exit 1) instead of warnings</p></li>
+</ul>
+</section>
+<section id="root-causes">
+<h3>Root Causes<a class="headerlink" href="#root-causes" title="Link to this heading">¶</a></h3>
+<section id="vite-build-partial-failure">
+<h4>1. Vite Build Partial Failure<a class="headerlink" href="#vite-build-partial-failure" title="Link to this heading">¶</a></h4>
+<p><strong>Symptom:</strong> Some bundles created, others missing or empty</p>
+<p><strong>Causes:</strong></p>
+<ul class="simple">
+<li><p>TypeScript compilation errors (silently ignored by Vite)</p></li>
+<li><p>Memory exhaustion during build (OOM killer)</p></li>
+<li><p>Disk space full mid-build</p></li>
+<li><p>File permission issues</p></li>
+</ul>
+<p><strong>Diagnostic:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check TypeScript errors</span>
+npm<span class="w"> </span>run<span class="w"> </span>type-check
+
+<span class="c1"># Check disk space</span>
+df<span class="w"> </span>-h<span class="w"> </span>/opt/budget
+
+<span class="c1"># Check build logs</span>
+grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;ERROR|FAILED|fatal&quot;</span><span class="w"> </span>/opt/budget/logs/deploy.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-50
+
+<span class="c1"># Check bundle sizes</span>
+ls<span class="w"> </span>-lh<span class="w"> </span>/opt/budget/frontend/web/static/js/*.min.js
+ls<span class="w"> </span>-lh<span class="w"> </span>/opt/budget/frontend/shared/static/js/*.min.js
+</pre></div>
+</div>
+</section>
+<section id="legacy-minification-failure-terser">
+<h4>2. Legacy Minification Failure (Terser)<a class="headerlink" href="#legacy-minification-failure-terser" title="Link to this heading">¶</a></h4>
+<p><strong>Symptom:</strong> <code class="docutils literal notranslate"><span class="pre">hierarchyView.min.js</span></code> or <code class="docutils literal notranslate"><span class="pre">lists.min.css</span></code> minification fails</p>
+<p><strong>Causes:</strong></p>
+<ul class="simple">
+<li><p>Invalid JavaScript syntax in <code class="docutils literal notranslate"><span class="pre">hierarchyView.js</span></code></p></li>
+<li><p>Invalid CSS syntax in <code class="docutils literal notranslate"><span class="pre">lists.css</span></code></p></li>
+<li><p>Terser/PostCSS version incompatibility</p></li>
+</ul>
+<p><strong>Diagnostic:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check syntax manually</span>
+node<span class="w"> </span>--check<span class="w"> </span>frontend/web/static/js/lists/hierarchyView.js
+
+<span class="c1"># Try manual minification</span>
+npx<span class="w"> </span>terser<span class="w"> </span>frontend/web/static/js/lists/hierarchyView.js<span class="w"> </span>-o<span class="w"> </span>/tmp/test.min.js
+</pre></div>
+</div>
+</section>
+<section id="cache-busting-failure-placeholder-not-replaced">
+<h4>3. Cache Busting Failure (PLACEHOLDER not replaced)<a class="headerlink" href="#cache-busting-failure-placeholder-not-replaced" title="Link to this heading">¶</a></h4>
+<p><strong>Symptom:</strong> <code class="docutils literal notranslate"><span class="pre">CACHE_VERSION_PLACEHOLDER</span></code> still present in <code class="docutils literal notranslate"><span class="pre">sw.min.js</span></code></p>
+<p><strong>Causes:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">update-cache-busting.sh</span></code> failed</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.cache-version</span></code> file not created</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sed</span></code> replacement failed</p></li>
+</ul>
+<p><strong>Diagnostic:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check cache version file</span>
+cat<span class="w"> </span>/opt/budget/.cache-version
+
+<span class="c1"># Check Service Worker for PLACEHOLDER</span>
+grep<span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;PLACEHOLDER&quot;</span><span class="w"> </span>/opt/budget/sw.min.js
+
+<span class="c1"># Check update-cache-busting.sh logs</span>
+grep<span class="w"> </span><span class="s2">&quot;update-cache-busting&quot;</span><span class="w"> </span>/opt/budget/logs/deploy.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-20
+</pre></div>
+</div>
+</section>
+</section>
+<section id="solutions">
+<h3>Solutions<a class="headerlink" href="#solutions" title="Link to this heading">¶</a></h3>
+<section id="quick-fix-force-rebuild">
+<h4>Quick Fix: Force Rebuild<a class="headerlink" href="#quick-fix-force-rebuild" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Clear checksums to force rebuild</span>
+sudo<span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span>/opt/budget/.frontend_build_checksums
+sudo<span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span>/opt/budget/.docker_build_checksums
+
+<span class="c1"># Remove incomplete artifacts</span>
+sudo<span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span>/opt/budget/sw.min.js
+sudo<span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span>/opt/budget/frontend/web/static/js/*.min.js
+sudo<span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span>/opt/budget/frontend/shared/static/js/*.min.js
+
+<span class="c1"># Deploy with --force-build flag</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+sudo<span class="w"> </span>bash<span class="w"> </span>deploy.sh<span class="w"> </span>--sync-mode<span class="w"> </span>update<span class="w"> </span>--cleanup-mode<span class="w"> </span>smart<span class="w"> </span>--patch<span class="w"> </span>--force-build
+</pre></div>
+</div>
+</section>
+<section id="fix-typescript-errors">
+<h4>Fix TypeScript Errors<a class="headerlink" href="#fix-typescript-errors" title="Link to this heading">¶</a></h4>
+<p>If validation fails due to missing/empty bundles, check TypeScript:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/familyBudget
+
+<span class="c1"># Run type-check (same as pre-commit hook)</span>
+npm<span class="w"> </span>run<span class="w"> </span>type-check
+
+<span class="c1"># Fix errors in .ts files</span>
+vim<span class="w"> </span>frontend/web/static/js/offline/offlineManager.ts
+
+<span class="c1"># Verify fixes</span>
+npm<span class="w"> </span>run<span class="w"> </span>type-check
+
+<span class="c1"># Commit and deploy</span>
+git<span class="w"> </span>add<span class="w"> </span>.
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;fix: TypeScript errors&quot;</span>
+git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span><span class="nb">test</span>
+ssh<span class="w"> </span>budget-test<span class="w"> </span><span class="s2">&quot;cd ~/familyBudget &amp;&amp; git pull &amp;&amp; sudo bash deploy.sh&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="fix-legacy-file-syntax">
+<h4>Fix Legacy File Syntax<a class="headerlink" href="#fix-legacy-file-syntax" title="Link to this heading">¶</a></h4>
+<p>If <code class="docutils literal notranslate"><span class="pre">hierarchyView.js</span></code> or <code class="docutils literal notranslate"><span class="pre">lists.css</span></code> fails minification:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Find syntax error</span>
+node<span class="w"> </span>--check<span class="w"> </span>frontend/web/static/js/lists/hierarchyView.js
+<span class="c1"># OR</span>
+npx<span class="w"> </span>postcss<span class="w"> </span>frontend/web/static/css/lists.css<span class="w"> </span>--use<span class="w"> </span>cssnano<span class="w"> </span>-o<span class="w"> </span>/tmp/test.min.css
+
+<span class="c1"># Fix syntax error</span>
+vim<span class="w"> </span>frontend/web/static/js/lists/hierarchyView.js
+
+<span class="c1"># Test minification manually</span>
+npx<span class="w"> </span>terser<span class="w"> </span>frontend/web/static/js/lists/hierarchyView.js<span class="w"> </span>-c<span class="w"> </span>-m<span class="w"> </span>-o<span class="w"> </span>/tmp/test.min.js
+
+<span class="c1"># Deploy</span>
+git<span class="w"> </span>add<span class="w"> </span>.<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;fix: hierarchyView.js syntax&quot;</span>
+git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span><span class="nb">test</span>
+</pre></div>
+</div>
+</section>
+<section id="fix-cache-busting">
+<h4>Fix Cache Busting<a class="headerlink" href="#fix-cache-busting" title="Link to this heading">¶</a></h4>
+<p>If PLACEHOLDER not replaced:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Regenerate cache version</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">CACHE_VERSION</span><span class="o">=</span><span class="s2">&quot;v</span><span class="k">$(</span>date<span class="w"> </span>-u<span class="w"> </span>+%Y%m%d_%H%M<span class="k">)</span><span class="s2">&quot;</span>
+<span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$CACHE_VERSION</span><span class="s2">&quot;</span><span class="w"> </span>&gt;<span class="w"> </span>/opt/budget/.cache-version
+
+<span class="c1"># Fix ownership (if running with sudo)</span>
+sudo<span class="w"> </span>chown<span class="w"> </span>ikeniborn:ikeniborn<span class="w"> </span>/opt/budget/.cache-version
+
+<span class="c1"># Run cache busting manually</span>
+<span class="nb">cd</span><span class="w"> </span>/opt/budget
+bash<span class="w"> </span>scripts/update-cache-busting.sh
+
+<span class="c1"># Verify</span>
+grep<span class="w"> </span><span class="s2">&quot;CACHE_VERSION&quot;</span><span class="w"> </span>sw.min.js<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1
+<span class="c1"># Expected: const CACHE_VERSION = &quot;v20260111_0822&quot;;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="id3">
+<h3>Prevention<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<section id="always-run-type-check-before-deploy">
+<h4>1. Always Run Type-Check Before Deploy<a class="headerlink" href="#always-run-type-check-before-deploy" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Pre-commit hook runs this automatically (v7.1.0+)</span>
+npm<span class="w"> </span>run<span class="w"> </span>type-check
+
+<span class="c1"># If errors found:</span>
+<span class="c1"># - Fix .ts files</span>
+<span class="c1"># - Commit fixes</span>
+<span class="c1"># - Then deploy</span>
+</pre></div>
+</div>
+</section>
+<section id="monitor-build-logs">
+<h4>2. Monitor Build Logs<a class="headerlink" href="#monitor-build-logs" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># After deployment, check for warnings</span>
+grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;WARNING|WARN&quot;</span><span class="w"> </span>/opt/budget/logs/deploy.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-20
+
+<span class="c1"># Check bundle sizes</span>
+ls<span class="w"> </span>-lh<span class="w"> </span>/opt/budget/frontend/web/static/js/*.min.js
+<span class="c1"># All bundles should be &gt; 1KB</span>
+</pre></div>
+</div>
+</section>
+<section id="test-locally-before-deploy">
+<h4>3. Test Locally Before Deploy<a class="headerlink" href="#test-locally-before-deploy" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># On local machine</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+npm<span class="w"> </span>run<span class="w"> </span>build
+
+<span class="c1"># Check artifacts created</span>
+ls<span class="w"> </span>-lh<span class="w"> </span>frontend/web/static/js/*.min.js
+ls<span class="w"> </span>-lh<span class="w"> </span>sw.min.js
+
+<span class="c1"># Verify no PLACEHOLDER</span>
+grep<span class="w"> </span><span class="s2">&quot;PLACEHOLDER&quot;</span><span class="w"> </span>sw.min.js
+<span class="c1"># Expected: no output (empty)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="validation-details">
+<h3>Validation Details<a class="headerlink" href="#validation-details" title="Link to this heading">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">validate_build_artifacts()</span></code> function checks:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Category</p></th>
+<th class="head"><p>Files</p></th>
+<th class="head"><p>Validation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Service Worker</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sw.min.js</span></code>, <code class="docutils literal notranslate"><span class="pre">sw.min.js.gz</span></code></p></td>
+<td><p>Exists, non-empty, PLACEHOLDER replaced</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>CSS</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tailwind-daisyui.min.css</span></code>, <code class="docutils literal notranslate"><span class="pre">custom.min.css</span></code>, <code class="docutils literal notranslate"><span class="pre">choices-tailwind.min.css</span></code>, <code class="docutils literal notranslate"><span class="pre">daisyui-overrides.min.css</span></code></p></td>
+<td><p>Exists, non-empty</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Bundles</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">lists.min.js</span></code>, <code class="docutils literal notranslate"><span class="pre">budgetShared.min.js</span></code></p></td>
+<td><p>Exists, size &gt; 1KB</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Legacy</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">hierarchyView.min.js</span></code>, <code class="docutils literal notranslate"><span class="pre">lists.min.css</span></code></p></td>
+<td><p>Exists, non-empty</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Output Example (Success):</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>▶ Validating Build Artifacts
+[INFO] Checking critical build artifacts...
+
+[SUCCESS] ✓ sw.min.js (10889B)
+[SUCCESS] ✓ sw.min.js.gz (3517B)
+[SUCCESS] ✓ tailwind-daisyui.min.css (182059B)
+[SUCCESS] ✓ custom.min.css (44312B)
+[SUCCESS] ✓ choices-tailwind.min.css (43450B)
+[SUCCESS] ✓ daisyui-overrides.min.css (2048B)
+[SUCCESS] ✓ lists.min.js (123914B)
+[SUCCESS] ✓ budgetShared.min.js (42281B)
+[SUCCESS] ✓ hierarchyView.min.js (19827B)
+[SUCCESS] ✓ lists.min.css (19759B)
+[SUCCESS] ✓ Service Worker version: v20260111_0822
+
+[SUCCESS] All build artifacts validated successfully
+[INFO] Saved frontend build checksums
+[SUCCESS] Build artifacts validated and checksums saved
+</pre></div>
+</div>
+</section>
+<section id="id4">
+<h3>See Also<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference internal" href="../README.html#2026-01-11-deploysh-critical-fixes---checksum-validation--cleanup-transparency-v661"><span class="std std-ref">Architecture README - v6.6.1</span></a> - Complete changelog</p></li>
+<li><p><a class="reference internal" href="#../build-system.md"><span class="xref myst">Build System</span></a> - Frontend build pipeline</p></li>
+<li><p><a class="reference internal" href="#../pwa.md"><span class="xref myst">PWA Architecture</span></a> - Service Worker caching</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="troubleshooting-registry-first-deployments-v9-0">
+<h2>Troubleshooting Registry-First Deployments (v9.0+)<a class="headerlink" href="#troubleshooting-registry-first-deployments-v9-0" title="Link to this heading">¶</a></h2>
+<section id="npm-command-not-found">
+<h3>Ошибка: “npm: command not found”<a class="headerlink" href="#npm-command-not-found" title="Link to this heading">¶</a></h3>
+<p><strong>Причина</strong>: Legacy код пытается запустить npm на сервере</p>
+<p><strong>Решение</strong>:</p>
+<ol class="arabic simple">
+<li><p>Проверить версию deploy.sh: <code class="docutils literal notranslate"><span class="pre">grep</span> <span class="pre">&quot;v9.0&quot;</span> <span class="pre">deploy.sh</span></code></p></li>
+<li><p>Если v8.x, обновить до v9.0: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span> <span class="pre">origin</span> <span class="pre">test</span></code></p></li>
+<li><p>npm НЕ требуется на production сервере</p></li>
+</ol>
+<p><strong>Проверка</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># deploy.sh НЕ ДОЛЖЕН вызывать npm</span>
+grep<span class="w"> </span>-n<span class="w"> </span><span class="s2">&quot;npm install&quot;</span><span class="w"> </span>deploy.sh
+<span class="c1"># Ожидаемый вывод: нет совпадений (или только комментарии)</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="validate-build-artifacts-failed">
+<h3>Ошибка: “validate_build_artifacts failed”<a class="headerlink" href="#validate-build-artifacts-failed" title="Link to this heading">¶</a></h3>
+<p><strong>Причина</strong>: Legacy функция проверяет локальные файлы на хосте</p>
+<p><strong>Решение</strong>:</p>
+<ol class="arabic simple">
+<li><p>Проверить что функция удалена: <code class="docutils literal notranslate"><span class="pre">grep</span> <span class="pre">-A5</span> <span class="pre">&quot;validate_build_artifacts()&quot;</span> <span class="pre">deploy.sh</span></code></p></li>
+<li><p>Артефакты (sw.min.js, bundles) находятся ВНУТРИ Docker образа</p></li>
+<li><p>Валидация происходит в CI/CD (quality-checks job)</p></li>
+</ol>
+<p><strong>Проверка</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Образ содержит frontend</span>
+docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>familybudget-backend<span class="w"> </span>ls<span class="w"> </span>-la<span class="w"> </span>/app/frontend/web/static/js/
+<span class="c1"># Ожидаемый вывод: sw.min.js, bundles/*, vendor/*</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="frontend-build-failed">
+<h3>Ошибка: “Frontend build failed”<a class="headerlink" href="#frontend-build-failed" title="Link to this heading">¶</a></h3>
+<p><strong>Причина</strong>: Сервер пытается собрать frontend локально</p>
+<p><strong>Решение</strong>:</p>
+<ol class="arabic simple">
+<li><p>Frontend собирается в GitHub Actions (service-build job)</p></li>
+<li><p>Проверить IMAGE_VERSIONS.json существует: <code class="docutils literal notranslate"><span class="pre">cat</span> <span class="pre">~/familyBudget/IMAGE_VERSIONS.json</span></code></p></li>
+<li><p>Если файл отсутствует, выполнить: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span> <span class="pre">origin</span> <span class="pre">test</span></code></p></li>
+</ol>
+<p><strong>Проверка</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># CI/CD создает IMAGE_VERSIONS.json</span>
+cat<span class="w"> </span>IMAGE_VERSIONS.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.backend.version&#39;</span>
+<span class="c1"># Ожидаемый вывод: &quot;6.6.0&quot; (или текущая версия)</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="docker-image-not-found-in-registry">
+<h3>Ошибка: “Docker image not found in registry”<a class="headerlink" href="#docker-image-not-found-in-registry" title="Link to this heading">¶</a></h3>
+<p><strong>Причина</strong>: Образ не был собран в CI/CD или не push’нут в ghcr.io</p>
+<p><strong>Решение</strong>:</p>
+<ol class="arabic simple">
+<li><p>Проверить GitHub Actions workflow: https://github.com/ikeniborn/familyBudget/actions</p></li>
+<li><p>Найти последний успешный build-and-push run</p></li>
+<li><p>Проверить что все 5 образов push’нуты</p></li>
+<li><p>Проверить VERSION файл: <code class="docutils literal notranslate"><span class="pre">cat</span> <span class="pre">VERSION</span></code></p></li>
+</ol>
+<p><strong>Проверка</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Проверить наличие образа в registry</span>
+docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/ikeniborn/familybudget-backend:<span class="k">$(</span>cat<span class="w"> </span>VERSION<span class="k">)</span>
+<span class="c1"># Ожидаемый вывод: Status: Downloaded newer image</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="v8-x-v9-0">
+<h3>Миграция v8.x → v9.0<a class="headerlink" href="#v8-x-v9-0" title="Link to this heading">¶</a></h3>
+<p><strong>Если у вас остались legacy функции</strong>:</p>
+<p><strong>1. Backup текущего deploy.sh</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cp<span class="w"> </span>deploy.sh<span class="w"> </span>deploy.sh.v8.backup
+</pre></div>
+</div>
+<p><strong>2. Pull latest version</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span><span class="nb">test</span>
+</pre></div>
+</div>
+<p><strong>3. Verify v9.0</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Проверить что legacy функции удалены</span>
+grep<span class="w"> </span><span class="s2">&quot;repair_npm_environment&quot;</span><span class="w"> </span>deploy.sh
+<span class="c1"># Ожидаемый вывод: только комментарий &quot;REMOVED IN v9.0&quot;</span>
+</pre></div>
+</div>
+<p><strong>4. Test deployment</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>bash<span class="w"> </span>deploy.sh<span class="w"> </span>--sync-mode<span class="w"> </span>update<span class="w"> </span>--cleanup-mode<span class="w"> </span>smart
+<span class="c1"># Ожидаемое время: 2-3 минуты</span>
+</pre></div>
+</div>
+<p><strong>Breaking changes</strong>: ОТСУТСТВУЮТ (полная обратная совместимость)</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="disk-space-issues-during-deployment">
+<h2>Disk Space Issues During Deployment<a class="headerlink" href="#disk-space-issues-during-deployment" title="Link to this heading">¶</a></h2>
+<p><strong>НОВОЕ в v11.3.8</strong>: Pre-pull cleanup optimization</p>
+<section id="id5">
+<h3>Симптомы<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Error<span class="w"> </span>response<span class="w"> </span>from<span class="w"> </span>daemon:<span class="w"> </span>write<span class="w"> </span>/var/lib/docker/tmp/...:<span class="w"> </span>no<span class="w"> </span>space<span class="w"> </span>left<span class="w"> </span>on<span class="w"> </span>device
+Error:<span class="w"> </span>failed<span class="w"> </span>to<span class="w"> </span>pull<span class="w"> </span>image<span class="w"> </span>ghcr.io/ikeniborn/familybudget-backend:11.3.8
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Docker pull fails с ошибкой “no space left on device”</p></li>
+<li><p>Деплоймент прерывается на этапе pull images</p></li>
+<li><p>Свободного места &lt;2GB (недостаточно для новых образов)</p></li>
+</ul>
+</section>
+<section id="root-cause-v11-3-8">
+<h3>Root Cause (До v11.3.8)<a class="headerlink" href="#root-cause-v11-3-8" title="Link to this heading">¶</a></h3>
+<p><strong>Проблема</strong>: Cleanup старых образов происходил ПОСЛЕ pull новых образов</p>
+<p><strong>Workflow (неоптимальный)</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mf">1.</span> <span class="n">Pull</span> <span class="n">новые</span> <span class="n">образы</span> <span class="p">(</span><span class="n">занимают</span> <span class="o">+</span><span class="mi">2</span><span class="n">GB</span><span class="p">)</span>
+<span class="mf">2.</span> <span class="n">Start</span> <span class="n">services</span>
+<span class="mf">3.</span> <span class="n">Cleanup</span> <span class="n">старых</span> <span class="n">образов</span> <span class="p">(</span><span class="n">освобождают</span> <span class="n">место</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Результат</strong>: Если свободного места &lt;2GB → pull fails → деплой ломается</p>
+</section>
+<section id="v11-3-8">
+<h3>Решение (v11.3.8+)<a class="headerlink" href="#v11-3-8" title="Link to this heading">¶</a></h3>
+<p><strong>Оптимизация</strong>: Cleanup ПЕРЕД pull (registry-first optimization)</p>
+<p><strong>Новый workflow</strong>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mf">1.</span> <span class="n">Cleanup</span> <span class="n">старых</span> <span class="n">образов</span> <span class="p">(</span><span class="n">освобождают</span> <span class="o">+</span><span class="mi">1</span><span class="o">-</span><span class="mi">2</span><span class="n">GB</span><span class="p">)</span>
+<span class="mf">2.</span> <span class="n">Pull</span> <span class="n">новые</span> <span class="n">образы</span> <span class="p">(</span><span class="n">есть</span> <span class="n">свободное</span> <span class="n">место</span><span class="p">)</span>
+<span class="mf">3.</span> <span class="n">Start</span> <span class="n">services</span>
+</pre></div>
+</div>
+<p><strong>Преимущества</strong>:</p>
+<ul class="simple">
+<li><p>✅ Освобождает место ДО загрузки новых образов</p></li>
+<li><p>✅ Предотвращает “no space left” ошибки</p></li>
+<li><p>✅ Более эффективное использование дискового пространства</p></li>
+</ul>
+</section>
+<section id="cleanup">
+<h3>Функция Cleanup<a class="headerlink" href="#cleanup" title="Link to this heading">¶</a></h3>
+<p><strong>До v11.3.8</strong>: <code class="docutils literal notranslate"><span class="pre">cleanup_old_images()</span></code> - по возрасту (7 дней)</p>
+<ul class="simple">
+<li><p>⚠️ Race condition риск (мог удалить активный образ)</p></li>
+<li><p>⚠️ Не проверял IMAGE_VERSIONS.json</p></li>
+</ul>
+<p><strong>После v11.3.8</strong>: <code class="docutils literal notranslate"><span class="pre">cleanup_old_image_versions()</span></code> - по количеству версий (keep last 3)</p>
+<ul class="simple">
+<li><p>✅ Проверяет <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">inspect</span></code> (защита running containers)</p></li>
+<li><p>✅ Хранит последние N версий (предсказуемо)</p></li>
+<li><p>✅ Не зависит от возраста (лучше для CI/CD)</p></li>
+<li><p>✅ Защита от race conditions</p></li>
+</ul>
+</section>
+<section id="manual-cleanup">
+<h3>Manual Cleanup<a class="headerlink" href="#manual-cleanup" title="Link to this heading">¶</a></h3>
+<p>Если деплой всё равно падает с “no space”:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Вариант 1: Использовать новую функцию cleanup (рекомендуется)</span>
+<span class="nb">cd</span><span class="w"> </span>/opt/budget
+<span class="nb">source</span><span class="w"> </span>scripts/lib/docker.sh
+cleanup_old_image_versions<span class="w"> </span><span class="m">2</span><span class="w">  </span><span class="c1"># Хранить только 2 версии (агрессивнее)</span>
+
+<span class="c1"># Вариант 2: Удалить ВСЕ неиспользуемые образы</span>
+docker<span class="w"> </span>image<span class="w"> </span>prune<span class="w"> </span>-a<span class="w"> </span>--filter<span class="w"> </span><span class="s2">&quot;until=24h&quot;</span>
+
+<span class="c1"># Вариант 3: Проверить размер Docker volumes</span>
+docker<span class="w"> </span>system<span class="w"> </span>df<span class="w"> </span>-v
+
+<span class="c1"># Вариант 4: Очистить Docker build cache</span>
+docker<span class="w"> </span>builder<span class="w"> </span>prune<span class="w"> </span>-a<span class="w"> </span>--force
+</pre></div>
+</div>
+</section>
+<section id="id6">
+<h3>Prevention<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<ol class="arabic">
+<li><p><strong>Мониторинг дискового пространства</strong>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>df<span class="w"> </span>-h<span class="w"> </span>/var/lib/docker
+<span class="c1"># Должно быть &gt;5GB свободного места</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Регулярный cleanup</strong> (автоматически в v11.3.8+):</p>
+<ul class="simple">
+<li><p>Cleanup запускается ПЕРЕД каждым деплоем</p></li>
+<li><p>Хранит последние 3 версии образов</p></li>
+<li><p>Удаляет старые версии автоматически</p></li>
+</ul>
+</li>
+<li><p><strong>Увеличить диск</strong> (если проблема повторяется):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Для VPS/Cloud серверов</span>
+<span class="c1"># Увеличить диск через панель управления</span>
+<span class="c1"># Затем расширить файловую систему:</span>
+sudo<span class="w"> </span>resize2fs<span class="w"> </span>/dev/vda1
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="id7">
+<h3>See Also<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference internal" href="ci-cd-build-deploy.html#image-cleanup-strategy"><span class="std std-ref">ci-cd-build-deploy.md - Image Cleanup Strategy</span></a></p></li>
+<li><p><a class="reference internal" href="ci-cd-build-deploy.html#issue-8-disk-space-full"><span class="std std-ref">ci-cd-build-deploy.md - Disk Space Full</span></a></p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="orphaned-process-cleanup">
+<h2>Orphaned Process Cleanup<a class="headerlink" href="#orphaned-process-cleanup" title="Link to this heading">¶</a></h2>
+<p><strong>НОВОЕ в v11.3.8</strong>: Симметричная политика termination</p>
+<section id="id8">
+<h3>Симптомы<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>WARNING<span class="o">]</span><span class="w"> </span>Orphaned<span class="w"> </span>processes<span class="w"> </span>detected:
+<span class="w">  </span><span class="m">12345</span><span class="w">  </span>alembic<span class="w"> </span>current
+<span class="w">  </span><span class="m">12346</span><span class="w">  </span>npm<span class="w"> </span>install
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Зависшие deployment-related процессы от предыдущих деплоев</p></li>
+<li><p>Процессы остаются активными после failed deployments</p></li>
+<li><p>Накопление процессов между деплоями</p></li>
+</ul>
+</section>
+<section id="id9">
+<h3>Root Cause (До v11.3.8)<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h3>
+<p><strong>Несимметричная политика</strong>:</p>
+<ul class="simple">
+<li><p><strong>Начало деплоя</strong> (deploy.sh:871): auto-terminate ✅</p></li>
+<li><p><strong>Конец деплоя</strong> (deploy.sh:1552): только warning ⚠️</p></li>
+</ul>
+<p><strong>Результат</strong>: Процессы, созданные во время деплоя, не убивались в конце</p>
+</section>
+<section id="id10">
+<h3>Решение (v11.3.8+)<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<p><strong>Симметричная политика termination</strong>:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Этап</p></th>
+<th class="head"><p>Старое поведение</p></th>
+<th class="head"><p>Новое поведение</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Начало деплоя</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--terminate</span></code> ✅</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--terminate</span></code> ✅</p></td>
+</tr>
+<tr class="row-odd"><td><p>Конец деплоя</p></td>
+<td><p>warning только ⚠️</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--terminate</span></code> ✅</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Преимущества</strong>:</p>
+<ul class="simple">
+<li><p>✅ Предотвращает накопление зависших процессов</p></li>
+<li><p>✅ Освобождает ресурсы немедленно</p></li>
+<li><p>✅ Симметричная политика (легче понять)</p></li>
+<li><p>✅ Безопасно (исключает текущий deployment процесс)</p></li>
+</ul>
+</section>
+<section id="tracked-processes">
+<h3>Tracked Processes<a class="headerlink" href="#tracked-processes" title="Link to this heading">¶</a></h3>
+<p><strong>Что убивается</strong>:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">alembic</span></code> (migrations)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">install|update|ci</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">npx</span></code> (node package runner)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span></code> (Python dependencies)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">clone|pull|fetch</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rsync</span></code> (code sync)</p></li>
+</ul>
+<p><strong>Что НЕ убивается</strong>:</p>
+<ul class="simple">
+<li><p>Docker daemon (<code class="docutils literal notranslate"><span class="pre">docker</span></code>, <code class="docutils literal notranslate"><span class="pre">containerd</span></code>)</p></li>
+<li><p>Uvicorn workers (<code class="docutils literal notranslate"><span class="pre">uvicorn.*backend.app.main</span></code>)</p></li>
+<li><p>Bot process (<code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">-m</span> <span class="pre">bot.main</span></code>)</p></li>
+<li><p>PostgreSQL, Redis, Nginx</p></li>
+</ul>
+</section>
+<section id="id11">
+<h3>Manual Cleanup<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h3>
+<p>Если зависшие процессы всё ещё есть после деплоя:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Вариант 1: Использовать deployment script</span>
+<span class="nb">cd</span><span class="w"> </span>/opt/budget
+<span class="nb">source</span><span class="w"> </span>scripts/lib/utils.sh
+check_orphaned_deployment_processes<span class="w"> </span>--terminate
+
+<span class="c1"># Вариант 2: Найти и убить вручную</span>
+ps<span class="w"> </span>aux<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;alembic|npm install|pip install|rsync&quot;</span>
+sudo<span class="w"> </span><span class="nb">kill</span><span class="w"> </span>-9<span class="w"> </span>&lt;PID&gt;
+</pre></div>
+</div>
+</section>
+<section id="id12">
+<h3>See Also<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference internal" href="ci-cd-build-deploy.html#orphaned-process-cleanup-policy"><span class="std std-ref">ci-cd-build-deploy.md - Orphaned Process Cleanup Policy</span></a></p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="related-issues">
+<h2>Related Issues<a class="headerlink" href="#related-issues" title="Link to this heading">¶</a></h2>
+<section id="postgresql-health-check-timeout">
+<h3>PostgreSQL Health Check Timeout<a class="headerlink" href="#postgresql-health-check-timeout" title="Link to this heading">¶</a></h3>
+<p>See: <a class="reference internal" href="../README.html#2025-12-30-postgresql-health-check-timeout-fix---prevent-deployment-hang-v654"><span class="std std-ref">Architecture README - v6.5.4</span></a></p>
+</section>
+<section id="service-worker-files-missing-after-build">
+<h3>Service Worker Files Missing After Build<a class="headerlink" href="#service-worker-files-missing-after-build" title="Link to this heading">¶</a></h3>
+<p><strong>Since:</strong> v7.0.1 - Automatic file copying from .vite-build/</p>
+<section id="id13">
+<h4>Symptoms<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[WARNING] Service Worker files missing after build
+[ERROR] ❌ Missing: sw.min.js.gz
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Build completes successfully</p></li>
+<li><p>Vite creates <code class="docutils literal notranslate"><span class="pre">sw.js</span></code> and <code class="docutils literal notranslate"><span class="pre">sw.js.gz</span></code> in <code class="docutils literal notranslate"><span class="pre">.vite-build/</span></code></p></li>
+<li><p>Files not found in deployment root <code class="docutils literal notranslate"><span class="pre">/opt/budget/</span></code></p></li>
+<li><p>Backend cannot serve Service Worker</p></li>
+<li><p>PWA offline mode broken</p></li>
+</ul>
+</section>
+<section id="id14">
+<h4>Root Cause<a class="headerlink" href="#id14" title="Link to this heading">¶</a></h4>
+<p><strong>File Location Mismatch:</strong></p>
+<ul class="simple">
+<li><p><strong>Vite output:</strong> <code class="docutils literal notranslate"><span class="pre">.vite-build/sw.js</span></code> + <code class="docutils literal notranslate"><span class="pre">.vite-build/sw.js.gz</span></code> (vite.config.single.ts:74)</p></li>
+<li><p><strong>Backend expectation:</strong> <code class="docutils literal notranslate"><span class="pre">/opt/budget/sw.min.js</span></code> + <code class="docutils literal notranslate"><span class="pre">/opt/budget/sw.min.js.gz</span></code> (v6.8.0+)</p></li>
+<li><p><strong>No automatic copy:</strong> Files stayed in build directory</p></li>
+</ul>
+<p><strong>Why This Happened:</strong></p>
+<ol class="arabic simple">
+<li><p>Vite v7.0.0 migration changed build output structure</p></li>
+<li><p>Plugin order fix (2026-01-12) ensured .gz creation but not file placement</p></li>
+<li><p>No copy step between Vite output and final serving location</p></li>
+</ol>
+</section>
+<section id="quick-fix-manual">
+<h4>Quick Fix (Manual)<a class="headerlink" href="#quick-fix-manual" title="Link to this heading">¶</a></h4>
+<p><strong>Before v7.0.1:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Manual copy required after each deployment</span>
+<span class="nb">cd</span><span class="w"> </span>/opt/budget
+sudo<span class="w"> </span>cp<span class="w"> </span>.vite-build/sw.js<span class="w"> </span>sw.min.js
+sudo<span class="w"> </span>cp<span class="w"> </span>.vite-build/sw.js.gz<span class="w"> </span>sw.min.js.gz
+
+<span class="c1"># Verify</span>
+ls<span class="w"> </span>-lh<span class="w"> </span>sw.min.js<span class="w"> </span>sw.min.js.gz
+</pre></div>
+</div>
+<p><strong>After v7.0.1:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Automatic copy - no manual intervention needed</span>
+<span class="c1"># deploy.sh handles file copying at two checkpoints:</span>
+<span class="c1"># 1. After npm run build:prod (primary)</span>
+<span class="c1"># 2. During validation (fallback)</span>
+</pre></div>
+</div>
+</section>
+<section id="automatic-fix-v7-0-1">
+<h4>Automatic Fix (v7.0.1+)<a class="headerlink" href="#automatic-fix-v7-0-1" title="Link to this heading">¶</a></h4>
+<p>Deploy script now includes automatic file copying:</p>
+<p><strong>Primary Copy (deploy.sh:1445-1456):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Copy Service Worker files from .vite-build/ to final location</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/.vite-build/sw.js&quot;</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/.vite-build/sw.js.gz&quot;</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span>cp<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/.vite-build/sw.js&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/sw.min.js&quot;</span>
+<span class="w">    </span>cp<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/.vite-build/sw.js.gz&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/sw.min.js.gz&quot;</span>
+<span class="w">    </span>print_message<span class="w"> </span>success<span class="w"> </span><span class="s2">&quot;✓ Service Worker files copied: sw.min.js + sw.min.js.gz&quot;</span>
+<span class="k">fi</span>
+</pre></div>
+</div>
+<p><strong>Fallback Copy (deploy.sh:1585-1596):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Retry during validation if files still missing</span>
+<span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>!<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$sw_min</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>!<span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$sw_min_gz</span><span class="s2">&quot;</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/.vite-build/sw.js&quot;</span><span class="w"> </span><span class="o">]]</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">[[</span><span class="w"> </span>-f<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/.vite-build/sw.js.gz&quot;</span><span class="w"> </span><span class="o">]]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">        </span>cp<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/.vite-build/sw.js&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/sw.min.js&quot;</span>
+<span class="w">        </span>cp<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/.vite-build/sw.js.gz&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="nv">$DEPLOY_DIR</span><span class="s2">/sw.min.js.gz&quot;</span>
+<span class="w">        </span>success<span class="w"> </span><span class="s2">&quot;✓ Service Worker files copied from .vite-build/ (fallback)&quot;</span>
+<span class="w">    </span><span class="k">fi</span>
+<span class="k">fi</span>
+</pre></div>
+</div>
+</section>
+<section id="verification">
+<h4>Verification<a class="headerlink" href="#verification" title="Link to this heading">¶</a></h4>
+<p><strong>Check files exist:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>/opt/budget
+ls<span class="w"> </span>-lh<span class="w"> </span>sw.min.js<span class="w"> </span>sw.min.js.gz<span class="w"> </span>.vite-build/sw.js*
+
+<span class="c1"># Expected output:</span>
+<span class="c1"># -rw-r--r-- 1 root root  11K Jan 15 18:48 sw.min.js</span>
+<span class="c1"># -rw-r--r-- 1 root root 3.8K Jan 15 18:48 sw.min.js.gz</span>
+<span class="c1"># -rw-r--r-- 1 root root  11K Jan 15 18:48 .vite-build/sw.js</span>
+<span class="c1"># -rw-r--r-- 1 root root 3.8K Jan 15 18:48 .vite-build/sw.js.gz</span>
+</pre></div>
+</div>
+<p><strong>Check deployment logs:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>tail<span class="w"> </span>-100<span class="w"> </span>/opt/budget/logs/deploy.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-i<span class="w"> </span><span class="s2">&quot;service worker&quot;</span>
+
+<span class="c1"># Expected output (v7.0.1+):</span>
+<span class="c1"># [INFO] Copying Service Worker files from .vite-build/ to deployment root...</span>
+<span class="c1"># [SUCCESS] ✓ Service Worker files copied: sw.min.js + sw.min.js.gz</span>
+<span class="c1"># [SUCCESS] Service Worker validated: sw.min.js (10659B) + sw.min.js.gz (3841B)</span>
+</pre></div>
+</div>
+</section>
+<section id="id15">
+<h4>Prevention<a class="headerlink" href="#id15" title="Link to this heading">¶</a></h4>
+<p><strong>For v7.0.1+:</strong> No action needed - automatic copy is built-in</p>
+<p><strong>For older versions:</strong> Upgrade to v7.0.1+ or manually copy files after each deployment</p>
+</section>
+<section id="impact">
+<h4>Impact<a class="headerlink" href="#impact" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p>✅ No manual file copying needed</p></li>
+<li><p>✅ Service Worker automatically available after deployment</p></li>
+<li><p>✅ Fallback mechanism for robustness</p></li>
+<li><p>✅ Both .js and .gz files handled together</p></li>
+<li><p>✅ Proper logging for debugging</p></li>
+</ul>
+<p><strong>Commit:</strong> <code class="docutils literal notranslate"><span class="pre">48588fb5</span></code></p>
+<p><strong>See Also:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#../build-system.md#2026-01-15-automatic-service-worker-file-copying-v701"><span class="xref myst">Build System - Service Worker File Copying</span></a></p></li>
+<li><p><a class="reference internal" href="#../pwa.md"><span class="xref myst">PWA Architecture</span></a> - Service Worker serving</p></li>
+</ul>
+</section>
+</section>
+<section id="service-worker-cache-busting-failures">
+<h3>Service Worker Cache Busting Failures<a class="headerlink" href="#service-worker-cache-busting-failures" title="Link to this heading">¶</a></h3>
+<p><strong>Since:</strong> v6.8.1 - Automatic ownership fix + validation improvements</p>
+<section id="id16">
+<h4>Symptoms<a class="headerlink" href="#id16" title="Link to this heading">¶</a></h4>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[STEP 1/2] Validating Service Worker version...
+  ✗ Service Worker version mismatch!
+  Expected: v20260103_0649
+  Actual:   CACHE_VERSION=&quot;v20251230_2235&quot;
+
+[ERROR] CRITICAL: Failed to update cache busting versions!
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>Service Worker не обновляется при деплое (5+ итераций)</p></li>
+<li><p>Версия в <code class="docutils literal notranslate"><span class="pre">sw.min.js</span></code> устаревшая (несколько дней назад)</p></li>
+<li><p>Деплой падает на этапе валидации cache busting</p></li>
+</ul>
+</section>
+<section id="id17">
+<h4>Root Cause<a class="headerlink" href="#id17" title="Link to this heading">¶</a></h4>
+<p><strong>Primary:</strong> <code class="docutils literal notranslate"><span class="pre">.cache-version</span></code> file owned by <code class="docutils literal notranslate"><span class="pre">root:root</span></code> when running <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">./deploy.sh</span></code></p>
+<p><strong>Sequence:</strong></p>
+<ol class="arabic simple">
+<li><p>First deploy: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">./deploy.sh</span></code> creates <code class="docutils literal notranslate"><span class="pre">.cache-version</span></code> as <code class="docutils literal notranslate"><span class="pre">root:root</span></code> ✓</p></li>
+<li><p>Second deploy: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">./deploy.sh</span></code> tries to overwrite → <strong>silently fails</strong> (permission denied)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">minify.sh</span></code> reads <strong>stale version</strong> from <code class="docutils literal notranslate"><span class="pre">.cache-version</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">sw.min.js</span></code> created with <strong>old CACHE_VERSION</strong></p></li>
+<li><p>Validation fails: expected ≠ actual</p></li>
+</ol>
+<p><strong>Secondary (fixed in v6.8.1):</strong> Validation script had critical bugs:</p>
+<ul class="simple">
+<li><p>Searched for <code class="docutils literal notranslate"><span class="pre">CACHE_VERSION_PLACEHOLDER</span></code> instead of <code class="docutils literal notranslate"><span class="pre">PLACEHOLDER</span></code> (never detected failures!)</p></li>
+<li><p>Complex regex for HTML templates caused edge cases</p></li>
+</ul>
+</section>
+<section id="quick-fix">
+<h4>Quick Fix<a class="headerlink" href="#quick-fix" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Fix file ownership</span>
+sudo<span class="w"> </span>chown<span class="w"> </span>ikeniborn:ikeniborn<span class="w"> </span>/opt/budget/.cache-version
+
+<span class="c1"># 2. Remove old Service Worker (force regeneration)</span>
+sudo<span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span>/opt/budget/sw.min.js<span class="w"> </span>/opt/budget/sw.min.js.gz
+
+<span class="c1"># 3. Deploy without sudo (recommended)</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span><span class="nb">test</span>
+bash<span class="w"> </span>deploy.sh<span class="w"> </span>--sync-mode<span class="w"> </span>update<span class="w"> </span>--cleanup-mode<span class="w"> </span>smart<span class="w"> </span>--patch
+
+<span class="c1"># 4. Verify fix</span>
+ls<span class="w"> </span>-la<span class="w"> </span>/opt/budget/.cache-version<span class="w"> </span>/opt/budget/sw.min.js
+cat<span class="w"> </span>/opt/budget/.cache-version
+grep<span class="w"> </span>-o<span class="w"> </span><span class="s1">&#39;CACHE_VERSION=&quot;[^&quot;]*&quot;&#39;</span><span class="w"> </span>/opt/budget/sw.min.js<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1
+
+<span class="c1"># Expected: same version in both files, owned by ikeniborn:ikeniborn</span>
+</pre></div>
+</div>
+</section>
+<section id="prevention-v6-8-1">
+<h4>Prevention (v6.8.1+)<a class="headerlink" href="#prevention-v6-8-1" title="Link to this heading">¶</a></h4>
+<p>Deployment script now automatically:</p>
+<ol class="arabic simple">
+<li><p>Fixes ownership when running with sudo: <code class="docutils literal notranslate"><span class="pre">chown</span> <span class="pre">$SUDO_USER:$SUDO_USER</span> <span class="pre">.cache-version</span></code></p></li>
+<li><p>Validates file content matches expected version</p></li>
+<li><p>Logs file ownership for diagnostics</p></li>
+<li><p>Fails fast on write errors</p></li>
+</ol>
+<p><strong>Recommendation:</strong> Run <code class="docutils literal notranslate"><span class="pre">deploy.sh</span></code> <strong>without sudo</strong> when possible</p>
+</section>
+<section id="validation-improvements-v6-8-1">
+<h4>Validation Improvements (v6.8.1+)<a class="headerlink" href="#validation-improvements-v6-8-1" title="Link to this heading">¶</a></h4>
+<ol class="arabic simple">
+<li><p><strong>CRITICAL FIX:</strong> Detects actual <code class="docutils literal notranslate"><span class="pre">PLACEHOLDER</span></code> token (not <code class="docutils literal notranslate"><span class="pre">CACHE_VERSION_PLACEHOLDER</span></code>)</p></li>
+<li><p>Simplified regex for HTML templates (more reliable)</p></li>
+<li><p>Shows found PLACEHOLDER line for debugging</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">minify.sh</span></code> checks file staleness (ignores files &gt; 5 minutes old)</p></li>
+</ol>
+</section>
+<section id="diagnostics">
+<h4>Diagnostics<a class="headerlink" href="#diagnostics" title="Link to this heading">¶</a></h4>
+<p>Check current state:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># File ownership</span>
+ls<span class="w"> </span>-la<span class="w"> </span>/opt/budget/.cache-version
+
+<span class="c1"># Version in file</span>
+cat<span class="w"> </span>/opt/budget/.cache-version
+
+<span class="c1"># Version in Service Worker</span>
+grep<span class="w"> </span>-o<span class="w"> </span><span class="s1">&#39;CACHE_VERSION=&quot;[^&quot;]*&quot;&#39;</span><span class="w"> </span>/opt/budget/sw.min.js<span class="w"> </span><span class="p">|</span><span class="w"> </span>head<span class="w"> </span>-1
+
+<span class="c1"># File age</span>
+stat<span class="w"> </span>/opt/budget/.cache-version
+
+<span class="c1"># Deploy logs</span>
+tail<span class="w"> </span>-100<span class="w"> </span>/opt/budget/logs/deploy.log<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-E<span class="w"> </span><span class="s2">&quot;cache-version|CACHE_VERSION|ownership&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="id18">
+<h4>See Also<a class="headerlink" href="#id18" title="Link to this heading">¶</a></h4>
+<ul class="simple">
+<li><p><a class="reference internal" href="../README.html#2025-12-30-cache-busting-system-fix-v2---execution-order-correction-v653"><span class="std std-ref">Architecture README - v6.5.3</span></a> - Earlier cache busting fixes</p></li>
+<li><p><a class="reference internal" href="#../pwa.md"><span class="xref myst">PWA Architecture</span></a> - Service Worker caching strategy</p></li>
+</ul>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="registry-first-migration-v9-0">
+<h2>Registry-First Migration (v9.0)<a class="headerlink" href="#registry-first-migration-v9-0" title="Link to this heading">¶</a></h2>
+<p><strong>Since:</strong> v9.0.0 - Complete architecture overhaul</p>
+<section id="what-changed">
+<h3>What Changed<a class="headerlink" href="#what-changed" title="Link to this heading">¶</a></h3>
+<p>In <strong>v9.0</strong>, deployment architecture migrated from <strong>build mode</strong> (local building on server) to <strong>registry-first mode</strong> (pull ready images from GitHub Container Registry).</p>
+<p><strong>Before v9.0 (Build Mode):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Server<span class="w"> </span>workflow:
+<span class="m">1</span>.<span class="w"> </span>git<span class="w"> </span>pull<span class="w"> </span><span class="o">(</span>sync<span class="w"> </span>code<span class="o">)</span>
+<span class="m">2</span>.<span class="w"> </span>npm<span class="w"> </span>ci<span class="w"> </span><span class="o">(</span>install<span class="w"> </span>dependencies<span class="o">)</span><span class="w">         </span>←<span class="w"> </span>TIME<span class="w"> </span>CONSUMING
+<span class="m">3</span>.<span class="w"> </span>npm<span class="w"> </span>run<span class="w"> </span>build<span class="w"> </span><span class="o">(</span>minify<span class="w"> </span>frontend<span class="o">)</span><span class="w">       </span>←<span class="w"> </span>TIME<span class="w"> </span>CONSUMING
+<span class="m">4</span>.<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>build<span class="w"> </span><span class="o">(</span>build<span class="w"> </span>images<span class="o">)</span><span class="w">   </span>←<span class="w"> </span>TIME<span class="w"> </span>CONSUMING
+<span class="m">5</span>.<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span><span class="o">(</span>start<span class="w"> </span>services<span class="o">)</span>
+Total:<span class="w"> </span><span class="m">5</span>-7<span class="w"> </span>minutes
+</pre></div>
+</div>
+<p><strong>After v9.0 (Registry-First):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>Server<span class="w"> </span>workflow:
+<span class="m">1</span>.<span class="w"> </span>git<span class="w"> </span>pull<span class="w"> </span><span class="o">(</span>sync<span class="w"> </span>code<span class="o">)</span>
+<span class="m">2</span>.<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>pull<span class="w"> </span><span class="o">(</span>pull<span class="w"> </span>images<span class="o">)</span><span class="w">     </span>←<span class="w"> </span>FAST<span class="w"> </span><span class="o">(</span><span class="m">2</span>-3<span class="w"> </span>min<span class="o">)</span>
+<span class="m">3</span>.<span class="w"> </span>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span><span class="o">(</span>start<span class="w"> </span>services<span class="o">)</span>
+Total:<span class="w"> </span><span class="m">2</span>-3<span class="w"> </span>minutes
+</pre></div>
+</div>
+<p><strong>Building happens in GitHub Actions CI/CD:</strong></p>
+<ul class="simple">
+<li><p>All builds: frontend minification, Docker image building</p></li>
+<li><p>Outputs: 5 Docker images pushed to ghcr.io</p></li>
+<li><p>Server: only pulls ready images</p></li>
+</ul>
+</section>
+<section id="what-s-not-required-on-server-anymore">
+<h3>What’s NOT Required on Server Anymore<a class="headerlink" href="#what-s-not-required-on-server-anymore" title="Link to this heading">¶</a></h3>
+<p>❌ <strong>Removed in v9.0:</strong></p>
+<ul class="simple">
+<li><p>npm/Node.js installation</p></li>
+<li><p>Frontend build process (minification, bundling)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">.npm-isolated/</span></code> directory (233 packages)</p></li>
+<li><p>Local Docker image building</p></li>
+<li><p>Host-based nginx configuration generation</p></li>
+</ul>
+<p>✅ <strong>Required on server:</strong></p>
+<ul class="simple">
+<li><p>Docker + Docker Compose</p></li>
+<li><p>Git (for syncing config files)</p></li>
+<li><p>Configuration files (docker-compose.yml, .env, VERSION)</p></li>
+</ul>
+</section>
+<section id="common-v9-0-issues">
+<h3>Common v9.0 Issues<a class="headerlink" href="#common-v9-0-issues" title="Link to this heading">¶</a></h3>
+<section id="issue-1-npm-command-not-found-expected">
+<h4>Issue 1: “npm: command not found” (Expected!)<a class="headerlink" href="#issue-1-npm-command-not-found-expected" title="Link to this heading">¶</a></h4>
+<p><strong>Symptoms:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>bash:<span class="w"> </span>npm:<span class="w"> </span><span class="nb">command</span><span class="w"> </span>not<span class="w"> </span>found
+</pre></div>
+</div>
+<p><strong>Cause:</strong> npm is NO LONGER required in v9.0</p>
+<p><strong>Solution:</strong> This is <strong>EXPECTED behavior</strong>. Server doesn’t need npm anymore.</p>
+<p><strong>Verification:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Should NOT have npm</span>
+which<span class="w"> </span>npm
+<span class="c1"># Expected: (no output)</span>
+
+<span class="c1"># Should have Docker</span>
+docker<span class="w"> </span>--version
+<span class="c1"># Expected: Docker version 20.10+</span>
+</pre></div>
+</div>
+</section>
+<section id="issue-2-image-versions-json-not-found">
+<h4>Issue 2: IMAGE_VERSIONS.json Not Found<a class="headerlink" href="#issue-2-image-versions-json-not-found" title="Link to this heading">¶</a></h4>
+<p><strong>Symptoms:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ERROR:<span class="w"> </span>IMAGE_VERSIONS.json<span class="w"> </span>not<span class="w"> </span>found<span class="w"> </span><span class="k">in</span><span class="w"> </span>/opt/budget
+</pre></div>
+</div>
+<p><strong>Cause:</strong> File not synced from repository</p>
+<p><strong>Solution:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Pull latest from git</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>main
+
+<span class="c1"># Verify file exists</span>
+cat<span class="w"> </span>IMAGE_VERSIONS.json
+
+<span class="c1"># Re-deploy</span>
+sudo<span class="w"> </span>./deploy.sh
+</pre></div>
+</div>
+<p><strong>Prevention:</strong> Always <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span></code> before deploying</p>
+</section>
+<section id="issue-3-docker-image-not-found-in-registry">
+<h4>Issue 3: Docker Image Not Found in Registry<a class="headerlink" href="#issue-3-docker-image-not-found-in-registry" title="Link to this heading">¶</a></h4>
+<p><strong>Symptoms:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ERROR:<span class="w"> </span>Failed<span class="w"> </span>to<span class="w"> </span>pull<span class="w"> </span>ghcr.io/ikeniborn/familybudget-backend:10.0.51
+Error<span class="w"> </span>response<span class="w"> </span>from<span class="w"> </span>daemon:<span class="w"> </span>manifest<span class="w"> </span><span class="k">for</span><span class="w"> </span>...<span class="w"> </span>not<span class="w"> </span>found
+</pre></div>
+</div>
+<p><strong>Cause:</strong> GitHub Actions build failed or VERSION mismatch</p>
+<p><strong>Solution:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Check GitHub Actions status</span>
+<span class="c1"># Visit: https://github.com/ikeniborn/familyBudget/actions</span>
+
+<span class="c1"># 2. Verify VERSION file matches built images</span>
+cat<span class="w"> </span>VERSION
+<span class="c1"># Example: 10.0.51</span>
+
+<span class="c1"># 3. Check available tags in ghcr.io</span>
+<span class="c1"># Visit: https://github.com/ikeniborn/familyBudget/pkgs/container/familybudget-backend</span>
+
+<span class="c1"># 4. If build failed, re-trigger CI/CD:</span>
+git<span class="w"> </span>commit<span class="w"> </span>--allow-empty<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: rebuild Docker images&quot;</span>
+git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>main
+
+<span class="c1"># 5. Wait for build to complete (~5-7 min)</span>
+<span class="c1"># 6. Re-deploy</span>
+sudo<span class="w"> </span>./deploy.sh
+</pre></div>
+</div>
+</section>
+<section id="issue-4-nginx-configuration-not-updating">
+<h4>Issue 4: Nginx Configuration Not Updating<a class="headerlink" href="#issue-4-nginx-configuration-not-updating" title="Link to this heading">¶</a></h4>
+<p><strong>Symptoms:</strong> Nginx config changes not applied after deployment</p>
+<p><strong>Cause:</strong> In v9.0, nginx config is <strong>embedded in Docker image</strong></p>
+<p><strong>Solution:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Edit templates in git repository</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+vim<span class="w"> </span>nginx/conf.d/app-https.conf.template
+
+<span class="c1"># 2. Commit changes</span>
+git<span class="w"> </span>add<span class="w"> </span>nginx/conf.d/
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;fix(nginx): update configuration&quot;</span>
+git<span class="w"> </span>push
+
+<span class="c1"># 3. Wait for GitHub Actions to rebuild nginx image (~2-3 min)</span>
+
+<span class="c1"># 4. Deploy new image</span>
+sudo<span class="w"> </span>./deploy.sh
+
+<span class="c1"># 5. Verify container restarted</span>
+docker<span class="w"> </span>ps<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>nginx
+<span class="c1"># Check &quot;Created&quot; time - should be recent</span>
+</pre></div>
+</div>
+<p><strong>IMPORTANT:</strong></p>
+<ul class="simple">
+<li><p>Editing <code class="docutils literal notranslate"><span class="pre">/opt/budget/nginx/conf.d/*.conf</span></code> on server has <strong>NO EFFECT</strong></p></li>
+<li><p>Configuration is processed by <code class="docutils literal notranslate"><span class="pre">docker-entrypoint.sh</span></code> inside container</p></li>
+<li><p>Templates are in image, not mounted from host</p></li>
+</ul>
+</section>
+</section>
+<section id="migration-checklist">
+<h3>Migration Checklist<a class="headerlink" href="#migration-checklist" title="Link to this heading">¶</a></h3>
+<p>If upgrading from v8.x to v9.0:</p>
+<ul class="simple">
+<li><p>[ ] Verify GitHub Actions CI/CD configured (<code class="docutils literal notranslate"><span class="pre">.github/workflows/build-and-push.yml</span></code>)</p></li>
+<li><p>[ ] Check Docker images exist in ghcr.io registry</p></li>
+<li><p>[ ] Remove <code class="docutils literal notranslate"><span class="pre">.npm-isolated/</span></code> from server (if exists): <code class="docutils literal notranslate"><span class="pre">rm</span> <span class="pre">-rf</span> <span class="pre">/opt/budget/.npm-isolated</span></code></p></li>
+<li><p>[ ] Remove local <code class="docutils literal notranslate"><span class="pre">node_modules/</span></code> from server: <code class="docutils literal notranslate"><span class="pre">rm</span> <span class="pre">-rf</span> <span class="pre">/opt/budget/node_modules</span></code></p></li>
+<li><p>[ ] Verify <code class="docutils literal notranslate"><span class="pre">IMAGE_VERSIONS.json</span></code> in repository</p></li>
+<li><p>[ ] Update <code class="docutils literal notranslate"><span class="pre">VERSION</span></code> file before deployment</p></li>
+<li><p>[ ] Pull latest code: <code class="docutils literal notranslate"><span class="pre">git</span> <span class="pre">pull</span> <span class="pre">origin</span> <span class="pre">main</span></code></p></li>
+<li><p>[ ] Deploy: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">./deploy.sh</span></code></p></li>
+<li><p>[ ] Verify images pulled from registry (not built locally)</p></li>
+<li><p>[ ] Check deployment time (should be 2-3 min, not 5-7 min)</p></li>
+</ul>
+</section>
+<section id="debugging-registry-first-deployment">
+<h3>Debugging Registry-First Deployment<a class="headerlink" href="#debugging-registry-first-deployment" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Verify images available in registry</span>
+docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/ikeniborn/familybudget-backend:<span class="k">$(</span>cat<span class="w"> </span>VERSION<span class="k">)</span>
+docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/ikeniborn/familybudget-nginx:<span class="k">$(</span>cat<span class="w"> </span>VERSION<span class="k">)</span>
+
+<span class="c1"># 2. Check IMAGE_VERSIONS.json content</span>
+cat<span class="w"> </span>IMAGE_VERSIONS.json<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span>.
+
+<span class="c1"># 3. Verify .env has correct image versions</span>
+grep<span class="w"> </span>VERSION<span class="w"> </span>/opt/budget/.env
+
+<span class="c1"># 4. Check Docker Compose image references</span>
+grep<span class="w"> </span><span class="s2">&quot;image:&quot;</span><span class="w"> </span>docker-compose.yml
+
+<span class="c1"># 5. View deployment logs</span>
+tail<span class="w"> </span>-100<span class="w"> </span>/opt/budget/logs/deploy.log
+
+<span class="c1"># 6. Check pulled images</span>
+docker<span class="w"> </span>images<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>familybudget
+
+<span class="c1"># 7. Verify container using correct image</span>
+docker<span class="w"> </span>inspect<span class="w"> </span>familybudget-backend<span class="w"> </span><span class="p">|</span><span class="w"> </span>jq<span class="w"> </span><span class="s1">&#39;.[0].Config.Image&#39;</span>
+</pre></div>
+</div>
+</section>
+<section id="performance-comparison">
+<h3>Performance Comparison<a class="headerlink" href="#performance-comparison" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Metric</p></th>
+<th class="head"><p>Build Mode (v8.x)</p></th>
+<th class="head"><p>Registry-First (v9.0)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Deployment time</p></td>
+<td><p>5-7 min</p></td>
+<td><p>2-3 min</p></td>
+</tr>
+<tr class="row-odd"><td><p>Server CPU</p></td>
+<td><p>High (npm build)</p></td>
+<td><p>Low (pull only)</p></td>
+</tr>
+<tr class="row-even"><td><p>Server RAM</p></td>
+<td><p>~2GB (build)</p></td>
+<td><p>~500MB (pull)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Disk I/O</p></td>
+<td><p>High (npm cache)</p></td>
+<td><p>Low (image layers)</p></td>
+</tr>
+<tr class="row-even"><td><p>Network usage</p></td>
+<td><p>npm registry</p></td>
+<td><p>ghcr.io only</p></td>
+</tr>
+<tr class="row-odd"><td><p>Server requirements</p></td>
+<td><p>Node.js + npm</p></td>
+<td><p>Docker only</p></td>
+</tr>
+<tr class="row-even"><td><p>Failure points</p></td>
+<td><p>Network, build, cache</p></td>
+<td><p>Network (retry-able)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id19">
+<h3>See Also<a class="headerlink" href="#id19" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference internal" href="#../ci-cd-build-deploy.md"><span class="xref myst">CI/CD Architecture</span></a> - Complete CI/CD pipeline documentation</p></li>
+<li><p><a class="reference internal" href="#../docker.md"><span class="xref myst">Docker Architecture</span></a> - Multi-stage builds and image structure</p></li>
+<li><p><a class="reference internal" href="../../prd/10-deployment-operations.html"><span class="std std-doc">Deployment Operations</span></a> - Deployment procedures</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Deployment Troubleshooting Guide</a><ul>
+<li><a class="reference internal" href="#important-registry-first-architecture-v9-0">⚠️ IMPORTANT: Registry-First Architecture (v9.0+)</a></li>
+<li><a class="reference internal" href="#network-hang-during-npm-installation-obsolete-in-v9-0">~~Network Hang During npm Installation~~ (OBSOLETE in v9.0)</a><ul>
+<li><a class="reference internal" href="#automatic-recovery-v6-5-5">Automatic Recovery (v6.5.5+)</a></li>
+<li><a class="reference internal" href="#manual-diagnostics">Manual Diagnostics</a><ul>
+<li><a class="reference internal" href="#check-network-connectivity">1. Check Network Connectivity</a></li>
+<li><a class="reference internal" href="#check-npm-registry-configuration">2. Check npm Registry Configuration</a></li>
+<li><a class="reference internal" href="#check-disk-space">3. Check Disk Space</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#manual-workarounds">Manual Workarounds</a><ul>
+<li><a class="reference internal" href="#workaround-1-increase-timeout-slow-network">Workaround 1: Increase Timeout (Slow Network)</a></li>
+<li><a class="reference internal" href="#workaround-2-pre-download-packages">Workaround 2: Pre-download Packages</a></li>
+<li><a class="reference internal" href="#workaround-3-use-mirror-registry">Workaround 3: Use Mirror Registry</a></li>
+<li><a class="reference internal" href="#workaround-4-emergency-skip-dangerous">Workaround 4: Emergency Skip (Dangerous)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#prevention-strategies">Prevention Strategies</a><ul>
+<li><a class="reference internal" href="#enable-offline-mode">1. Enable Offline Mode</a></li>
+<li><a class="reference internal" href="#configure-npm-cache">2. Configure npm Cache</a></li>
+<li><a class="reference internal" href="#monitor-network-quality">3. Monitor Network Quality</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#related-configuration">Related Configuration</a></li>
+<li><a class="reference internal" href="#see-also">See Also</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#backup-automation-not-working">Backup Automation Not Working</a><ul>
+<li><a class="reference internal" href="#symptoms">Symptoms</a></li>
+<li><a class="reference internal" href="#root-cause">Root Cause</a></li>
+<li><a class="reference internal" href="#diagnostic-steps">Diagnostic Steps</a></li>
+<li><a class="reference internal" href="#solution">Solution</a></li>
+<li><a class="reference internal" href="#prevention">Prevention</a></li>
+<li><a class="reference internal" href="#verification-checklist">Verification Checklist</a></li>
+<li><a class="reference internal" href="#id1">See Also</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#build-artifact-validation-failures">Build Artifact Validation Failures</a><ul>
+<li><a class="reference internal" href="#id2">Symptoms</a></li>
+<li><a class="reference internal" href="#what-changed-v6-6-1">What Changed (v6.6.1)</a></li>
+<li><a class="reference internal" href="#root-causes">Root Causes</a><ul>
+<li><a class="reference internal" href="#vite-build-partial-failure">1. Vite Build Partial Failure</a></li>
+<li><a class="reference internal" href="#legacy-minification-failure-terser">2. Legacy Minification Failure (Terser)</a></li>
+<li><a class="reference internal" href="#cache-busting-failure-placeholder-not-replaced">3. Cache Busting Failure (PLACEHOLDER not replaced)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#solutions">Solutions</a><ul>
+<li><a class="reference internal" href="#quick-fix-force-rebuild">Quick Fix: Force Rebuild</a></li>
+<li><a class="reference internal" href="#fix-typescript-errors">Fix TypeScript Errors</a></li>
+<li><a class="reference internal" href="#fix-legacy-file-syntax">Fix Legacy File Syntax</a></li>
+<li><a class="reference internal" href="#fix-cache-busting">Fix Cache Busting</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#id3">Prevention</a><ul>
+<li><a class="reference internal" href="#always-run-type-check-before-deploy">1. Always Run Type-Check Before Deploy</a></li>
+<li><a class="reference internal" href="#monitor-build-logs">2. Monitor Build Logs</a></li>
+<li><a class="reference internal" href="#test-locally-before-deploy">3. Test Locally Before Deploy</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#validation-details">Validation Details</a></li>
+<li><a class="reference internal" href="#id4">See Also</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#troubleshooting-registry-first-deployments-v9-0">Troubleshooting Registry-First Deployments (v9.0+)</a><ul>
+<li><a class="reference internal" href="#npm-command-not-found">Ошибка: “npm: command not found”</a></li>
+<li><a class="reference internal" href="#validate-build-artifacts-failed">Ошибка: “validate_build_artifacts failed”</a></li>
+<li><a class="reference internal" href="#frontend-build-failed">Ошибка: “Frontend build failed”</a></li>
+<li><a class="reference internal" href="#docker-image-not-found-in-registry">Ошибка: “Docker image not found in registry”</a></li>
+<li><a class="reference internal" href="#v8-x-v9-0">Миграция v8.x → v9.0</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#disk-space-issues-during-deployment">Disk Space Issues During Deployment</a><ul>
+<li><a class="reference internal" href="#id5">Симптомы</a></li>
+<li><a class="reference internal" href="#root-cause-v11-3-8">Root Cause (До v11.3.8)</a></li>
+<li><a class="reference internal" href="#v11-3-8">Решение (v11.3.8+)</a></li>
+<li><a class="reference internal" href="#cleanup">Функция Cleanup</a></li>
+<li><a class="reference internal" href="#manual-cleanup">Manual Cleanup</a></li>
+<li><a class="reference internal" href="#id6">Prevention</a></li>
+<li><a class="reference internal" href="#id7">See Also</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#orphaned-process-cleanup">Orphaned Process Cleanup</a><ul>
+<li><a class="reference internal" href="#id8">Симптомы</a></li>
+<li><a class="reference internal" href="#id9">Root Cause (До v11.3.8)</a></li>
+<li><a class="reference internal" href="#id10">Решение (v11.3.8+)</a></li>
+<li><a class="reference internal" href="#tracked-processes">Tracked Processes</a></li>
+<li><a class="reference internal" href="#id11">Manual Cleanup</a></li>
+<li><a class="reference internal" href="#id12">See Also</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#related-issues">Related Issues</a><ul>
+<li><a class="reference internal" href="#postgresql-health-check-timeout">PostgreSQL Health Check Timeout</a></li>
+<li><a class="reference internal" href="#service-worker-files-missing-after-build">Service Worker Files Missing After Build</a><ul>
+<li><a class="reference internal" href="#id13">Symptoms</a></li>
+<li><a class="reference internal" href="#id14">Root Cause</a></li>
+<li><a class="reference internal" href="#quick-fix-manual">Quick Fix (Manual)</a></li>
+<li><a class="reference internal" href="#automatic-fix-v7-0-1">Automatic Fix (v7.0.1+)</a></li>
+<li><a class="reference internal" href="#verification">Verification</a></li>
+<li><a class="reference internal" href="#id15">Prevention</a></li>
+<li><a class="reference internal" href="#impact">Impact</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#service-worker-cache-busting-failures">Service Worker Cache Busting Failures</a><ul>
+<li><a class="reference internal" href="#id16">Symptoms</a></li>
+<li><a class="reference internal" href="#id17">Root Cause</a></li>
+<li><a class="reference internal" href="#quick-fix">Quick Fix</a></li>
+<li><a class="reference internal" href="#prevention-v6-8-1">Prevention (v6.8.1+)</a></li>
+<li><a class="reference internal" href="#validation-improvements-v6-8-1">Validation Improvements (v6.8.1+)</a></li>
+<li><a class="reference internal" href="#diagnostics">Diagnostics</a></li>
+<li><a class="reference internal" href="#id18">See Also</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#registry-first-migration-v9-0">Registry-First Migration (v9.0)</a><ul>
+<li><a class="reference internal" href="#what-changed">What Changed</a></li>
+<li><a class="reference internal" href="#what-s-not-required-on-server-anymore">What’s NOT Required on Server Anymore</a></li>
+<li><a class="reference internal" href="#common-v9-0-issues">Common v9.0 Issues</a><ul>
+<li><a class="reference internal" href="#issue-1-npm-command-not-found-expected">Issue 1: “npm: command not found” (Expected!)</a></li>
+<li><a class="reference internal" href="#issue-2-image-versions-json-not-found">Issue 2: IMAGE_VERSIONS.json Not Found</a></li>
+<li><a class="reference internal" href="#issue-3-docker-image-not-found-in-registry">Issue 3: Docker Image Not Found in Registry</a></li>
+<li><a class="reference internal" href="#issue-4-nginx-configuration-not-updating">Issue 4: Nginx Configuration Not Updating</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#migration-checklist">Migration Checklist</a></li>
+<li><a class="reference internal" href="#debugging-registry-first-deployment">Debugging Registry-First Deployment</a></li>
+<li><a class="reference internal" href="#performance-comparison">Performance Comparison</a></li>
+<li><a class="reference internal" href="#id19">See Also</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

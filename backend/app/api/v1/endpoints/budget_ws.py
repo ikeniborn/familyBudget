@@ -98,9 +98,9 @@ async def get_ws_token(current_user: User = Depends(get_current_user)):
     Returns:
         dict: {"token": "jwt_token_string"}
     """
-    logger.info(f"WS token requested: user={current_user.id}")
+    logger.info("WS token requested: user=%s", current_user.id)
     token = create_ws_token(user_id=current_user.id)
-    logger.info(f"WS token issued: user={current_user.id}, token_len={len(token)}")
+    logger.info("WS token issued: user=%s, token_len=%s", current_user.id, len(token))
     return {"token": token}
 
 
@@ -335,14 +335,14 @@ class BudgetWebSocketManager:
                 await websocket.send_text(message)
                 sent_count += 1
             except Exception as e:
-                logger.warning(f"Budget WS send failed for user {user_id}: {e}")
+                logger.warning("Budget WS send failed for user %s: %s", user_id, e)
                 failed_websockets.append((user_id, websocket))
 
         # Remove failed connections
         for user_id, websocket in failed_websockets:
             await self.disconnect(user_id, websocket, reason="send_failed")
 
-        logger.debug(f"Budget WS broadcast complete: sent to {sent_count} clients")
+        logger.debug("Budget WS broadcast complete: sent to %s clients", sent_count)
 
     async def send_to_connection(self, connection_id: str, event_type: str, data: dict[str, Any]):
         """
@@ -367,7 +367,7 @@ class BudgetWebSocketManager:
                     try:
                         await websocket.send_text(message)
                     except Exception as e:
-                        logger.warning(f"Budget WS send failed for connection {connection_id[:8]}: {e}")
+                        logger.warning("Budget WS send failed for connection %s: %s", connection_id[:8], e)
                     break
 
     def get_connection_count(self) -> int:
@@ -499,7 +499,7 @@ async def verify_ws_token(token: str) -> User | None:
 
         return None
     except Exception as e:
-        logger.error(f"Budget WS token verification error: {e}")
+        logger.error("Budget WS token verification error: %s", e)
         return None
 
 
@@ -539,23 +539,23 @@ async def budget_websocket_endpoint(
     # Log connection attempt with User-Agent for iOS debugging
     client_host = websocket.client.host if websocket.client else "unknown"
     user_agent = websocket.headers.get("user-agent", "unknown")[:100]
-    logger.info(f"WS connect attempt: host={client_host}, ua={user_agent}")
+    logger.info("WS connect attempt: host=%s, ua=%s", client_host, user_agent)
 
     # Verify JWT token
     user = await verify_ws_token(token)
     if not user:
-        logger.warning(f"WS rejected: invalid token, host={client_host}")
+        logger.warning("WS rejected: invalid token, host=%s", client_host)
         await websocket.close(code=4001, reason="Invalid or expired token")
         return
 
     user_id = user.id
-    logger.info(f"WS token verified: user={user_id}")
+    logger.info("WS token verified: user=%s", user_id)
 
     # Check connection limits and accept
     try:
         connection_id = await ws_manager.connect(websocket, user_id)
     except HTTPException as e:
-        logger.warning(f"WS rejected: limit exceeded, user={user_id}")
+        logger.warning("WS rejected: limit exceeded, user=%s", user_id)
         await websocket.close(code=4029, reason=e.detail)
         return
 
@@ -616,7 +616,7 @@ async def budget_websocket_endpoint(
                     elif msg_type == "sync_initial":
                         # PGlite initial sync request
                         await ws_manager.update_activity(connection_id)
-                        logger.info(f"[SYNC] Received sync_initial request from user {user_id}")
+                        logger.info("[SYNC] Received sync_initial request from user %s", user_id)
 
                         async with get_session_context() as session:
                             sync_data = await handle_sync_initial(session, user_id)
@@ -631,19 +631,19 @@ async def budget_websocket_endpoint(
                         last_sync_timestamp_str = msg_data.get("last_sync_timestamp")
 
                         if not last_sync_timestamp_str:
-                            logger.warning(f"[SYNC] Missing last_sync_timestamp in sync_incremental from user {user_id}")
+                            logger.warning("[SYNC] Missing last_sync_timestamp in sync_incremental from user %s", user_id)
                             continue
 
                         # Parse ISO 8601 timestamp
                         try:
                             last_sync_timestamp = datetime.fromisoformat(last_sync_timestamp_str.replace('Z', '+00:00'))
                         except ValueError as e:
-                            logger.warning(f"[SYNC] Invalid timestamp format in sync_incremental: {e}")
+                            logger.warning("[SYNC] Invalid timestamp format in sync_incremental: %s", e)
                             continue
 
                         logger.info(
-                            f"[SYNC] Received sync_incremental request from user {user_id}, "
-                            f"since {last_sync_timestamp.isoformat()}"
+                            "[SYNC] Received sync_incremental request from user %s, since %s",
+                            user_id, last_sync_timestamp.isoformat()
                         )
 
                         async with get_session_context() as session:
@@ -658,8 +658,8 @@ async def budget_websocket_endpoint(
                         operations = msg_data.get("operations", [])
 
                         logger.info(
-                            f"[SYNC] Received client upload from user {user_id}, "
-                            f"{len(operations)} operations"
+                            "[SYNC] Received client upload from user %s, %s operations",
+                            user_id, len(operations)
                         )
 
                         async with get_session_context() as session:
@@ -673,17 +673,17 @@ async def budget_websocket_endpoint(
                             )
 
                     else:
-                        logger.debug(f"Budget WS unknown message type: {msg_type}")
+                        logger.debug("Budget WS unknown message type: %s", msg_type)
 
                 except (JSONDecodeError, ValueError):
-                    logger.warning(f"Budget WS invalid JSON from user {user_id}")
+                    logger.warning("Budget WS invalid JSON from user %s", user_id)
 
             except asyncio.TimeoutError:
                 # Periodic user status check
                 async with get_session_context() as session:
                     db_user = await session.get(User, user_id)
                     if not db_user or not getattr(db_user, "is_active", True):
-                        logger.warning(f"Budget WS disconnecting inactive user {user_id}")
+                        logger.warning("Budget WS disconnecting inactive user %s", user_id)
                         disconnect_reason = "user_inactive"
                         break  # Exit outer while loop
                 # User still active, continue loop
@@ -694,7 +694,7 @@ async def budget_websocket_endpoint(
         disconnect_reason = "cancelled"
     except Exception as e:
         disconnect_reason = f"error:{type(e).__name__}"
-        logger.error(f"Budget WS error for user {user_id}: {e}")
+        logger.error("Budget WS error for user %s: %s", user_id, e)
     finally:
         # Cancel ping task
         if ping_task:
@@ -784,7 +784,7 @@ async def poll_budget_events(
             "server_time": 1234567890.123,  // Current server time for next poll
         }
     """
-    logger.debug(f"Long poll request: user={current_user.id}, since={since}, timeout={timeout}")
+    logger.debug("Long poll request: user=%s, since=%s, timeout=%s", current_user.id, since, timeout)
 
     # Check for existing events first (uses Redis if available)
     events = await event_buffer.get_events_since_async(since)
@@ -824,9 +824,9 @@ async def _periodic_cleanup():
         try:
             removed = await ws_manager.cleanup_stale_connections()
             if removed > 0:
-                logger.info(f"Budget WS cleanup: removed {removed} stale connections")
+                logger.info("Budget WS cleanup: removed %s stale connections", removed)
         except Exception as e:
-            logger.error(f"Budget WS cleanup error: {e}")
+            logger.error("Budget WS cleanup error: %s", e)
 
 
 def start_ws_cleanup_task():
@@ -878,7 +878,7 @@ async def _send_push_for_offline_users(title: str, body: str, data: dict | None 
 
     now = time.time()
     if now - _last_push_time < PUSH_DEBOUNCE_SECONDS:
-        logger.debug(f"[Push] Debounce: skipping push (last was {now - _last_push_time:.1f}s ago)")
+        logger.debug("[Push] Debounce: skipping push (last was %.1fs ago)", now - _last_push_time)
         return
 
     if _db_session_factory is None:
@@ -905,11 +905,11 @@ async def _send_push_for_offline_users(title: str, body: str, data: dict | None 
 
             if sent_count > 0:
                 _last_push_time = now
-                logger.info(f"[Push] Sent to {sent_count} offline users: {title}")
+                logger.info("[Push] Sent to %s offline users: %s", sent_count, title)
             break
 
     except Exception as e:
-        logger.error(f"[Push] Error sending push notifications: {e}")
+        logger.error("[Push] Error sending push notifications: %s", e)
 
 
 # ==================== Broadcast Helper Functions ====================
@@ -921,13 +921,20 @@ SAFE_FACT_FIELDS = {
 }
 
 SAFE_TRANSFER_FIELDS = {
-    "id", "source_fact_id", "target_fact_id",
+    "id", "expense_fact_id", "income_fact_id",
     "amount", "transfer_date", "description",
 }
 
 SAFE_ITEM_FIELDS = {
     "id", "shopping_list_id", "product_name", "quantity", "unit",
     "is_completed", "store_id", "product_group_id", "sort_order",
+    "temp_id",  # Required for client-side deduplication (virtual id → server id swap)
+}
+
+SAFE_SHOPPING_LIST_FIELDS = {
+    "id", "name", "description", "creator_id",
+    "is_active", "total_items", "completed_items",
+    "completion_percentage", "created_at", "updated_at",
 }
 
 SAFE_PLAN_FIELDS = {
@@ -959,6 +966,11 @@ def _filter_plan_data(plan_data: dict) -> dict:
     return {k: v for k, v in plan_data.items() if k in SAFE_PLAN_FIELDS}
 
 
+def _filter_shopping_list_data(list_data: dict) -> dict:
+    """Filter shopping list data to include only safe fields."""
+    return {k: v for k, v in list_data.items() if k in SAFE_SHOPPING_LIST_FIELDS}
+
+
 async def _broadcast_and_buffer(event_type: str, data: dict):
     """Broadcast to WebSocket and add to event buffer for long polling."""
     await ws_manager.broadcast(event_type, data)
@@ -970,7 +982,7 @@ async def _broadcast_and_buffer(event_type: str, data: dict):
 async def broadcast_fact_created(fact_data: dict):
     """Broadcast fact created event."""
     filtered_data = _filter_fact_data(fact_data)
-    logger.debug(f"broadcast_fact_created: fact_id={fact_data.get('id')}")
+    logger.debug("broadcast_fact_created: fact_id=%s", fact_data.get('id'))
     await _broadcast_and_buffer("fact_created", filtered_data)
 
     # Send push to offline users
@@ -987,13 +999,13 @@ async def broadcast_fact_created(fact_data: dict):
 async def broadcast_fact_updated(fact_data: dict):
     """Broadcast fact updated event."""
     filtered_data = _filter_fact_data(fact_data)
-    logger.debug(f"broadcast_fact_updated: fact_id={fact_data.get('id')}")
+    logger.debug("broadcast_fact_updated: fact_id=%s", fact_data.get('id'))
     await _broadcast_and_buffer("fact_updated", filtered_data)
 
 
 async def broadcast_fact_deleted(fact_id: int):
     """Broadcast fact deleted event."""
-    logger.debug(f"broadcast_fact_deleted: fact_id={fact_id}")
+    logger.debug("broadcast_fact_deleted: fact_id=%s", fact_id)
     await _broadcast_and_buffer("fact_deleted", {"id": fact_id})
 
 
@@ -1002,20 +1014,20 @@ async def broadcast_fact_deleted(fact_id: int):
 async def broadcast_plan_created(plan_data: dict):
     """Broadcast plan created event."""
     filtered_data = _filter_fact_data(plan_data)
-    logger.debug(f"broadcast_plan_created: plan_id={plan_data.get('id')}")
+    logger.debug("broadcast_plan_created: plan_id=%s", plan_data.get('id'))
     await _broadcast_and_buffer("plan_created", filtered_data)
 
 
 async def broadcast_plan_updated(plan_data: dict):
     """Broadcast plan updated event."""
     filtered_data = _filter_fact_data(plan_data)
-    logger.debug(f"broadcast_plan_updated: plan_id={plan_data.get('id')}")
+    logger.debug("broadcast_plan_updated: plan_id=%s", plan_data.get('id'))
     await _broadcast_and_buffer("plan_updated", filtered_data)
 
 
 async def broadcast_plan_deleted(plan_id: int):
     """Broadcast plan deleted event."""
-    logger.debug(f"broadcast_plan_deleted: plan_id={plan_id}")
+    logger.debug("broadcast_plan_deleted: plan_id=%s", plan_id)
     await _broadcast_and_buffer("plan_deleted", {"id": plan_id})
 
 
@@ -1024,20 +1036,20 @@ async def broadcast_plan_deleted(plan_id: int):
 async def broadcast_recurring_plan_created(plan_data: dict):
     """Broadcast recurring plan creation (generates multiple facts)."""
     filtered_data = _filter_plan_data(plan_data)
-    logger.debug(f"broadcast_recurring_plan_created: plan_id={plan_data.get('id')}")
+    logger.debug("broadcast_recurring_plan_created: plan_id=%s", plan_data.get('id'))
     await _broadcast_and_buffer("recurring_plan_created", filtered_data)
 
 
 async def broadcast_recurring_plan_updated(plan_data: dict):
     """Broadcast recurring plan update."""
     filtered_data = _filter_plan_data(plan_data)
-    logger.debug(f"broadcast_recurring_plan_updated: plan_id={plan_data.get('id')}")
+    logger.debug("broadcast_recurring_plan_updated: plan_id=%s", plan_data.get('id'))
     await _broadcast_and_buffer("recurring_plan_updated", filtered_data)
 
 
 async def broadcast_recurring_plan_deleted(plan_id: int):
     """Broadcast recurring plan deletion."""
-    logger.debug(f"broadcast_recurring_plan_deleted: plan_id={plan_id}")
+    logger.debug("broadcast_recurring_plan_deleted: plan_id=%s", plan_id)
     await _broadcast_and_buffer("recurring_plan_deleted", {"id": plan_id})
 
 
@@ -1056,7 +1068,7 @@ async def broadcast_recurring_plans_batch_deleted(
         deleted_count: Number of successfully deleted plans
     """
     data = {"plan_ids": plan_ids, "deleted_count": deleted_count}
-    logger.debug(f"[WS_BULK] broadcast_recurring_plans_batch_deleted: count={deleted_count}")
+    logger.debug("[WS_BULK] broadcast_recurring_plans_batch_deleted: count=%s", deleted_count)
     await _broadcast_and_buffer("recurring_plans_batch_deleted", data)
 
 
@@ -1079,7 +1091,7 @@ async def broadcast_facts_batch_deleted(
     data = {"fact_ids": fact_ids, "deleted_count": deleted_count}
     if record_type:
         data["record_type"] = record_type
-    logger.debug(f"[WS_BULK] broadcast_facts_batch_deleted: count={deleted_count}, type={record_type}")
+    logger.debug("[WS_BULK] broadcast_facts_batch_deleted: count=%s, type=%s", deleted_count, record_type)
     await _broadcast_and_buffer("facts_batch_deleted", data)
 
 
@@ -1090,7 +1102,7 @@ async def broadcast_recurring_plan_facts_generated(data: dict):
     Called after hourly scheduler job completes fact generation.
     Notifies all users that new facts are available.
     """
-    logger.debug(f"broadcast_recurring_plan_facts_generated: facts={data.get('facts_count')}")
+    logger.debug("broadcast_recurring_plan_facts_generated: facts=%s", data.get('facts_count'))
     await _broadcast_and_buffer("recurring_plan_facts_generated", data)
 
 
@@ -1099,7 +1111,7 @@ async def broadcast_recurring_plan_facts_generated(data: dict):
 async def broadcast_transfer_created(transfer_data: dict):
     """Broadcast transfer created event."""
     filtered_data = _filter_transfer_data(transfer_data)
-    logger.debug(f"broadcast_transfer_created: transfer_id={transfer_data.get('id')}")
+    logger.debug("broadcast_transfer_created: transfer_id=%s", transfer_data.get('id'))
     await _broadcast_and_buffer("transfer_created", filtered_data)
 
     # Send push to offline users
@@ -1114,7 +1126,7 @@ async def broadcast_transfer_created(transfer_data: dict):
 
 async def broadcast_transfer_deleted(transfer_id: int):
     """Broadcast transfer deleted event."""
-    logger.debug(f"broadcast_transfer_deleted: transfer_id={transfer_id}")
+    logger.debug("broadcast_transfer_deleted: transfer_id=%s", transfer_id)
     await _broadcast_and_buffer("transfer_deleted", {"id": transfer_id})
 
 
@@ -1123,27 +1135,49 @@ async def broadcast_transfer_deleted(transfer_id: int):
 async def broadcast_item_created(item_data: dict):
     """Broadcast item created event."""
     filtered_data = _filter_item_data(item_data)
-    logger.debug(f"broadcast_item_created: item_id={item_data.get('id')}, list_id={item_data.get('shopping_list_id')}")
+    logger.debug("broadcast_item_created: item_id=%s, list_id=%s", item_data.get('id'), item_data.get('shopping_list_id'))
     await _broadcast_and_buffer("item_created", filtered_data)
 
 
 async def broadcast_item_updated(item_data: dict):
     """Broadcast item updated event."""
     filtered_data = _filter_item_data(item_data)
-    logger.debug(f"broadcast_item_updated: item_id={item_data.get('id')}, list_id={item_data.get('shopping_list_id')}")
+    logger.debug("broadcast_item_updated: item_id=%s, list_id=%s", item_data.get('id'), item_data.get('shopping_list_id'))
     await _broadcast_and_buffer("item_updated", filtered_data)
 
 
 async def broadcast_item_deleted(item_id: int, shopping_list_id: int):
     """Broadcast item deleted event."""
-    logger.debug(f"broadcast_item_deleted: item_id={item_id}, list_id={shopping_list_id}")
+    logger.debug("broadcast_item_deleted: item_id=%s, list_id=%s", item_id, shopping_list_id)
     await _broadcast_and_buffer("item_deleted", {"id": item_id, "shopping_list_id": shopping_list_id})
 
 
 async def broadcast_item_completed(item_id: int, shopping_list_id: int, is_completed: bool):
     """Broadcast item completed event."""
-    logger.debug(f"broadcast_item_completed: item_id={item_id}, list_id={shopping_list_id}, completed={is_completed}")
+    logger.debug("broadcast_item_completed: item_id=%s, list_id=%s, completed=%s", item_id, shopping_list_id, is_completed)
     await _broadcast_and_buffer("item_completed", {"id": item_id, "shopping_list_id": shopping_list_id, "is_completed": is_completed})
+
+
+# Shopping list broadcast functions
+
+async def broadcast_shopping_list_created(list_data: dict):
+    """Broadcast shopping list created event."""
+    filtered_data = _filter_shopping_list_data(list_data)
+    logger.debug("broadcast_shopping_list_created: list_id=%s", list_data.get('id'))
+    await _broadcast_and_buffer("shopping_list_created", filtered_data)
+
+
+async def broadcast_shopping_list_updated(list_data: dict):
+    """Broadcast shopping list updated event."""
+    filtered_data = _filter_shopping_list_data(list_data)
+    logger.debug("broadcast_shopping_list_updated: list_id=%s", list_data.get('id'))
+    await _broadcast_and_buffer("shopping_list_updated", filtered_data)
+
+
+async def broadcast_shopping_list_deleted(list_id: int):
+    """Broadcast shopping list deleted event."""
+    logger.debug("broadcast_shopping_list_deleted: list_id=%s", list_id)
+    await _broadcast_and_buffer("shopping_list_deleted", {"id": list_id})
 
 
 # WebAuthn credential broadcast functions

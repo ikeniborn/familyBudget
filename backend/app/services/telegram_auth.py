@@ -19,6 +19,7 @@ import hashlib
 import hmac
 import logging
 import time
+from typing import Any
 
 import httpx
 
@@ -26,6 +27,15 @@ from backend.app.core.config import get_settings
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+
+
+def make_telegram_client() -> httpx.AsyncClient:
+    """Create httpx client with optional proxy for Telegram API requests."""
+    proxy_url = settings.TELEGRAM_PROXY_URL
+    if proxy_url:
+        return httpx.AsyncClient(proxies={"all://": proxy_url})
+    return httpx.AsyncClient()
+
 
 # Auth date expiration in seconds (5 minutes - stricter than Web Apps 1 hour)
 # Prevents replay attacks using captured OAuth callback URLs
@@ -65,7 +75,7 @@ async def get_bot_username() -> str | None:
         url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getMe"
 
         # Make request to Telegram API
-        async with httpx.AsyncClient() as client:
+        async with make_telegram_client() as client:
             response = await client.get(url, timeout=10.0)
 
         # Check if request was successful
@@ -85,7 +95,7 @@ async def get_bot_username() -> str | None:
 
         return username
 
-    except Exception:
+    except (httpx.HTTPError, ValueError):
         # Silently fail - username can be configured manually if needed
         return None
 
@@ -133,7 +143,7 @@ async def validate_telegram_user(telegram_id: int) -> bool:
         url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getChat"
 
         # Make request to Telegram API
-        async with httpx.AsyncClient() as client:
+        async with make_telegram_client() as client:
             response = await client.get(
                 url,
                 params={"chat_id": telegram_id},
@@ -165,12 +175,12 @@ async def validate_telegram_user(telegram_id: int) -> bool:
 
         return True
 
-    except Exception:
+    except (httpx.HTTPError, ValueError):
         # Return False on any error (network, parsing, etc.)
         return False
 
 
-async def fetch_telegram_user_info(telegram_id: int) -> dict[str, any] | None:
+async def fetch_telegram_user_info(telegram_id: int) -> dict[str, Any] | None:
     """
     Fetch user information from Telegram using Bot API.
 
@@ -221,7 +231,7 @@ async def fetch_telegram_user_info(telegram_id: int) -> dict[str, any] | None:
         url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getChat"
 
         # Make request to Telegram API
-        async with httpx.AsyncClient() as client:
+        async with make_telegram_client() as client:
             response = await client.get(
                 url,
                 params={"chat_id": telegram_id},
@@ -267,7 +277,7 @@ async def fetch_telegram_user_info(telegram_id: int) -> dict[str, any] | None:
                 if file_id:
                     # Call getFile to get file_path
                     file_url = f"https://api.telegram.org/bot{settings.TELEGRAM_BOT_TOKEN}/getFile"
-                    async with httpx.AsyncClient() as file_client:
+                    async with make_telegram_client() as file_client:
                         file_response = await file_client.get(
                             file_url,
                             params={"file_id": file_id},
@@ -284,21 +294,21 @@ async def fetch_telegram_user_info(telegram_id: int) -> dict[str, any] | None:
                                     f"{settings.TELEGRAM_BOT_TOKEN}/{file_path}"
                                 )
                                 logger.info(
-                                    f"Successfully retrieved photo URL for user {telegram_id}"
+                                    "Successfully retrieved photo URL for user %s", telegram_id
                                 )
-            except Exception as e:
+            except (httpx.TimeoutException, httpx.RequestError, ValueError, KeyError) as e:
                 logger.warning(
-                    f"Failed to retrieve photo for user {telegram_id}: {str(e)}"
+                    "Failed to retrieve photo for user %s: %s", telegram_id, e
                 )
 
         return user_info
 
-    except Exception:
+    except (httpx.HTTPError, ValueError, KeyError):
         # Return None on any error (network, parsing, etc.)
         return None
 
 
-def validate_telegram_auth(data: dict[str, any]) -> bool:
+def validate_telegram_auth(data: dict[str, Any]) -> bool:
     """
     Validate Telegram OAuth authentication data.
 
@@ -348,17 +358,17 @@ def validate_telegram_auth(data: dict[str, any]) -> bool:
         - TASK-012: Telegram OAuth endpoint
         - TASK-026: Auth unit tests (validation required)
     """
-    # Step 1: Extract and remove hash from data
-    received_hash = data.pop("hash", None)
+    # Step 1: Extract hash without mutating the caller's dict
+    received_hash = data.get("hash")
 
     if received_hash is None:
         return False
 
-    # Step 2: Create data check string
+    # Step 2: Create data check string (exclude 'hash' key)
     # Format: "key=value\nkey=value\n..." (sorted by key)
     # All values must be strings
     data_check_string = "\n".join(
-        [f"{key}={value}" for key, value in sorted(data.items())]
+        [f"{key}={value}" for key, value in sorted(data.items()) if key != "hash"]
     )
 
     # Step 3: Compute secret key (SHA256 of bot token)
@@ -388,9 +398,8 @@ def validate_telegram_auth(data: dict[str, any]) -> bool:
 
         if current_time - auth_date > AUTH_DATE_EXPIRATION:
             logger.warning(
-                f"Telegram auth expired: auth_date={auth_date}, "
-                f"current_time={current_time}, "
-                f"age={current_time - auth_date}s (max={AUTH_DATE_EXPIRATION}s)"
+                "Telegram auth expired: auth_date=%s, current_time=%s, age=%ss (max=%ss)",
+                auth_date, current_time, current_time - auth_date, AUTH_DATE_EXPIRATION
             )
             return False
     except (ValueError, TypeError):

@@ -35,6 +35,8 @@ export interface CategoryTreeSelectInstance {
   getSelectedCategory(): Category | null;
   clearSelection(): void;
   setSelectedCategory(categoryId: number, maxRetries?: number, retryDelay?: number): Promise<void>;
+  disable(): void;
+  enable(): void;
   destroy(): void;
   options: CategoryTreeSelectOptions;
 }
@@ -239,6 +241,9 @@ declare global {
     updateRecurringPreview?: (modalId: string) => void;
     collectRecurringSettings?: (modalId: string) => RecurringSettings | null;
 
+    // Recurring plans management (plan page)
+    loadRecurringPlans?: () => Promise<void>;
+
     // Edit modal
     openEditModal?: (recordType: 'fact' | 'plan', recordId: number) => Promise<void>;
     openEditPendingRecord?: (pendingId: number, entity: string) => Promise<void>;
@@ -260,12 +265,24 @@ declare global {
     refreshQuickStats?: () => void;
     refreshAccountBalances?: () => void;
 
+    // Recent Transactions (client-side refresh)
+    loadRecentTransactions?: () => Promise<void>;
+
     // Dashboard-specific (HTML onclick handlers)
     openEditFromDashboard?: (factId: number) => Promise<void>;
     deleteRecordFromDashboard?: (factId: number) => Promise<void>;
     recurringDeleteResolve?: (choice: string | null) => void;
     openAddTransactionModal?: () => Promise<void>;
     openFactTransferModal?: () => Promise<void>;
+
+    // Plan page (HTML onclick handlers)
+    loadFacts?: () => Promise<void>;
+    openAddPlanModal?: () => void;
+    createPlan?: (event: Event) => Promise<void>;
+    batchDeleteRecurringPlans?: () => Promise<void>;
+    selectAnalyticsMonth?: (month: string, btn: HTMLButtonElement) => Promise<void>;
+    updateReminderDatetime?: (modalId: string) => void;
+    updateEditReminderDatetime?: () => void;
 
     // Tabbed Modals (v9.0)
     openModalFact?: () => void;

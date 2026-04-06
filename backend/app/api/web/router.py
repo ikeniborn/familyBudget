@@ -231,7 +231,7 @@ async def admin_logs(
     from backend.app.main import templates
 
     logger = get_logger(__name__)
-    logger.info(f"[WEB_ROUTER] Admin logs page accessed by user_id={current_admin.id}")
+    logger.info("[WEB_ROUTER] Admin logs page accessed by user_id=%s", current_admin.id)
 
     return templates.TemplateResponse(
         "admin_logs.html",

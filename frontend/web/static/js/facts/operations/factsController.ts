@@ -7,12 +7,14 @@
  */
 
 import { loadFactsWithCount } from '../integration/factsAPI';
-import { setTotalFacts, getCurrentPage, getPageSize, setCurrentPage } from '../core/stateManager';
+import { setTotalFacts, getTotalFacts, getCurrentPage, getPageSize, setCurrentPage, getFilters } from '../core/stateManager';
 import { buildFilterQuery } from './filterOperations';
 import type { CreateFactData, UpdateFactData, FactRow } from '../types/models';
 import { escapeHtml, sanitizeErrorMessage } from '../../shared/htmlSanitizer';
 import { TableFormatters } from '../../shared/tableUtils';
 import { factsControllerLogger as logger } from '../utilities/logger';
+import { setButtonLoading } from '../../dashboard/shared/utils/buttonState';
+import { initEditCategoryTree, destroyEditCategoryTree } from '../features/modalFact/categoryWidget';
 
 // ============================================================================
 // Main Load Function
@@ -22,12 +24,12 @@ import { factsControllerLogger as logger } from '../utilities/logger';
  * Load facts with current filters and pagination
  * Post-TypeScript Migration: Client-side rendering (removed HTMX partials)
  */
-export async function loadFacts(): Promise<void> {
+export async function loadFacts(options?: { forceAPI?: boolean }): Promise<void> {
     try {
-        logger.log('Loading facts...');
+        logger.log('Loading facts...', options?.forceAPI ? '(forceAPI)' : '');
 
-        // Get facts data from API
-        const { facts, total } = await loadFactsWithCount();
+        // Get facts data (forceAPI bypasses Dexie cache for guaranteed fresh data)
+        const { facts, total } = await loadFactsWithCount(options);
 
         logger.log(`Loaded ${facts.length} facts (total: ${total})`);
 
@@ -121,6 +123,127 @@ export async function goToNextPage(): Promise<void> {
 }
 
 // ============================================================================
+// Incremental Table Update Helpers
+// ============================================================================
+
+/**
+ * Check if current state allows incremental row injection.
+ * Returns true only on page 1 with no extra filters (only date range is OK).
+ */
+function canInjectRow(): boolean {
+    if (getCurrentPage() !== 0) {
+        return false;
+    }
+    const filters = getFilters();
+    if (filters.user_id) return false;
+    if (filters.article_id) return false;
+    if (filters.article_type) return false;
+    if (filters.financial_center_id) return false;
+    if (filters.cost_center_id) return false;
+    if (filters.search) return false;
+    return true;
+}
+
+/**
+ * Fetch HTML for a single row from the backend and inject it into the table.
+ * For 'create': prepend to tbody.
+ * For 'update': replace existing tr[data-id] and div[data-id].
+ * Returns true on success, false if fallback (full reload) is needed.
+ */
+export async function fetchAndInjectRow(factId: number, operation: 'create' | 'update'): Promise<boolean> {
+    if (!canInjectRow()) {
+        return false;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/facts/${factId}/row-html`, {
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            logger.warn(`fetchAndInjectRow: HTTP ${response.status} for fact ${factId}`);
+            return false;
+        }
+
+        const html = await response.text();
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(`<table><tbody>${html}</tbody></table>`, 'text/html');
+        const newTr = doc.querySelector('tr[data-id]');
+        const newMobileDiv = doc.querySelector('div.transaction-item[data-id]');
+
+        if (operation === 'create') {
+            const tbody = document.querySelector('.facts-desktop-table tbody');
+            if (tbody && newTr) {
+                tbody.insertBefore(newTr, tbody.firstChild);
+            }
+            const mobileList = document.querySelector('.facts-mobile-list');
+            if (mobileList && newMobileDiv) {
+                mobileList.insertBefore(newMobileDiv, mobileList.firstChild);
+            }
+            return !!(tbody || mobileList);
+        }
+
+        if (operation === 'update') {
+            const existingTr = document.querySelector(`tr[data-id="${factId}"]`);
+            if (existingTr && newTr) {
+                existingTr.replaceWith(newTr);
+            }
+            const existingMobile = document.querySelector(`div.transaction-item[data-id="${factId}"]`);
+            if (existingMobile && newMobileDiv) {
+                existingMobile.replaceWith(newMobileDiv);
+            }
+            return !!(existingTr || existingMobile);
+        }
+
+        return false;
+    } catch (error) {
+        logger.warn('fetchAndInjectRow failed:', error);
+        return false;
+    }
+}
+
+/**
+ * Remove a fact row from the table with a fade-out animation.
+ * Returns true if the row was found and removed, false otherwise.
+ */
+function removeRowFromTable(factId: number): boolean {
+    const desktopRow = document.querySelector(`tr[data-id="${factId}"]`);
+    const mobileRow = document.querySelector(`div.transaction-item[data-id="${factId}"]`);
+
+    if (!desktopRow && !mobileRow) {
+        return false;
+    }
+
+    desktopRow?.classList.add('opacity-0', 'transition-opacity', 'duration-200');
+    mobileRow?.classList.add('opacity-0', 'transition-opacity', 'duration-200');
+
+    setTimeout(() => {
+        desktopRow?.remove();
+        mobileRow?.remove();
+    }, 200);
+
+    return true;
+}
+
+// ============================================================================
+// Counter Updates
+// ============================================================================
+
+/**
+ * Adjust the #stat-total counter by delta (+1 for create, -1 for delete).
+ * Updates both the DOM element and the in-memory state.
+ */
+export function adjustStatTotal(delta: number): void {
+    const next = Math.max(0, getTotalFacts() + delta);
+    const el = document.getElementById('stat-total');
+    if (el) {
+        el.textContent = String(next);
+    }
+    setTotalFacts(next);
+}
+
+// ============================================================================
 // CRUD Operations
 // ============================================================================
 
@@ -145,13 +268,52 @@ export async function deleteFact(factId: number): Promise<void> {
 
         showToast('Факт успешно удален', 'success');
 
-        // Reload facts
-        await loadFacts();
+        // Optimistically decrement counter before reload confirms the real count
+        adjustStatTotal(-1);
+
+        // Incremental update: remove row without full reload
+        const removed = removeRowFromTable(factId);
+        if (!removed) {
+            await loadFacts({ forceAPI: true });
+        }
     } catch (error) {
         logger.error(' Error deleting fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка удаления: ${errorMessage}`, 'error');
     }
+}
+
+/**
+ * Validate form data and build UpdateFactData payload.
+ * Returns null and shows a toast if validation fails.
+ */
+function validateAndBuildUpdateData(formData: FormData, BudgetShared: any): UpdateFactData | null {
+    const articleId = parseInt(formData.get('article_id') as string);
+    const financialCenterId = parseInt(formData.get('financial_center_id') as string);
+    const amount = parseFloat(formData.get('amount') as string);
+
+    if (isNaN(articleId) || isNaN(financialCenterId) || isNaN(amount)) {
+        showToast('Некорректные данные формы', 'error');
+        return null;
+    }
+
+    const updateData: UpdateFactData = {
+        fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date') as string),
+        article_id: articleId,
+        financial_center_id: financialCenterId,
+        amount: amount,
+        description: formData.get('description') as string || null
+    };
+
+    const costCenterId = formData.get('cost_center_id') as string;
+    if (costCenterId) {
+        const parsedCostCenterId = parseInt(costCenterId);
+        if (!isNaN(parsedCostCenterId)) {
+            updateData.cost_center_id = parsedCostCenterId;
+        }
+    }
+
+    return updateData;
 }
 
 /**
@@ -171,54 +333,35 @@ export async function updateFact(event: Event): Promise<void> {
         return;
     }
 
+    const submitBtn = form.querySelector('[type="submit"]') as HTMLButtonElement | null;
+    setButtonLoading(submitBtn, true);
+
     try {
         // Import dynamically to avoid circular dependency
         const { updateFact: updateFn } = await import('../integration/factsAPI');
         const { getBudgetShared } = await import('../types/dependencies');
 
-        const BudgetShared = getBudgetShared();
-
-        // Parse and validate form data
-        const articleId = parseInt(formData.get('article_id') as string);
-        const financialCenterId = parseInt(formData.get('financial_center_id') as string);
-        const amount = parseFloat(formData.get('amount') as string);
-
-        if (isNaN(articleId) || isNaN(financialCenterId) || isNaN(amount)) {
-            showToast('Некорректные данные формы', 'error');
-            return;
-        }
-
-        // Prepare update data
-        const updateData: UpdateFactData = {
-            fact_date: BudgetShared.DateFormatter.formatForAPI(formData.get('fact_date') as string),
-            article_id: articleId,
-            financial_center_id: financialCenterId,
-            amount: amount,
-            description: formData.get('description') as string || null
-        };
-
-        // Cost center (optional)
-        const costCenterId = formData.get('cost_center_id') as string;
-        if (costCenterId) {
-            const parsedCostCenterId = parseInt(costCenterId);
-            if (!isNaN(parsedCostCenterId)) {
-                updateData.cost_center_id = parsedCostCenterId;
-            }
-        }
+        const updateData = validateAndBuildUpdateData(formData, getBudgetShared());
+        if (!updateData) return;
 
         await updateFn(factId, updateData);
 
-        showToast('Факт успешно обновлен', 'success');
-
-        // Close modal
+        // Close modal first so toast goes to global #toast-container, not inside dialog
         closeEditModal();
 
-        // Reload facts
-        await loadFacts();
+        showToast('Факт успешно обновлен', 'success');
+
+        // Incremental update: replace row without full reload
+        const injected = await fetchAndInjectRow(factId, 'update');
+        if (!injected) {
+            await loadFacts({ forceAPI: true });
+        }
     } catch (error) {
         logger.error(' Error updating fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка обновления: ${errorMessage}`, 'error');
+    } finally {
+        setButtonLoading(submitBtn, false);
     }
 }
 
@@ -274,21 +417,25 @@ export async function createFact(event: Event): Promise<void> {
             }
         }
 
-        await createFn(createData);
-
-        showToast('Факт успешно создан', 'success');
+        const created = await createFn(createData);
 
         // Close modal (if AdminFactsCommon available)
         if (window.AdminFactsCommon?.closeCreateModal) {
             window.AdminFactsCommon.closeCreateModal();
         }
 
-        // Reload facts
-        await loadFacts();
+        // Incremental update: prepend new row without full reload
+        const newFactId = created?.id;
+        let injected = false;
+        if (newFactId && newFactId > 0) {
+            injected = await fetchAndInjectRow(newFactId, 'create');
+        }
+        if (!injected) {
+            await loadFacts({ forceAPI: true });
+        }
     } catch (error) {
         logger.error(' Error creating fact:', error);
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        showToast(`Ошибка создания: ${errorMessage}`, 'error');
+        throw error; // Propagate to caller (saveFactModalFacts) for unified toast handling
     }
 }
 
@@ -301,6 +448,20 @@ export async function createFact(event: Event): Promise<void> {
  * Phase 2 fix: Load fact from API instead of cache
  */
 export async function showEditModal(factId: number): Promise<void> {
+    const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
+    const skeleton = document.getElementById('edit-loading-skeleton');
+    const formFields = document.getElementById('edit-form-fields');
+
+    if (!modal?.showModal) {
+        logger.error('Edit modal not found');
+        return;
+    }
+
+    // Show modal immediately with skeleton
+    if (skeleton) skeleton.classList.remove('hidden');
+    if (formFields) formFields.classList.add('hidden');
+    modal.showModal();
+
     try {
         // Import dynamically to avoid circular dependency
         const { getFact } = await import('../integration/factsAPI');
@@ -311,21 +472,24 @@ export async function showEditModal(factId: number): Promise<void> {
 
         if (!fact) {
             showToast('Факт не найден', 'error');
+            modal.close();
             return;
         }
 
         // Populate edit modal
         populateEditModal(fact, getBudgetShared());
 
-        // Show modal
-        const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
-        if (modal?.showModal) {
-            modal.showModal();
-        }
+        // Initialize category search tree for edit modal
+        initEditCategoryTree(fact.article_type ?? 'expense', fact.article_id ?? null);
+
+        // Hide skeleton, show form
+        if (skeleton) skeleton.classList.add('hidden');
+        if (formFields) formFields.classList.remove('hidden');
     } catch (error) {
         logger.error(' Error showing edit modal:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка: ${errorMessage}`, 'error');
+        modal.close();
     }
 }
 
@@ -354,14 +518,14 @@ function populateEditModal(fact: any, BudgetShared: any): void {
 
     // Тип категории - badge
     const categoryTypeLabel = document.getElementById('edit-category-type-label');
-    if (categoryTypeLabel && fact.article) {
+    if (categoryTypeLabel && fact.article_type) {
         const typeMap: Record<string, { text: string; badgeClass: string }> = {
             'expense': { text: 'Расход', badgeClass: 'badge-error' },
             'income': { text: 'Доход', badgeClass: 'badge-success' },
             'debit': { text: 'Списание', badgeClass: 'badge-info' },
             'credit': { text: 'Пополнение', badgeClass: 'badge-warning' }
         };
-        const typeInfo = typeMap[fact.article.record_type] || { text: 'Неизвестно', badgeClass: 'badge-neutral' };
+        const typeInfo = typeMap[fact.article_type] || { text: 'Неизвестно', badgeClass: 'badge-neutral' };
         categoryTypeLabel.textContent = typeInfo.text;
         categoryTypeLabel.className = `badge badge-sm ${typeInfo.badgeClass}`;
     }
@@ -381,7 +545,7 @@ function populateEditModal(fact: any, BudgetShared: any): void {
     // Сумма
     const amountInput = document.getElementById('edit-amount') as HTMLInputElement;
     if (amountInput && fact.amount !== undefined) {
-        amountInput.value = String(fact.amount);
+        amountInput.value = String(Math.round(fact.amount));
     }
 
     // Описание
@@ -399,6 +563,7 @@ export function closeEditModal(): void {
     if (modal?.close) {
         modal.close();
     }
+    destroyEditCategoryTree();
 }
 
 /**
@@ -465,8 +630,8 @@ export async function batchDelete(): Promise<void> {
             'success'
         );
 
-        // Reload facts
-        await loadFacts();
+        // Reload facts from API (bypass Dexie cache)
+        await loadFacts({ forceAPI: true });
     } catch (error) {
         logger.error(' Error batch deleting:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
@@ -578,12 +743,15 @@ export function renderFactsTable(facts: FactRow[]): void {
                 <thead>
                     <tr>
                         <th><input type="checkbox" class="checkbox checkbox-sm" onclick="window.FactsManager?.toggleSelectAll?.(this)"></th>
+                        <th>ID</th>
                         <th>📅 Дата</th>
-                        <th>📁 Категория</th>
-                        <th>💵 Сумма</th>
                         <th>🏦 Счет</th>
                         <th>💼 МЗ</th>
+                        <th>📁 Категория</th>
+                        <th>💵 Сумма</th>
                         <th>📝 Комментарий</th>
+                        <th>👤 Пользователь</th>
+                        <th>🔄 Обновлено</th>
                         <th>⚙️ Действия</th>
                     </tr>
                 </thead>
@@ -616,8 +784,8 @@ export function renderFactsTable(facts: FactRow[]): void {
 export function renderFactRow(fact: FactRow): string {
     const BudgetShared = (window as any).BudgetShared;
 
-    // Convert fact.fact_date to string if needed (PGlite may return Date objects)
-    // Type assertion needed because PGlite runtime types may differ from interface
+    // Convert fact.fact_date to string if needed (Dexie may return Date objects)
+    // Type assertion needed because Dexie runtime types may differ from interface
     const dateValue: unknown = fact.fact_date;
     const dateString = typeof dateValue === 'string'
         ? dateValue
@@ -625,37 +793,51 @@ export function renderFactRow(fact: FactRow): string {
             ? dateValue.toISOString().split('T')[0]
             : String(dateValue));
 
-    // Format date safely (DateFormatter output is trusted)
     const dateFormatted = BudgetShared?.DateFormatter?.formatForDisplay(dateString) || dateString;
-
-    // Format amount (numeric values are safe)
     const amount = fact.fact_sum ?? fact.amount ?? 0;
-    const amountFormatted = TableFormatters.formatAmount(amount, fact.article_type ?? 'expense');
-
-    // Determine color class based on article_type
-    const articleColorClass = TableFormatters.getArticleColorClass(fact.article_type ?? 'expense', 'text');
-
-    // Escape all user-generated content to prevent XSS
-    const articleName = TableFormatters.truncateText(fact.article_name ?? '', 30);  // Already escaped
-    const financialCenterName = TableFormatters.truncateText(fact.financial_center_name ?? '', 20);  // Already escaped
-    const costCenterName = fact.cost_center_name
-        ? TableFormatters.truncateText(fact.cost_center_name, 20)  // Already escaped
-        : '—';
-
     const commentText = fact.fact_comment ?? fact.description ?? null;
-    const comment = commentText
-        ? TableFormatters.truncateText(commentText, 40)  // Already escaped
-        : '—';
+    const updatedAtFormatted = TableFormatters.formatUpdatedAt(fact.updated_at as string | null);
 
+    return buildFactRowHtml(fact, {
+        dateFormatted,
+        commentText,
+        updatedAtFormatted,
+        amountFormatted: TableFormatters.formatAmount(amount, fact.article_type ?? 'expense'),
+        articleColorClass: TableFormatters.getArticleColorClass(fact.article_type ?? 'expense', 'text'),
+        articleName: TableFormatters.truncateText(fact.article_name ?? '', 30),
+        financialCenterName: TableFormatters.truncateText(fact.financial_center_name ?? '', 20),
+        costCenterName: fact.cost_center_name
+            ? TableFormatters.truncateText(fact.cost_center_name, 20)
+            : '—',
+        comment: commentText ? TableFormatters.truncateText(commentText, 40) : '—',
+    });
+}
+
+interface FactRowParts {
+    dateFormatted: string;
+    commentText: string | null;
+    updatedAtFormatted: string;
+    amountFormatted: string;
+    articleColorClass: string;
+    articleName: string;
+    financialCenterName: string;
+    costCenterName: string;
+    comment: string;
+}
+
+function buildFactRowHtml(fact: FactRow, p: FactRowParts): string {
     return `
-        <tr>
+        <tr data-id="${fact.id}">
             <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="${fact.id}"></td>
-            <td>${escapeHtml(dateFormatted)}</td>
-            <td><span class="${articleColorClass}">${articleName}</span></td>
-            <td class="${articleColorClass} font-bold">${amountFormatted}</td>
-            <td class="max-w-xs truncate" title="${fact.financial_center_name}">${financialCenterName}</td>
-            <td class="max-w-xs truncate" title="${fact.cost_center_name || ''}">${costCenterName}</td>
-            <td class="max-w-xs truncate" title="${commentText || ''}">${comment}</td>
+            <td class="text-base-content/50 text-xs">${fact.id}</td>
+            <td>${escapeHtml(p.dateFormatted)}</td>
+            <td class="max-w-xs truncate" title="${escapeHtml(fact.financial_center_name ?? '')}">${p.financialCenterName}</td>
+            <td class="max-w-xs truncate" title="${escapeHtml(fact.cost_center_name ?? '')}">${p.costCenterName}</td>
+            <td>${p.articleName}</td>
+            <td class="${p.articleColorClass} font-bold">${p.amountFormatted}</td>
+            <td class="max-w-xs truncate" title="${escapeHtml(p.commentText ?? '')}">${p.comment}</td>
+            <td class="text-xs whitespace-nowrap">${escapeHtml(fact.user_name ?? '—')}</td>
+            <td class="text-xs text-base-content/50 whitespace-nowrap">${escapeHtml(p.updatedAtFormatted)}</td>
             <td>
                 <div class="flex gap-1">
                     <button class="btn btn-xs btn-primary gap-1" onclick="window.FactsManager?.showEditModal?.(${fact.id})">✏️</button>
@@ -678,7 +860,7 @@ export function renderFactRow(fact: FactRow): string {
 export function renderFactMobileCard(fact: FactRow): string {
     const BudgetShared = (window as any).BudgetShared;
 
-    // Convert fact.fact_date to string if needed (PGlite may return Date objects)
+    // Convert fact.fact_date to string if needed (Dexie may return Date objects)
     const dateValue: unknown = fact.fact_date;
     const dateString = typeof dateValue === 'string'
         ? dateValue
@@ -704,7 +886,7 @@ export function renderFactMobileCard(fact: FactRow): string {
     const description = commentText ? TableFormatters.truncateText(commentText, 30) : '—';  // Already escaped
 
     return `
-        <div class="transaction-item py-2" onclick="window.FactsManager?.showEditModal?.(${fact.id})">
+        <div class="transaction-item py-2" data-id="${fact.id}" onclick="window.FactsManager?.showEditModal?.(${fact.id})">
             <!-- Line 1: Badge + Category + Amount -->
             <div class="flex items-center gap-2">
                 <span class="badge badge-primary badge-xs shrink-0">Факт</span>

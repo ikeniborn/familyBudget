@@ -27,7 +27,11 @@
             <!-- Status Filter (from macro) -->
             {{ status_filter() }}
 
-            <div id="stores-table-container" class="min-h-[200px]">
+            <!-- Mobile cards container -->
+            <div id="stores-cards-container" class="md:hidden space-y-4"></div>
+
+            <!-- Desktop table container -->
+            <div id="stores-table-container" class="hidden md:block min-h-[200px]">
                 <div class="flex items-center justify-center py-8">
                     <span class="loading loading-spinner loading-lg text-primary"></span>
                 </div>
@@ -99,7 +103,7 @@
                 <!-- Кнопка удаления - только иконка, видна только на мобильных (где нет чекбоксов) -->
                 {{ delete_button_mobile('deleteStoreFromEditModal()') }}
                 <!-- Разделитель (пустое пространство) -->
-                <div class="flex-1 md:hidden"></div>
+                <div class="flex-1"></div>
                 <button type="button" class="btn btn-sm sm:btn-md flex-1 sm:flex-initial" onclick="closeEditModal()">❌ Отмена</button>
                 <button type="submit" class="btn btn-sm sm:btn-md btn-primary flex-1 sm:flex-initial">💾 Сохранить</button>
             </div>
@@ -125,6 +129,7 @@ let storesData = [];
 window.onStatusFilterChange = function(status) {
     currentStatusFilter = status;
     renderStoresTable();
+    renderMobileCards();
 };
 let currentStatusFilter = 'all'; // 'all', 'active', 'archived'
 const isAdmin = {{ 'true' if user.is_admin else 'false' }};
@@ -158,10 +163,71 @@ async function loadStores() {
         storesData = data.stores || [];
 
         renderStoresTable();
+        renderMobileCards();
     } catch (error) {
         console.error('Failed to load stores:', error);
         container.innerHTML = '<div class="alert alert-error"><span>❌ Ошибка загрузки магазинов. Попробуйте перезагрузить страницу.</span></div>';
     }
+}
+
+// Render mobile cards
+function renderMobileCards() {
+    const container = document.getElementById('stores-cards-container');
+
+    // Filter stores by status
+    let filteredStores = storesData;
+    if (currentStatusFilter === 'active') {
+        filteredStores = storesData.filter(s => s.is_active !== false);
+    } else if (currentStatusFilter === 'archived') {
+        filteredStores = storesData.filter(s => s.is_active === false);
+    }
+
+    if (filteredStores.length === 0) {
+        container.innerHTML = '<div class="text-center py-8 text-base-content/60">🏪 Магазины не найдены. Нажмите "➕ Новый магазин" для создания.</div>';
+        return;
+    }
+
+    let html = '';
+    filteredStores.forEach(store => {
+        const isArchived = store.is_active === false;
+        const statusBadge = isArchived ? '<span class="badge badge-warning badge-sm">📦 архив</span>' : '';
+        const address = store.address || '';
+        const description = store.description || '';
+
+        html += `
+            <div class="card bg-base-100 shadow-md border border-base-300">
+                <div class="card-body p-4 space-y-3">
+                    <div class="flex items-start justify-between gap-2">
+                        <h3 class="font-semibold text-base flex-1">${store.name}</h3>
+                        ${statusBadge}
+                    </div>
+                    ${address ? `<div class="text-sm"><span class="text-base-content/60">📍 Адрес:</span> ${address}</div>` : ''}
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <div><span class="text-base-content/60">Код:</span> <span class="font-mono">${store.code || '—'}</span></div>
+                        <div><span class="text-base-content/60">ID:</span> <span class="font-mono">${store.id}</span></div>
+                    </div>
+                    ${description ? `<p class="text-sm text-base-content/70">${description}</p>` : ''}
+                    <div class="flex gap-2 pt-2 border-t border-base-300">
+                        <button class="btn btn-sm btn-primary flex-1" onclick="showEditModal(${store.id})">
+                            ✏️ Изменить
+                        </button>
+                        ${isAdmin && !isArchived ? `
+                            <button class="btn btn-sm btn-warning" onclick="archiveStore(${store.id})" title="Архивировать">
+                                📦
+                            </button>
+                        ` : ''}
+                        ${isAdmin && isArchived ? `
+                            <button class="btn btn-sm btn-success" onclick="restoreStore(${store.id})" title="Восстановить">
+                                ♻️
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    container.innerHTML = html;
 }
 
 // Render stores table
@@ -332,10 +398,36 @@ function closeEditModal() {
 }
 
 // Delete store from edit modal (mobile only)
-function deleteStoreFromEditModal() {
+async function deleteStoreFromEditModal() {
     const storeId = document.getElementById('edit-id').value;
-    closeEditModal();
-    deleteStore(storeId);
+    const modal = document.getElementById('edit-modal');
+
+    // ✅ Создать overlay loader
+    const overlay = document.createElement('div');
+    overlay.className = 'absolute inset-0 bg-base-300/80 flex items-center justify-center z-50 rounded-lg';
+    overlay.innerHTML = `
+        <div class="flex flex-col items-center gap-4">
+            <span class="loading loading-spinner loading-lg text-primary"></span>
+            <p class="text-lg font-semibold">Удаление магазина...</p>
+        </div>
+    `;
+
+    // Добавить overlay к модальному окну
+    const modalBox = modal.querySelector('.modal-box');
+    modalBox.style.position = 'relative';
+    modalBox.appendChild(overlay);
+
+    try {
+        // ✅ Ждем завершения удаления
+        await deleteStore(storeId);
+
+        // ✅ Закрываем модальное окно ПОСЛЕ успешного удаления
+        closeEditModal();
+    } catch (error) {
+        // Ошибка уже обработана в deleteStore()
+        // Убрать overlay
+        overlay.remove();
+    }
 }
 
 // Update store
@@ -432,7 +524,19 @@ async function restoreStore(storeId) {
 
 // Delete store
 async function deleteStore(storeId) {
-    const store = storesData.find(s => s.id === storeId);
+    // ✅ Нормализуем ID к integer для корректного сравнения
+    const storeIdInt = typeof storeId === 'string' ? parseInt(storeId, 10) : storeId;
+
+    // ✅ Поиск с нормализованным ID
+    const store = storesData.find(s => s.id === storeIdInt);
+
+    // ✅ Проверка на undefined ПЕРЕД использованием
+    if (!store) {
+        console.error(`Store with ID ${storeId} not found in storesData`);
+        showToast('❌ Магазин не найден', 'error');
+        throw new Error(`Store with ID ${storeId} not found`);
+    }
+
     const confirmed = await showConfirmDialog(
         'Удалить магазин?',
         `⚠️ ВНИМАНИЕ: Вы уверены, что хотите УДАЛИТЬ "${store.name}"?\n\nЭто действие НЕОБРАТИМО и удалит все связанные данные:\n• Все товары в списках покупок для этого магазина\n\nРекомендуется использовать архивирование вместо удаления.`
@@ -441,7 +545,7 @@ async function deleteStore(storeId) {
     if (!confirmed) return;
 
     try {
-        const response = await fetch(`/api/v1/stores/${storeId}`, {
+        const response = await fetch(`/api/v1/stores/${storeIdInt}`, {
             method: 'DELETE',
             credentials: 'include',
         });
@@ -463,7 +567,9 @@ async function deleteStore(storeId) {
 function showToast(message, type = 'info') {
     const toast = document.createElement('div');
     toast.className = `alert alert-${type} fixed bottom-4 right-4 w-auto max-w-md z-50 shadow-lg`;
-    toast.innerHTML = `<span>${message}</span>`;
+    const span = document.createElement('span');
+    span.textContent = message;
+    toast.appendChild(span);
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 3000);
 }

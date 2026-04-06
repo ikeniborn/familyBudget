@@ -2472,22 +2472,6 @@ if (typeof window !== 'undefined') {
         }
     });
 
-    // Triple-tap on status indicator to show diagnostics (for iOS Safari)
-    let tapCount = 0;
-    let tapTimeout = null;
-    document.addEventListener('click', (e) => {
-        if (e.target.id === 'budget-sse-status-indicator' || e.target.closest('#budget-sse-status-indicator')) {
-            tapCount++;
-            if (tapCount >= 3) {
-                tapCount = 0;
-                clearTimeout(tapTimeout);
-                window.budgetWSClient.showDiagnostics();
-            } else {
-                clearTimeout(tapTimeout);
-                tapTimeout = setTimeout(() => { tapCount = 0; }, 500);
-            }
-        }
-    });
 }
 
 // Debug log helper

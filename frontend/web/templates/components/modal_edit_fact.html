@@ -7,6 +7,17 @@
         <form id="edit-form" onsubmit="updateFact(event)" class="space-y-2">
             <input type="hidden" id="edit-id" name="id">
 
+            <!-- Skeleton Loading State (hidden by default) -->
+            <div id="edit-loading-skeleton" class="hidden space-y-2">
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-12 w-full"></div>
+                <div class="skeleton h-20 w-full"></div>
+            </div>
+
+            <!-- Actual Form Fields (wrapped in div for toggling) -->
+            <div id="edit-form-fields">
+
             <!-- Дата -->
             <div class="form-control">
                 <label class="label py-1">
@@ -62,7 +73,7 @@
                     <span class="label-text">Сумма *</span>
                 </label>
                 <input type="number" id="edit-amount" name="amount"
-                       step="0.01" required class="input input-bordered" />
+                       step="1" required class="input input-bordered" />
             </div>
 
             <!-- Описание -->
@@ -73,6 +84,8 @@
                 <textarea id="edit-description" name="description"
                           rows="2" maxlength="500" class="textarea textarea-bordered"></textarea>
             </div>
+
+            </div> <!-- End of edit-form-fields -->
 
             <!-- Кнопки -->
             <div class="modal-action mt-3 flex flex-row gap-2 items-center">

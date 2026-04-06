@@ -17,6 +17,7 @@
 
 // Debug mode (включить только для отладки)
 const DEBUG = false;
+let updateMode = false;
 
 // Cache version - автоматически заменяется в CI/CD через cache busting
 // Формат: X.Y.Z semantic versioning (совпадает с VERSION file)
@@ -49,17 +50,8 @@ const STATIC_CACHE = [
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png',
   '/static/icons/favicon.ico',
-  // iOS Splash - ALL 10 images for comprehensive device coverage
-  '/static/icons/splash/splash-750x1334.png',   // iPhone SE/7/8
-  '/static/icons/splash/splash-828x1792.png',   // iPhone XR/11
-  '/static/icons/splash/splash-1080x2340.png',  // Android (1080x2340)
-  '/static/icons/splash/splash-1125x2436.png',  // iPhone X/XS/11 Pro
-  '/static/icons/splash/splash-1170x2532.png',  // iPhone 12/13/14
-  '/static/icons/splash/splash-1179x2556.png',  // iPhone 14/15 Pro
-  '/static/icons/splash/splash-1242x2208.png',  // iPhone 6+/7+/8+
-  '/static/icons/splash/splash-1242x2688.png',  // iPhone XS Max/11 Pro Max
-  '/static/icons/splash/splash-1284x2778.png',  // iPhone 14/15 Pro Max
-  '/static/icons/splash/splash-1290x2796.png'   // iPhone 14/15 Pro Max
+  // iOS Splash screens intentionally removed - files not generated in build pipeline
+  // To re-enable, add splash screen generation to CI/CD and uncomment:
 ];
 
 // Страницы доступные в offline режиме (только эти страницы работают без сети)
@@ -73,7 +65,9 @@ const OFFLINE_PAGE_ASSETS = [
   // === Страница /lists ===
   // CSS
   '/static/css/lists.min.css',
-  // JS - lists functionality (единый бандл с v7.0.1+, includes offline support)
+  // JS - offline support
+  '/static/js/offline/offlineManager.min.js',
+  // JS - lists functionality (единый бандл с v7.0.1+)
   '/static/js/lists.min.js',
   // JS - WebSocket client
   '/static/js/budget/budgetWSClient.min.js',
@@ -89,9 +83,11 @@ self.addEventListener('install', (event) => {
     (async () => {
       // Check if we're in post-update mode (skip caching)
       // Use Cache API flag instead of MessageChannel (more reliable after unregister)
+      // NOTE: caches.match() searches cached *responses* by URL, not named cache existence.
+      // Use caches.keys() to check for the presence of a named cache.
       try {
-        const updateModeCache = await caches.match('__sw_update_mode__');
-        if (updateModeCache) {
+        const isPostUpdate = (await caches.keys()).includes('__sw_update_mode__');
+        if (isPostUpdate) {
           console.log('[SW] ⏭️ Skipping cache creation (post-update mode)');
 
           // Clean up flag cache
@@ -336,6 +332,9 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
+  // Update mode: stop caching, let all requests pass through to network
+  if (updateMode) return;
+
   // Игнорируем non-GET requests
   if (request.method !== 'GET') {
     return;
@@ -491,6 +490,14 @@ self.addEventListener('message', (event) => {
 
   if (event.data.action === 'skipWaiting') {
     self.skipWaiting();
+  }
+
+  if (event.data.action === 'enterUpdateMode') {
+    updateMode = true;
+    console.log('[SW] Entered update mode - fetch passthrough enabled');
+    if (event.ports && event.ports[0]) {
+      event.ports[0].postMessage({ type: 'UPDATE_MODE_ACK' });
+    }
   }
 
   // Запрос текущей версии SW

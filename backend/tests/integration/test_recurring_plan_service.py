@@ -2,16 +2,13 @@
 Integration tests for Recurring Plan Service.
 
 Tests the RecurringPlanService functionality:
-1. Minimum 3 facts generated regardless of occurrences_count
-2. Minimum 3 facts generated regardless of end_date
+1. Exact occurrences_count facts generated (bounded by occurrences_count)
+2. Facts bounded by end_date (plan deactivated when end_date reached)
 3. Facts have recurring_plan_id populated
 4. Logging during fact generation
-
-Validates fixes for:
-- Problem 1: Facts not being created
-- Problem 4: Minimum 3 facts requirement
 """
 
+import logging
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -28,14 +25,14 @@ from backend.app.services.recurring_plan_service import RecurringPlanService
 
 
 @pytest.mark.asyncio
-async def test_generate_minimum_3_facts_with_occurrences_count_1(
+async def test_generate_exact_occurrences_count_facts(
     session: AsyncSession, test_user: User
 ):
     """
-    Test: Generate EXACT occurrences_count facts (no minimum).
+    Test: Generate EXACT occurrences_count facts.
 
     Scenario:
-        - Create recurring plan with occurrences_count=1
+        - Create monthly recurring plan with occurrences_count=1
         - Expect EXACTLY 1 fact generated
         - Verify occurrences_generated == 1
     """
@@ -43,18 +40,18 @@ async def test_generate_minimum_3_facts_with_occurrences_count_1(
 
     # Create dependencies
     article = Article(
-        code="TEST_RECURRING",
+        code="ART-1",
         name="Test Recurring Payment",
-        article_type="expense",
+        type="expense",
         parent_id=None,
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(article)
 
     financial_center = FinancialCenter(
-        code="TEST_FC",
+        code="CFO-1",
         name="Test Financial Center",
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(financial_center)
 
@@ -62,21 +59,21 @@ async def test_generate_minimum_3_facts_with_occurrences_count_1(
     await session.refresh(article)
     await session.refresh(financial_center)
 
-    # Create recurring plan with occurrences_count=1
     today = date.today()
     data = RecurringPlanCreate(
         article_id=article.id,
         financial_center_id=financial_center.id,
-        frequency_type="daily",
+        frequency_type="monthly",
+        frequency_value=min(today.day, 28),
         start_date=today,
-        occurrences_count=1,  # Only 1 occurrence allowed
+        occurrences_count=1,
         amount=Decimal("1000.00"),
         record_type="plan",
     )
 
+    assert test_user.id is not None
     plan = await service.create_recurring_plan(session, data, test_user.id)
 
-    # Verify EXACTLY 1 fact was generated
     result = await session.execute(
         select(BudgetFact).where(BudgetFact.recurring_plan_id == plan.id)
     )
@@ -87,33 +84,33 @@ async def test_generate_minimum_3_facts_with_occurrences_count_1(
 
 
 @pytest.mark.asyncio
-async def test_generate_minimum_3_facts_with_early_end_date(
+async def test_generate_facts_bounded_by_end_date(
     session: AsyncSession, test_user: User
 ):
     """
-    Test: Generate facts up to end_date (no minimum).
+    Test: Generate facts up to end_date, then deactivate plan.
 
     Scenario:
-        - Create recurring plan with end_date = start_date + 1 day
-        - With daily frequency, generates EXACTLY 2 facts (start_date and start_date+1)
+        - Create monthly recurring plan with end_date = next monthly occurrence
+        - Generates EXACTLY 2 facts (start_date and second monthly occurrence)
         - Verify plan.is_active = False after reaching end_date
     """
     service = RecurringPlanService()
 
     # Create dependencies
     article = Article(
-        code="TEST_RECURRING_END",
+        code="ART-2",
         name="Test Recurring with End Date",
-        article_type="expense",
+        type="expense",
         parent_id=None,
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(article)
 
     financial_center = FinancialCenter(
-        code="TEST_FC_END",
+        code="CFO-2",
         name="Test FC for End Date",
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(financial_center)
 
@@ -121,28 +118,35 @@ async def test_generate_minimum_3_facts_with_early_end_date(
     await session.refresh(article)
     await session.refresh(financial_center)
 
-    # Create recurring plan with early end_date
+    # Use day <= 28 so the target day is valid in every month (including February)
     today = date.today()
+    target_day = min(today.day, 28)
+    start_date = today.replace(day=target_day)
+
+    # Second fact lands on the same day next month
+    next_month_start = (start_date.replace(day=1) + timedelta(days=32)).replace(day=1)
+    second_fact_date = next_month_start.replace(day=target_day)
+
     data = RecurringPlanCreate(
         article_id=article.id,
         financial_center_id=financial_center.id,
-        frequency_type="daily",
-        start_date=today,
-        end_date=today + timedelta(days=1),  # Only 2 days allowed
+        frequency_type="monthly",
+        frequency_value=target_day,
+        start_date=start_date,
+        end_date=second_fact_date,
         amount=Decimal("5000.00"),
         record_type="plan",
     )
 
+    assert test_user.id is not None
     plan = await service.create_recurring_plan(session, data, test_user.id)
 
-    # Verify EXACTLY 2 facts generated (today and today+1)
     result = await session.execute(
         select(BudgetFact).where(BudgetFact.recurring_plan_id == plan.id)
     )
     facts = list(result.scalars().all())
 
     assert len(facts) == 2, f"Expected exactly 2 facts, got {len(facts)}"
-    # Plan should be deactivated after end_date
     assert not plan.is_active
 
 
@@ -160,18 +164,18 @@ async def test_facts_have_recurring_plan_id(session: AsyncSession, test_user: Us
 
     # Create dependencies
     article = Article(
-        code="TEST_MONTHLY",
+        code="ART-3",
         name="Monthly Rent",
-        article_type="expense",
+        type="expense",
         parent_id=None,
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(article)
 
     financial_center = FinancialCenter(
-        code="TEST_FC_MONTHLY",
+        code="CFO-3",
         name="Main Account",
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(financial_center)
 
@@ -191,6 +195,7 @@ async def test_facts_have_recurring_plan_id(session: AsyncSession, test_user: Us
         record_type="plan",
     )
 
+    assert test_user.id is not None
     plan = await service.create_recurring_plan(session, data, test_user.id)
 
     # Verify facts generated
@@ -220,26 +225,24 @@ async def test_logging_during_generation(
         - Capture logs
         - Verify log messages are present
     """
-    import logging
-
     caplog.set_level(logging.INFO)
 
     service = RecurringPlanService()
 
     # Create dependencies
     article = Article(
-        code="TEST_LOGGING",
+        code="ART-4",
         name="Test Logging Plan",
-        article_type="expense",
+        type="expense",
         parent_id=None,
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(article)
 
     financial_center = FinancialCenter(
-        code="TEST_FC_LOG",
+        code="CFO-4",
         name="Test FC Logging",
-        created_by_id=test_user.id,
+        user_id=test_user.id,
     )
     session.add(financial_center)
 
@@ -247,18 +250,19 @@ async def test_logging_during_generation(
     await session.refresh(article)
     await session.refresh(financial_center)
 
-    # Create recurring plan
     today = date.today()
     data = RecurringPlanCreate(
         article_id=article.id,
         financial_center_id=financial_center.id,
-        frequency_type="daily",
+        frequency_type="monthly",
+        frequency_value=min(today.day, 28),
         start_date=today,
         occurrences_count=5,
         amount=Decimal("100.00"),
         record_type="plan",
     )
 
+    assert test_user.id is not None
     plan = await service.create_recurring_plan(session, data, test_user.id)
 
     # Verify logs

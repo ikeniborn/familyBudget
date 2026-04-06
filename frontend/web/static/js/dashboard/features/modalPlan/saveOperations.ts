@@ -42,12 +42,18 @@ function restoreRequiredValidation(): void {
  * Save plan modal (router function)
  */
 export async function savePlanModal(button: HTMLElement): Promise<void> {
-  if ((button as HTMLButtonElement).disabled) return;
+  const btn = button as HTMLButtonElement;
+  if (btn.disabled) return;
+
+  // Disable immediately (synchronous) to prevent duplicate calls
+  // when both onclick attribute and event listener fire simultaneously
+  btn.disabled = true;
 
   const form = document.getElementById('form_modal_plan') as HTMLFormElement;
 
   if (!form) {
     debugLog('[SavePlanModal] Form not found');
+    btn.disabled = false;
     return;
   }
 

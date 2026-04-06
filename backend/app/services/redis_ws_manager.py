@@ -94,14 +94,14 @@ class RedisBudgetWebSocketManager:
             user_conn_count = self._count_user_connections(user_id)
 
             logger.info(
-                f"Budget WS connect attempt: user={user_id}, "
-                f"local_connections={user_conn_count}/{MAX_CONNECTIONS_PER_USER}"
+                "Budget WS connect attempt: user=%s, local_connections=%s/%s",
+                user_id, user_conn_count, MAX_CONNECTIONS_PER_USER,
             )
 
             if user_conn_count >= MAX_CONNECTIONS_PER_USER:
                 logger.warning(
-                    f"Budget WS 429: user={user_id}, "
-                    f"connections={user_conn_count}/{MAX_CONNECTIONS_PER_USER}"
+                    "Budget WS 429: user=%s, connections=%s/%s",
+                    user_id, user_conn_count, MAX_CONNECTIONS_PER_USER,
                 )
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -112,7 +112,8 @@ class RedisBudgetWebSocketManager:
             total_conn_count = len(self.connections)
             if total_conn_count >= MAX_TOTAL_CONNECTIONS:
                 logger.warning(
-                    f"Budget WS 429: worker limit exceeded ({total_conn_count}/{MAX_TOTAL_CONNECTIONS})"
+                    "Budget WS 429: worker limit exceeded (%s/%s)",
+                    total_conn_count, MAX_TOTAL_CONNECTIONS,
                 )
                 raise HTTPException(
                     status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -125,8 +126,8 @@ class RedisBudgetWebSocketManager:
             self.connections.append((user_id, websocket, connection_id, time.time()))
 
         logger.info(
-            f"Budget WS connected: user={user_id}, conn_id={connection_id[:8]}... "
-            f"(worker_total={total_conn_count + 1})"
+            "Budget WS connected: user=%s, conn_id=%s... (worker_total=%s)",
+            user_id, connection_id[:8], total_conn_count + 1,
         )
         return connection_id
 
@@ -141,8 +142,8 @@ class RedisBudgetWebSocketManager:
             new_count = len(self.connections)
 
         logger.info(
-            f"Budget WS disconnected: user={user_id}, reason={reason}, "
-            f"before={prev_count}, after={new_count}"
+            "Budget WS disconnected: user=%s, reason=%s, before=%s, after=%s",
+            user_id, reason, prev_count, new_count,
         )
 
     async def disconnect_by_id(self, user_id: int, connection_id: str) -> bool:
@@ -167,7 +168,7 @@ class RedisBudgetWebSocketManager:
                 pass
 
         if removed:
-            logger.info(f"Budget WS disconnect_by_id: user={user_id}, conn_id={connection_id[:8]}...")
+            logger.info("Budget WS disconnect_by_id: user=%s, conn_id=%s...", user_id, connection_id[:8])
 
         return removed
 
@@ -203,7 +204,7 @@ class RedisBudgetWebSocketManager:
                 pass
 
         for uid, _, cid in stale:
-            logger.warning(f"Budget WS cleanup_stale: user={uid}, conn_id={cid[:8]}...")
+            logger.warning("Budget WS cleanup_stale: user=%s, conn_id=%s...", uid, cid[:8])
 
         return removed
 
@@ -219,11 +220,11 @@ class RedisBudgetWebSocketManager:
             if published:
                 # Event will be received by all workers (including this one)
                 # via the Pub/Sub subscriber, so we don't need to broadcast locally
-                logger.debug(f"Event published to Redis: {event_type}")
+                logger.debug("Event published to Redis: %s", event_type)
                 return
 
         # Fallback: local broadcast only (single worker mode)
-        logger.debug(f"Redis unavailable, local broadcast only: {event_type}")
+        logger.debug("Redis unavailable, local broadcast only: %s", event_type)
         await self._local_broadcast(event_type, data)
 
     async def _local_broadcast(self, event_type: str, data: dict[str, Any]):
@@ -248,7 +249,7 @@ class RedisBudgetWebSocketManager:
         async with self._lock:
             connections = list(self.connections)
 
-        logger.info(f"Local broadcast: event={event_type}, connections={len(connections)}")
+        logger.info("Local broadcast: event=%s, connections=%s", event_type, len(connections))
 
         sent_count = 0
         failed_websockets = []
@@ -257,14 +258,14 @@ class RedisBudgetWebSocketManager:
                 await websocket.send_text(message)
                 sent_count += 1
             except Exception as e:
-                logger.warning(f"WS send failed for user {user_id}: {e}")
+                logger.warning("WS send failed for user %s: %s", user_id, e)
                 failed_websockets.append((user_id, websocket))
 
         # Remove failed connections
         for user_id, websocket in failed_websockets:
             await self.disconnect(user_id, websocket, reason="send_failed")
 
-        logger.debug(f"Local broadcast complete: sent to {sent_count} clients")
+        logger.debug("Local broadcast complete: sent to %s clients", sent_count)
 
     async def send_to_connection(self, connection_id: str, event_type: str, data: dict[str, Any]):
         """Send event to a specific local connection."""
@@ -281,7 +282,7 @@ class RedisBudgetWebSocketManager:
                     try:
                         await websocket.send_text(message)
                     except Exception as e:
-                        logger.warning(f"WS send failed for connection {connection_id[:8]}: {e}")
+                        logger.warning("WS send failed for connection %s: %s", connection_id[:8], e)
                     break
 
     def get_connection_count(self) -> int:

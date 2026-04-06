@@ -42,6 +42,14 @@ const builds = [
     globalName: 'Dexie'
   },
 
+  // === Dexie Diagnostic (global, loaded after Dexie in base.html) ===
+  {
+    name: 'dexieDiagnostic',
+    input: 'frontend/web/static/js/diagnostics/dexie-diagnostic-entry.ts',
+    output: 'frontend/web/static/js/diagnostics/dexie-diagnostic.min.js',
+    globalName: 'DexieDiagnostic'
+  },
+
   // === Performance Monitoring (loaded after Dexie) ===
   {
     name: 'performanceMonitor',

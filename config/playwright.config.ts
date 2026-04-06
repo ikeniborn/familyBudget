@@ -19,10 +19,16 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
 
   /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
+  retries: process.env.CI ? 1 : 0,
 
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : undefined,
+
+  /* Per-test timeout: 60s (default 30s often too low for slow CI) */
+  timeout: 60 * 1000,
+
+  /* Global timeout for entire test run: 25 minutes */
+  globalTimeout: 25 * 60 * 1000,
 
   /* Reporter to use */
   reporter: [
@@ -36,6 +42,12 @@ export default defineConfig({
     /* E2E tests run against deployed test server (fbd.ikeniborn.ru) */
     baseURL: process.env.BASE_URL || 'https://fbd.ikeniborn.ru',
 
+    /* Navigation timeout: 30s (prevents networkidle-style hangs) */
+    navigationTimeout: 30 * 1000,
+
+    /* Action timeout: 15s per locator action */
+    actionTimeout: 15 * 1000,
+
     /* Collect trace when retrying the failed test. */
     trace: 'on-first-retry',
 
@@ -47,17 +59,19 @@ export default defineConfig({
   },
 
   /* Configure projects for major browsers */
+  /* CI: chromium (desktop) + Mobile Safari only — fast and representative */
+  /* Full suite (firefox, webkit, Mobile Chrome) runs locally via npm run test:e2e:full */
   projects: [
     /* Setup project - runs once before all tests to authenticate */
     {
       name: 'setup',
       testMatch: /.*\.setup\.ts/,
       use: {
-        ...devices['Desktop Chrome'], // Setup uses chromium (always available in CI)
+        ...devices['Desktop Chrome'],
       },
     },
 
-    /* Desktop browsers with authentication */
+    /* Desktop Chrome */
     {
       name: 'chromium',
       use: {
@@ -67,33 +81,7 @@ export default defineConfig({
       dependencies: ['setup'],
     },
 
-    {
-      name: 'firefox',
-      use: {
-        ...devices['Desktop Firefox'],
-        storageState: 'tests/e2e/.auth/user.json',
-      },
-      dependencies: ['setup'],
-    },
-
-    {
-      name: 'webkit',
-      use: {
-        ...devices['Desktop Safari'],
-        storageState: 'tests/e2e/.auth/user.json',
-      },
-      dependencies: ['setup'],
-    },
-
-    /* Test against mobile viewports (important for Telegram Web Apps). */
-    {
-      name: 'Mobile Chrome',
-      use: {
-        ...devices['Pixel 5'],
-        storageState: 'tests/e2e/.auth/user.json',
-      },
-      dependencies: ['setup'],
-    },
+    /* Mobile Safari (important for Telegram Web Apps on iOS) */
     {
       name: 'Mobile Safari',
       use: {

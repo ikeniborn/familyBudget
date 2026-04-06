@@ -16,7 +16,7 @@
  */
 export interface BudgetFact {
     id: number;
-    temp_id?: number;              // Numeric temp_id for offline operations (int53)
+    temp_id?: string;              // Dexie temp_id for offline operations (task-015 Phase 4.4)
     fact_date: string; // ISO date (YYYY-MM-DD)
     article_id: number;
     article_name: string;
@@ -58,6 +58,8 @@ export interface FactRow {
     amount?: number; // BudgetFact field
     fact_comment?: string | null; // API field (alternative to description)
     description?: string | null; // BudgetFact field
+    user_name?: string; // User who created the record
+    updated_at?: string; // ISO datetime
 }
 
 /**
@@ -66,7 +68,7 @@ export interface FactRow {
 export interface Article {
     id: number;
     name: string;
-    record_type: 'expense' | 'income' | 'debit' | 'credit';
+    type: 'expense' | 'income' | 'debit' | 'credit';
     parent_id: number | null;
     user_id: number;
     level: number; // Hierarchy depth
@@ -97,11 +99,15 @@ export interface CostCenter {
 
 /**
  * User model
+ * Matches API /api/v1/users response (UserResponse schema)
  */
 export interface User {
     id: number;
-    name: string;
-    email: string;
+    first_name?: string;
+    last_name?: string;
+    username?: string;
+    display_name?: string;
+    email?: string;
 }
 
 /**
@@ -183,9 +189,11 @@ export interface SelectionState {
  */
 export interface CategoryTreeSelectState {
     allCategories: Article[];
-    createCategoryTreeSelect: any | null; // CategoryTreeSelect instance
-    editCategoryTreeSelect: any | null; // CategoryTreeSelect instance
-    editDateCalendar: any | null; // CalendarWidget instance
+    createCategoryTreeSelect: any | null;     // transaction tab instance
+    editCategoryTreeSelect: any | null;       // edit modal instance
+    editDateCalendar: any | null;             // CalendarWidget instance
+    createTransferFromTree: any | null;       // transfer tab FROM instance
+    createTransferToTree: any | null;         // transfer tab TO instance
 }
 
 /**
@@ -236,7 +244,7 @@ export interface ExportFactsOptions {
 export interface ArticleTreeNode {
     id: number;
     name: string;
-    record_type: 'expense' | 'income' | 'debit' | 'credit';
+    type: 'expense' | 'income' | 'debit' | 'credit';
     parent_id: number | null;
     level: number;
     path: string;

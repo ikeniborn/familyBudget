@@ -80,7 +80,8 @@ import {
   // WebSocket handlers (v7.0.1 - for budgetWSClient compatibility)
   handleItemCreated,
   handleItemUpdated,
-  handleItemDeleted
+  handleItemDeleted,
+  handleShoppingListUpdated
 } from './lists/listsManager/index';
 
 // Адаптеры с confirm dialogs
@@ -234,7 +235,7 @@ const windowExports = {
   // Dexie operations (v11.4.12+)
   addItemToList,
 
-  // PGlite progress notifications (v10.1.38+)
+  // Dexie progress notifications (v10.1.38+)
   showDexieProgress,
   hideDexieProgress,
 
@@ -249,13 +250,13 @@ try {
     // (в отличие от Object.entries().forEach() который tree-shaking может удалить)
     Object.assign(window, windowExports);
 
-    // Backward compatibility aliases: PGlite → Dexie terminology
-    (window as any).showPGliteProgress = showDexieProgress;
-    (window as any).hidePGliteProgress = hideDexieProgress;
+    // Backward compatibility aliases: Dexie → Dexie terminology
+    (window as any).showDexieProgress = showDexieProgress;
+    (window as any).hideDexieProgress = hideDexieProgress;
 
     // Create window.listsManager object for backward compatibility
     // (used in onclick handlers: window.listsManager.showDetailView, toggleItemCompleted)
-    // (used by budgetWSClient: addItemToUI, updateItemInUI, removeItemFromUI)
+    // (used by budgetWSClient: addItemToUI, updateItemInUI, removeItemFromUI, handleShoppingListUpdated)
     Object.defineProperty(window, 'listsManager', {
       value: {
         showDetailView: renderDetailView,
@@ -264,7 +265,9 @@ try {
         // WebSocket compatibility aliases (v7.0.1)
         addItemToUI: handleItemCreated,
         updateItemInUI: handleItemUpdated,
-        removeItemFromUI: handleItemDeleted
+        removeItemFromUI: handleItemDeleted,
+        // Shopping list update handler (v11.5.x - stats refresh on item add/delete)
+        handleShoppingListUpdated
       },
       writable: false,
       configurable: false,

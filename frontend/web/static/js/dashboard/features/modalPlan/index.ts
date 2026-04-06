@@ -8,10 +8,12 @@
 import { setupTabListeners, clearTabCache, switchTab } from './tabManager';
 import { getState, updateState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
-import { setupRecurringListeners } from './recurringSettings';
+import { setupRecurringListeners, togglePlanMode } from './recurringSettings';
 import { setupPlanTypeToggle } from './typeToggle';
-import { setupPlanPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
+import { setupPlanPeriodButtons, setupTransferPeriodButtons } from '../addPlan/periodButtons'; // v10.1.51: Period buttons setup
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
+import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
+import { setupTransferFCExclusion, createToClearCallback, cleanupExclusionFlag } from '../../shared/utils/transferFCExclusion';
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
@@ -123,9 +125,14 @@ async function loadTransactionTabData(): Promise<void> {
       throw new Error('Article select element not available');
     }
 
-    // Get current plan type (expense/income)
+    // Get current plan type: prefer CSS active button state (persists across form.reset()),
+    // fall back to radio value, then default to 'expense'
+    const activeBtn = document.querySelector('#modal_plan-tab-transaction .transaction-type-btn.btn-active') as HTMLElement | null;
     const typeInput = document.querySelector('#modal_plan-tab-transaction input[name="plan_type"]:checked') as HTMLInputElement | null;
-    const planType = typeInput?.value || 'expense';
+    const planType = (activeBtn?.dataset.type as 'expense' | 'income') || typeInput?.value || 'expense';
+    // Sync radio to match CSS state (form.reset() resets radio but not CSS button classes)
+    const radioToSync = document.querySelector(`#modal_plan-tab-transaction input[name="plan_type"][value="${planType}"]`) as HTMLInputElement | null;
+    if (radioToSync) radioToSync.checked = true;
 
     if ((window as any).BudgetShared?.ChoicesCategoryTree) {
       const planCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
@@ -148,6 +155,9 @@ async function loadTransactionTabData(): Promise<void> {
       updateState({
         planCategoryTreeSelect: planCategoryTree
       });
+
+      // Mobile/tablet: shift modal up when dropdown opens
+      setupMobileModalPositioning(planCategoryTree, 'modal_plan');
 
       debugLog('[ModalPlan] CategoryTreeSelect instance created');
     } else {
@@ -180,12 +190,12 @@ async function loadTransferTabData(): Promise<void> {
       '#modal_plan-tab-transfer select[name="to_financial_center_id"]'
     ]);
 
-    // 2. Initialize ChoicesCategoryTree for FROM (debit - списание)
+    // 2. Initialize ChoicesCategoryTree for FROM (debit/expense)
     if ((window as any).BudgetShared?.ChoicesCategoryTree) {
       const fromCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_plan-tab-transfer select[name="from_article_id"]',
         {
-          type: 'debit', // FROM is debit (списание с счёта)
+          type: 'debit', // FROM is always debit
           showLeafOnly: true,
           mode: 'create',
           onCategoryChange: (category: Category) => {
@@ -195,11 +205,11 @@ async function loadTransferTabData(): Promise<void> {
         }
       );
 
-      // 3. Initialize ChoicesCategoryTree for TO (credit - пополнение)
+      // 3. Initialize ChoicesCategoryTree for TO (credit/income)
       const toCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_plan-tab-transfer select[name="to_article_id"]',
         {
-          type: 'credit', // TO is credit (пополнение счёта)
+          type: 'credit', // TO is always credit
           showLeafOnly: true,
           mode: 'create',
           onCategoryChange: (category: Category) => {
@@ -216,17 +226,23 @@ async function loadTransferTabData(): Promise<void> {
         planTransferToCategoryTree: toCategoryTree
       });
 
-      // 5. Setup FC change listeners for transfer hints
+      // 5. Mobile/tablet: shift modal up when transfer dropdowns open
+      setupMobileModalPositioning(fromCategoryTree, 'modal_plan');
+      setupMobileModalPositioning(toCategoryTree, 'modal_plan');
+
+      // 5b. Initial state: disable FROM/TO category trees until account is selected
+      fromCategoryTree.clearSelection();
+      fromCategoryTree.disable();
+      toCategoryTree.clearSelection();
+      toCategoryTree.disable();
+
+      // 6. Setup FC change listeners for transfer hints
       setupTransferFCListeners();
 
       debugLog('[ModalPlan] Transfer CategoryTreeSelect instances created');
     } else {
       debugLog('[ModalPlan] BudgetShared.ChoicesCategoryTree not available');
     }
-
-    // Update transfer period buttons text with month and year
-    const { updateTransferPeriodButtonsText } = await import('./dateHelpers');
-    updateTransferPeriodButtonsText();
 
     debugLog('[ModalPlan] Transfer data loaded');
   } catch (error) {
@@ -243,6 +259,17 @@ function setupTransferFCListeners(): void {
 
   if (fromFcSelect && !fromFcSelect.dataset.listenerAttached) {
     fromFcSelect.addEventListener('change', () => {
+      const state = getState();
+      const fromTree = state.planTransferFromCategoryTree;
+      const fcId = fromFcSelect.value ? parseInt(fromFcSelect.value) : null;
+      if (fromTree) {
+        if (!fcId) {
+          fromTree.clearSelection();
+          fromTree.disable();
+        } else {
+          fromTree.enable();
+        }
+      }
       loadPlanTransferHints('from');
     });
     fromFcSelect.dataset.listenerAttached = 'true';
@@ -250,9 +277,32 @@ function setupTransferFCListeners(): void {
 
   if (toFcSelect && !toFcSelect.dataset.listenerAttached) {
     toFcSelect.addEventListener('change', () => {
+      const state = getState();
+      const toTree = state.planTransferToCategoryTree;
+      const fcId = toFcSelect.value ? parseInt(toFcSelect.value) : null;
+      if (toTree) {
+        if (!fcId) {
+          toTree.clearSelection();
+          toTree.disable();
+        } else {
+          toTree.enable();
+        }
+      }
       loadPlanTransferHints('to');
     });
     toFcSelect.dataset.listenerAttached = 'true';
+  }
+
+  // Mutual exclusion: TO excludes selected FROM account
+  if (fromFcSelect && toFcSelect && !fromFcSelect.dataset.exclusionAttached) {
+    setupTransferFCExclusion({
+      fromSelect: fromFcSelect,
+      toSelect: toFcSelect,
+      onToClear: createToClearCallback(
+        () => getState().planTransferToCategoryTree,
+        loadPlanTransferHints
+      )
+    });
   }
 }
 
@@ -389,26 +439,8 @@ function formatPeriodYYYYMM(date: Date): string {
  * Setup save button click listener as fallback
  * Ensures save button works even if onclick attribute fails
  */
-function setupSaveButtonListener(): void {
-  const saveButton = document.querySelector('#modal_plan button[onclick*="savePlanModal"]') as HTMLButtonElement;
-
-  if (saveButton && !saveButton.dataset.listenerAttached) {
-    saveButton.addEventListener('click', async function(event) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      // Call the global savePlanModal function
-      if (typeof (window as any).savePlanModal === 'function') {
-        (window as any).savePlanModal(this);
-      } else {
-        debugLog('[ModalPlan] savePlanModal not found on window');
-      }
-    });
-
-    saveButton.dataset.listenerAttached = 'true';
-    debugLog('[ModalPlan] Save button listener attached');
-  }
-}
+// setupSaveButtonListener removed — redundant with inline onclick="savePlanModal(this)" on the save button.
+// Having both caused double POST requests (BUG-3).
 
 /**
  * Open modal plan
@@ -461,6 +493,7 @@ export async function openModalPlan(): Promise<void> {
 
     // Setup period buttons AFTER skeleton hidden
     setupPlanPeriodButtons();
+    setupTransferPeriodButtons();
 
     // Reset to transaction tab (default)
     switchTab('transaction');
@@ -474,8 +507,7 @@ export async function openModalPlan(): Promise<void> {
       (window as any).setPlanTransferPeriod(0); // Transfer tab: 0 = current month
     }
 
-    // Setup save button click handler (fallback if onclick doesn't work)
-    setupSaveButtonListener();
+    // setupSaveButtonListener() removed — caused double POST (BUG-3)
 
     // UX: Setup keyboard shortcuts (Escape to close, Ctrl+Enter to save)
     keyboardShortcutsCleanup = setupModalKeyboardShortcuts(
@@ -523,6 +555,32 @@ export function closeModalPlan(): void {
   // Clear form
   const form = document.getElementById('form_modal_plan') as HTMLFormElement;
   form?.reset();
+
+  // Reset plan mode sections visibility (form.reset() restores radio to "regular"
+  // but does not affect CSS classes on the panel sections)
+  if (form) {
+    togglePlanMode('modal_plan');
+  }
+
+  // Destroy ChoicesCategoryTree instances so next open starts fresh
+  // Prevents "Choices already initialised" double-init error on re-open
+  const state = getState();
+  if (state.planCategoryTreeSelect) {
+    try { state.planCategoryTreeSelect.destroy(); } catch (_) {}
+    updateState({ planCategoryTreeSelect: null });
+  }
+  if (state.planTransferFromCategoryTree || state.planTransferToCategoryTree) {
+    if (state.planTransferFromCategoryTree) {
+      try { state.planTransferFromCategoryTree.destroy(); } catch (_) {}
+    }
+    if (state.planTransferToCategoryTree) {
+      try { state.planTransferToCategoryTree.destroy(); } catch (_) {}
+    }
+    updateState({ planTransferFromCategoryTree: null, planTransferToCategoryTree: null });
+  }
+  cleanupExclusionFlag(
+    document.querySelector('#modal_plan-tab-transfer select[name="from_financial_center_id"]') as HTMLSelectElement | null
+  );
 
   // Clear tab cache
   clearTabCache();

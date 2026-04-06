@@ -1,8 +1,6 @@
 /**
  * DexieManager - Main interface for Dexie.js database
- * Replaces PGliteManager with IndexedDB backend
- *
- * ВАЖНО: API совместим с PGliteManager для seamless migration
+ * Offline-first database manager using Dexie.js / IndexedDB
  * Changes: SQL queries → Dexie.js Table operations
  */
 
@@ -11,7 +9,7 @@ import type { FamilyBudgetDB } from './core/database';
 import { logger } from './utils/logger';
 import { cleanupLegacyDatabase } from './migration/cleanupLegacyDB';
 import { validateFact } from './utils/validation';
-import { generateNumericTempId } from './utils/hash';
+import { generateUUID } from './utils/hash';
 import {
   pruneFacts,
   startAutoPruning,
@@ -35,6 +33,7 @@ import {
   syncCostCenters,
   syncRecurringPlans
 } from './operations/referenceSync';
+import { fullFactSync } from './operations/factSync';
 import type {
   LocalArticle,
   LocalFinancialCenter,
@@ -65,6 +64,7 @@ export type ProgressCallback = (_current: number, _total: number) => void;
 export class DexieManager {
   private state: InitializationStatus = 'not_started';
   private db: FamilyBudgetDB | null = null;
+  private _uploadPendingPromise: Promise<{ success: boolean; listsUploaded: number; itemsUploaded: number; failed: number }> | null = null;
 
   /**
    * Initialize Dexie database
@@ -149,30 +149,38 @@ export class DexieManager {
     const factsKey = 'budget_dexie_sync_period_facts';
     const plansKey = 'budget_dexie_sync_period_plans';
 
-    // Skip if already migrated
-    if (localStorage.getItem(factsKey) || localStorage.getItem(plansKey)) {
-      return;
+    // Step 1: migrate legacy → facts/plans (v11.5.0+)
+    if (!localStorage.getItem(factsKey) && !localStorage.getItem(plansKey)) {
+      const legacyValue = localStorage.getItem(legacyKey);
+
+      if (legacyValue) {
+        // Migrate: keep facts period, convert to months for plans
+        localStorage.setItem(factsKey, legacyValue); // e.g., "90"
+
+        const daysAsMonths = Math.round(parseInt(legacyValue, 10) / 30);
+        const plansMonths = Math.max(1, Math.min(6, daysAsMonths));
+        localStorage.setItem(plansKey, plansMonths.toString());
+
+        logger.info('[DexieManager] Migrated sync period settings', {
+          legacy: legacyValue,
+          facts: legacyValue,
+          plans: plansMonths
+        });
+      } else {
+        // Set defaults
+        localStorage.setItem(factsKey, '90');
+        localStorage.setItem(plansKey, '3');
+      }
     }
 
-    const legacyValue = localStorage.getItem(legacyKey);
-
-    if (legacyValue) {
-      // Migrate: keep facts period, convert to months for plans
-      localStorage.setItem(factsKey, legacyValue); // e.g., "90"
-
-      const daysAsMonths = Math.round(parseInt(legacyValue, 10) / 30);
-      const plansMonths = Math.max(1, Math.min(6, daysAsMonths));
-      localStorage.setItem(plansKey, plansMonths.toString());
-
-      logger.info('[DexieManager] Migrated sync period settings', {
-        legacy: legacyValue,
-        facts: legacyValue,
-        plans: plansMonths
-      });
-    } else {
-      // Set defaults
-      localStorage.setItem(factsKey, '90');
-      localStorage.setItem(plansKey, '3');
+    // Step 2: split plans → plans_history + plans_future (v11.6.0+)
+    // Runs independently — existing users who completed step 1 also need this
+    const plansHistoryKey = 'budget_dexie_sync_period_plans_history';
+    const plansFutureKey = 'budget_dexie_sync_period_plans_future';
+    if (!localStorage.getItem(plansHistoryKey) && !localStorage.getItem(plansFutureKey)) {
+      const base = parseInt(localStorage.getItem(plansKey) ?? '3', 10);
+      localStorage.setItem(plansHistoryKey, base.toString());
+      localStorage.setItem(plansFutureKey, base.toString());
     }
   }
 
@@ -319,7 +327,7 @@ export class DexieManager {
    */
   async createFact(
     fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
-  ): Promise<number> {
+  ): Promise<string> {
     logger.debug('[DexieManager] createFact', fact);
 
     // Validate before insert
@@ -331,7 +339,7 @@ export class DexieManager {
       article_id: fact.article_id
     });
 
-    const temp_id = generateNumericTempId();
+    const temp_id = generateUUID();
 
     // Convert amount to cents
     const factWithCents: LocalBudgetFact = {
@@ -355,7 +363,7 @@ export class DexieManager {
   /**
    * Update budget fact по temp_id
    */
-  async updateFact(temp_id: number, updates: Partial<LocalBudgetFact>): Promise<void> {
+  async updateFact(temp_id: string, updates: Partial<LocalBudgetFact>): Promise<void> {
     logger.debug('[DexieManager] updateFact', { temp_id, updates });
 
     // Convert amount to cents if updated
@@ -370,7 +378,7 @@ export class DexieManager {
   /**
    * Delete budget fact (soft delete) по temp_id
    */
-  async deleteFact(temp_id: number): Promise<void> {
+  async deleteFact(temp_id: string): Promise<void> {
     logger.debug('[DexieManager] deleteFact', { temp_id });
 
     await this.getDB().budgetFacts.where('temp_id').equals(temp_id).modify({ sync_status: 'deleted' });
@@ -416,8 +424,23 @@ export class DexieManager {
         if (filters.date_from && fact.date < filters.date_from) return false;
         if (filters.date_to && fact.date > filters.date_to) return false;
 
+        // Search filter by comment field
+        // NOTE: article_type is not stored in LocalBudgetFact (only article_id), so it cannot be filtered here
+        if (filters.search) {
+          const searchLower = filters.search.toLowerCase();
+          const comment = fact.comment || '';
+          if (!comment.toLowerCase().includes(searchLower)) return false;
+        }
+
         return true;
       });
+
+      // article_type filter: client-side join — article_type is not stored in LocalBudgetFact
+      if (filters.article_type) {
+        const matchingArticles = await this.queryArticles({ type: filters.article_type });
+        const validArticleIds = new Set(matchingArticles.map(a => a.id));
+        results = results.filter(fact => validArticleIds.has(fact.article_id));
+      }
     }
 
     // Convert amount from cents to dollars
@@ -504,7 +527,7 @@ export class DexieManager {
   /**
    * Bulk soft delete facts
    */
-  async bulkSoftDeleteFacts(temp_ids: number[]): Promise<void> {
+  async bulkSoftDeleteFacts(temp_ids: string[]): Promise<void> {
     logger.info('[DexieManager] bulkSoftDeleteFacts', { count: temp_ids.length });
     const db = this.getDB();
     await db.transaction('rw', db.budgetFacts, async () => {
@@ -538,7 +561,7 @@ export class DexieManager {
   /**
    * Confirm pending operation (after successful sync)
    */
-  async confirmPendingOperation(tempId: number, serverId: number): Promise<void> {
+  async confirmPendingOperation(tempId: string, serverId: number): Promise<void> {
     logger.debug('[DexieManager] confirmPendingOperation', { tempId, serverId });
 
     await this.getDB().budgetFacts
@@ -606,7 +629,9 @@ export class DexieManager {
       throw new Error('[DexieManager] Internal error: userId is undefined after resolution');
     }
 
-    const result = await initialReferenceSync(effectiveUserId);
+    const historyMonths = this.getSyncPeriodPlansHistory?.() ?? this.getSyncPeriodMonths?.() ?? 3;
+    const futureMonths = this.getSyncPeriodPlansFuture?.() ?? this.getSyncPeriodMonths?.() ?? 3;
+    const result = await initialReferenceSync(effectiveUserId, historyMonths, futureMonths);
 
     if (!result.success) {
       const failedSyncs = Object.entries(result.results)
@@ -631,6 +656,53 @@ export class DexieManager {
         shoppingLists: result.results.shoppingLists.count
       }
     });
+  }
+
+  /**
+   * Upload pending shopping lists and items to server
+   *
+   * Uploads all pending (unsynced) shopping lists and shopping list items to the server.
+   * This method is called before IndexedDB deletion during SW update (handleUpdateNow Step 2.3/5)
+   * to prevent loss of user-created shopping data that has not yet been synced.
+   *
+   * @returns Combined result with counts of uploaded and failed records
+   */
+  async uploadPendingShoppingData(): Promise<{
+    success: boolean;
+    listsUploaded: number;
+    itemsUploaded: number;
+    failed: number;
+  }> {
+    // Singleton promise: if upload is already in progress, return the same promise
+    // to prevent concurrent calls from sending duplicate POSTs for the same pending item
+    if (this._uploadPendingPromise) {
+      logger.debug('[DexieManager] uploadPendingShoppingData: reusing in-progress upload');
+      return this._uploadPendingPromise;
+    }
+
+    this._uploadPendingPromise = (async () => {
+      logger.debug('[DexieManager] uploadPendingShoppingData');
+      const { uploadPendingShoppingLists, uploadPendingShoppingOperations } = await import('./operations/shoppingSync');
+      // Sequential: lists must be synced first so items can resolve list server IDs
+      const listsResult = await uploadPendingShoppingLists();
+      const itemsResult = await uploadPendingShoppingOperations();
+      const failed = listsResult.failed + itemsResult.failed;
+      logger.info('[DexieManager] ✅ Pending shopping data uploaded', {
+        listsUploaded: listsResult.uploaded,
+        itemsUploaded: itemsResult.uploaded,
+        failed
+      });
+      return {
+        success: failed === 0,
+        listsUploaded: listsResult.uploaded,
+        itemsUploaded: itemsResult.uploaded,
+        failed
+      };
+    })().finally(() => {
+      this._uploadPendingPromise = null;
+    });
+
+    return this._uploadPendingPromise;
   }
 
   /**
@@ -677,9 +749,24 @@ export class DexieManager {
    * @param syncPeriodMonths - Number of months to sync (default: 3)
    * @returns Sync result with count
    */
-  async syncRecurringPlans(userId: number, syncPeriodMonths?: number): Promise<{ success: boolean; count: number }> {
-    logger.debug('[DexieManager] syncRecurringPlans', { userId, syncPeriodMonths });
-    return await syncRecurringPlans(userId, syncPeriodMonths);
+  async syncRecurringPlans(userId: number): Promise<{ success: boolean; count: number }> {
+    logger.debug('[DexieManager] syncRecurringPlans', { userId });
+    return await syncRecurringPlans(userId);
+  }
+
+  /**
+   * Full facts sync: upload pending operations then download server facts.
+   * Uses configured sync period (getSyncPeriodDays) for the date range.
+   *
+   * @param userId - User ID for sync
+   * @returns Sync result with uploaded/downloaded counts
+   */
+  async syncFacts(userId: number): Promise<{ success: boolean; uploaded: number; downloaded: number; failed: number }> {
+    logger.debug('[DexieManager] syncFacts', { userId });
+    const days = this.getSyncPeriodDays();
+    const dateTo = new Date().toISOString().split('T')[0];
+    const dateFrom = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    return await fullFactSync(userId, dateFrom, dateTo);
   }
 
   // ============================================================
@@ -867,8 +954,8 @@ export class DexieManager {
 
   async createShoppingList(
     list: Omit<LocalShoppingList, 'id' | 'temp_id' | 'sync_status' | 'created_at' | 'updated_at'>
-  ): Promise<number> {
-    const temp_id = generateNumericTempId();
+  ): Promise<string> {
+    const temp_id = generateUUID();
 
     const newList: LocalShoppingList = {
       id: null,
@@ -904,10 +991,12 @@ export class DexieManager {
       financial_centers: number;
       cost_centers: number;
       facts: number;
-      plans: number;
+      plans: number;            // regular plans (record_type='plan') from budgetFacts
+      recurringPlans: number;   // recurring plans from recurringPlans table (v11.6.1+)
       stores: number;           // v11.4.2+
       productGroups: number;    // v11.4.2+
       shoppingLists: number;    // v11.4.2+
+      shoppingListItems: number; // added in getDiagnosticData
     };
     syncStatus: 'error' | 'idle' | 'syncing';
     performance: { avgQueryTime: number };
@@ -927,11 +1016,17 @@ export class DexieManager {
     syncPeriod: {
       facts: number;
       plans: number;
+      plansHistory: number;
+      plansFuture: number;
     };
   }> {
     const articlesCount = await this.getDB().articles.count();
-    const factsCount = await this.getDB().budgetFacts.count();
+    const factsCount = await this.getDB().budgetFacts.filter(f => f.record_type === 'fact').count();
+    const plansCount = await this.getDB().budgetFacts.filter(f => f.record_type === 'plan').count();
     const shoppingListsCount = await this.getDB().shoppingLists.count();
+    const shoppingListItemsCount = await this.getDB().shoppingListItems
+      .where('sync_status').notEqual('deleted')
+      .count();
     const financialCentersCount = await this.getDB().financialCenters.count();
     const costCentersCount = await this.getDB().costCenters.count();
     const recurringPlansCount = await this.getDB().recurringPlans.count();
@@ -941,16 +1036,27 @@ export class DexieManager {
     // Calculate actual DB size (approximate)
     const dbSize = await calculateDatabaseSize();
 
+    // Get actual last sync timestamp from syncMetadata (most recent across all entities)
+    const allMetadata = await this.getDB().syncMetadata.toArray();
+    const mostRecentSync = allMetadata.reduce<Date | null>((latest, meta) => {
+      if (!meta.last_sync_timestamp) return latest;
+      const t = meta.last_sync_timestamp instanceof Date
+        ? meta.last_sync_timestamp
+        : new Date(meta.last_sync_timestamp as unknown as string);
+      return !latest || t > latest ? t : latest;
+    }, null);
+    const lastSyncTimestamp = mostRecentSync ? mostRecentSync.toISOString() : 'never';
+
     return {
       initializationStatus: this.state,
-      lastSyncTimestamp: new Date().toISOString(),
+      lastSyncTimestamp,
       isEnabled: true,
       isInitialized: this.state === 'ready',
       dbSize,
       dbSizeKB: dbSize / 1024,
       tables: {
         articles: articlesCount,
-        budgetFacts: factsCount,
+        budgetFacts: factsCount + plansCount,
         shoppingLists: shoppingListsCount,
         financialCenters: financialCentersCount,
         costCenters: costCentersCount
@@ -960,10 +1066,12 @@ export class DexieManager {
         financial_centers: financialCentersCount,
         cost_centers: costCentersCount,
         facts: factsCount,
-        plans: recurringPlansCount,
+        plans: plansCount,              // regular plans (record_type='plan') from budgetFacts
+        recurringPlans: recurringPlansCount, // from recurringPlans table (v11.6.1+)
         stores: storesCount,
         productGroups: productGroupsCount,
-        shoppingLists: shoppingListsCount
+        shoppingLists: shoppingListsCount,
+        shoppingListItems: shoppingListItemsCount
       },
       syncStatus: 'idle' as const,
       performance: {
@@ -984,7 +1092,9 @@ export class DexieManager {
       },
       syncPeriod: {
         facts: this.getSyncPeriodDays(),
-        plans: this.getSyncPeriodMonths()
+        plans: this.getSyncPeriodMonths(),
+        plansHistory: this.getSyncPeriodPlansHistory(),
+        plansFuture: this.getSyncPeriodPlansFuture()
       }
     };
   }
@@ -1040,7 +1150,7 @@ export class DexieManager {
   async createConflictRecord(
     entityType: string,
     entityId: number | null,
-    tempId: number | null,
+    tempId: string | null,
     local: Record<string, unknown>,
     remote: Record<string, unknown>
   ): Promise<void> {
@@ -1133,11 +1243,59 @@ export class DexieManager {
   }
 
   /**
+   * Get sync period for Plans history (months back) (v11.6.0+)
+   * @returns Number of months of past plans to keep in Dexie (1-6)
+   */
+  getSyncPeriodPlansHistory(): number {
+    const saved = localStorage.getItem('budget_dexie_sync_period_plans_history');
+    if (!saved) {
+      return this.getSyncPeriodMonths(); // fallback to legacy plans key
+    }
+    return parseInt(saved, 10);
+  }
+
+  /**
+   * Set sync period for Plans history (months back) (v11.6.0+)
+   * @param months - Number of months of past plans (1-6)
+   */
+  setSyncPeriodPlansHistory(months: number): void {
+    if (months < 1 || months > 6) {
+      throw new Error('[DexieManager] Invalid plans history period: must be 1-6 months');
+    }
+    localStorage.setItem('budget_dexie_sync_period_plans_history', months.toString());
+    logger.info('[DexieManager] Plans history sync period updated', { months });
+  }
+
+  /**
+   * Get sync period for Plans future (months ahead) (v11.6.0+)
+   * @returns Number of months of future plans to keep in Dexie (1-6)
+   */
+  getSyncPeriodPlansFuture(): number {
+    const saved = localStorage.getItem('budget_dexie_sync_period_plans_future');
+    if (!saved) {
+      return this.getSyncPeriodMonths(); // fallback to legacy plans key
+    }
+    return parseInt(saved, 10);
+  }
+
+  /**
+   * Set sync period for Plans future (months ahead) (v11.6.0+)
+   * @param months - Number of months of future plans (1-6)
+   */
+  setSyncPeriodPlansFuture(months: number): void {
+    if (months < 1 || months > 6) {
+      throw new Error('[DexieManager] Invalid plans future period: must be 1-6 months');
+    }
+    localStorage.setItem('budget_dexie_sync_period_plans_future', months.toString());
+    logger.info('[DexieManager] Plans future sync period updated', { months });
+  }
+
+  /**
    * Query shopping list items (wrapper for shoppingOperations)
    * @param shopping_list_temp_id - Shopping list temp_id
    * @returns Promise with shopping list items
    */
-  async queryShoppingListItems(shopping_list_temp_id: number): Promise<import('./types/shopping').LocalShoppingListItem[]> {
+  async queryShoppingListItems(shopping_list_temp_id: string): Promise<import('./types/shopping').LocalShoppingListItem[]> {
     const { queryShoppingListItems } = await import('./operations/shoppingOperations');
     return queryShoppingListItems(shopping_list_temp_id);
   }

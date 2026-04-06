@@ -28,11 +28,12 @@ npx playwright install chromium
 ### 3. Configure Credentials
 
 ```bash
-# Copy example file
-cp .env.test.example .env.test
-
-# Edit .env.test with real credentials
-nano .env.test
+cat > .env.test << 'EOF'
+TEST_USER_EMAIL=your-test-user@example.com
+TEST_USER_PASSWORD=YourStrongPassword123!
+BASE_URL=https://fbd.ikeniborn.ru
+EOF
+chmod 600 .env.test
 ```
 
 **Example `.env.test`:**
@@ -314,15 +315,16 @@ curl -X POST https://fbd.ikeniborn.ru/api/v1/auth/login \
 
 ### Issue: ".env.test not found"
 
-**Error:** `.env.test not found. Create it from .env.test.example...`
+**Error:** `.env.test not found. Create it with TEST_USER_EMAIL, TEST_USER_PASSWORD and BASE_URL.`
 
 **Solution:**
 ```bash
-# Copy example file
-cp .env.test.example .env.test
-
-# Edit with your credentials
-nano .env.test
+cat > .env.test << 'EOF'
+TEST_USER_EMAIL=your-test-user@example.com
+TEST_USER_PASSWORD=YourStrongPassword123!
+BASE_URL=https://fbd.ikeniborn.ru
+EOF
+chmod 600 .env.test
 ```
 
 ### Issue: Browser not installed

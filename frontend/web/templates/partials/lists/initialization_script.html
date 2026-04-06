@@ -17,6 +17,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.debug('[LISTS_INIT] hideDexieProgress not available');
         });
 
+        // Fallback: Set default if not initialized (edge case if this runs before base.html)
+        // DEFAULT: enabled (matches TypeScript logic in frontend/shared/db/dexie/index.ts)
+        if (localStorage.getItem('dexieActive') === null) {
+            localStorage.setItem('dexieActive', 'true');
+            console.info('[LISTS_INIT] dexieActive flag initialized to true (fallback)');
+        }
+
         if (localStorage.getItem('dexieActive') === 'true' &&
             typeof showProgress === 'function' &&
             typeof hideProgress === 'function') {

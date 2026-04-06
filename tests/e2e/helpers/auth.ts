@@ -26,7 +26,7 @@ function loadTestEnv(): { email: string; password: string; baseUrl: string } {
 
     if (!fs.existsSync(envPath)) {
       throw new Error(
-        `.env.test not found. Create it from .env.test.example and add TEST_USER_EMAIL and TEST_USER_PASSWORD.\n` +
+        `.env.test not found. Create it with TEST_USER_EMAIL, TEST_USER_PASSWORD and BASE_URL.\n` +
         `See: docs/testing/e2e-test-user-setup.md`
       );
     }
@@ -54,7 +54,7 @@ function loadTestEnv(): { email: string; password: string; baseUrl: string } {
     throw new Error(
       `TEST_USER_EMAIL and TEST_USER_PASSWORD must be set.\n` +
       `- CI: Set GitHub Actions secrets\n` +
-      `- Local: Create .env.test from .env.test.example\n` +
+      `- Local: Create .env.test with TEST_USER_EMAIL and TEST_USER_PASSWORD\n` +
       `See: docs/testing/e2e-test-user-setup.md`
     );
   }

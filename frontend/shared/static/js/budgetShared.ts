@@ -681,7 +681,7 @@ class DateFormatter {
    * DateFormatter.getBrowserTimezone()
    * // => 'Europe/Moscow'
    */
-  static getBrowserTimezone() {
+  static getBrowserTimezone(): string {
     return Intl.DateTimeFormat().resolvedOptions().timeZone;
   }
 }
@@ -1744,7 +1744,7 @@ class ChoicesCategoryTree {
      * @param {boolean} options.showInactive - Include archived categories (default: false)
      * @returns {Promise<void>}
      */
-    static async preloadCategories(options: any = {}) {
+    static async preloadCategories(options: any = {}): Promise<void> {
         const apiBaseUrl = options.apiBaseUrl || '/api/v1';
         const showInactive = options.showInactive || false;
 
@@ -2063,7 +2063,7 @@ class ChoicesCategoryTree {
      *
      * @returns {Promise<void>} Resolves when initialization is complete
      */
-    async waitForReady() {
+    async waitForReady(): Promise<void> {
         // If already initialized, return immediately
         if (this.categoryMap && this.categoryMap.size > 0 &&
             this.choices && this.choices._store?.choices.length > 0) {
@@ -2204,6 +2204,10 @@ class ChoicesCategoryTree {
             searchEnabled: true,
             searchPlaceholderValue: 'Поиск категории...',
             placeholder: true,
+            // Always open dropdown downward (for modal usage with mobileModalPositioning)
+            // Choices.js 'auto' fires showDropdown AFTER computing direction, making
+            // mobileModalPositioning.ts modal-shift too late to affect dropdown direction.
+            position: 'bottom',
             // Different placeholder for single/multiple modes
             placeholderValue: this.options.multiple
                 ? ''  // Пустой placeholder для multi-select
@@ -2479,6 +2483,34 @@ class ChoicesCategoryTree {
     }
 
     /**
+     * Disable the category selector.
+     * Delegates to Choices.js .disable() which adds is-disabled CSS class and
+     * sets pointer-events:none — the native select disabled attribute alone
+     * does not update the custom Choices.js UI.
+     * Falls back to native setAttribute if Choices.js is not yet initialized.
+     */
+    disable() {
+        if (this.choices) {
+            this.choices.disable();
+        } else if (this.element) {
+            this.element.setAttribute('disabled', 'disabled');
+        }
+    }
+
+    /**
+     * Enable the category selector.
+     * Delegates to Choices.js .enable() which removes is-disabled CSS class.
+     * Falls back to native removeAttribute if Choices.js is not yet initialized.
+     */
+    enable() {
+        if (this.choices) {
+            this.choices.enable();
+        } else if (this.element) {
+            this.element.removeAttribute('disabled');
+        }
+    }
+
+    /**
      * Destroy component and cleanup.
      */
     destroy() {
@@ -2708,7 +2740,7 @@ class ChoicesCategoryTree {
      *
      * @returns {Object|null} Selected category or null
      */
-    getSelectedCategory() {
+    getSelectedCategory(): any | null {
         const categoryId = this.element ? parseInt((this.element as HTMLSelectElement).value) : NaN;
         return categoryId ? this.categoryMap.get(categoryId) : null;
     }
@@ -2734,7 +2766,7 @@ class ChoicesCategoryTree {
      *
      * @returns {Array} Array of selected category objects
      */
-    getSelectedCategories() {
+    getSelectedCategories(): any[] {
         if (!this.choices || !this.options.multiple) {
             // Single mode - return array with one item or empty
             const cat = this.getSelectedCategory();

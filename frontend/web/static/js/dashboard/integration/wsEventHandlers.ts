@@ -144,6 +144,16 @@ function registerFactHandlers(hasIncrementalUpdates: boolean): void {
 // Plan Event Handlers
 // ============================================================================
 
+let _loadRecurringPlansTimer: ReturnType<typeof setTimeout> | null = null;
+
+function debouncedLoadRecurringPlans(): void {
+  if (_loadRecurringPlansTimer) clearTimeout(_loadRecurringPlansTimer);
+  _loadRecurringPlansTimer = setTimeout(() => {
+    window.loadRecurringPlans?.();
+    _loadRecurringPlansTimer = null;
+  }, 300);
+}
+
 function registerPlanHandlers(hasIncrementalUpdates: boolean): void {
   if (!window.budgetWSClient) return;
 
@@ -154,6 +164,7 @@ function registerPlanHandlers(hasIncrementalUpdates: boolean): void {
     } else {
       refreshQuickStats();
     }
+    debouncedLoadRecurringPlans();
   });
 
   window.budgetWSClient.on('plan_updated', (data: FactEventData) => {

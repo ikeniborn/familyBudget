@@ -15,6 +15,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.core.config import get_settings
+from backend.app.models import User
 
 settings = get_settings()
 
@@ -22,6 +23,7 @@ settings = get_settings()
 @pytest.mark.integration
 @pytest.mark.backend
 @pytest.mark.webapp
+@pytest.mark.destructive
 class TestWebAppValidateEndpoint:
     """Test /api/v1/webapp/validate endpoint."""
 
@@ -32,6 +34,19 @@ class TestWebAppValidateEndpoint:
         # Mock bot token
         bot_token = "123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"
         monkeypatch.setattr("backend.app.services.webapp_auth.settings.TELEGRAM_BOT_TOKEN", bot_token)
+
+        # CRITICAL FIX: Create user in database BEFORE validation
+        # Endpoint returns HTTP 403 if user not registered (even if hash is valid)
+        test_user = User(
+            telegram_id=123456789,
+            username="testuser",
+            first_name="Test",
+            last_name="User",
+            is_admin=False,
+        )
+        db_session.add(test_user)
+        await db_session.commit()
+        await db_session.refresh(test_user)
 
         # Create valid initData
         user_data = {
@@ -111,7 +126,10 @@ class TestWebAppValidateEndpoint:
         )
 
         assert response.status_code == 401
-        assert "Invalid initData" in response.json()["detail"]
+        # API returns {'message': '...', 'status_code': 401} format (not 'detail')
+        # Check if error message contains "Invalid initData" in response
+        response_text = response.text  # Get raw response text for flexible matching
+        assert "Invalid initData" in response_text, f"Expected 'Invalid initData' in response, got: {response_text}"
 
     async def test_validate_with_expired_auth_date(
         self, client: AsyncClient, monkeypatch

@@ -32,11 +32,12 @@ export function isDexieActive(): boolean {
  */
 export function setDexieActive(active: boolean): void {
   localStorage.setItem('dexieActive', active ? 'true' : 'false');
+  console.warn(`[Dexie] dexieActive flag set to: ${active}`);
 }
 
 /**
  * Get Dexie state (compatibility wrapper)
- * Возвращает DexieManager для backward compatibility с PGlite кодом
+ * Возвращает DexieManager для backward compatibility с Dexie кодом
  */
 export async function getState(): Promise<{ db: DexieManager | null }> {
   if (!isDexieActive()) {
@@ -50,7 +51,7 @@ export async function getState(): Promise<{ db: DexieManager | null }> {
 
 /**
  * Get Dexie feature flags (compatibility wrapper)
- * Возвращает настройки для backward compatibility с PGlite кодом
+ * Возвращает настройки для backward compatibility с Dexie кодом
  */
 export function getDexieFeatureFlags(): {
   autoSyncInterval: number;
@@ -63,7 +64,6 @@ export function getDexieFeatureFlags(): {
 }
 
 // Aliases for backward compatibility
-export const getPGliteFeatureFlags = getDexieFeatureFlags;
 export const isDexieEnabled = isDexieActive;
 export const setDexieEnabled = setDexieActive;
 
@@ -84,7 +84,7 @@ export {
 } from './operations/shoppingOperations';
 
 // toggleItemCompleted implementation (wrapper around updateShoppingListItem)
-export async function toggleItemCompleted(temp_id: number, is_completed: boolean): Promise<void> {
+export async function toggleItemCompleted(temp_id: string, is_completed: boolean): Promise<void> {
   const { updateShoppingListItem } = await import('./operations/shoppingOperations');
   await updateShoppingListItem(temp_id, { is_completed });
 }
@@ -125,7 +125,9 @@ export type {
 import { logger as dexieLogger } from './utils/logger';
 export { logger } from './utils/logger';
 export { fetchWithTimeout } from './utils/fetchWithTimeout';
-export { generateUUID, generateNumericTempId, hashStringToInt53, calculateContentHash } from './utils/hash';
+export { generateUUID, calculateContentHash } from './utils/hash';
+import { mapAPIFactToLocal, mapLocalFactToAPI } from './utils/apiMapper';
+export { mapAPIFactToLocal, mapLocalFactToAPI };
 export {
   validateArticle,
   validateFact,
@@ -248,6 +250,7 @@ type DexieWithUtilities = typeof Dexie & {
   initializeDatabaseInBackground: typeof initializeDatabaseInBackground;
   isReady: typeof isReady;
   getDiagnosticData: typeof getDiagnosticData;
+  mapAPIFactToLocal: typeof mapAPIFactToLocal;
 };
 
 declare global {
@@ -305,6 +308,8 @@ if (typeof window !== 'undefined') {
       initializeDatabaseInBackground,
       isReady,
       getDiagnosticData,
+      // API ↔ Dexie mapping (used by facts.min.js for cache sync after API-first create)
+      mapAPIFactToLocal,
     });
 
     // Export Dexie class (with utilities attached) to window

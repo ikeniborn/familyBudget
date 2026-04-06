@@ -55,7 +55,7 @@ export interface PerformanceStats {
  * Module-specific performance breakdown
  */
 export interface ModuleBreakdown {
-  /** PGlite call count */
+  /** Dexie call count */
   dexie: number;
   /** API call count */
   api: number;
@@ -85,7 +85,7 @@ export interface DetailedPerformanceStats extends PerformanceStats {
 }
 
 /**
- * Performance monitor for tracking API and PGlite call performance
+ * Performance monitor for tracking API and Dexie call performance
  */
 export class PerformanceMonitor {
   private apiMetrics: Map<string, number[]> = new Map();
@@ -107,7 +107,7 @@ export class PerformanceMonitor {
   }
 
   /**
-   * Track a PGlite call
+   * Track a Dexie call
    *
    * @param method - Method name (e.g., 'getArticles')
    * @param durationMs - Call duration in milliseconds
@@ -239,7 +239,7 @@ export class PerformanceMonitor {
   /**
    * Get overall performance statistics
    *
-   * @returns Performance statistics comparing API and PGlite
+   * @returns Performance statistics comparing API and Dexie
    */
   getStats(): PerformanceStats {
     // Flatten all metrics

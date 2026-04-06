@@ -266,12 +266,13 @@ generate_env_from_image_versions() {
     # Use temp file for atomic update
     local temp_env="${env_file}.tmp"
 
-    # Copy existing .env, removing old version variables
+    # Copy existing .env, removing old version variables and their auto-generated comments
     if [[ -f "$env_file" ]]; then
-        # Filter out version variables (exit code 1 if no matches is OK)
-        if ! grep -v -E '^(BACKEND|BOT|NGINX|REDIS|POSTGRESQL)_VERSION=' "$env_file" > "$temp_env" 2>/dev/null; then
-            # File contains only version variables or is empty - create empty temp
-            : > "$temp_env"
+        # Filter out version variables and their section comments (exit code 1 if no matches is OK)
+        grep -v -E '^(BACKEND|BOT|NGINX|REDIS|POSTGRESQL)_VERSION=|^# Image versions \(auto-generated|^# Updated: [0-9]{4}-[0-9]{2}' "$env_file" > "$temp_env" 2>/dev/null || : > "$temp_env"
+        # Remove trailing empty lines to prevent accumulation on each deploy
+        if [[ -s "$temp_env" ]]; then
+            awk 'NF{found=NR} {lines[NR]=$0} END{for(i=1;i<=found;i++) print lines[i]}' "$temp_env" > "${temp_env}.clean" && mv "${temp_env}.clean" "$temp_env"
         fi
     else
         touch "$temp_env"
@@ -300,6 +301,94 @@ generate_env_from_image_versions() {
     info "  REDIS_VERSION=${redis_ver}"
     info "  POSTGRESQL_VERSION=${postgresql_ver}"
     echo ""
+
+    return 0
+}
+
+# Compare running container images with pulled images from registry
+# Sets NEEDS_*_RECREATE=true if running image differs from pulled image or container is unhealthy
+# Returns: 0 on success, 1 on error
+compare_running_vs_pulled_images() {
+    local env_file="$DEPLOY_DIR/.env"
+    local image_versions_file="$DEPLOY_DIR/IMAGE_VERSIONS.json"
+
+    if [[ ! -f "$env_file" ]]; then
+        error ".env file not found: $env_file"
+        return 1
+    fi
+
+    if [[ ! -f "$image_versions_file" ]]; then
+        error "IMAGE_VERSIONS.json not found: $image_versions_file"
+        return 1
+    fi
+
+    info "Comparing running containers with pulled images..."
+
+    # Load environment variables from .env
+    set -a
+    source "$env_file"
+    set +a
+
+    local services=("backend" "bot" "nginx")
+    local recreate_count=0
+
+    for service in "${services[@]}"; do
+        local container_name="familybudget-${service}"
+        local version_var="${service^^}_VERSION"
+        local desired_version="${!version_var:-latest}"
+        local desired_image="ghcr.io/ikeniborn/familybudget-${service}:${desired_version}"
+
+        # Check if container exists
+        if ! docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
+            info "  → ${service}: Container not found (will be created)"
+            export "NEEDS_${service^^}_RECREATE=true"
+            ((recreate_count++))
+            continue
+        fi
+
+        # Get running container image
+        local running_image=$(docker inspect "$container_name" --format '{{.Config.Image}}' 2>/dev/null)
+        if [[ -z "$running_image" ]]; then
+            warn "  → ${service}: Failed to get running image (will recreate)"
+            export "NEEDS_${service^^}_RECREATE=true"
+            ((recreate_count++))
+            continue
+        fi
+
+        # Get running container health status
+        local health_status=$(docker inspect "$container_name" --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
+
+        # Get image IDs for comparison (more reliable than tag comparison)
+        local running_image_id=$(docker inspect "$running_image" --format '{{.Id}}' 2>/dev/null | cut -d':' -f2 | cut -c1-12)
+        local desired_image_id=$(docker inspect "$desired_image" --format '{{.Id}}' 2>/dev/null | cut -d':' -f2 | cut -c1-12)
+
+        if [[ -z "$running_image_id" ]] || [[ -z "$desired_image_id" ]]; then
+            warn "  → ${service}: Failed to get image IDs (will recreate)"
+            export "NEEDS_${service^^}_RECREATE=true"
+            ((recreate_count++))
+            continue
+        fi
+
+        # Decision logic: recreate if images differ OR container unhealthy
+        if [[ "$running_image_id" != "$desired_image_id" ]]; then
+            info "  → ${service}: Image changed (${running_image_id} → ${desired_image_id})"
+            export "NEEDS_${service^^}_RECREATE=true"
+            ((recreate_count++))
+        elif [[ "$health_status" == "unhealthy" ]]; then
+            warn "  → ${service}: Container unhealthy (will recreate)"
+            export "NEEDS_${service^^}_RECREATE=true"
+            ((recreate_count++))
+        else
+            info "  ✓ ${service}: Up-to-date and healthy (${running_image_id})"
+            export "NEEDS_${service^^}_RECREATE=false"
+        fi
+    done
+
+    if [[ $recreate_count -gt 0 ]]; then
+        info "Services requiring recreation: $recreate_count"
+    else
+        info "All services up-to-date and healthy"
+    fi
 
     return 0
 }

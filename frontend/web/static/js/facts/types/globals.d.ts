@@ -42,18 +42,25 @@ declare global {
         openCreateModal?: () => void;
         createFact?: (event: Event) => Promise<void>;
         createTransfer?: (event: Event) => Promise<void>;
+        reloadFacts?: () => Promise<void>;
         filterEditCostCenters?: (financialCenterId: string) => Promise<void>;
+        saveFactModal?: (button: HTMLElement) => Promise<void>;
 
         // Note: These are declared in dashboard/types/globals.d.ts with compatible types:
         // - closeEditModal, deleteFact, deleteFromEditModal
         // - openAddTransactionModal, openFactTransferModal
         // - saveTransaction, saveTransfer, setTransactionDate, loadFactHints
 
-        // Facts Manager state (read-only access)
+        // Facts Manager state and operations
         FactsManager?: {
             getFilters: () => any;
             getPagination: () => any;
             getSelectedIds: () => Set<number>;
+            // BUG2 fix: add missing methods used in renderFactRow/renderFactMobileCard
+            showEditModal?: (factId: number) => Promise<void> | void;
+            deleteFact?: (factId: number) => Promise<void> | void;
+            toggleSelectAll?: (checkbox: HTMLInputElement) => void;
+            fetchAndInjectRow: (factId: number, operation: 'create' | 'update') => Promise<boolean>;
         };
     }
 }

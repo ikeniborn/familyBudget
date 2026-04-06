@@ -6,10 +6,12 @@
  */
 
 import { setupTabListeners, clearTabCache, switchTab } from './tabManager';
-import { getState } from '../../core/DashboardState';
+import { getState, updateState } from '../../core/DashboardState';
 import './dateHelpers'; // Import for side effects (window exports)
 import { setupTransactionTypeToggle } from './typeToggle';
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
+import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
+import { setupTransferFCExclusion, createToClearCallback, cleanupExclusionFlag } from '../../shared/utils/transferFCExclusion';
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
@@ -19,6 +21,10 @@ declare const debugLog: (...args: any[]) => void;
  * Stored to remove listeners when modal closes
  */
 let keyboardShortcutsCleanup: (() => void) | null = null;
+
+/** CalendarWidget instances for date fields (destroyed on modal close) */
+let factDateCalendar: any = null;
+let transferDateCalendar: any = null;
 
 /**
  * Cache entry with timestamp and TTL
@@ -97,13 +103,13 @@ async function loadTransactionTabData(): Promise<void> {
     !isCacheValid(state.dropdownCache.financialCenters) ||
     !isCacheValid(state.dropdownCache.costCenters);
 
+  // Import existing functions from addTransaction module
+  const { loadTransactionCategories, loadFinancialCenters, loadCostCenters, enableDisableCategoryAndCostCenter } = await import(
+    '../addTransaction/categoryLoader'
+  );
+
   if (needsRefresh) {
     debugLog('[ModalFact] Loading transaction data...');
-
-    // Import existing functions from addTransaction module
-    const { loadTransactionCategories, loadFinancialCenters, loadCostCenters } = await import(
-      '../addTransaction/categoryLoader'
-    );
 
     // Load financial centers FIRST (now with built-in retry logic)
     await loadFinancialCenters();
@@ -119,6 +125,13 @@ async function loadTransactionTabData(): Promise<void> {
     debugLog('[ModalFact] Transaction data loaded');
   } else {
     debugLog('[ModalFact] Using cached transaction data');
+    // Ensure category tree is recreated if destroyed (e.g., after modal close/reopen)
+    const currentState = getState();
+    if (!currentState.transactionCategoryTreeSelect) {
+      await loadTransactionCategories();
+      // Disable category until account is selected (mirrors loadFinancialCenters() initial state)
+      enableDisableCategoryAndCostCenter(null, 'fact');
+    }
   }
 
   // Setup financial center change listener for transaction hints
@@ -135,12 +148,12 @@ function setupTransactionFCListener(): void {
     '#modal_fact-tab-transaction select[name="financial_center_id"]'
   );
 
-  if (fcSelect && !fcSelect.dataset.listenerAttached) {
+  if (fcSelect && !fcSelect.dataset.transactionHintsListenerAttached) {
     fcSelect.addEventListener('change', () => {
       loadFactTransactionHints();
     });
-    fcSelect.dataset.listenerAttached = 'true';
-    debugLog('[ModalFact] Transaction FC listener attached');
+    fcSelect.dataset.transactionHintsListenerAttached = 'true';
+    debugLog('[ModalFact] Transaction FC hints listener attached');
   }
 }
 
@@ -172,7 +185,7 @@ async function loadTransferTabData(): Promise<void> {
       const fromCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_fact-tab-transfer select[name="from_article_id"]',
         {
-          type: 'debit', // FROM is debit (списание с счёта)
+          type: 'debit', // FROM is always debit
           showLeafOnly: true,
           mode: 'create',
           onCategoryChange: (category: Category) => {
@@ -186,7 +199,7 @@ async function loadTransferTabData(): Promise<void> {
       const toCategoryTree = new (window as any).BudgetShared.ChoicesCategoryTree(
         '#modal_fact-tab-transfer select[name="to_article_id"]',
         {
-          type: 'credit', // TO is credit (пополнение счёта)
+          type: 'credit', // TO is always credit
           showLeafOnly: true,
           mode: 'create',
           onCategoryChange: (category: Category) => {
@@ -203,7 +216,17 @@ async function loadTransferTabData(): Promise<void> {
         factTransferToCategoryTree: toCategoryTree
       });
 
-      // 5. Setup FC change listeners for transfer hints
+      // 5. Mobile/tablet: shift modal up when transfer dropdowns open
+      setupMobileModalPositioning(fromCategoryTree, 'modal_fact');
+      setupMobileModalPositioning(toCategoryTree, 'modal_fact');
+
+      // 5b. Initial state: disable FROM/TO category trees until account is selected
+      fromCategoryTree.clearSelection();
+      fromCategoryTree.disable();
+      toCategoryTree.clearSelection();
+      toCategoryTree.disable();
+
+      // 6. Setup FC change listeners for transfer hints
       setupTransferFCListeners();
 
       debugLog('[ModalFact] Transfer CategoryTreeSelect instances created');
@@ -226,6 +249,17 @@ function setupTransferFCListeners(): void {
 
   if (fromFcSelect && !fromFcSelect.dataset.listenerAttached) {
     fromFcSelect.addEventListener('change', () => {
+      const state = getState();
+      const fromTree = state.factTransferFromCategoryTree;
+      const fcId = fromFcSelect.value ? parseInt(fromFcSelect.value) : null;
+      if (fromTree) {
+        if (!fcId) {
+          fromTree.clearSelection();
+          fromTree.disable();
+        } else {
+          fromTree.enable();
+        }
+      }
       loadFactTransferHints('from');
     });
     fromFcSelect.dataset.listenerAttached = 'true';
@@ -233,9 +267,32 @@ function setupTransferFCListeners(): void {
 
   if (toFcSelect && !toFcSelect.dataset.listenerAttached) {
     toFcSelect.addEventListener('change', () => {
+      const state = getState();
+      const toTree = state.factTransferToCategoryTree;
+      const fcId = toFcSelect.value ? parseInt(toFcSelect.value) : null;
+      if (toTree) {
+        if (!fcId) {
+          toTree.clearSelection();
+          toTree.disable();
+        } else {
+          toTree.enable();
+        }
+      }
       loadFactTransferHints('to');
     });
     toFcSelect.dataset.listenerAttached = 'true';
+  }
+
+  // Mutual exclusion: TO excludes selected FROM account
+  if (fromFcSelect && toFcSelect && !fromFcSelect.dataset.exclusionAttached) {
+    setupTransferFCExclusion({
+      fromSelect: fromFcSelect,
+      toSelect: toFcSelect,
+      onToClear: createToClearCallback(
+        () => getState().factTransferToCategoryTree,
+        loadFactTransferHints
+      )
+    });
   }
 }
 
@@ -469,53 +526,6 @@ function formatDateYYYYMMDD(date: Date): string {
 }
 
 /**
- * Initialize calendar widgets for fact date inputs
- */
-function initFactDateCalendars(): void {
-  // Transaction tab date input
-  const factDateInput = document.getElementById('fact_date_input') as HTMLInputElement;
-
-  if (factDateInput && (window as any).BudgetShared?.CalendarWidget) {
-    try {
-      new (window as any).BudgetShared.CalendarWidget({
-        inputElement: factDateInput,
-        mode: 'single',
-        triggerContainer: '#fact_date_calendar_btn',
-        onSelect: (_displayDate: string) => {
-          // CalendarWidget already sets input.value to DD.MM.YYYY
-          // Just trigger change event for hint updates
-          factDateInput.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      });
-      debugLog('[ModalFact] Transaction date calendar widget initialized');
-    } catch (error) {
-      console.error('[ModalFact] Failed to initialize transaction date calendar:', error);
-    }
-  }
-
-  // Transfer tab date input
-  const transferDateInput = document.getElementById('fact_transfer_date_input') as HTMLInputElement;
-
-  if (transferDateInput && (window as any).BudgetShared?.CalendarWidget) {
-    try {
-      new (window as any).BudgetShared.CalendarWidget({
-        inputElement: transferDateInput,
-        mode: 'single',
-        triggerContainer: '#fact_transfer_date_calendar_btn',
-        onSelect: (_displayDate: string) => {
-          // CalendarWidget already sets input.value to DD.MM.YYYY
-          // Just trigger change event for hint updates
-          transferDateInput.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      });
-      debugLog('[ModalFact] Transfer date calendar widget initialized');
-    } catch (error) {
-      console.error('[ModalFact] Failed to initialize transfer date calendar:', error);
-    }
-  }
-}
-
-/**
  * Setup save button click listener as fallback
  * Ensures save button works even if onclick attribute fails
  */
@@ -583,6 +593,12 @@ export async function openModalFact(): Promise<void> {
     // Hide skeleton
     hideSkeleton();
 
+    // Mobile/tablet: shift modal up when category dropdown opens
+    const { transactionCategoryTreeSelect } = getState();
+    if (transactionCategoryTreeSelect) {
+      setupMobileModalPositioning(transactionCategoryTreeSelect, 'modal_fact');
+    }
+
     // Setup transaction type toggle listeners
     setupTransactionTypeToggle();
 
@@ -598,8 +614,8 @@ export async function openModalFact(): Promise<void> {
       (window as any).setFactTransferDate(0); // Transfer tab: 0 = today
     }
 
-    // Initialize calendar widgets for date inputs
-    initFactDateCalendars();
+    // Initialize CalendarWidget for date inputs
+    initFactCalendarWidgets();
 
     // Setup save button click handler (fallback if onclick doesn't work)
     setupSaveButtonListener();
@@ -627,11 +643,80 @@ export async function openModalFact(): Promise<void> {
 }
 
 /**
+ * Initialize CalendarWidget for fact_date and transfer_date inputs.
+ * Destroys existing instances before creating new ones.
+ */
+function initFactCalendarWidgets(): void {
+  if (!window.BudgetShared?.CalendarWidget) return;
+
+  // Destroy old instances
+  if (factDateCalendar) {
+    try { factDateCalendar.destroy(); } catch (_) {}
+    factDateCalendar = null;
+  }
+  if (transferDateCalendar) {
+    try { transferDateCalendar.destroy(); } catch (_) {}
+    transferDateCalendar = null;
+  }
+
+  const factDateInput = document.querySelector<HTMLInputElement>(
+    '#modal_fact-tab-transaction input[name="fact_date"]'
+  );
+  if (factDateInput) {
+    factDateCalendar = new window.BudgetShared.CalendarWidget({
+      inputElement: factDateInput,
+      mode: 'single',
+    });
+  }
+
+  const transferDateInput = document.querySelector<HTMLInputElement>(
+    '#modal_fact-tab-transfer input[name="transfer_date"]'
+  );
+  if (transferDateInput) {
+    transferDateCalendar = new window.BudgetShared.CalendarWidget({
+      inputElement: transferDateInput,
+      mode: 'single',
+    });
+  }
+}
+
+/**
  * Close modal fact and clear cache
  */
 export function closeModalFact(): void {
   const modal = document.getElementById('modal_fact') as HTMLDialogElement;
   modal?.close();
+
+  // Destroy calendar widgets
+  if (factDateCalendar) {
+    try { factDateCalendar.destroy(); } catch (_) {}
+    factDateCalendar = null;
+  }
+  if (transferDateCalendar) {
+    try { transferDateCalendar.destroy(); } catch (_) {}
+    transferDateCalendar = null;
+  }
+
+  // Destroy ChoicesCategoryTree instances so next open starts fresh
+  // Prevents "Choices already initialised" double-init error on re-open
+  // Mirrors the pattern from closeModalPlan()
+  const state = getState();
+  if (state.transactionCategoryTreeSelect) {
+    try { state.transactionCategoryTreeSelect.destroy(); } catch (_) {}
+    updateState({ transactionCategoryTreeSelect: null });
+  }
+  if (state.factTransferFromCategoryTree || state.factTransferToCategoryTree) {
+    if (state.factTransferFromCategoryTree) {
+      try { state.factTransferFromCategoryTree.destroy(); } catch (_) {}
+    }
+    if (state.factTransferToCategoryTree) {
+      try { state.factTransferToCategoryTree.destroy(); } catch (_) {}
+    }
+    updateState({ factTransferFromCategoryTree: null, factTransferToCategoryTree: null });
+  }
+  cleanupExclusionFlag(
+    document.querySelector('#modal_fact-tab-transfer select[name="from_financial_center_id"]') as HTMLSelectElement | null
+  );
 
   // Clear form
   const form = document.getElementById('form_modal_fact') as HTMLFormElement;

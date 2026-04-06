@@ -19,6 +19,7 @@ from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
 from backend.app.models.notification import Notification
 from backend.app.models.user import User
+from backend.app.services.telegram_auth import make_telegram_client
 from backend.app.utils.timezone import now_local
 
 logger = get_logger(__name__)
@@ -51,19 +52,20 @@ class NotificationService:
             bool: True if message sent successfully
         """
         try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with make_telegram_client() as client:
                 response = await client.post(
                     f"{self.telegram_api_url}/sendMessage",
                     json={
                         "chat_id": telegram_id,
                         "text": message,
                         "parse_mode": parse_mode,
-                    }
+                    },
+                    timeout=10.0,
                 )
                 response.raise_for_status()
                 return True
         except httpx.HTTPError as e:
-            logger.error(f"Failed to send Telegram message to {telegram_id}: {e}")
+            logger.error("Failed to send Telegram message to %s: %s", telegram_id, e)
             return False
 
     async def create_notification_record(
@@ -179,7 +181,7 @@ class NotificationService:
                 last_sunday = last_monday + timedelta(days=6)
 
                 logger.info(
-                    f"[SCHEDULER] Weekly report period: {last_monday} to {last_sunday}"
+                    "[SCHEDULER] Weekly report period: %s to %s", last_monday, last_sunday
                 )
 
                 # Get active users
@@ -253,8 +255,8 @@ class NotificationService:
                     # FILTER: Check Telegram notifications enabled
                     if not user.enable_telegram_notifications:
                         logger.debug(
-                            f"[NOTIF_FILTER] Skipping weekly report for user {user.id}: "
-                            "Telegram notifications disabled"
+                            "[NOTIF_FILTER] Skipping weekly report for user %s: "
+                            "Telegram notifications disabled", user.id
                         )
                         continue
 
@@ -267,13 +269,13 @@ class NotificationService:
                             sent_count += 1
 
                 logger.info(
-                    f"[SCHEDULER] Weekly reports sent to {sent_count}/{len(users)} users"
+                    "[SCHEDULER] Weekly reports sent to %s/%s users", sent_count, len(users)
                 )
 
                 return sent_count
 
         except Exception as e:
-            logger.error(f"[SCHEDULER] Error sending weekly reports: {e}", exc_info=True)
+            logger.error("[SCHEDULER] Error sending weekly reports: %s", e, exc_info=True)
             return 0
 
     async def check_all_budget_thresholds(self) -> int:
@@ -301,7 +303,7 @@ class NotificationService:
                     month_end = date(today.year, today.month + 1, 1) - timedelta(days=1)
 
                 logger.info(
-                    f"[SCHEDULER] Checking budget for period: {month_start} to {month_end}"
+                    "[SCHEDULER] Checking budget for period: %s to %s", month_start, month_end
                 )
 
                 # Get all active expense articles
@@ -312,7 +314,7 @@ class NotificationService:
                 articles_result = await session.execute(articles_stmt)
                 articles = list(articles_result.scalars().all())
 
-                logger.info(f"[SCHEDULER] Checking {len(articles)} expense articles")
+                logger.info("[SCHEDULER] Checking %s expense articles", len(articles))
 
                 # Get active users for broadcast
                 users = await self.get_active_users(session)
@@ -368,7 +370,7 @@ class NotificationService:
 
                         if exists:
                             logger.debug(
-                                f"[SCHEDULER] Notification already sent for article {article.id}"
+                                "[SCHEDULER] Notification already sent for article %s", article.id
                             )
                             continue
 
@@ -426,20 +428,21 @@ class NotificationService:
                         notifications_sent += 1
 
                         logger.info(
-                            f"[SCHEDULER] Budget threshold notification sent for article {article.id}: "
-                            f"{percent_used:.0f}% ({sent_count}/{len(telegram_ids)} users)"
+                            "[SCHEDULER] Budget threshold notification sent for article %s: "
+                            "%.0f%% (%s/%s users)",
+                            article.id, percent_used, sent_count, len(telegram_ids)
                         )
 
                 logger.info(
-                    f"[SCHEDULER] Budget threshold checks completed: "
-                    f"{notifications_sent} notifications sent"
+                    "[SCHEDULER] Budget threshold checks completed: %s notifications sent",
+                    notifications_sent
                 )
 
                 return notifications_sent
 
         except Exception as e:
             logger.error(
-                f"[SCHEDULER] Error checking budget thresholds: {e}",
+                "[SCHEDULER] Error checking budget thresholds: %s", e,
                 exc_info=True
             )
             return 0

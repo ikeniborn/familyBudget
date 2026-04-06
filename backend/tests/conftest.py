@@ -27,9 +27,90 @@ from backend.app.models.fact import BudgetFact
 from backend.app.models.user import User
 from backend.app.services.jwt import create_access_token
 
-_db_host = os.getenv("POSTGRES_HOST", "localhost")  # Default to localhost for local testing
-_db_port = os.getenv("POSTGRES_PORT", "5433")  # Use 5433 for local test DB (docker-compose-test.yml)
-TEST_DATABASE_URL = f"postgresql+asyncpg://familybudget:test_password_12345678901234567890@{_db_host}:{_db_port}/familybudget_test"
+# Tables to clean, ordered leaf → parent (FK-safe). Used in fixtures below.
+_CLEANUP_TABLES = [
+    "t_scheduled_reminder",
+    "t_f_budget_fact_history",
+    "t_f_refresh_token",
+    "t_notification",
+    "t_f_budget_fact",
+    "t_f_shopping_list_item",
+    "t_f_shopping_list",
+    "t_d_recurring_plan",
+    "t_import_staging",
+    "t_import_file_upload",
+    "t_import_column_mapping",
+    "t_d_import_template",
+    "t_article_usage_stats",
+    "t_d_article_hierarchy",
+    "t_article_financial_center",
+    "t_d_article_version_link",
+    "t_d_article_history",
+    "t_d_product_group_hierarchy",
+    "t_d_product_group_history",
+    "t_agg_financial_center_balance_monthly",
+    "t_d_financial_center_history",
+    "t_d_financial_center_version_link",
+    "t_cost_center_financial_center",
+    "t_d_cost_center_history",
+    "t_d_cost_center_version_link",
+    "t_d_financial_center",
+    "t_d_cost_center",
+    "t_d_article",
+    "t_d_product_group",
+    "t_d_store_history",
+    "t_d_store",
+    "t_user_consent",
+    "t_push_subscription",
+    "t_2fa_session",
+    "t_f_webauthn_audit_log",
+    "t_f_webauthn_challenge",
+    "t_d_webauthn_credential",
+    "t_d_user_history",
+    "t_d_user",
+]
+# Single PL/pgSQL block: skips tables that don't exist (handles schema differences)
+_CLEANUP_SQL = "DO $$ BEGIN\n" + "\n".join(
+    f"  IF EXISTS (SELECT FROM information_schema.tables "
+    f"WHERE table_schema='public' AND table_name='{t}') "
+    f"THEN DELETE FROM {t}; END IF;"
+    for t in _CLEANUP_TABLES
+) + "\nEND $$;"
+
+_db_host = os.getenv("POSTGRES_HOST", "localhost")
+_db_port = os.getenv("POSTGRES_PORT", "5433")
+_db_name = os.getenv("POSTGRES_DB", "familybudget_test")
+_default_url = f"postgresql+asyncpg://familybudget:test_password_12345678901234567890@{_db_host}:{_db_port}/{_db_name}"
+TEST_DATABASE_URL = os.getenv("DATABASE_URL", _default_url)
+
+
+@pytest_asyncio.fixture(scope="session", autouse=True)
+async def _clean_database_before_session() -> None:
+    """
+    Clean database once at the very start of the test session.
+
+    Handles dirty state from previous CI/CD runs that were killed before
+    post-test cleanup could complete. Runs automatically before any test.
+    Uses IF EXISTS to handle schema differences across environments.
+
+    WARNING (CI/CD): This fixture runs DELETE across ALL 37 tables (see _CLEANUP_SQL)
+    against whatever DATABASE_URL is configured. In post-deploy CI, DATABASE_URL points
+    to the LIVE 'familybudget' database on the test server (not a test-isolated DB).
+
+    The CI/CD workflow (.github/workflows/build-and-push.yml, job: post-deploy-tests)
+    protects against data loss by:
+      1. Taking a pg_dump snapshot BEFORE pytest starts (captures pre-test DB state)
+      2. Restoring the snapshot via EXIT trap AFTER pytest completes (success or failure)
+      3. Running only non-destructive tests: -m "not e2e and not destructive"
+
+    If running tests locally against a shared DB, take a manual backup first.
+    """
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False, poolclass=NullPool)
+    try:
+        async with engine.begin() as conn:
+            await conn.execute(text(_CLEANUP_SQL))
+    finally:
+        await engine.dispose()
 
 
 @pytest.fixture(scope="session")
@@ -82,24 +163,9 @@ async def session(engine) -> AsyncGenerator[AsyncSession, None]:
 
     # Cleanup after test: DELETE all data to ensure isolation
     # Using separate connection to avoid conflicts with test session
+    # Uses PL/pgSQL IF EXISTS to handle schema differences across environments
     async with engine.begin() as conn:
-        # Delete in correct order to handle FK constraints
-        # Note: Could use SET CONSTRAINTS ALL DEFERRED, but DELETE is more portable
-        await conn.execute(text("DELETE FROM t_f_refresh_token"))
-        await conn.execute(text("DELETE FROM t_notification"))
-        await conn.execute(text("DELETE FROM t_f_budget_fact"))
-        await conn.execute(text("DELETE FROM t_f_shopping_list_item"))
-        await conn.execute(text("DELETE FROM t_f_shopping_list"))
-        await conn.execute(text("DELETE FROM t_d_recurring_plan"))  # Must be before financial_center (FK constraint)
-        await conn.execute(text("DELETE FROM t_d_article_hierarchy"))
-        await conn.execute(text("DELETE FROM t_d_product_group_hierarchy"))
-        await conn.execute(text("DELETE FROM t_d_financial_center"))
-        await conn.execute(text("DELETE FROM t_d_cost_center"))
-        await conn.execute(text("DELETE FROM t_d_article"))
-        await conn.execute(text("DELETE FROM t_d_product_group"))
-        await conn.execute(text("DELETE FROM t_d_store"))
-        await conn.execute(text("DELETE FROM t_d_import_template"))
-        await conn.execute(text("DELETE FROM t_d_user"))
+        await conn.execute(text(_CLEANUP_SQL))
 
 
 # Cleanup is now handled by session fixture teardown (see above)
@@ -549,3 +615,24 @@ async def test_import_template(session: AsyncSession, test_user: User):
     await session.commit()
     await session.refresh(template)
     return template
+
+
+@pytest_asyncio.fixture
+async def test_financial_center(session: AsyncSession, test_user: User):
+    """
+    Create test financial center (account/wallet).
+
+    Returns:
+        FinancialCenter: Test account (user-specific, active)
+    """
+    from backend.app.models.financial_center import FinancialCenter
+
+    fc = FinancialCenter(
+        user_id=test_user.id,
+        name="Test Account",
+        is_active=True,
+    )
+    session.add(fc)
+    await session.commit()
+    await session.refresh(fc)
+    return fc

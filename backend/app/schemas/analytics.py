@@ -5,8 +5,23 @@ This module defines request/response schemas for analytical data operations,
 including plan hints and fact hints for transaction forms.
 """
 from decimal import Decimal
+from enum import Enum
 
 from pydantic import BaseModel, Field
+
+
+class TransactionFilterEnum(str, Enum):
+    """
+    Enum for transaction filter values in heatmap endpoint.
+
+    Allowed values:
+    - debit: Show only expense transactions (debit)
+    - credit: Show only income transactions (credit)
+    - all: Show all transactions (default)
+    """
+    DEBIT = "debit"
+    CREDIT = "credit"
+    ALL = "all"
 
 
 class PlanHintsResponse(BaseModel):
@@ -119,3 +134,42 @@ class FactHintsResponse(BaseModel):
         description="Article type: 'expense', 'income', 'debit', or 'credit'",
         examples=["expense", "income", "debit", "credit"]
     )
+
+
+class PlanFilterOptionFC(BaseModel):
+    """Financial center option for plan filter."""
+
+    id: int
+    name: str
+
+
+class PlanFilterOptionArticle(BaseModel):
+    """Article option for plan filter."""
+
+    id: int
+    name: str
+    type: str
+    parent_id: int | None
+
+
+class PlanFilterOptionsResponse(BaseModel):
+    """
+    Response schema for plans/filter-options endpoint.
+
+    Returns distinct filter values present in plan records (record_type='plan').
+    Used to populate filter dropdowns with only real data (not full dictionaries).
+
+    Example Usage:
+        GET /api/v1/analytics/plans/filter-options
+
+        Response:
+        {
+            "financial_centers": [{"id": 1, "name": "Sberbank"}],
+            "article_types": ["expense", "income"],
+            "articles": [{"id": 45, "name": "Продукты", "type": "expense", "parent_id": 10}]
+        }
+    """
+
+    financial_centers: list[PlanFilterOptionFC]
+    article_types: list[str]
+    articles: list[PlanFilterOptionArticle]

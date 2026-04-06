@@ -17,6 +17,7 @@ Endpoints:
     GET    /api/v1/shopping-list-items/pending-sync   - Get items pending offline sync
 """
 
+import asyncio
 import logging
 from datetime import datetime
 
@@ -28,6 +29,7 @@ from sqlmodel import select
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
 from backend.app.models.product_group import ProductGroup
+from backend.app.models.shopping_list import ShoppingList
 from backend.app.models.shopping_list_item import ShoppingListItem
 from backend.app.models.store import Store
 from backend.app.schemas.errors import get_common_responses
@@ -62,6 +64,72 @@ def _get_ws_broadcast():
         from backend.app.api.v1.endpoints import budget_ws
         _ws_module = budget_ws
     return _ws_module
+
+
+async def _compute_list_stats(session: AsyncSession, shopping_list_id: int) -> dict | None:
+    """Compute item stats for a shopping list. Returns payload dict or None."""
+    list_result = await session.execute(
+        select(ShoppingList).where(ShoppingList.id == shopping_list_id)
+    )
+    shopping_list = list_result.scalar_one_or_none()
+    if not shopping_list:
+        logger.warning("[LIST_STATS] Shopping list %s not found for stats broadcast", shopping_list_id)
+        return None
+
+    # Count total and completed items (exclude soft-deleted)
+    total_result = await session.execute(
+        select(func.count()).where(
+            ShoppingListItem.shopping_list_id == shopping_list_id,
+            ShoppingListItem.deleted_at.is_(None),
+        )
+    )
+    total_items = total_result.scalar_one()
+
+    completed_result = await session.execute(
+        select(func.count()).where(
+            ShoppingListItem.shopping_list_id == shopping_list_id,
+            ShoppingListItem.is_completed == True,  # noqa: E712
+            ShoppingListItem.deleted_at.is_(None),
+        )
+    )
+    completed_items = completed_result.scalar_one()
+
+    completion_percentage = round(
+        (completed_items / total_items * 100) if total_items > 0 else 0.0, 1
+    )
+
+    return {
+        "id": shopping_list.id,
+        "name": shopping_list.name,
+        "description": shopping_list.description,
+        "creator_id": shopping_list.creator_id,
+        "is_active": shopping_list.is_active,
+        "total_items": total_items,
+        "completed_items": completed_items,
+        "completion_percentage": completion_percentage,
+        "created_at": shopping_list.created_at.isoformat() if shopping_list.created_at else None,
+        "updated_at": shopping_list.updated_at.isoformat() if shopping_list.updated_at else None,
+    }
+
+
+async def _broadcast_list_stats_update(session: AsyncSession, shopping_list_id: int) -> None:
+    """Broadcast shopping_list_updated event with updated item stats."""
+    try:
+        list_data = await _compute_list_stats(session, shopping_list_id)
+        if not list_data:
+            return
+
+        ws = _get_ws_broadcast()
+        await ws.broadcast_shopping_list_updated(list_data)
+        logger.debug(
+            "[LIST_STATS] Broadcast list_id=%s, total=%s, completed=%s",
+            shopping_list_id, list_data["total_items"], list_data["completed_items"]
+        )
+    except (ValueError, AttributeError, ConnectionError, RuntimeError, OSError) as e:
+        # Non-critical: item operation already succeeded, only stats broadcast failed
+        logger.warning("[LIST_STATS] Failed broadcast for list %s: %s", shopping_list_id, e)
+    except asyncio.CancelledError:
+        raise
 
 
 router = APIRouter(
@@ -301,11 +369,17 @@ async def create_shopping_list_item(
 
     # Broadcast SSE event to all connected clients
     response = ShoppingListItemResponse.model_validate(item)
+    # Propagate client temp_id for WS deduplication (prevents duplicate rendering)
+    if item_data.temp_id:
+        response.temp_id = item_data.temp_id
     try:
         ws = _get_ws_broadcast()
         await ws.broadcast_item_created(item_data=response.model_dump(mode="json"))
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for created item {item.id}: {e}")
+        logger.warning("WebSocket broadcast failed for created item %s: %s", item.id, e)
+
+    # Broadcast updated shopping list stats to refresh landing page cards on all devices
+    await _broadcast_list_stats_update(session, item.shopping_list_id)
 
     return response
 
@@ -726,7 +800,12 @@ async def update_shopping_list_item(
         ws = _get_ws_broadcast()
         await ws.broadcast_item_updated(item_data=response.model_dump(mode="json"))
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for updated item {item_id}: {e}")
+        logger.warning("WebSocket broadcast failed for updated item %s: %s", item_id, e)
+
+    # Broadcast updated shopping list stats when completion status changes
+    # (completed_items count changes → landing page cards need refresh)
+    if update_data.is_completed is not None:
+        await _broadcast_list_stats_update(session, item.shopping_list_id)
 
     return response
 
@@ -788,7 +867,10 @@ async def delete_shopping_list_item(
         ws = _get_ws_broadcast()
         await ws.broadcast_item_deleted(item_id=item_id, shopping_list_id=list_id)
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for deleted item {item_id}: {e}")
+        logger.warning("WebSocket broadcast failed for deleted item %s: %s", item_id, e)
+
+    # Broadcast updated shopping list stats to refresh landing page cards on all devices
+    await _broadcast_list_stats_update(session, list_id)
 
     return None  # 204 No Content
 
@@ -845,7 +927,7 @@ async def restore_shopping_list_item(
         ws = _get_ws_broadcast()
         await ws.broadcast_item_created(item_data=response.model_dump(mode="json"))
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for restored item {item_id}: {e}")
+        logger.warning("WebSocket broadcast failed for restored item %s: %s", item_id, e)
 
     return response
 
@@ -924,7 +1006,11 @@ async def batch_complete_items(
                     is_completed=request.is_completed,
                 )
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for batch complete: {e}")
+        logger.warning("WebSocket broadcast failed for batch complete: %s", e)
+
+    # Broadcast updated shopping list stats for all affected lists
+    for list_id in items_by_list.keys():
+        await _broadcast_list_stats_update(session, list_id)
 
     return {
         "message": f"Marked {count} items as {'completed' if request.is_completed else 'incomplete'}",
@@ -991,7 +1077,7 @@ async def batch_delete_items(
         user_id=current_user.id,
     )
 
-    logger.info(f"Batch deleted {count} items by user {current_user.id}")
+    logger.info("Batch deleted %s items by user %s", count, current_user.id)
 
     # Broadcast SSE events to all connected clients
     try:
@@ -1000,7 +1086,11 @@ async def batch_delete_items(
             for item_id in item_ids:
                 await ws.broadcast_item_deleted(item_id=item_id, shopping_list_id=list_id)
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for batch delete: {e}")
+        logger.warning("WebSocket broadcast failed for batch delete: %s", e)
+
+    # Broadcast updated shopping list stats for all affected lists
+    for list_id in items_by_list.keys():
+        await _broadcast_list_stats_update(session, list_id)
 
     return {"message": f"Deleted {count} items", "count": count}
 
@@ -1401,7 +1491,7 @@ async def resolve_conflict(
             await session.commit()
             await session.refresh(item)
 
-        logger.info(f"Conflict resolved (server wins) for item {item_id} by user {current_user.id}")
+        logger.info("Conflict resolved (server wins) for item %s by user %s", item_id, current_user.id)
         return ShoppingListItemResponse.model_validate(item)
 
     elif request.strategy == "client":
@@ -1430,7 +1520,7 @@ async def resolve_conflict(
         await session.commit()
         await session.refresh(item)
 
-        logger.info(f"Conflict resolved (client wins) for item {item_id} by user {current_user.id}")
+        logger.info("Conflict resolved (client wins) for item %s by user %s", item_id, current_user.id)
         return ShoppingListItemResponse.model_validate(item)
 
     elif request.strategy == "merge":
@@ -1459,7 +1549,7 @@ async def resolve_conflict(
         await session.commit()
         await session.refresh(item)
 
-        logger.info(f"Conflict resolved (merge) for item {item_id} by user {current_user.id}")
+        logger.info("Conflict resolved (merge) for item %s by user %s", item_id, current_user.id)
         return ShoppingListItemResponse.model_validate(item)
 
     else:

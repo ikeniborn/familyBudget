@@ -147,11 +147,11 @@ def detect_delimiter(text: str, sample_lines: int = 5) -> tuple[str, float]:
                 # Penalize inconsistent column counts
                 delimiter_scores[delimiter] = 0.1
 
-        except Exception:
+        except (ValueError, IndexError, csv.Error):
             delimiter_scores[delimiter] = 0.0
 
     # Find best delimiter
-    best_delimiter = max(delimiter_scores, key=delimiter_scores.get)
+    best_delimiter = max(delimiter_scores, key=delimiter_scores.__getitem__)
     confidence = delimiter_scores[best_delimiter]
 
     return best_delimiter, confidence
@@ -238,7 +238,7 @@ def detect_date_format(values: list[str]) -> str | None:
         >>> detect_date_format(["01.12.2023", "15.11.2023"])
         "DD.MM.YYYY"
     """
-    format_votes: Counter = Counter()
+    format_votes: Counter[str] = Counter()
 
     for value in values:
         if not value or not value.strip():
@@ -274,7 +274,7 @@ def detect_number_format(values: list[str]) -> tuple[str | None, str, str]:
         >>> detect_number_format(["1,234.56", "2,345.67"])
         ("1,234.56", ".", ",")
     """
-    format_votes: Counter = Counter()
+    format_votes: Counter[str] = Counter()
 
     for value in values:
         if not value or not value.strip():

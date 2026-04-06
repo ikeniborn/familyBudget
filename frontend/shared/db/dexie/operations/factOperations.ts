@@ -1,12 +1,13 @@
 /**
  * Budget Fact operations (CRUD + Queries)
- * Адаптация PGlite → Dexie.js
+ * Dexie.js implementation
  */
 
-import { db, toCents, fromCents } from '../core/database';
+import { db, toCents } from '../core/database';
+import { queryArticles } from './schemaOperations';
 import { logger } from '../utils/logger';
 import { validateFact } from '../utils/validation';
-import { calculateContentHash, generateNumericTempId } from '../utils/hash';
+import { calculateContentHash, generateUUID } from '../utils/hash';
 import type {
   LocalBudgetFact,
   LocalPendingOperation,
@@ -23,13 +24,13 @@ const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
  * ВАЖНО: amount конвертируется в cents
  *
  * @param fact - Partial fact data
- * @returns temp_id (numeric int53)
+ * @returns temp_id (UUID)
  */
 export async function createFact(
   fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
-): Promise<number> {
+): Promise<string> {
   try {
-    const temp_id = generateNumericTempId();
+    const temp_id = generateUUID();
     const content_hash = await calculateContentHash(fact as Record<string, unknown>);
 
     logger.debug('[Dexie] Creating fact', { temp_id, fact });
@@ -91,7 +92,7 @@ export async function createFact(
  * @param updates - Partial fact data to update
  */
 export async function updateFact(
-  temp_id: number,
+  temp_id: string,
   updates: Partial<Pick<LocalBudgetFact, 'date' | 'amount' | 'article_id' | 'financial_center_id' | 'cost_center_id' | 'comment'>>
 ): Promise<void> {
   try {
@@ -144,7 +145,7 @@ export async function updateFact(
  *
  * @param temp_id - Fact temp_id
  */
-export async function deleteFact(temp_id: number): Promise<void> {
+export async function deleteFact(temp_id: string): Promise<void> {
   try {
     logger.debug('[Dexie] Deleting fact', { temp_id });
 
@@ -185,10 +186,9 @@ export async function deleteFact(temp_id: number): Promise<void> {
 
 /**
  * Query budget facts с фильтрами
- * ВАЖНО: amount конвертируется из cents в dollars
  *
  * @param filters - Optional filters
- * @returns Array of facts (amount в dollars)
+ * @returns Array of facts (amount в рублях, без конвертации)
  */
 export async function queryFacts(filters?: FactFilters): Promise<LocalBudgetFact[]> {
   logger.debug('[Dexie] queryFacts', filters);
@@ -225,15 +225,27 @@ export async function queryFacts(filters?: FactFilters): Promise<LocalBudgetFact
       if (filters.date_from && fact.date < filters.date_from) return false;
       if (filters.date_to && fact.date > filters.date_to) return false;
 
+      // Search filter by comment field
+      // NOTE: article_type is not stored in LocalBudgetFact (only article_id), so it cannot be filtered here
+      if (filters.search) {
+        const searchLower = filters.search.toLowerCase();
+        const comment = fact.comment || '';
+        if (!comment.toLowerCase().includes(searchLower)) return false;
+      }
+
       return true;
     });
+
+    // article_type filter: client-side join — article_type is not stored in LocalBudgetFact
+    if (filters.article_type) {
+      const matchingArticles = await queryArticles({ type: filters.article_type });
+      const validArticleIds = new Set(matchingArticles.map(a => a.id));
+      results = results.filter(fact => validArticleIds.has(fact.article_id));
+    }
   }
 
-  // Convert amount from cents to dollars
-  return results.map(fact => ({
-    ...fact,
-    amount: fromCents(fact.amount)
-  }));
+  // amount already in rubles (stored via mapAPIFactToLocal without conversion)
+  return results;
 }
 
 /**
@@ -265,9 +277,11 @@ export async function getPendingOperations(): Promise<LocalPendingOperation[]> {
   logger.debug('[Dexie] getPendingOperations');
 
   const now = new Date();
-  const allOperations = await db.pendingOperations
-    .orderBy('created_at')
-    .toArray();
+  const allOperations = await db.pendingOperations.toArray();
+  // Sort by created_at in JS (field is not indexed in Dexie schema)
+  allOperations.sort((a, b) =>
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
 
   // Filter out operations that are waiting for backoff to expire
   const readyOperations = allOperations.filter(op => {
@@ -291,7 +305,7 @@ export async function getPendingOperations(): Promise<LocalPendingOperation[]> {
  * Confirm pending operation (после успешной sync)
  */
 export async function confirmPendingOperation(
-  temp_id: number,
+  temp_id: string,
   server_id: number
 ): Promise<void> {
   logger.debug('[Dexie] confirmPendingOperation', { temp_id, server_id });
@@ -330,7 +344,7 @@ function calculateBackoffDelay(attempts: number): number {
  * Fail pending operation (increment attempts + exponential backoff)
  */
 export async function failPendingOperation(
-  temp_id: number,
+  temp_id: string,
   error: string
 ): Promise<void> {
   logger.warn('[Dexie] failPendingOperation', { temp_id, error });

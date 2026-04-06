@@ -142,7 +142,7 @@
         <!-- Category Select (фильтруется по выбранному счету) -->
         <div class="form-group">
             <label class="form-label form-label-required">Категория</label>
-            <select id="category-select" class="form-input" required>
+            <select id="category-select" class="form-input" required disabled>
                 <option value="">Загрузка категорий...</option>
             </select>
             <div id="category-path-display" class="category-path-info" style="display: none;"></div>
@@ -152,7 +152,7 @@
         <!-- Cost Location Select -->
         <div class="form-group">
             <label class="form-label">Место затрат</label>
-            <select id="cost-center" class="form-input">
+            <select id="cost-center" class="form-input" disabled>
                 <option value="">-- Не выбрано --</option>
             </select>
             <span class="error-message" id="cost-center-error"></span>
@@ -466,9 +466,33 @@
                     formState.financialCenterId = fcId;
                     document.getElementById('financial-center-error').textContent = '';
 
-                    // Update category filter based on selected FC
-                    if (categoryTreeSelect) {
-                        await categoryTreeSelect.updateFinancialCenter(fcId);
+                    const categorySelect = document.getElementById('category-select');
+                    const costCenterSelect = document.getElementById('cost-center');
+
+                    if (fcId) {
+                        // Update category filter based on selected FC
+                        if (categoryTreeSelect) {
+                            await categoryTreeSelect.updateFinancialCenter(fcId);
+                            categoryTreeSelect.enable(); // use Choices.js API for visual update
+                        } else if (categorySelect) {
+                            categorySelect.removeAttribute('disabled');
+                        }
+                        if (costCenterSelect) costCenterSelect.removeAttribute('disabled');
+                    } else {
+                        // Disable Category and Cost Location and clear values
+                        if (categoryTreeSelect) {
+                            categoryTreeSelect.clearSelection(); // clear Choices.js active items + element.value
+                            categoryTreeSelect.disable();        // visually disable via Choices.js API
+                        } else if (categorySelect) {
+                            categorySelect.setAttribute('disabled', 'disabled');
+                            categorySelect.value = '';
+                        }
+                        formState.categoryId = null;
+                        if (costCenterSelect) {
+                            costCenterSelect.setAttribute('disabled', 'disabled');
+                            costCenterSelect.value = '';
+                        }
+                        formState.costCenterId = null;
                     }
 
                     app.ui.hapticLight();
@@ -587,13 +611,21 @@
             document.getElementById('description').value = '';
             document.getElementById('description-counter').textContent = '0 / 200';
 
-            // Clear selected category
+            // Clear selected category and re-disable (no account selected after reset)
             const categorySelect = document.getElementById('category-select');
-            categorySelect.value = '';
+            if (categoryTreeSelect) {
+                categoryTreeSelect.clearSelection(); // clear Choices.js active items + element.value
+                categoryTreeSelect.disable();        // visually disable via Choices.js API
+            } else {
+                categorySelect.value = '';
+                categorySelect.setAttribute('disabled', 'disabled');
+            }
 
-            // Clear selected financial center and cost center
+            // Clear selected financial center and cost center, re-disable cost center
             document.getElementById('financial-center').value = '';
-            document.getElementById('cost-center').value = '';
+            const costCenterSelect = document.getElementById('cost-center');
+            costCenterSelect.value = '';
+            costCenterSelect.setAttribute('disabled', 'disabled');
 
             // Clear errors
             document.getElementById('amount-error').textContent = '';

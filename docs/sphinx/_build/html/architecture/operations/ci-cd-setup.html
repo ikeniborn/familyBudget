@@ -1,0 +1,846 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>CI/CD Setup Guide - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/operations/ci-cd-setup.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="ci-cd-setup-guide">
+<h1>CI/CD Setup Guide<a class="headerlink" href="#ci-cd-setup-guide" title="Link to this heading">¶</a></h1>
+<p><strong>Date:</strong> 2026-01-06
+<strong>Status:</strong> ✅ ACTIVE
+<strong>Version:</strong> 1.0.0</p>
+<hr class="docutils" />
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Automated testing and quality checks integrated into GitHub Actions workflow. Every push and pull request triggers comprehensive validation to ensure code quality before merge.</p>
+</section>
+<section id="github-actions-workflow">
+<h2>GitHub Actions Workflow<a class="headerlink" href="#github-actions-workflow" title="Link to this heading">¶</a></h2>
+<section id="workflow-file">
+<h3>Workflow File<a class="headerlink" href="#workflow-file" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">.github/workflows/frontend-tests.yml</span></code></p>
+</section>
+<section id="triggers">
+<h3>Triggers<a class="headerlink" href="#triggers" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Push:</strong> to <code class="docutils literal notranslate"><span class="pre">main</span></code>, <code class="docutils literal notranslate"><span class="pre">test</span></code>, <code class="docutils literal notranslate"><span class="pre">feature/*</span></code>, <code class="docutils literal notranslate"><span class="pre">fix/*</span></code> branches</p></li>
+<li><p><strong>Pull Request:</strong> to <code class="docutils literal notranslate"><span class="pre">main</span></code>, <code class="docutils literal notranslate"><span class="pre">test</span></code> branches</p></li>
+<li><p><strong>Paths:</strong> Only runs when frontend files change</p></li>
+</ul>
+</section>
+<section id="jobs">
+<h3>Jobs<a class="headerlink" href="#jobs" title="Link to this heading">¶</a></h3>
+<section id="type-check-required">
+<h4>1. Type Check (Required)<a class="headerlink" href="#type-check-required" title="Link to this heading">¶</a></h4>
+<p><strong>Purpose:</strong> Validate TypeScript types</p>
+<p><strong>Steps:</strong></p>
+<ul class="simple">
+<li><p>Checkout code</p></li>
+<li><p>Setup Node.js 18</p></li>
+<li><p>Install dependencies (<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">ci</span></code>)</p></li>
+<li><p>Run type check (<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">type-check</span></code>)</p></li>
+</ul>
+<p><strong>Failure conditions:</strong></p>
+<ul class="simple">
+<li><p>Any TypeScript errors</p></li>
+<li><p>Type mismatches</p></li>
+<li><p>Missing type definitions</p></li>
+</ul>
+</section>
+<section id="unit-integration-tests-required">
+<h4>2. Unit &amp; Integration Tests (Required)<a class="headerlink" href="#unit-integration-tests-required" title="Link to this heading">¶</a></h4>
+<p><strong>Purpose:</strong> Run all tests with coverage reporting</p>
+<p><strong>Depends on:</strong> Type Check</p>
+<p><strong>Steps:</strong></p>
+<ul class="simple">
+<li><p>Checkout code</p></li>
+<li><p>Setup Node.js 18</p></li>
+<li><p>Install dependencies</p></li>
+<li><p>Run tests with coverage (<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">test:coverage</span></code>)</p></li>
+<li><p>Upload coverage to Codecov (optional, requires token)</p></li>
+<li><p>Check coverage thresholds</p></li>
+<li><p>Upload coverage report as artifact</p></li>
+</ul>
+<p><strong>Coverage Thresholds:</strong></p>
+<ul class="simple">
+<li><p>Lines: 8.9%</p></li>
+<li><p>Functions: 84%</p></li>
+<li><p>Branches: 92%</p></li>
+<li><p>Statements: 8.9%</p></li>
+</ul>
+<p><strong>Failure conditions:</strong></p>
+<ul class="simple">
+<li><p>Any test failure</p></li>
+<li><p>Coverage below thresholds</p></li>
+<li><p>Test timeout (&gt;120s)</p></li>
+</ul>
+</section>
+<section id="build-check-required">
+<h4>3. Build Check (Required)<a class="headerlink" href="#build-check-required" title="Link to this heading">¶</a></h4>
+<p><strong>Purpose:</strong> Verify production build succeeds</p>
+<p><strong>Depends on:</strong> Type Check</p>
+<p><strong>Steps:</strong></p>
+<ul class="simple">
+<li><p>Checkout code</p></li>
+<li><p>Setup Node.js 18</p></li>
+<li><p>Install dependencies</p></li>
+<li><p>Build CSS (<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">build:css</span></code>)</p></li>
+<li><p>Bundle JavaScript (<code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">bundle</span></code>)</p></li>
+<li><p>Verify bundle sizes (max 500KB)</p></li>
+<li><p>Upload build artifacts</p></li>
+</ul>
+<p><strong>Failure conditions:</strong></p>
+<ul class="simple">
+<li><p>Build errors</p></li>
+<li><p>Bundle size exceeds 500KB</p></li>
+<li><p>Missing output files</p></li>
+</ul>
+</section>
+<section id="linting-required">
+<h4>4. Linting (Required)<a class="headerlink" href="#linting-required" title="Link to this heading">¶</a></h4>
+<p><strong>Purpose:</strong> Check code style and patterns</p>
+<p><strong>Steps:</strong></p>
+<ul class="simple">
+<li><p>Checkout code</p></li>
+<li><p>Setup Node.js 18</p></li>
+<li><p>Install dependencies</p></li>
+<li><p>Check for <code class="docutils literal notranslate"><span class="pre">console.log</span></code> in TypeScript files</p></li>
+</ul>
+<p><strong>Failure conditions:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">console.log</span></code> found (use <code class="docutils literal notranslate"><span class="pre">debugLog()</span></code> instead)</p></li>
+</ul>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="pre-commit-hook">
+<h2>Pre-Commit Hook<a class="headerlink" href="#pre-commit-hook" title="Link to this heading">¶</a></h2>
+<section id="file">
+<h3>File<a class="headerlink" href="#file" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">.husky/pre-commit</span></code></p>
+</section>
+<section id="checks-sequential">
+<h3>Checks (Sequential)<a class="headerlink" href="#checks-sequential" title="Link to this heading">¶</a></h3>
+<section id="console-log-check">
+<h4>1. Console.log Check<a class="headerlink" href="#console-log-check" title="Link to this heading">¶</a></h4>
+<p><strong>What:</strong> Scans staged TypeScript files for <code class="docutils literal notranslate"><span class="pre">console.log</span></code>
+<strong>Why:</strong> Prevent debug statements from reaching production
+<strong>Alternative:</strong> Use <code class="docutils literal notranslate"><span class="pre">debugLog()</span></code> or <code class="docutils literal notranslate"><span class="pre">logAPI</span></code> methods</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="k">if</span><span class="w"> </span>git<span class="w"> </span>diff<span class="w"> </span>--cached<span class="w"> </span>--name-only<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s1">&#39;\.ts$&#39;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>xargs<span class="w"> </span>grep<span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;console\.log&#39;</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<span class="w">  </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;❌ console.log found&quot;</span>
+<span class="w">  </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<span class="k">fi</span>
+</pre></div>
+</div>
+</section>
+<section id="type-check">
+<h4>2. Type Check<a class="headerlink" href="#type-check" title="Link to this heading">¶</a></h4>
+<p><strong>What:</strong> Run TypeScript compiler in no-emit mode
+<strong>Why:</strong> Catch type errors before commit</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>npm<span class="w"> </span>run<span class="w"> </span>type-check
+</pre></div>
+</div>
+</section>
+<section id="unit-tests">
+<h4>3. Unit Tests<a class="headerlink" href="#unit-tests" title="Link to this heading">¶</a></h4>
+<p><strong>What:</strong> Run all unit and integration tests
+<strong>Why:</strong> Prevent broken code from being committed
+<strong>Note:</strong> Fast mode, no coverage (saves time)</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>npm<span class="w"> </span><span class="nb">test</span><span class="w"> </span>--<span class="w"> </span>--run<span class="w"> </span>--reporter<span class="o">=</span>dot
+</pre></div>
+</div>
+</section>
+</section>
+<section id="bypass-pre-commit-hook">
+<h3>Bypass Pre-Commit Hook<a class="headerlink" href="#bypass-pre-commit-hook" title="Link to this heading">¶</a></h3>
+<p><strong>WARNING:</strong> Only for emergencies</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>commit<span class="w"> </span>--no-verify<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;Emergency fix&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="pull-request-template">
+<h2>Pull Request Template<a class="headerlink" href="#pull-request-template" title="Link to this heading">¶</a></h2>
+<section id="id1">
+<h3>File<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">.github/pull_request_template.md</span></code></p>
+</section>
+<section id="sections">
+<h3>Sections<a class="headerlink" href="#sections" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>Description</strong> - What changes were made</p></li>
+<li><p><strong>Type of Change</strong> - Bug fix, feature, refactor, etc.</p></li>
+<li><p><strong>Testing</strong> - Test coverage checklist</p></li>
+<li><p><strong>Code Quality</strong> - Quality checks checklist</p></li>
+<li><p><strong>Conventional Commits</strong> - PR title format</p></li>
+<li><p><strong>Related Issues</strong> - Linked issues</p></li>
+<li><p><strong>Screenshots/Videos</strong> - UI changes (if applicable)</p></li>
+<li><p><strong>Deployment Notes</strong> - Special considerations</p></li>
+<li><p><strong>Reviewer Notes</strong> - Attention points</p></li>
+</ol>
+</section>
+<section id="pr-title-format">
+<h3>PR Title Format<a class="headerlink" href="#pr-title-format" title="Link to this heading">¶</a></h3>
+<p>Follow <a class="reference external" href="https://www.conventionalcommits.org/">Conventional Commits</a>:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">&lt;</span><span class="nb">type</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&lt;</span><span class="n">scope</span><span class="o">&gt;</span><span class="p">):</span> <span class="o">&lt;</span><span class="n">description</span><span class="o">&gt;</span>
+
+<span class="n">Examples</span><span class="p">:</span>
+<span class="n">feat</span><span class="p">(</span><span class="n">lists</span><span class="p">):</span> <span class="n">add</span> <span class="n">autocomplete</span> <span class="k">for</span> <span class="n">product</span> <span class="n">names</span>
+<span class="n">fix</span><span class="p">(</span><span class="n">offline</span><span class="p">):</span> <span class="n">prevent</span> <span class="n">duplicate</span> <span class="n">sync</span> <span class="n">queue</span> <span class="n">entries</span>
+<span class="n">refactor</span><span class="p">(</span><span class="n">state</span><span class="p">):</span> <span class="n">extract</span> <span class="n">ListsState</span> <span class="kn">from</span><span class="w"> </span><span class="nn">monolithic</span> <span class="n">file</span>
+<span class="n">test</span><span class="p">(</span><span class="n">integration</span><span class="p">):</span> <span class="n">add</span> <span class="n">multi</span><span class="o">-</span><span class="n">tab</span> <span class="n">coordination</span> <span class="n">tests</span>
+<span class="n">docs</span><span class="p">(</span><span class="n">architecture</span><span class="p">):</span> <span class="n">update</span> <span class="n">testing</span> <span class="n">infrastructure</span> <span class="n">guide</span>
+</pre></div>
+</div>
+<p><strong>Types:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">feat</span></code> - New feature</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fix</span></code> - Bug fix</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">refactor</span></code> - Code restructuring</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">test</span></code> - Test additions/changes</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">docs</span></code> - Documentation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">style</span></code> - Formatting, missing semicolons</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">perf</span></code> - Performance improvements</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">chore</span></code> - Maintenance tasks</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="issue-templates">
+<h2>Issue Templates<a class="headerlink" href="#issue-templates" title="Link to this heading">¶</a></h2>
+<section id="bug-report">
+<h3>Bug Report<a class="headerlink" href="#bug-report" title="Link to this heading">¶</a></h3>
+<p><strong>File:</strong> <code class="docutils literal notranslate"><span class="pre">.github/ISSUE_TEMPLATE/bug_report.md</span></code></p>
+<p><strong>Sections:</strong></p>
+<ul class="simple">
+<li><p>Bug description</p></li>
+<li><p>Steps to reproduce</p></li>
+<li><p>Expected vs actual behavior</p></li>
+<li><p>Screenshots/logs</p></li>
+<li><p>Environment (browser, OS, device)</p></li>
+<li><p>Related code</p></li>
+<li><p>Possible solution</p></li>
+</ul>
+</section>
+<section id="feature-request">
+<h3>Feature Request<a class="headerlink" href="#feature-request" title="Link to this heading">¶</a></h3>
+<p><strong>File:</strong> <code class="docutils literal notranslate"><span class="pre">.github/ISSUE_TEMPLATE/feature_request.md</span></code></p>
+<p><strong>Sections:</strong></p>
+<ul class="simple">
+<li><p>Feature description</p></li>
+<li><p>Problem/motivation</p></li>
+<li><p>Proposed solution</p></li>
+<li><p>Alternatives considered</p></li>
+<li><p>User stories</p></li>
+<li><p>Technical considerations</p></li>
+<li><p>Priority level</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="codecov-integration-optional">
+<h2>Codecov Integration (Optional)<a class="headerlink" href="#codecov-integration-optional" title="Link to this heading">¶</a></h2>
+<section id="setup">
+<h3>Setup<a class="headerlink" href="#setup" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p>Sign up at <a class="reference external" href="https://codecov.io">codecov.io</a></p></li>
+<li><p>Add repository</p></li>
+<li><p>Get upload token</p></li>
+<li><p>Add token to GitHub Secrets: <code class="docutils literal notranslate"><span class="pre">CODECOV_TOKEN</span></code></p></li>
+</ol>
+</section>
+<section id="benefits">
+<h3>Benefits<a class="headerlink" href="#benefits" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Coverage trend tracking</p></li>
+<li><p>Pull request coverage comments</p></li>
+<li><p>Coverage diff visualization</p></li>
+<li><p>Historical coverage reports</p></li>
+</ul>
+</section>
+<section id="configuration">
+<h3>Configuration<a class="headerlink" href="#configuration" title="Link to this heading">¶</a></h3>
+<p>Set <code class="docutils literal notranslate"><span class="pre">fail_ci_if_error:</span> <span class="pre">true</span></code> in workflow to enforce coverage uploads.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="local-development-workflow">
+<h2>Local Development Workflow<a class="headerlink" href="#local-development-workflow" title="Link to this heading">¶</a></h2>
+<section id="before-commit">
+<h3>Before Commit<a class="headerlink" href="#before-commit" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Type check</span>
+npm<span class="w"> </span>run<span class="w"> </span>type-check
+
+<span class="c1"># 2. Run tests</span>
+npm<span class="w"> </span><span class="nb">test</span>
+
+<span class="c1"># 3. Build (optional)</span>
+npm<span class="w"> </span>run<span class="w"> </span>build
+
+<span class="c1"># 4. Commit (triggers pre-commit hook)</span>
+git<span class="w"> </span>add<span class="w"> </span>.
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(scope): description&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="pre-commit-hook-runs">
+<h3>Pre-Commit Hook Runs<a class="headerlink" href="#pre-commit-hook-runs" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p>✅ Check for console.log</p></li>
+<li><p>✅ Type check</p></li>
+<li><p>✅ Run tests</p></li>
+<li><p>✅ Commit if all pass</p></li>
+</ol>
+</section>
+<section id="push-to-github">
+<h3>Push to GitHub<a class="headerlink" href="#push-to-github" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>push<span class="w"> </span>origin<span class="w"> </span>feature/my-feature
+</pre></div>
+</div>
+</section>
+<section id="github-actions-runs">
+<h3>GitHub Actions Runs<a class="headerlink" href="#github-actions-runs" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p>✅ Type check</p></li>
+<li><p>✅ Unit &amp; integration tests with coverage</p></li>
+<li><p>✅ Build verification</p></li>
+<li><p>✅ Linting</p></li>
+<li><p>✅ Upload artifacts</p></li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section id="quality-gates">
+<h2>Quality Gates<a class="headerlink" href="#quality-gates" title="Link to this heading">¶</a></h2>
+<section id="local-pre-commit">
+<h3>Local (Pre-Commit)<a class="headerlink" href="#local-pre-commit" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Type Check:</strong> MUST pass</p></li>
+<li><p><strong>Tests:</strong> MUST pass (388 tests)</p></li>
+<li><p><strong>Console.log:</strong> MUST NOT exist</p></li>
+</ul>
+</section>
+<section id="ci-cd-github-actions">
+<h3>CI/CD (GitHub Actions)<a class="headerlink" href="#ci-cd-github-actions" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Type Check:</strong> MUST pass</p></li>
+<li><p><strong>Tests:</strong> MUST pass with coverage ≥ thresholds</p></li>
+<li><p><strong>Build:</strong> MUST succeed, bundle ≤ 500KB</p></li>
+<li><p><strong>Linting:</strong> MUST pass</p></li>
+</ul>
+</section>
+<section id="pull-request">
+<h3>Pull Request<a class="headerlink" href="#pull-request" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>All CI checks:</strong> MUST be green ✅</p></li>
+<li><p><strong>Code review:</strong> REQUIRED (1+ approvals)</p></li>
+<li><p><strong>Conflicts:</strong> MUST be resolved</p></li>
+<li><p><strong>PR template:</strong> MUST be filled</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">¶</a></h2>
+<section id="pre-commit-hook-issues">
+<h3>Pre-Commit Hook Issues<a class="headerlink" href="#pre-commit-hook-issues" title="Link to this heading">¶</a></h3>
+<section id="tests-failing-locally">
+<h4>Tests failing locally<a class="headerlink" href="#tests-failing-locally" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Run tests to see failures</span>
+npm<span class="w"> </span><span class="nb">test</span>
+
+<span class="c1"># Skip hook for emergency commit (NOT recommended)</span>
+git<span class="w"> </span>commit<span class="w"> </span>--no-verify<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;WIP: debugging&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="type-check-fails">
+<h4>Type check fails<a class="headerlink" href="#type-check-fails" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># See all errors</span>
+npm<span class="w"> </span>run<span class="w"> </span>type-check
+
+<span class="c1"># Watch mode for fixing</span>
+npm<span class="w"> </span>run<span class="w"> </span>type-check:watch
+</pre></div>
+</div>
+</section>
+<section id="console-log-detected">
+<h4>console.log detected<a class="headerlink" href="#console-log-detected" title="Link to this heading">¶</a></h4>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Find all console.log</span>
+git<span class="w"> </span>diff<span class="w"> </span>--cached<span class="w"> </span>--name-only<span class="w"> </span><span class="p">|</span><span class="w"> </span>xargs<span class="w"> </span>grep<span class="w"> </span>-n<span class="w"> </span><span class="s1">&#39;console\.log&#39;</span>
+
+<span class="c1"># Replace with debugLog()</span>
+<span class="c1"># or remove before committing</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="github-actions-issues">
+<h3>GitHub Actions Issues<a class="headerlink" href="#github-actions-issues" title="Link to this heading">¶</a></h3>
+<section id="coverage-upload-fails">
+<h4>Coverage upload fails<a class="headerlink" href="#coverage-upload-fails" title="Link to this heading">¶</a></h4>
+<p><strong>Problem:</strong> Codecov token missing or invalid
+<strong>Solution:</strong> Add <code class="docutils literal notranslate"><span class="pre">CODECOV_TOKEN</span></code> to repository secrets, or set <code class="docutils literal notranslate"><span class="pre">fail_ci_if_error:</span> <span class="pre">false</span></code></p>
+</section>
+<section id="build-size-exceeds-limit">
+<h4>Build size exceeds limit<a class="headerlink" href="#build-size-exceeds-limit" title="Link to this heading">¶</a></h4>
+<p><strong>Problem:</strong> Bundle &gt; 500KB
+<strong>Solution:</strong></p>
+<ul class="simple">
+<li><p>Run bundle analyzer: <code class="docutils literal notranslate"><span class="pre">npm</span> <span class="pre">run</span> <span class="pre">analyze</span></code></p></li>
+<li><p>Remove unnecessary dependencies</p></li>
+<li><p>Code split large modules</p></li>
+<li><p>Optimize imports</p></li>
+</ul>
+</section>
+<section id="tests-timeout">
+<h4>Tests timeout<a class="headerlink" href="#tests-timeout" title="Link to this heading">¶</a></h4>
+<p><strong>Problem:</strong> Tests take &gt; 120s
+<strong>Solution:</strong></p>
+<ul class="simple">
+<li><p>Optimize slow tests</p></li>
+<li><p>Reduce fake timer delays</p></li>
+<li><p>Check for infinite loops</p></li>
+<li><p>Use <code class="docutils literal notranslate"><span class="pre">--bail</span></code> to fail fast</p></li>
+</ul>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="metrics-monitoring">
+<h2>Metrics &amp; Monitoring<a class="headerlink" href="#metrics-monitoring" title="Link to this heading">¶</a></h2>
+<section id="test-execution-time">
+<h3>Test Execution Time<a class="headerlink" href="#test-execution-time" title="Link to this heading">¶</a></h3>
+<p><strong>Target:</strong> &lt; 5 seconds
+<strong>Current:</strong> 3.33s ✅</p>
+</section>
+<section id="coverage-trends">
+<h3>Coverage Trends<a class="headerlink" href="#coverage-trends" title="Link to this heading">¶</a></h3>
+<p><strong>Baseline:</strong> 8.92% (Phase 3)
+<strong>Phase 4:</strong> 15% target
+<strong>Phase 5:</strong> 30% target
+<strong>Phase 6:</strong> 50% target
+<strong>Phase 7:</strong> 70% target</p>
+</section>
+<section id="build-time">
+<h3>Build Time<a class="headerlink" href="#build-time" title="Link to this heading">¶</a></h3>
+<p><strong>Target:</strong> &lt; 30 seconds
+<strong>Monitor:</strong> GitHub Actions workflow duration</p>
+</section>
+<section id="bundle-size">
+<h3>Bundle Size<a class="headerlink" href="#bundle-size" title="Link to this heading">¶</a></h3>
+<p><strong>Target:</strong> &lt; 500KB
+<strong>Monitor:</strong> Build check job output</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="next-steps">
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading">¶</a></h2>
+<section id="phase-5-e2e-tests">
+<h3>Phase 5: E2E Tests<a class="headerlink" href="#phase-5-e2e-tests" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>[ ] Expand Playwright E2E tests</p></li>
+<li><p>[ ] Add to CI/CD workflow</p></li>
+<li><p>[ ] Test critical user paths</p></li>
+</ul>
+</section>
+<section id="phase-6-advanced-ci-cd">
+<h3>Phase 6: Advanced CI/CD<a class="headerlink" href="#phase-6-advanced-ci-cd" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>[ ] Add Codecov coverage comments on PRs</p></li>
+<li><p>[ ] Set up branch protection rules</p></li>
+<li><p>[ ] Add automatic dependency updates (Dependabot)</p></li>
+<li><p>[ ] Performance regression testing</p></li>
+</ul>
+</section>
+<section id="phase-7-monitoring">
+<h3>Phase 7: Monitoring<a class="headerlink" href="#phase-7-monitoring" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>[ ] Bundle size tracking over time</p></li>
+<li><p>[ ] Test execution time monitoring</p></li>
+<li><p>[ ] Flaky test detection</p></li>
+<li><p>[ ] Coverage trend dashboard</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://docs.github.com/en/actions">GitHub Actions Documentation</a></p></li>
+<li><p><a class="reference external" href="https://www.conventionalcommits.org/">Conventional Commits</a></p></li>
+<li><p><a class="reference external" href="https://docs.codecov.com/">Codecov Documentation</a></p></li>
+<li><p><a class="reference external" href="https://typicode.github.io/husky/">Husky Documentation</a></p></li>
+<li><p><a class="reference external" href="https://vitest.dev/guide/coverage.html">Vitest Coverage</a></p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">CI/CD Setup Guide</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#github-actions-workflow">GitHub Actions Workflow</a><ul>
+<li><a class="reference internal" href="#workflow-file">Workflow File</a></li>
+<li><a class="reference internal" href="#triggers">Triggers</a></li>
+<li><a class="reference internal" href="#jobs">Jobs</a><ul>
+<li><a class="reference internal" href="#type-check-required">1. Type Check (Required)</a></li>
+<li><a class="reference internal" href="#unit-integration-tests-required">2. Unit &amp; Integration Tests (Required)</a></li>
+<li><a class="reference internal" href="#build-check-required">3. Build Check (Required)</a></li>
+<li><a class="reference internal" href="#linting-required">4. Linting (Required)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pre-commit-hook">Pre-Commit Hook</a><ul>
+<li><a class="reference internal" href="#file">File</a></li>
+<li><a class="reference internal" href="#checks-sequential">Checks (Sequential)</a><ul>
+<li><a class="reference internal" href="#console-log-check">1. Console.log Check</a></li>
+<li><a class="reference internal" href="#type-check">2. Type Check</a></li>
+<li><a class="reference internal" href="#unit-tests">3. Unit Tests</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#bypass-pre-commit-hook">Bypass Pre-Commit Hook</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#pull-request-template">Pull Request Template</a><ul>
+<li><a class="reference internal" href="#id1">File</a></li>
+<li><a class="reference internal" href="#sections">Sections</a></li>
+<li><a class="reference internal" href="#pr-title-format">PR Title Format</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#issue-templates">Issue Templates</a><ul>
+<li><a class="reference internal" href="#bug-report">Bug Report</a></li>
+<li><a class="reference internal" href="#feature-request">Feature Request</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#codecov-integration-optional">Codecov Integration (Optional)</a><ul>
+<li><a class="reference internal" href="#setup">Setup</a></li>
+<li><a class="reference internal" href="#benefits">Benefits</a></li>
+<li><a class="reference internal" href="#configuration">Configuration</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#local-development-workflow">Local Development Workflow</a><ul>
+<li><a class="reference internal" href="#before-commit">Before Commit</a></li>
+<li><a class="reference internal" href="#pre-commit-hook-runs">Pre-Commit Hook Runs</a></li>
+<li><a class="reference internal" href="#push-to-github">Push to GitHub</a></li>
+<li><a class="reference internal" href="#github-actions-runs">GitHub Actions Runs</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#quality-gates">Quality Gates</a><ul>
+<li><a class="reference internal" href="#local-pre-commit">Local (Pre-Commit)</a></li>
+<li><a class="reference internal" href="#ci-cd-github-actions">CI/CD (GitHub Actions)</a></li>
+<li><a class="reference internal" href="#pull-request">Pull Request</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li><a class="reference internal" href="#pre-commit-hook-issues">Pre-Commit Hook Issues</a><ul>
+<li><a class="reference internal" href="#tests-failing-locally">Tests failing locally</a></li>
+<li><a class="reference internal" href="#type-check-fails">Type check fails</a></li>
+<li><a class="reference internal" href="#console-log-detected">console.log detected</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#github-actions-issues">GitHub Actions Issues</a><ul>
+<li><a class="reference internal" href="#coverage-upload-fails">Coverage upload fails</a></li>
+<li><a class="reference internal" href="#build-size-exceeds-limit">Build size exceeds limit</a></li>
+<li><a class="reference internal" href="#tests-timeout">Tests timeout</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#metrics-monitoring">Metrics &amp; Monitoring</a><ul>
+<li><a class="reference internal" href="#test-execution-time">Test Execution Time</a></li>
+<li><a class="reference internal" href="#coverage-trends">Coverage Trends</a></li>
+<li><a class="reference internal" href="#build-time">Build Time</a></li>
+<li><a class="reference internal" href="#bundle-size">Bundle Size</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#next-steps">Next Steps</a><ul>
+<li><a class="reference internal" href="#phase-5-e2e-tests">Phase 5: E2E Tests</a></li>
+<li><a class="reference internal" href="#phase-6-advanced-ci-cd">Phase 6: Advanced CI/CD</a></li>
+<li><a class="reference internal" href="#phase-7-monitoring">Phase 7: Monitoring</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#references">References</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

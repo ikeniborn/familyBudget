@@ -1,0 +1,842 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Security Advisories - Family Budget - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/operations/security-advisories.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="security-advisories-family-budget">
+<h1>Security Advisories - Family Budget<a class="headerlink" href="#security-advisories-family-budget" title="Link to this heading">¶</a></h1>
+<p><strong>Last Updated</strong>: 2026-02-03
+<strong>Status</strong>: Active Monitoring
+<strong>Next Review</strong>: 2026-03-03 (Weekly)</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>This document tracks known security vulnerabilities in Family Budget dependencies, their risk assessment, and mitigation strategies.</p>
+</section>
+<hr class="docutils" />
+<section id="active-security-exceptions">
+<h2>Active Security Exceptions<a class="headerlink" href="#active-security-exceptions" title="Link to this heading">¶</a></h2>
+<p>All exceptions are tracked in <code class="docutils literal notranslate"><span class="pre">.trivyignore</span></code> with detailed risk assessment.</p>
+<section id="critical-severity">
+<h3>Critical Severity<a class="headerlink" href="#critical-severity" title="Link to this heading">¶</a></h3>
+<section id="cve-2026-24515-libexpat-null-pointer-dereference">
+<h4>1. CVE-2026-24515: libexpat null pointer dereference<a class="headerlink" href="#cve-2026-24515-libexpat-null-pointer-dereference" title="Link to this heading">¶</a></h4>
+<p><strong>Package:</strong> <code class="docutils literal notranslate"><span class="pre">libexpat1</span></code> v2.5.0-1+deb12u2
+<strong>Severity:</strong> CRITICAL
+<strong>Status:</strong> ❌ No fix available (pending Debian security update)
+<strong>Published:</strong> 2026-01-XX
+<strong>CVSS Score:</strong> TBD</p>
+<p><strong>Vulnerability:</strong></p>
+<ul class="simple">
+<li><p>Null pointer dereference in libexpat XML parsing library</p></li>
+<li><p>Potential for Denial of Service (DoS)</p></li>
+</ul>
+<p><strong>Impact on Family Budget:</strong></p>
+<ul class="simple">
+<li><p><strong>Risk Level:</strong> MEDIUM</p></li>
+<li><p><strong>Affected Components:</strong> XML parsing operations (minimal usage)</p></li>
+<li><p><strong>Exploitability:</strong> Requires malicious XML input</p></li>
+</ul>
+<p><strong>Mitigation:</strong></p>
+<ul class="simple">
+<li><p>✅ XML parsing usage minimized in application</p></li>
+<li><p>✅ Input validation on all user-provided data</p></li>
+<li><p>✅ No direct XML file uploads supported</p></li>
+</ul>
+<p><strong>Monitoring:</strong></p>
+<ul class="simple">
+<li><p>Check Debian security tracker weekly: https://security-tracker.debian.org/tracker/CVE-2026-24515</p></li>
+<li><p>Alert on XML parsing errors in application logs</p></li>
+</ul>
+<p><strong>Next Review:</strong> 2026-03-03</p>
+</section>
+<hr class="docutils" />
+<section id="cve-2025-13836-cpython-excessive-read-buffering-dos">
+<h4>2. CVE-2025-13836: cpython excessive read buffering DoS<a class="headerlink" href="#cve-2025-13836-cpython-excessive-read-buffering-dos" title="Link to this heading">¶</a></h4>
+<p><strong>Package:</strong> Python 3.11 stdlib (libpython3.11-minimal, libpython3.11-stdlib, python3.11-minimal) v3.11.2-6+deb12u6
+<strong>Severity:</strong> CRITICAL
+<strong>Status:</strong> ❌ No fix available (pending Debian security update)
+<strong>Published:</strong> 2025-12-XX
+<strong>CVSS Score:</strong> TBD</p>
+<p><strong>Vulnerability:</strong></p>
+<ul class="simple">
+<li><p>Excessive read buffering in <code class="docutils literal notranslate"><span class="pre">http.client</span></code> module</p></li>
+<li><p>Memory exhaustion leading to Denial of Service</p></li>
+</ul>
+<p><strong>Impact on Family Budget:</strong></p>
+<ul class="simple">
+<li><p><strong>Risk Level:</strong> HIGH ⚠️</p></li>
+<li><p><strong>Affected Components:</strong> FastAPI HTTP server (uvicorn uses http.client)</p></li>
+<li><p><strong>Exploitability:</strong> HIGH - attackers can send crafted HTTP requests</p></li>
+</ul>
+<p><strong>Mitigation:</strong></p>
+<ul class="simple">
+<li><p>✅ <strong>Rate limiting</strong> via SlowAPI (100 req/min per IP)</p></li>
+<li><p>✅ <strong>Nginx connection limits:</strong></p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">client_body_timeout</span> <span class="pre">30s</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">client_max_body_size</span> <span class="pre">50M</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">keepalive_timeout</span> <span class="pre">65s</span></code></p></li>
+</ul>
+</li>
+<li><p>✅ <strong>Memory monitoring:</strong></p>
+<ul>
+<li><p>psutil alerts for memory usage &gt; 80%</p></li>
+<li><p>Docker container memory limit: 2 GB</p></li>
+</ul>
+</li>
+<li><p>✅ <strong>WAF rules</strong> (Cloudflare) for anomalous traffic patterns</p></li>
+</ul>
+<p><strong>Monitoring:</strong></p>
+<ul class="simple">
+<li><p>Check Debian security tracker <strong>WEEKLY</strong>: https://security-tracker.debian.org/tracker/CVE-2025-13836</p></li>
+<li><p>Monitor memory usage spikes in Grafana/Prometheus</p></li>
+<li><p>Alert on HTTP 5xx errors increase</p></li>
+</ul>
+<p><strong>Action Plan:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Immediate:</strong> Deploy rate limiting updates (DONE)</p></li>
+<li><p><strong>Short-term:</strong> Upgrade Python 3.11 when Debian releases DSA</p></li>
+<li><p><strong>Long-term:</strong> Consider Python 3.12+ migration (Q2 2026)</p></li>
+</ol>
+<p><strong>Next Review:</strong> 2026-03-03 (WEEKLY)</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="high-severity">
+<h3>High Severity<a class="headerlink" href="#high-severity" title="Link to this heading">¶</a></h3>
+<section id="cve-2025-15366-cpython-imap-command-injection">
+<h4>3. CVE-2025-15366: cpython IMAP command injection<a class="headerlink" href="#cve-2025-15366-cpython-imap-command-injection" title="Link to this heading">¶</a></h4>
+<p><strong>Package:</strong> Python 3.11 stdlib
+<strong>Severity:</strong> HIGH
+<strong>Status:</strong> ❌ No fix available
+<strong>Published:</strong> 2025-12-XX</p>
+<p><strong>Vulnerability:</strong></p>
+<ul class="simple">
+<li><p>Command injection in <code class="docutils literal notranslate"><span class="pre">imaplib</span></code> module</p></li>
+</ul>
+<p><strong>Impact on Family Budget:</strong></p>
+<ul class="simple">
+<li><p><strong>Risk Level:</strong> LOW ✅</p></li>
+<li><p><strong>Affected Components:</strong> NONE (imaplib not used)</p></li>
+<li><p><strong>Exploitability:</strong> N/A</p></li>
+</ul>
+<p><strong>Mitigation:</strong></p>
+<ul class="simple">
+<li><p>✅ Application does NOT use IMAP functionality</p></li>
+<li><p>✅ <code class="docutils literal notranslate"><span class="pre">imaplib</span></code> module never imported</p></li>
+</ul>
+<p><strong>Next Review:</strong> 2026-04-03 (Quarterly)</p>
+</section>
+<hr class="docutils" />
+<section id="cve-2025-15367-cpython-pop3-command-injection">
+<h4>4. CVE-2025-15367: cpython POP3 command injection<a class="headerlink" href="#cve-2025-15367-cpython-pop3-command-injection" title="Link to this heading">¶</a></h4>
+<p><strong>Package:</strong> Python 3.11 stdlib
+<strong>Severity:</strong> HIGH
+<strong>Status:</strong> ❌ No fix available
+<strong>Published:</strong> 2025-12-XX</p>
+<p><strong>Vulnerability:</strong></p>
+<ul class="simple">
+<li><p>Command injection in <code class="docutils literal notranslate"><span class="pre">poplib</span></code> module</p></li>
+</ul>
+<p><strong>Impact on Family Budget:</strong></p>
+<ul class="simple">
+<li><p><strong>Risk Level:</strong> LOW ✅</p></li>
+<li><p><strong>Affected Components:</strong> NONE (poplib not used)</p></li>
+<li><p><strong>Exploitability:</strong> N/A</p></li>
+</ul>
+<p><strong>Mitigation:</strong></p>
+<ul class="simple">
+<li><p>✅ Application does NOT use POP3 functionality</p></li>
+<li><p>✅ <code class="docutils literal notranslate"><span class="pre">poplib</span></code> module never imported</p></li>
+</ul>
+<p><strong>Next Review:</strong> 2026-04-03 (Quarterly)</p>
+</section>
+<hr class="docutils" />
+<section id="cve-2025-8194-cpython-infinite-loop-in-tarfile-parsing">
+<h4>5. CVE-2025-8194: cpython infinite loop in tarfile parsing<a class="headerlink" href="#cve-2025-8194-cpython-infinite-loop-in-tarfile-parsing" title="Link to this heading">¶</a></h4>
+<p><strong>Package:</strong> Python 3.11 stdlib
+<strong>Severity:</strong> HIGH
+<strong>Status:</strong> ❌ No fix available
+<strong>Published:</strong> 2025-08-XX</p>
+<p><strong>Vulnerability:</strong></p>
+<ul class="simple">
+<li><p>Infinite loop when parsing malicious tarfile</p></li>
+<li><p>Leads to CPU exhaustion (DoS)</p></li>
+</ul>
+<p><strong>Impact on Family Budget:</strong></p>
+<ul class="simple">
+<li><p><strong>Risk Level:</strong> LOW ✅</p></li>
+<li><p><strong>Affected Components:</strong> File upload system (restricted file types)</p></li>
+<li><p><strong>Exploitability:</strong> LOW (tar files not accepted)</p></li>
+</ul>
+<p><strong>Mitigation:</strong></p>
+<ul class="simple">
+<li><p>✅ <strong>File type whitelist:</strong> Only <code class="docutils literal notranslate"><span class="pre">.xlsx</span></code>, <code class="docutils literal notranslate"><span class="pre">.csv</span></code>, <code class="docutils literal notranslate"><span class="pre">.json</span></code> uploads accepted</p></li>
+<li><p>✅ <strong>No tar support:</strong> <code class="docutils literal notranslate"><span class="pre">tarfile</span></code> module unused in upload endpoints</p></li>
+<li><p>✅ <strong>File size limit:</strong> 50 MB max upload size</p></li>
+<li><p>✅ <strong>MIME type validation:</strong> Enforced in <code class="docutils literal notranslate"><span class="pre">backend/app/api/v1/endpoints/import_endpoints.py</span></code></p></li>
+</ul>
+<p><strong>Code Reference:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># backend/app/api/v1/endpoints/import_endpoints.py:25</span>
+<span class="n">ALLOWED_EXTENSIONS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;.xlsx&quot;</span><span class="p">,</span> <span class="s2">&quot;.csv&quot;</span><span class="p">,</span> <span class="s2">&quot;.json&quot;</span><span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Next Review:</strong> 2026-04-03 (Quarterly)</p>
+</section>
+<hr class="docutils" />
+<section id="cve-2026-1299-cpython-email-header-injection">
+<h4>6. CVE-2026-1299: cpython email header injection<a class="headerlink" href="#cve-2026-1299-cpython-email-header-injection" title="Link to this heading">¶</a></h4>
+<p><strong>Package:</strong> Python 3.11 stdlib (email module)
+<strong>Severity:</strong> HIGH
+<strong>Status:</strong> ❌ No fix available
+<strong>Published:</strong> 2026-01-XX</p>
+<p><strong>Vulnerability:</strong></p>
+<ul class="simple">
+<li><p>Email header injection via unquoted newlines</p></li>
+<li><p>Allows spam/phishing through manipulated headers</p></li>
+</ul>
+<p><strong>Impact on Family Budget:</strong></p>
+<ul class="simple">
+<li><p><strong>Risk Level:</strong> MEDIUM ⚠️</p></li>
+<li><p><strong>Affected Components:</strong> Email notifications (limited usage)</p></li>
+<li><p><strong>Exploitability:</strong> MEDIUM (requires user input in email generation)</p></li>
+</ul>
+<p><strong>Mitigation:</strong></p>
+<ul class="simple">
+<li><p>✅ <strong>Email sending via Telegram Bot API</strong> (primary notification channel)</p></li>
+<li><p>✅ <strong>stdlib email module NOT used</strong> for sending (python-telegram-bot used instead)</p></li>
+<li><p>✅ <strong>Input sanitization:</strong> FastAPI Pydantic validation on all user inputs</p></li>
+<li><p>✅ <strong>No direct header control:</strong> Users cannot set custom email headers</p></li>
+</ul>
+<p><strong>Monitoring:</strong></p>
+<ul class="simple">
+<li><p>Check Debian security tracker weekly: https://security-tracker.debian.org/tracker/CVE-2026-1299</p></li>
+<li><p>Monitor for suspicious email patterns (if email functionality added)</p></li>
+</ul>
+<p><strong>Next Review:</strong> 2026-03-03 (WEEKLY)</p>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="legacy-vulnerabilities-pre-2026-02-03">
+<h2>Legacy Vulnerabilities (Pre-2026-02-03)<a class="headerlink" href="#legacy-vulnerabilities-pre-2026-02-03" title="Link to this heading">¶</a></h2>
+<section id="cve-2024-23342-python-ecdsa-timing-attack">
+<h3>CVE-2024-23342: python-ecdsa timing attack<a class="headerlink" href="#cve-2024-23342-python-ecdsa-timing-attack" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Status:</strong> No fix available</p></li>
+<li><p><strong>Risk:</strong> LOW (timing attacks require local access)</p></li>
+<li><p><strong>Next Review:</strong> 2026-05-02 (Quarterly)</p></li>
+</ul>
+</section>
+<section id="cve-2023-45853-zlib-integer-overflow">
+<h3>CVE-2023-45853: zlib integer overflow<a class="headerlink" href="#cve-2023-45853-zlib-integer-overflow" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Status:</strong> WILL_NOT_FIX (Debian)</p></li>
+<li><p><strong>Risk:</strong> LOW (vulnerable functions not used)</p></li>
+<li><p><strong>Next Review:</strong> 2026-05-02 (Quarterly)</p></li>
+</ul>
+</section>
+<section id="cve-2023-2953-openldap-null-pointer-dereference">
+<h3>CVE-2023-2953: openldap null pointer dereference<a class="headerlink" href="#cve-2023-2953-openldap-null-pointer-dereference" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Status:</strong> No fix available</p></li>
+<li><p><strong>Risk:</strong> LOW (LDAP not used)</p></li>
+<li><p><strong>Next Review:</strong> 2026-05-02 (Quarterly)</p></li>
+</ul>
+</section>
+<section id="cve-2025-7458-sqlite-integer-overflow">
+<h3>CVE-2025-7458: SQLite integer overflow<a class="headerlink" href="#cve-2025-7458-sqlite-integer-overflow" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Status:</strong> Pending fix</p></li>
+<li><p><strong>Risk:</strong> LOW (PostgreSQL primary DB, SQLite transitive only)</p></li>
+<li><p><strong>Next Review:</strong> 2026-03-02 (Monthly)</p></li>
+</ul>
+</section>
+<section id="cve-2026-0861-glibc-integer-overflow">
+<h3>CVE-2026-0861: glibc integer overflow<a class="headerlink" href="#cve-2026-0861-glibc-integer-overflow" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Status:</strong> Pending fix (recent CVE)</p></li>
+<li><p><strong>Risk:</strong> MEDIUM</p></li>
+<li><p><strong>Next Review:</strong> 2026-03-02 (Monthly)</p></li>
+</ul>
+</section>
+<section id="cve-2026-24882-gnupg-stack-buffer-overflow">
+<h3>CVE-2026-24882: GnuPG stack buffer overflow<a class="headerlink" href="#cve-2026-24882-gnupg-stack-buffer-overflow" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Status:</strong> Pending fix (recent CVE)</p></li>
+<li><p><strong>Risk:</strong> LOW (GPG TPM daemon not used)</p></li>
+<li><p><strong>Next Review:</strong> 2026-03-02 (Monthly)</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="review-schedule">
+<h2>Review Schedule<a class="headerlink" href="#review-schedule" title="Link to this heading">¶</a></h2>
+<section id="weekly-reviews-every-monday">
+<h3>Weekly Reviews (Every Monday)<a class="headerlink" href="#weekly-reviews-every-monday" title="Link to this heading">¶</a></h3>
+<p><strong>Focus:</strong> HIGH/CRITICAL vulnerabilities with active exploitation risk</p>
+<p><strong>CVEs to check:</strong></p>
+<ul class="simple">
+<li><p>CVE-2025-13836 (http.client DoS) - <strong>TOP PRIORITY</strong></p></li>
+<li><p>CVE-2026-24515 (libexpat)</p></li>
+<li><p>CVE-2026-1299 (email injection)</p></li>
+</ul>
+<p><strong>Actions:</strong></p>
+<ol class="arabic simple">
+<li><p>Check Debian security tracker for DSA (Debian Security Advisory)</p></li>
+<li><p>Review application logs for anomalies:</p>
+<ul class="simple">
+<li><p>Memory usage spikes</p></li>
+<li><p>HTTP 5xx errors</p></li>
+<li><p>XML parsing errors</p></li>
+</ul>
+</li>
+<li><p>Verify rate limiting effectiveness (SlowAPI logs)</p></li>
+</ol>
+</section>
+<section id="monthly-reviews-first-monday-of-month">
+<h3>Monthly Reviews (First Monday of Month)<a class="headerlink" href="#monthly-reviews-first-monday-of-month" title="Link to this heading">¶</a></h3>
+<p><strong>Focus:</strong> Recent CVEs awaiting patches</p>
+<p><strong>CVEs to check:</strong></p>
+<ul class="simple">
+<li><p>CVE-2025-7458 (SQLite)</p></li>
+<li><p>CVE-2026-0861 (glibc)</p></li>
+<li><p>CVE-2026-24882 (GnuPG)</p></li>
+</ul>
+<p><strong>Actions:</strong></p>
+<ol class="arabic simple">
+<li><p>Check for Debian security updates</p></li>
+<li><p>Review application dependency versions</p></li>
+<li><p>Plan upgrade timeline if patches available</p></li>
+</ol>
+</section>
+<section id="quarterly-reviews-first-monday-of-quarter">
+<h3>Quarterly Reviews (First Monday of Quarter)<a class="headerlink" href="#quarterly-reviews-first-monday-of-quarter" title="Link to this heading">¶</a></h3>
+<p><strong>Focus:</strong> Low-risk CVEs and dependency alternatives</p>
+<p><strong>CVEs to check:</strong></p>
+<ul class="simple">
+<li><p>CVE-2024-23342 (ecdsa)</p></li>
+<li><p>CVE-2023-45853 (zlib)</p></li>
+<li><p>CVE-2023-2953 (openldap)</p></li>
+<li><p>CVE-2025-15366 (IMAP)</p></li>
+<li><p>CVE-2025-15367 (POP3)</p></li>
+<li><p>CVE-2025-8194 (tarfile)</p></li>
+</ul>
+<p><strong>Actions:</strong></p>
+<ol class="arabic simple">
+<li><p>Re-assess risk levels based on code changes</p></li>
+<li><p>Consider dependency alternatives:</p>
+<ul class="simple">
+<li><p>python-jose alternatives (if ecdsa not fixed)</p></li>
+<li><p>Python 3.12+ migration feasibility</p></li>
+</ul>
+</li>
+<li><p>Update security documentation</p></li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section id="incident-response-plan">
+<h2>Incident Response Plan<a class="headerlink" href="#incident-response-plan" title="Link to this heading">¶</a></h2>
+<section id="if-critical-vulnerability-exploited">
+<h3>If Critical Vulnerability Exploited<a class="headerlink" href="#if-critical-vulnerability-exploited" title="Link to this heading">¶</a></h3>
+<p><strong>1. Detection:</strong></p>
+<ul class="simple">
+<li><p>Monitoring alerts (Grafana/Prometheus)</p></li>
+<li><p>Increased HTTP 5xx errors</p></li>
+<li><p>Memory/CPU exhaustion</p></li>
+<li><p>User reports</p></li>
+</ul>
+<p><strong>2. Immediate Actions:</strong></p>
+<ol class="arabic simple">
+<li><p>Enable aggressive rate limiting (10 req/min)</p></li>
+<li><p>Block suspicious IP addresses (Cloudflare WAF)</p></li>
+<li><p>Scale up resources if DoS attack</p></li>
+<li><p>Notify team via Telegram alerts</p></li>
+</ol>
+<p><strong>3. Investigation:</strong></p>
+<ol class="arabic simple">
+<li><p>Analyze application logs (<code class="docutils literal notranslate"><span class="pre">/opt/budget/logs/app.log</span></code>)</p></li>
+<li><p>Review Nginx access logs for attack patterns</p></li>
+<li><p>Check Docker container metrics (memory/CPU)</p></li>
+<li><p>Identify attack vector</p></li>
+</ol>
+<p><strong>4. Mitigation:</strong></p>
+<ol class="arabic simple">
+<li><p>Apply temporary WAF rules</p></li>
+<li><p>Deploy hotfix if code change needed</p></li>
+<li><p>Upgrade packages if emergency patch available</p></li>
+<li><p>Document incident in this file</p></li>
+</ol>
+<p><strong>5. Post-Incident:</strong></p>
+<ol class="arabic simple">
+<li><p>Update <code class="docutils literal notranslate"><span class="pre">.trivyignore</span></code> with new learnings</p></li>
+<li><p>Improve monitoring/alerting rules</p></li>
+<li><p>Schedule retrospective meeting</p></li>
+<li><p>Update security documentation</p></li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section id="upgrade-strategy">
+<h2>Upgrade Strategy<a class="headerlink" href="#upgrade-strategy" title="Link to this heading">¶</a></h2>
+<section id="short-term-2-4-weeks">
+<h3>Short-Term (2-4 weeks)<a class="headerlink" href="#short-term-2-4-weeks" title="Link to this heading">¶</a></h3>
+<p><strong>Goal:</strong> Apply security patches when available</p>
+<p><strong>Actions:</strong></p>
+<ol class="arabic simple">
+<li><p>Monitor Debian security tracker daily for DSA</p></li>
+<li><p>Test patches in development environment</p></li>
+<li><p>Deploy to test environment first</p></li>
+<li><p>Roll out to production after 48h soak time</p></li>
+</ol>
+<p><strong>Deployment Process:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># When Debian releases security update</span>
+docker<span class="w"> </span>build<span class="w"> </span>--no-cache<span class="w"> </span>-f<span class="w"> </span>backend/Dockerfile<span class="w"> </span>.
+docker<span class="w"> </span>tag<span class="w"> </span>&lt;image&gt;<span class="w"> </span>ghcr.io/ikeniborn/familybudget-backend:&lt;new-version&gt;
+docker<span class="w"> </span>push<span class="w"> </span>ghcr.io/ikeniborn/familybudget-backend:&lt;new-version&gt;
+
+<span class="c1"># Update VERSION file and deploy via CI/CD</span>
+</pre></div>
+</div>
+</section>
+<section id="medium-term-1-3-months">
+<h3>Medium-Term (1-3 months)<a class="headerlink" href="#medium-term-1-3-months" title="Link to this heading">¶</a></h3>
+<p><strong>Goal:</strong> Reduce attack surface</p>
+<p><strong>Potential Actions:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Python 3.12 migration:</strong></p>
+<ul class="simple">
+<li><p>Newer Python versions often get patches faster</p></li>
+<li><p>Better performance and security features</p></li>
+<li><p>Requires compatibility testing</p></li>
+</ul>
+</li>
+<li><p><strong>Base image alternatives:</strong></p>
+<ul class="simple">
+<li><p>Consider <code class="docutils literal notranslate"><span class="pre">python:3.11-alpine</span></code> (different package ecosystem)</p></li>
+<li><p>Evaluate <code class="docutils literal notranslate"><span class="pre">gcr.io/distroless/python3-debian12</span></code> updates</p></li>
+<li><p>Trade-offs: size vs security updates frequency</p></li>
+</ul>
+</li>
+<li><p><strong>Dependency audit:</strong></p>
+<ul class="simple">
+<li><p>Remove unused dependencies</p></li>
+<li><p>Evaluate alternative libraries for high-risk packages</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="long-term-3-6-months">
+<h3>Long-Term (3-6 months)<a class="headerlink" href="#long-term-3-6-months" title="Link to this heading">¶</a></h3>
+<p><strong>Goal:</strong> Architectural improvements</p>
+<p><strong>Potential Actions:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Container security hardening:</strong></p>
+<ul class="simple">
+<li><p>Read-only root filesystem</p></li>
+<li><p>Capability dropping</p></li>
+<li><p>Seccomp profiles</p></li>
+</ul>
+</li>
+<li><p><strong>WAF enhancement:</strong></p>
+<ul class="simple">
+<li><p>Custom rules for detected attack patterns</p></li>
+<li><p>ML-based anomaly detection</p></li>
+</ul>
+</li>
+<li><p><strong>Zero-trust architecture:</strong></p>
+<ul class="simple">
+<li><p>Service mesh (Istio/Linkerd)</p></li>
+<li><p>mTLS between services</p></li>
+<li><p>Network policies</p></li>
+</ul>
+</li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section id="compliance-reporting">
+<h2>Compliance &amp; Reporting<a class="headerlink" href="#compliance-reporting" title="Link to this heading">¶</a></h2>
+<section id="internal-stakeholders">
+<h3>Internal Stakeholders<a class="headerlink" href="#internal-stakeholders" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Team notifications:</strong> Via Telegram bot alerts</p></li>
+<li><p><strong>Monthly security report:</strong> First Monday of month</p></li>
+<li><p><strong>Quarterly review:</strong> Security metrics dashboard</p></li>
+</ul>
+</section>
+<section id="external-compliance">
+<h3>External Compliance<a class="headerlink" href="#external-compliance" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>GDPR:</strong> Vulnerability management part of security measures</p></li>
+<li><p><strong>PCI-DSS:</strong> Not applicable (no credit card processing)</p></li>
+<li><p><strong>ISO 27001:</strong> Aligns with vulnerability management requirements</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="related-documentation">
+<h2>Related Documentation<a class="headerlink" href="#related-documentation" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><strong>Trivy Exceptions:</strong> <code class="docutils literal notranslate"><span class="pre">.trivyignore</span></code> (root directory)</p></li>
+<li><p><strong>Docker Security:</strong> <a class="reference internal" href="../core/docker.html"><span class="std std-doc">docker.md</span></a></p></li>
+<li><p><strong>Deployment:</strong> <a class="reference internal" href="ci-cd-build-deploy.html"><span class="std std-doc">ci-cd-build-deploy.md</span></a></p></li>
+<li><p><strong>Disaster Recovery:</strong> <a class="reference internal" href="disaster-recovery.html"><span class="std std-doc">disaster-recovery.md</span></a></p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="contact-escalation">
+<h2>Contact &amp; Escalation<a class="headerlink" href="#contact-escalation" title="Link to this heading">¶</a></h2>
+<p><strong>Security Contact:</strong> ikeniborn (GitHub)
+<strong>Escalation Path:</strong></p>
+<ol class="arabic simple">
+<li><p>Application alerts → Telegram notifications</p></li>
+<li><p>Critical issues → Immediate team notification</p></li>
+<li><p>Zero-day exploits → Emergency deployment procedure</p></li>
+</ol>
+<p><strong>External Resources:</strong></p>
+<ul class="simple">
+<li><p>Debian Security Tracker: https://security-tracker.debian.org/</p></li>
+<li><p>Python Security: https://www.python.org/news/security/</p></li>
+<li><p>NVD Database: https://nvd.nist.gov/</p></li>
+</ul>
+<hr class="docutils" />
+<p><strong>Maintainer:</strong> Family Budget Team
+<strong>Version:</strong> 1.0
+<strong>Last Updated:</strong> 2026-02-03</p>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Security Advisories - Family Budget</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#active-security-exceptions">Active Security Exceptions</a><ul>
+<li><a class="reference internal" href="#critical-severity">Critical Severity</a><ul>
+<li><a class="reference internal" href="#cve-2026-24515-libexpat-null-pointer-dereference">1. CVE-2026-24515: libexpat null pointer dereference</a></li>
+<li><a class="reference internal" href="#cve-2025-13836-cpython-excessive-read-buffering-dos">2. CVE-2025-13836: cpython excessive read buffering DoS</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#high-severity">High Severity</a><ul>
+<li><a class="reference internal" href="#cve-2025-15366-cpython-imap-command-injection">3. CVE-2025-15366: cpython IMAP command injection</a></li>
+<li><a class="reference internal" href="#cve-2025-15367-cpython-pop3-command-injection">4. CVE-2025-15367: cpython POP3 command injection</a></li>
+<li><a class="reference internal" href="#cve-2025-8194-cpython-infinite-loop-in-tarfile-parsing">5. CVE-2025-8194: cpython infinite loop in tarfile parsing</a></li>
+<li><a class="reference internal" href="#cve-2026-1299-cpython-email-header-injection">6. CVE-2026-1299: cpython email header injection</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#legacy-vulnerabilities-pre-2026-02-03">Legacy Vulnerabilities (Pre-2026-02-03)</a><ul>
+<li><a class="reference internal" href="#cve-2024-23342-python-ecdsa-timing-attack">CVE-2024-23342: python-ecdsa timing attack</a></li>
+<li><a class="reference internal" href="#cve-2023-45853-zlib-integer-overflow">CVE-2023-45853: zlib integer overflow</a></li>
+<li><a class="reference internal" href="#cve-2023-2953-openldap-null-pointer-dereference">CVE-2023-2953: openldap null pointer dereference</a></li>
+<li><a class="reference internal" href="#cve-2025-7458-sqlite-integer-overflow">CVE-2025-7458: SQLite integer overflow</a></li>
+<li><a class="reference internal" href="#cve-2026-0861-glibc-integer-overflow">CVE-2026-0861: glibc integer overflow</a></li>
+<li><a class="reference internal" href="#cve-2026-24882-gnupg-stack-buffer-overflow">CVE-2026-24882: GnuPG stack buffer overflow</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#review-schedule">Review Schedule</a><ul>
+<li><a class="reference internal" href="#weekly-reviews-every-monday">Weekly Reviews (Every Monday)</a></li>
+<li><a class="reference internal" href="#monthly-reviews-first-monday-of-month">Monthly Reviews (First Monday of Month)</a></li>
+<li><a class="reference internal" href="#quarterly-reviews-first-monday-of-quarter">Quarterly Reviews (First Monday of Quarter)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#incident-response-plan">Incident Response Plan</a><ul>
+<li><a class="reference internal" href="#if-critical-vulnerability-exploited">If Critical Vulnerability Exploited</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#upgrade-strategy">Upgrade Strategy</a><ul>
+<li><a class="reference internal" href="#short-term-2-4-weeks">Short-Term (2-4 weeks)</a></li>
+<li><a class="reference internal" href="#medium-term-1-3-months">Medium-Term (1-3 months)</a></li>
+<li><a class="reference internal" href="#long-term-3-6-months">Long-Term (3-6 months)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#compliance-reporting">Compliance &amp; Reporting</a><ul>
+<li><a class="reference internal" href="#internal-stakeholders">Internal Stakeholders</a></li>
+<li><a class="reference internal" href="#external-compliance">External Compliance</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#related-documentation">Related Documentation</a></li>
+<li><a class="reference internal" href="#contact-escalation">Contact &amp; Escalation</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

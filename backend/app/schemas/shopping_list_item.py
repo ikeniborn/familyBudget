@@ -94,6 +94,13 @@ class ShoppingListItemCreate(BaseModel):
         examples=[False]
     )
 
+    temp_id: str | None = Field(
+        default=None,
+        max_length=255,
+        description="Client-side temporary ID for offline sync deduplication",
+        examples=["item_abc123_1707409123456", None]
+    )
+
     @field_validator("product_name")
     @classmethod
     def product_name_not_empty(cls, v: str) -> str:

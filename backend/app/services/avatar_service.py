@@ -15,6 +15,8 @@ from pathlib import Path
 
 import httpx
 
+from backend.app.services.telegram_auth import make_telegram_client
+
 logger = logging.getLogger(__name__)
 
 # Configuration
@@ -68,7 +70,7 @@ async def download_user_avatar(
         AVATARS_DIR.mkdir(parents=True, exist_ok=True)
 
         # Download image from Telegram
-        async with httpx.AsyncClient() as client:
+        async with make_telegram_client() as client:
             response = await client.get(
                 telegram_photo_url,
                 timeout=REQUEST_TIMEOUT,
@@ -78,8 +80,8 @@ async def download_user_avatar(
             # Check HTTP status
             if response.status_code != 200:
                 logger.warning(
-                    f"Failed to download avatar for user {user_id}: "
-                    f"HTTP {response.status_code}"
+                    "Failed to download avatar for user %s: HTTP %s",
+                    user_id, response.status_code,
                 )
                 return None
 
@@ -87,7 +89,8 @@ async def download_user_avatar(
             content_type = response.headers.get("content-type", "").lower()
             if not any(allowed in content_type for allowed in ALLOWED_CONTENT_TYPES):
                 logger.warning(
-                    f"Invalid content type for user {user_id} avatar: {content_type}"
+                    "Invalid content type for user %s avatar: %s",
+                    user_id, content_type,
                 )
                 return None
 
@@ -95,7 +98,8 @@ async def download_user_avatar(
             content_length = response.headers.get("content-length")
             if content_length and int(content_length) > MAX_FILE_SIZE:
                 logger.warning(
-                    f"Avatar too large for user {user_id}: {content_length} bytes"
+                    "Avatar too large for user %s: %s bytes",
+                    user_id, content_length,
                 )
                 return None
 
@@ -105,7 +109,8 @@ async def download_user_avatar(
             # Enforce size limit on actual content
             if len(image_data) > MAX_FILE_SIZE:
                 logger.warning(
-                    f"Avatar content too large for user {user_id}: {len(image_data)} bytes"
+                    "Avatar content too large for user %s: %s bytes",
+                    user_id, len(image_data),
                 )
                 return None
 
@@ -134,24 +139,24 @@ async def download_user_avatar(
         # Format: /static/avatars/{user_id}.jpg
         web_path = f"/static/avatars/{filename}"
 
-        logger.info(f"Successfully cached avatar for user {user_id}: {web_path}")
+        logger.info("Successfully cached avatar for user %s: %s", user_id, web_path)
 
         return web_path
 
     except httpx.TimeoutException:
-        logger.error(f"Timeout downloading avatar for user {user_id}")
+        logger.error("Timeout downloading avatar for user %s", user_id)
         return None
 
     except httpx.HTTPError as e:
-        logger.error(f"HTTP error downloading avatar for user {user_id}: {e}")
+        logger.error("HTTP error downloading avatar for user %s: %s", user_id, e)
         return None
 
     except OSError as e:
-        logger.error(f"File system error saving avatar for user {user_id}: {e}")
+        logger.error("File system error saving avatar for user %s: %s", user_id, e)
         return None
 
     except Exception as e:
-        logger.error(f"Unexpected error downloading avatar for user {user_id}: {e}")
+        logger.error("Unexpected error downloading avatar for user %s: %s", user_id, e)
         return None
 
 
@@ -186,13 +191,13 @@ async def delete_user_avatar(user_id: int) -> None:
             filepath = AVATARS_DIR / f"{user_id}.{ext}"
             if filepath.exists():
                 filepath.unlink()
-                logger.info(f"Deleted avatar for user {user_id}: {filepath.name}")
+                logger.info("Deleted avatar for user %s: %s", user_id, filepath.name)
 
     except OSError as e:
-        logger.error(f"Error deleting avatar for user {user_id}: {e}")
+        logger.error("Error deleting avatar for user %s: %s", user_id, e)
 
     except Exception as e:
-        logger.error(f"Unexpected error deleting avatar for user {user_id}: {e}")
+        logger.error("Unexpected error deleting avatar for user %s: %s", user_id, e)
 
 
 def get_avatar_path(user_id: int) -> str | None:
@@ -232,5 +237,5 @@ def get_avatar_path(user_id: int) -> str | None:
         return None
 
     except Exception as e:
-        logger.error(f"Error checking avatar for user {user_id}: {e}")
+        logger.error("Error checking avatar for user %s: %s", user_id, e)
         return None

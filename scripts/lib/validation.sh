@@ -146,13 +146,19 @@ check_prerequisites_early() {
         exit 1
     fi
 
-    # Check if .env file exists
+    # Check if .env file exists; auto-copy from repo dir on first deploy
     if [[ ! -f "$DEPLOY_DIR/.env" ]]; then
-        error ".env file not found in $DEPLOY_DIR."
-        echo ""
-        echo "Please run setup.sh first to configure environment:"
-        echo "  ./setup.sh"
-        exit 1
+        if [[ -n "${SCRIPT_DIR:-}" && -f "$SCRIPT_DIR/.env" ]]; then
+            warning ".env not found in $DEPLOY_DIR. Copying from $SCRIPT_DIR/.env (first-deploy bootstrap)..."
+            cp "$SCRIPT_DIR/.env" "$DEPLOY_DIR/.env"
+            success "Copied .env to $DEPLOY_DIR"
+        else
+            error ".env file not found in $DEPLOY_DIR."
+            echo ""
+            echo "Please run setup.sh first to configure environment:"
+            echo "  ./setup.sh"
+            exit 1
+        fi
     fi
 
     success "Early prerequisites check passed"

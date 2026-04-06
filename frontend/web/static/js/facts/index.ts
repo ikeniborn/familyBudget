@@ -73,6 +73,16 @@ import {
     setAllCategories
 } from './core/stateManager';
 import { factsLogger as logger } from './utilities/logger';
+import {
+    initTransactionCategoryTree,
+    initTransferCategoryTrees,
+    destroyCategoryTrees,
+    updateTransactionCategoryTreeType
+} from './features/modalFact/categoryWidget';
+
+/** CalendarWidget instances for modal_fact date inputs */
+let modalFactDateCalendar: any = null;
+let modalTransferDateCalendar: any = null;
 
 /**
  * Initialize Facts Manager
@@ -96,25 +106,24 @@ export function initialize(): void {
  * Initialize UI components and load initial data
  */
 async function initializeUI(): Promise<void> {
+    // 1. Initialize default period filter
+    initDefaultPeriodFilter();
+
+    // 2. Initialize CalendarWidget for date range
+    initDateRangeCalendar();
+
+    // 3. Load all dropdown data independently — does not block facts loading
     try {
-        // 1. Initialize default period filter
-        initDefaultPeriodFilter();
-
-        // 2. Initialize CalendarWidget for date range
-        initDateRangeCalendar();
-
-        // 3. Load all dropdown data in parallel
         await loadAndPopulateDropdowns();
-
-        // 4. Setup modal_fact event listeners (Today button, etc.)
-        setupModalFactListeners();
-
-        // 5. Load facts with default filters
-        await loadFacts();
-
     } catch (error) {
-        logger.error(' Initialization error:', error);
+        logger.error(' Ошибка загрузки dropdown:', error);
     }
+
+    // 4. Setup modal_fact event listeners (Today button, etc.)
+    setupModalFactListeners();
+
+    // 5. Always load facts, even if dropdowns failed (forceAPI for correct sort order)
+    await loadFacts({ forceAPI: true });
 }
 
 /**
@@ -265,8 +274,9 @@ function groupArticlesByTypeForSelect(articles: any[]): any[] {
 
     const byType: Record<string, any[]> = {};
     articles.forEach(a => {
-        if (!byType[a.record_type]) byType[a.record_type] = [];
-        byType[a.record_type].push(a);
+        const articleType = a.type;
+        if (!byType[articleType]) byType[articleType] = [];
+        byType[articleType].push(a);
     });
 
     ['expense', 'income', 'debit', 'credit'].forEach(type => {
@@ -436,8 +446,8 @@ function populateCreateModalArticles(articles: any[]): void {
         articleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
 
         // Group articles by type for better UX
-        const expenseArticles = articles.filter(a => a.record_type === 'expense');
-        const incomeArticles = articles.filter(a => a.record_type === 'income');
+        const expenseArticles = articles.filter(a => a.type === 'expense');
+        const incomeArticles = articles.filter(a => a.type === 'income');
 
         // Add expense articles
         if (expenseArticles.length > 0) {
@@ -471,7 +481,7 @@ function populateCreateModalArticles(articles: any[]): void {
     if (transferFromArticleSelect) {
         transferFromArticleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
         // Transfer from = expenses (debit)
-        const debitArticles = articles.filter(a => a.record_type === 'debit' || a.record_type === 'expense');
+        const debitArticles = articles.filter(a => a.type === 'debit' || a.type === 'expense');
         debitArticles.forEach(article => {
             const option = document.createElement('option');
             option.value = String(article.id);
@@ -484,7 +494,7 @@ function populateCreateModalArticles(articles: any[]): void {
     if (transferToArticleSelect) {
         transferToArticleSelect.innerHTML = '<option value="">-- Выберите категорию --</option>';
         // Transfer to = income (credit)
-        const creditArticles = articles.filter(a => a.record_type === 'credit' || a.record_type === 'income');
+        const creditArticles = articles.filter(a => a.type === 'credit' || a.type === 'income');
         creditArticles.forEach(article => {
             const option = document.createElement('option');
             option.value = String(article.id);
@@ -492,6 +502,63 @@ function populateCreateModalArticles(articles: any[]): void {
             transferToArticleSelect.appendChild(option);
         });
     }
+}
+
+/**
+ * Initialize CalendarWidget instances for modal_fact date inputs
+ */
+function initModalFactCalendars(): void {
+    const CalendarWidget = (window as any).BudgetShared?.CalendarWidget;
+    if (!CalendarWidget) return;
+
+    if (modalFactDateCalendar) {
+        try { modalFactDateCalendar.destroy(); } catch (_) {}
+        modalFactDateCalendar = null;
+    }
+    if (modalTransferDateCalendar) {
+        try { modalTransferDateCalendar.destroy(); } catch (_) {}
+        modalTransferDateCalendar = null;
+    }
+
+    const factDateInput = document.querySelector<HTMLInputElement>(
+        '#modal_fact-tab-transaction input[name="fact_date"]'
+    );
+    if (factDateInput) {
+        modalFactDateCalendar = new CalendarWidget({ inputElement: factDateInput, mode: 'single' });
+    }
+
+    const transferDateInput = document.querySelector<HTMLInputElement>(
+        '#modal_fact-tab-transfer input[name="transfer_date"]'
+    );
+    if (transferDateInput) {
+        modalTransferDateCalendar = new CalendarWidget({ inputElement: transferDateInput, mode: 'single' });
+    }
+}
+
+/**
+ * Setup radio button change listeners for tab switching in modal_fact
+ */
+function setupModalFactTabSwitching(): void {
+    const modal = document.getElementById('modal_fact');
+    if (!modal) return;
+
+    const tabRadios = modal.querySelectorAll<HTMLInputElement>('input[type="radio"][data-tab]');
+    tabRadios.forEach(radio => {
+        if (radio.dataset.tabListenerAttached) return;
+        radio.dataset.tabListenerAttached = 'true';
+
+        radio.addEventListener('change', () => {
+            const activeTab = radio.dataset.tab;
+            if (!activeTab) return;
+
+            const activeTabInput = modal.querySelector<HTMLInputElement>('input[name="active_tab"]');
+            if (activeTabInput) activeTabInput.value = activeTab;
+
+            modal.querySelectorAll<HTMLElement>('.tab-content[data-tab]').forEach(content => {
+                content.classList.toggle('hidden', content.dataset.tab !== activeTab);
+            });
+        });
+    });
 }
 
 /**
@@ -505,14 +572,41 @@ function setupModalFactListeners(): void {
     // Setup "Today" buttons for date auto-fill
     setupTodayButtons();
 
+    // Setup record_type radio change listener — syncs fact_type hidden + updates category tree
+    setupTransactionTypeListener(modal);
+
     // Setup modal open event to refresh dropdowns
     const observer = new MutationObserver((mutations) => {
         mutations.forEach((mutation) => {
             if (mutation.type === 'attributes' && mutation.attributeName === 'open') {
                 const target = mutation.target as HTMLDialogElement;
                 if (target.open) {
-                    // Modal opened - refresh dropdowns if needed
-                    logger.log(' Modal opened - dropdowns already populated');
+                    // Modal opened - initialize form
+                    setFactDate(0);                       // Дата transaction tab
+                    setFactTransferDate(0);               // Дата transfer tab
+                    initModalFactCalendars();             // CalendarWidget иконки
+                    setupModalFactTabSwitching();         // Radio tab switching
+                    // Transaction tree только когда dashboard.min.js не загружен
+                    // Prevents "Choices already initialised" error when both
+                    // facts.min.js and dashboard.min.js are loaded on dashboard page:
+                    // dashboard openModalFact() also calls loadTransactionCategories()
+                    // which creates ChoicesCategoryTree on the same element.
+                    if (!window.Dashboard?.openModalFact) {
+                        initTransactionCategoryTree();    // ChoicesCategoryTree transaction
+                    }
+                    // Transfer trees только когда dashboard.min.js не загружен
+                    // Note: async init, errors are non-fatal (tree will be ready on next open)
+                    if (!window.Dashboard?.openFactTransferModal) {
+                        initTransferCategoryTrees().catch((err) => {
+                            logger.warn(' Transfer category trees init error (non-fatal):', err);
+                        });
+                    }
+                    logger.log(' Modal opened - form initialized');
+                } else {
+                    // Modal closed - destroy Choices instances so next open starts fresh
+                    // Prevents "Choices already initialised" double-init error
+                    destroyCategoryTrees();
+                    logger.log(' Modal closed - category trees destroyed');
                 }
             }
         });
@@ -521,6 +615,34 @@ function setupModalFactListeners(): void {
     observer.observe(modal, {
         attributes: true,
         attributeFilter: ['open']
+    });
+}
+
+/**
+ * Listen for record_type radio changes to keep fact_type hidden and
+ * ChoicesCategoryTree in sync with the selected expense/income type.
+ * Uses event delegation on the modal element (attached once).
+ */
+function setupTransactionTypeListener(modal: HTMLElement): void {
+    modal.addEventListener('change', (e) => {
+        const target = e.target as HTMLInputElement;
+        if (target.name === 'record_type' && target.type === 'radio') {
+            updateTransactionCategoryTreeType(target.value as 'expense' | 'income');
+        }
+    });
+}
+
+/**
+ * Highlight the quick-date button that corresponds to daysOffset.
+ * Buttons are ordered: index 0 = today (0), 1 = yesterday (-1), 2 = day-before (-2).
+ */
+function updateDateButtonState(tabSelector: string, daysOffset: number): void {
+    const activeIndex = Math.abs(daysOffset);
+    document.querySelectorAll<HTMLButtonElement>(
+        `${tabSelector} .flex.gap-1.mb-1 button`
+    ).forEach((btn, index) => {
+        btn.classList.toggle('btn-active', index === activeIndex);
+        btn.classList.toggle('btn-outline', index !== activeIndex);
     });
 }
 
@@ -549,6 +671,8 @@ export function setFactDate(daysOffset: number): void {
         dateInput.dispatchEvent(new Event('change', { bubbles: true }));
         logger.log(' Transaction date set:', dateStr, '(offset:', daysOffset, ')');
     }
+
+    updateDateButtonState('#modal_fact-tab-transaction', daysOffset);
 }
 
 /**
@@ -576,6 +700,8 @@ export function setFactTransferDate(daysOffset: number): void {
         dateInput.dispatchEvent(new Event('change', { bubbles: true }));
         logger.log(' Transfer date set:', dateStr, '(offset:', daysOffset, ')');
     }
+
+    updateDateButtonState('#modal_fact-tab-transfer', daysOffset);
 }
 
 /**

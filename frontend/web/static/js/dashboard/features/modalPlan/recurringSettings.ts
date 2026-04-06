@@ -5,6 +5,9 @@
  * @module modalPlan/recurringSettings
  */
 
+import { getState, updateState } from '../../core/DashboardState';
+import { initReminderCalendarWidget, getCurrentTimeRounded, updateReminderDatetime } from '../addPlan/reminderSettings';
+
 declare const debugLog: (...args: any[]) => void;
 
 /**
@@ -51,16 +54,42 @@ export function togglePlanMode(modalId: string): void {
   onetimeReminderSection.classList.add('hidden');
   debugLog('[togglePlanMode] All sections hidden');
 
+  // Toggle required on duration_type (hidden fields block HTML5 validation)
+  const durationTypeSelect = form.querySelector<HTMLSelectElement>('select[name="duration_type"]');
+
   // Show relevant section
   if (selectedMode === 'recurring') {
     recurringSettings.classList.remove('hidden');
     debugLog('[togglePlanMode] Recurring settings shown');
+    if (durationTypeSelect) durationTypeSelect.setAttribute('required', 'required');
     initializeRecurringDefaults(modalId);
   } else if (selectedMode === 'reminder') {
     onetimeReminderSection.classList.remove('hidden');
     debugLog('[togglePlanMode] Reminder section shown');
+    // Initialize CalendarWidget for reminder date field
+    initReminderCalendarWidget(modalId);
+
+    // Explicitly show inner container (in case it was hidden)
+    const reminderSettings = document.getElementById(`reminder-settings-${modalId}`);
+    if (reminderSettings) {
+      reminderSettings.classList.remove('hidden');
+    }
+
+    const hourSelect = document.getElementById(`reminder_hour_${modalId}`) as HTMLSelectElement | null;
+    const minuteSelect = document.getElementById(`reminder_minute_${modalId}`) as HTMLSelectElement | null;
+    if (hourSelect && minuteSelect) {
+      const defaultTime = getCurrentTimeRounded();
+      hourSelect.value = defaultTime.hour;
+      minuteSelect.value = defaultTime.minute;
+      updateReminderDatetime(modalId);
+    }
   } else {
     debugLog('[togglePlanMode] Regular mode - no additional sections shown');
+  }
+
+  // Remove required from duration_type when not in recurring mode
+  if (selectedMode !== 'recurring' && durationTypeSelect) {
+    durationTypeSelect.removeAttribute('required');
   }
 
   debugLog('[RecurringSettings] Plan mode changed:', selectedMode);
@@ -147,7 +176,8 @@ export function updateYearlyFrequencyValue(modalId: string): void {
 }
 
 /**
- * Update duration fields based on duration type
+ * Update duration fields based on duration type.
+ * Also initializes/destroys CalendarWidget for end date field.
  */
 export function updateDurationFields(modalId: string): void {
   const form = document.getElementById(`form_${modalId}`) as HTMLFormElement;
@@ -167,6 +197,33 @@ export function updateDurationFields(modalId: string): void {
   } else if (durationTypeSelect.value === 'end_date') {
     occurrencesField.classList.add('hidden');
     endDateField.classList.remove('hidden');
+  }
+
+  // Initialize/destroy CalendarWidget for end date field
+  const endDateInput = document.getElementById(`recurring_end_date_${modalId}`) as HTMLInputElement | null;
+  if (durationTypeSelect.value === 'end_date' && endDateInput) {
+    // Initialize CalendarWidget when field becomes visible
+    const state = getState();
+    if (!state.recurringEndDateCalendarWidget && window.BudgetShared?.CalendarWidget) {
+      const widget = new window.BudgetShared.CalendarWidget({
+        inputElement: endDateInput,
+        mode: 'single',
+        minDate: new Date(),
+        onSelect: () => updateRecurringPreview(modalId),
+      });
+      updateState({ recurringEndDateCalendarWidget: widget });
+    }
+  } else {
+    // Destroy CalendarWidget when field is hidden
+    const state = getState();
+    if (state.recurringEndDateCalendarWidget) {
+      try {
+        state.recurringEndDateCalendarWidget.destroy();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      updateState({ recurringEndDateCalendarWidget: null });
+    }
   }
 
   updateRecurringPreview(modalId);
@@ -268,35 +325,15 @@ export function extractRecurringSettings(form: HTMLFormElement): any {
     frequencyValue = parseInt(monthdayValue); // Day of month (1-28)
   }
 
-  // Determine months_count based on duration
-  let monthsCount: number | null = null;
-  if (durationType === 'count' && occurrencesCount) {
-    const count = parseInt(occurrencesCount);
-    // Convert occurrences to months based on frequency
-    if (frequencyType === 'monthly') {
-      monthsCount = count; // 1 occurrence = 1 month
-    } else if (frequencyType === 'quarterly') {
-      monthsCount = count * 3; // 1 occurrence = 3 months
-    } else if (frequencyType === 'yearly') {
-      monthsCount = count * 12; // 1 occurrence = 12 months
-    }
-  } else if (durationType === 'end_date' && endDate) {
-    // Calculate months from start_month to end_date
-    // This requires start_month to be set
-    // For now, set to large number (backend will calculate)
-    monthsCount = 999; // Backend will calculate actual count
-  }
-
   return {
     frequency_type: frequencyType,
     frequency_value: frequencyValue,
-    months_count: monthsCount,
-    is_active: true,
+    occurrences_count: durationType === 'count' && occurrencesCount ? parseInt(occurrencesCount) : null,
+    end_date: durationType === 'end_date' && endDate ? endDate : null,
     // Reminder settings (if enabled)
     enable_reminder: enableReminder || false,
-    reminder_time: enableReminder && reminderHour && reminderMinute
-      ? `${reminderHour}:${reminderMinute}`
-      : null
+    reminder_hour: enableReminder && reminderHour ? parseInt(reminderHour) : null,
+    reminder_minute: enableReminder && reminderMinute ? parseInt(reminderMinute) : null,
   };
 }
 

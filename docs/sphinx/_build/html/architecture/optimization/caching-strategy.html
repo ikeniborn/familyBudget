@@ -1,0 +1,1218 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Caching Strategy - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/optimization/caching-strategy.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="caching-strategy">
+<h1>Caching Strategy<a class="headerlink" href="#caching-strategy" title="Link to this heading">¶</a></h1>
+<p><strong>Last Updated:</strong> 2025-12-27
+<strong>Version:</strong> v6.2</p>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>Family Budget application uses a multi-layer caching strategy to optimize performance while ensuring data freshness:</p>
+<ol class="arabic simple">
+<li><p><strong>Redis Cache (Backend)</strong> - Reference data and dashboard stats</p></li>
+<li><p><strong>HTTP Cache Headers</strong> - Browser and Service Worker directives</p></li>
+<li><p><strong>Service Worker (Frontend)</strong> - Offline-first PWA support</p></li>
+<li><p><strong>IndexedDB (Frontend)</strong> - Local offline storage</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="http-cache-headers">
+<h2>HTTP Cache Headers<a class="headerlink" href="#http-cache-headers" title="Link to this heading">¶</a></h2>
+<section id="facts-api-api-v1-facts">
+<h3>Facts API (<code class="docutils literal notranslate"><span class="pre">/api/v1/facts</span></code>)<a class="headerlink" href="#facts-api-api-v1-facts" title="Link to this heading">¶</a></h3>
+<p><strong>Policy:</strong> <code class="docutils literal notranslate"><span class="pre">private,</span> <span class="pre">no-cache,</span> <span class="pre">must-revalidate</span></code></p>
+<div class="highlight-http notranslate"><div class="highlight"><pre><span></span><span class="err">Cache-Control: private, no-cache, must-revalidate</span>
+<span class="err">Pragma: no-cache</span>
+<span class="err">Vary: Cookie</span>
+</pre></div>
+</div>
+<p><strong>Rationale:</strong></p>
+<ul class="simple">
+<li><p><strong>Frequently changing data</strong> - Transactions are created/edited often</p></li>
+<li><p><strong>User-specific</strong> - Different users see different data (JWT auth)</p></li>
+<li><p><strong>Freshness critical</strong> - Must show latest data immediately after mutations</p></li>
+</ul>
+<p><strong>Implementation:</strong> <code class="docutils literal notranslate"><span class="pre">backend/app/api/v1/endpoints/facts.py:440-444</span></code></p>
+</section>
+<section id="reference-data-api-v1-articles-api-v1-financial-centers-api-v1-cost-centers">
+<h3>Reference Data (<code class="docutils literal notranslate"><span class="pre">/api/v1/articles</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/financial-centers</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/cost-centers</span></code>)<a class="headerlink" href="#reference-data-api-v1-articles-api-v1-financial-centers-api-v1-cost-centers" title="Link to this heading">¶</a></h3>
+<p><strong>Policy:</strong> <code class="docutils literal notranslate"><span class="pre">private,</span> <span class="pre">max-age=300</span></code> (5 minutes)</p>
+<p><strong>Rationale:</strong></p>
+<ul class="simple">
+<li><p><strong>Rarely changing</strong> - Categories, accounts, cost centers don’t change often</p></li>
+<li><p><strong>Safe to cache longer</strong> - Stale data acceptable for 5 minutes</p></li>
+<li><p><strong>Performance boost</strong> - Reduces DB load for frequently accessed data</p></li>
+</ul>
+<p><strong>Implementation:</strong> Redis cache with 300s TTL (CacheTTL.REFERENCE)</p>
+</section>
+<section id="dashboard-widgets-api-v1-analytics-quick-stats-html-api-v1-facts-recent-html">
+<h3>Dashboard Widgets (<code class="docutils literal notranslate"><span class="pre">/api/v1/analytics/quick-stats-html</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/facts/recent-html</span></code>)<a class="headerlink" href="#dashboard-widgets-api-v1-analytics-quick-stats-html-api-v1-facts-recent-html" title="Link to this heading">¶</a></h3>
+<p><strong>Policy:</strong> Redis cache with 10-30s TTL</p>
+<p><strong>Rationale:</strong></p>
+<ul class="simple">
+<li><p><strong>Moderate freshness</strong> - Acceptable to be slightly out of date</p></li>
+<li><p><strong>High request frequency</strong> - Dashboard loaded on every page visit</p></li>
+<li><p><strong>DB query optimization</strong> - Stats aggregation is expensive</p></li>
+</ul>
+<p><strong>Implementation:</strong> Redis cache with CacheTTL.DASHBOARD (30s) and CacheTTL.SHORT (10s)</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="redis-cache-backend">
+<h2>Redis Cache (Backend)<a class="headerlink" href="#redis-cache-backend" title="Link to this heading">¶</a></h2>
+<section id="cache-keys">
+<h3>Cache Keys<a class="headerlink" href="#cache-keys" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Prefix</p></th>
+<th class="head"><p>TTL</p></th>
+<th class="head"><p>Use Case</p></th>
+<th class="head"><p>Example</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">articles:*</span></code></p></td>
+<td><p>300s</p></td>
+<td><p>Article list, tree, single article</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cache:articles:list</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">financial_centers:*</span></code></p></td>
+<td><p>300s</p></td>
+<td><p>Financial center list, single FC</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cache:financial_centers:list</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cost_centers:*</span></code></p></td>
+<td><p>300s</p></td>
+<td><p>Cost center list, single CC</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cache:cost_centers:list</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">dashboard:*</span></code></p></td>
+<td><p>30s</p></td>
+<td><p>Quick stats, account balances</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cache:dashboard:quick_stats</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">recent:*</span></code></p></td>
+<td><p>10s</p></td>
+<td><p>Recent transactions HTML</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cache:recent:html:10</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="read-through-cache-pattern">
+<h3>Read-Through Cache Pattern<a class="headerlink" href="#read-through-cache-pattern" title="Link to this heading">¶</a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Get or set pattern</span>
+<span class="n">cached</span> <span class="o">=</span> <span class="k">await</span> <span class="n">cache_service</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">cached</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">cached</span>  <span class="c1"># Cache HIT</span>
+
+<span class="n">data</span> <span class="o">=</span> <span class="k">await</span> <span class="n">fetch_from_db</span><span class="p">()</span>  <span class="c1"># Cache MISS</span>
+<span class="k">await</span> <span class="n">cache_service</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">key</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="n">ttl</span><span class="p">)</span>
+<span class="k">return</span> <span class="n">data</span>
+</pre></div>
+</div>
+<p><strong>Implementation:</strong> <code class="docutils literal notranslate"><span class="pre">backend/app/services/cache_service.py</span></code></p>
+</section>
+<section id="cache-invalidation">
+<h3>Cache Invalidation<a class="headerlink" href="#cache-invalidation" title="Link to this heading">¶</a></h3>
+<section id="rule-always-await-cache-invalidation">
+<h4>Rule: Always AWAIT Cache Invalidation<a class="headerlink" href="#rule-always-await-cache-invalidation" title="Link to this heading">¶</a></h4>
+<p><strong>❌ WRONG:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">cache_service</span><span class="o">.</span><span class="n">invalidate_dashboard</span><span class="p">())</span>  <span class="c1"># Fire-and-forget</span>
+<span class="k">return</span> <span class="n">response</span>  <span class="c1"># Returns BEFORE cache cleared!</span>
+</pre></div>
+</div>
+<p><strong>✅ CORRECT:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">await</span> <span class="n">cache_service</span><span class="o">.</span><span class="n">invalidate_dashboard</span><span class="p">()</span>  <span class="c1"># Wait for cache to clear</span>
+<span class="k">return</span> <span class="n">response</span>  <span class="c1"># Cache guaranteed to be cleared</span>
+</pre></div>
+</div>
+<p><strong>Why:</strong> Ensures subsequent requests get fresh data, prevents race conditions where stale cached data is served after mutations.</p>
+<p><strong>Performance Impact:</strong> Cache invalidation adds ~5-20ms latency, acceptable for data freshness.</p>
+</section>
+<section id="invalidation-triggers">
+<h4>Invalidation Triggers<a class="headerlink" href="#invalidation-triggers" title="Link to this heading">¶</a></h4>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Mutation</p></th>
+<th class="head"><p>Invalidates</p></th>
+<th class="head"><p>Implementation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Create/Update/Delete Fact</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">dashboard:*</span></code>, <code class="docutils literal notranslate"><span class="pre">recent:*</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">facts.py:383,</span> <span class="pre">1252,</span> <span class="pre">1347,</span> <span class="pre">1458</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Create/Update/Delete Article</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">articles:*</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cache_service.invalidate_articles()</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Create/Update/Delete Financial Center</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">financial_centers:*</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cache_service.invalidate_financial_centers()</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Create/Update/Delete Cost Center</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cost_centers:*</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">cache_service.invalidate_cost_centers()</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Transfer Operation</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">dashboard:*</span></code>, <code class="docutils literal notranslate"><span class="pre">recent:*</span></code></p></td>
+<td><p>Same as facts</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Pattern-Based Invalidation:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Invalidates all keys matching pattern</span>
+<span class="k">await</span> <span class="n">cache_service</span><span class="o">.</span><span class="n">invalidate_pattern</span><span class="p">(</span><span class="s2">&quot;articles:*&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<hr class="docutils" />
+<section id="service-worker-caching">
+<h2>Service Worker Caching<a class="headerlink" href="#service-worker-caching" title="Link to this heading">¶</a></h2>
+<section id="strategies-by-resource-type">
+<h3>Strategies by Resource Type<a class="headerlink" href="#strategies-by-resource-type" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Resource</p></th>
+<th class="head"><p>Strategy</p></th>
+<th class="head"><p>Details</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/api/*</span></code></p></td>
+<td><p><strong>Network First</strong></p></td>
+<td><p>Always fetch; cache as fallback (offline)</p></td>
+</tr>
+<tr class="row-odd"><td><p>HTML pages (<code class="docutils literal notranslate"><span class="pre">/facts</span></code>, <code class="docutils literal notranslate"><span class="pre">/plan</span></code>)</p></td>
+<td><p><strong>Network First</strong></p></td>
+<td><p>Fresh content preferred</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">.css</span></code>, <code class="docutils literal notranslate"><span class="pre">.js</span></code>, <code class="docutils literal notranslate"><span class="pre">.png</span></code></p></td>
+<td><p><strong>Cache First + SWR</strong></p></td>
+<td><p>Serve cached; update in background</p></td>
+</tr>
+<tr class="row-odd"><td><p>Static assets (icons, manifest)</p></td>
+<td><p><strong>Precache</strong></p></td>
+<td><p>Installed on service worker activation</p></td>
+</tr>
+<tr class="row-even"><td><p>Health endpoints (<code class="docutils literal notranslate"><span class="pre">/health</span></code>, <code class="docutils literal notranslate"><span class="pre">/ping</span></code>)</p></td>
+<td><p><strong>Bypass SW</strong></p></td>
+<td><p>Never cached</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Network First for API:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// sw.js pattern</span>
+<span class="nx">fetch</span><span class="p">(</span><span class="nx">request</span><span class="p">)</span>
+<span class="w">    </span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">response</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">cache</span><span class="p">.</span><span class="nx">put</span><span class="p">(</span><span class="nx">request</span><span class="p">,</span><span class="w"> </span><span class="nx">response</span><span class="p">.</span><span class="nx">clone</span><span class="p">());</span><span class="w">  </span><span class="c1">// Update cache</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nx">response</span><span class="p">;</span><span class="w">  </span><span class="c1">// Return fresh data</span>
+<span class="w">    </span><span class="p">})</span>
+<span class="w">    </span><span class="p">.</span><span class="k">catch</span><span class="p">(()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">caches</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="nx">request</span><span class="p">));</span><span class="w">  </span><span class="c1">// Fallback to cache (offline)</span>
+</pre></div>
+</div>
+<p><strong>Cache First for Static Files:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="nx">caches</span><span class="p">.</span><span class="nx">match</span><span class="p">(</span><span class="nx">request</span><span class="p">)</span>
+<span class="w">    </span><span class="p">.</span><span class="nx">then</span><span class="p">(</span><span class="nx">response</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">response</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="nx">request</span><span class="p">));</span><span class="w">  </span><span class="c1">// Cache hit or network</span>
+</pre></div>
+</div>
+<p><strong>Stale-While-Revalidate:</strong></p>
+<ul class="simple">
+<li><p>Serve from cache immediately</p></li>
+<li><p>Fetch in background</p></li>
+<li><p>Update cache with fresh data</p></li>
+</ul>
+<p><strong>Implementation:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/static/sw.js</span></code></p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="indexeddb-frontend">
+<h2>IndexedDB (Frontend)<a class="headerlink" href="#indexeddb-frontend" title="Link to this heading">¶</a></h2>
+<section id="offline-storage">
+<h3>Offline Storage<a class="headerlink" href="#offline-storage" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Store</p></th>
+<th class="head"><p>Purpose</p></th>
+<th class="head"><p>Cleanup</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">offline_facts</span></code></p></td>
+<td><p>Offline transactions</p></td>
+<td><p>On successful sync</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">offline_plans</span></code></p></td>
+<td><p>Offline budget plans</p></td>
+<td><p>On successful sync</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sync_queue</span></code></p></td>
+<td><p>Pending operations</p></td>
+<td><p>On sync completion</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">data_cache</span></code></p></td>
+<td><p>Reference data (articles, etc.)</p></td>
+<td><p>TTL expiry check</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Background Sync:</strong></p>
+<ul class="simple">
+<li><p>Chrome/Edge: Native Background Sync API</p></li>
+<li><p>Other browsers: Manual sync on network restore</p></li>
+</ul>
+<p><strong>Deduplication:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">sync_hash</span></code> and <code class="docutils literal notranslate"><span class="pre">content_hash</span></code> prevent duplicate records</p></li>
+<li><p>Server-side deduplication on <code class="docutils literal notranslate"><span class="pre">/api/v1/facts</span></code> (24-hour window)</p></li>
+</ul>
+<p><strong>Implementation:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/static/js/idb.js</span></code></p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="client-side-cache-monitoring-v6-2">
+<h2>Client-Side Cache Monitoring (v6.2+)<a class="headerlink" href="#client-side-cache-monitoring-v6-2" title="Link to this heading">¶</a></h2>
+<section id="id1">
+<h3>Overview<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<p>Admin monitoring page (<code class="docutils literal notranslate"><span class="pre">/admin/monitoring</span></code>) displays real-time cache metrics from all active clients, providing visibility into browser-side storage consumption and health.</p>
+<p><strong>Key Features:</strong></p>
+<ul class="simple">
+<li><p>Aggregated metrics from all connected clients</p></li>
+<li><p>Service Worker cache size and file count</p></li>
+<li><p>IndexedDB pending records (offline sync queue)</p></li>
+<li><p>Storage Quota usage and browser limits</p></li>
+<li><p>Auto-refresh every 5 seconds (synced with other monitoring metrics)</p></li>
+</ul>
+</section>
+<section id="architecture">
+<h3>Architecture<a class="headerlink" href="#architecture" title="Link to this heading">¶</a></h3>
+<p><strong>Hybrid Push-Pull Pattern:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[Browser Client] --POST--&gt; /api/v1/admin/cache-metrics (202 Accepted)
+                                         ↓
+                              [In-Memory Aggregator] (5min TTL)
+                                         ↓
+[Admin Page] &lt;--GET-- /api/v1/admin/cache-metrics
+              (auto-refresh 5s)
+</pre></div>
+</div>
+<p><strong>Design Decisions:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>In-memory storage</strong> - Ephemeral metrics (no Redis/DB persistence)</p></li>
+<li><p><strong>On-demand collection</strong> - Metrics sent only when admin viewing monitoring page</p></li>
+<li><p><strong>5-minute TTL</strong> - Auto-cleanup of stale client data</p></li>
+<li><p><strong>Sampled estimation</strong> - SW cache size calculated from first 20 entries (80% faster)</p></li>
+</ol>
+</section>
+<section id="metrics-collection">
+<h3>Metrics Collection<a class="headerlink" href="#metrics-collection" title="Link to this heading">¶</a></h3>
+<p><strong>Client-Side Collection:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/static/js/utils/cacheMetricsCollector.js</span></code></p>
+<p><strong>Metrics Gathered:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Metric</p></th>
+<th class="head"><p>Source</p></th>
+<th class="head"><p>Details</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Service Worker</strong></p></td>
+<td><p>Cache API</p></td>
+<td><p>Cache version, total size (sampled), file count</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>IndexedDB</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">IndexedDBManager.getInfo()</span></code></p></td>
+<td><p>DB version, pending records, store stats</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Storage Quota</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">navigator.storage.estimate()</span></code></p></td>
+<td><p>Total quota, usage, percentage (with Safari fallback)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>localStorage</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">localStorage</span></code> API</p></td>
+<td><p>Key count, total size (bytes)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>sessionStorage</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">sessionStorage</span></code> API</p></td>
+<td><p>Key count, total size (bytes)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Performance Optimization - Sampled SW Cache:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Instead of iterating ALL entries (200-500ms):</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">allKeys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">cache</span><span class="p">.</span><span class="nx">keys</span><span class="p">();</span><span class="w">  </span><span class="c1">// e.g., 100 entries</span>
+
+<span class="c1">// Sample first 20 entries (40-100ms):</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">sampleKeys</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">allKeys</span><span class="p">.</span><span class="nx">slice</span><span class="p">(</span><span class="mf">0</span><span class="p">,</span><span class="w"> </span><span class="mf">20</span><span class="p">);</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">avgSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">calculateAverage</span><span class="p">(</span><span class="nx">sampleKeys</span><span class="p">);</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">estimatedTotal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">avgSize</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="nx">allKeys</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>Result:</strong> 80% reduction in collection time with ±10% accuracy.</p>
+<p><strong>Collection Frequency:</strong></p>
+<ul class="simple">
+<li><p>Initial: Immediately when admin opens <code class="docutils literal notranslate"><span class="pre">/admin/monitoring</span></code></p></li>
+<li><p>Recurring: Every 5 seconds (aligned with page auto-refresh)</p></li>
+<li><p>Stops: When admin leaves monitoring page</p></li>
+</ul>
+</section>
+<section id="backend-storage">
+<h3>Backend Storage<a class="headerlink" href="#backend-storage" title="Link to this heading">¶</a></h3>
+<p><strong>Service:</strong> <code class="docutils literal notranslate"><span class="pre">backend/app/services/cache_metrics_service.py</span></code></p>
+<p><strong>In-Memory Structure:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+    <span class="s2">&quot;client_uuid_1&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="s2">&quot;metrics&quot;</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">},</span>
+        <span class="s2">&quot;timestamp&quot;</span><span class="p">:</span> <span class="s2">&quot;2025-12-27T10:30:00Z&quot;</span>
+    <span class="p">},</span>
+    <span class="s2">&quot;client_uuid_2&quot;</span><span class="p">:</span> <span class="p">{</span><span class="o">...</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>TTL Cleanup:</strong></p>
+<ul class="simple">
+<li><p>Runs on every GET/POST request</p></li>
+<li><p>Removes entries older than 5 minutes</p></li>
+<li><p>No background job needed (memory-efficient)</p></li>
+</ul>
+<p><strong>Aggregation:</strong></p>
+<ul class="simple">
+<li><p>Client count (active clients with metrics &lt; 5min old)</p></li>
+<li><p>Total SW cache size (sum across all clients)</p></li>
+<li><p>Average storage quota usage</p></li>
+<li><p>Total IndexedDB pending records</p></li>
+</ul>
+</section>
+<section id="api-endpoints">
+<h3>API Endpoints<a class="headerlink" href="#api-endpoints" title="Link to this heading">¶</a></h3>
+<p><strong>POST /api/v1/admin/cache-metrics</strong> - Submit client metrics</p>
+<ul class="simple">
+<li><p><strong>Auth:</strong> None required (fire-and-forget from any client)</p></li>
+<li><p><strong>Response:</strong> 202 Accepted (async acknowledgment)</p></li>
+<li><p><strong>Payload:</strong> <code class="docutils literal notranslate"><span class="pre">ClientCacheMetrics</span></code> schema</p></li>
+</ul>
+<p><strong>GET /api/v1/admin/cache-metrics</strong> - Retrieve aggregated metrics</p>
+<ul class="simple">
+<li><p><strong>Auth:</strong> Admin only (<code class="docutils literal notranslate"><span class="pre">CurrentAdmin</span></code> dependency)</p></li>
+<li><p><strong>Response:</strong> <code class="docutils literal notranslate"><span class="pre">AggregatedCacheMetrics</span></code> schema</p></li>
+<li><p><strong>Data:</strong> Aggregated stats + individual client snapshots</p></li>
+</ul>
+<p><strong>Implementation:</strong> <code class="docutils literal notranslate"><span class="pre">backend/app/api/v1/endpoints/cache_metrics.py</span></code></p>
+</section>
+<section id="browser-compatibility">
+<h3>Browser Compatibility<a class="headerlink" href="#browser-compatibility" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>API</p></th>
+<th class="head"><p>Chrome</p></th>
+<th class="head"><p>Firefox</p></th>
+<th class="head"><p>Safari</p></th>
+<th class="head"><p>Fallback</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Cache API</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>N/A (required for PWA)</p></td>
+</tr>
+<tr class="row-odd"><td><p>IndexedDB</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>N/A (required for offline)</p></td>
+</tr>
+<tr class="row-even"><td><p>Storage Quota</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>⚠️ Limited</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">supported:</span> <span class="pre">false</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>localStorage</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>N/A</p></td>
+</tr>
+<tr class="row-even"><td><p>sessionStorage</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>✅</p></td>
+<td><p>N/A</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Safari Limitations:</strong></p>
+<ul class="simple">
+<li><p>Storage Quota API not available in Safari &lt; 15.2</p></li>
+<li><p>Graceful fallback returns <code class="docutils literal notranslate"><span class="pre">quota:</span> <span class="pre">null,</span> <span class="pre">usage:</span> <span class="pre">null,</span> <span class="pre">supported:</span> <span class="pre">false</span></code></p></li>
+</ul>
+</section>
+<section id="logging">
+<h3>Logging<a class="headerlink" href="#logging" title="Link to this heading">¶</a></h3>
+<p><strong>Frontend (Console):</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="nx">CACHE</span><span class="p">]</span><span class="w"> </span><span class="nx">Starting</span><span class="w"> </span><span class="nx">cache</span><span class="w"> </span><span class="nx">metrics</span><span class="w"> </span><span class="nx">collection</span>
+<span class="p">[</span><span class="nx">CACHE</span><span class="p">]</span><span class="w"> </span><span class="nx">Service</span><span class="w"> </span><span class="nx">Worker</span><span class="w"> </span><span class="nx">cache</span><span class="w"> </span><span class="nx">size</span><span class="o">:</span><span class="w"> </span><span class="mf">2456789</span><span class="w"> </span><span class="nx">bytes</span>
+<span class="p">[</span><span class="nx">CACHE</span><span class="p">]</span><span class="w"> </span><span class="nx">IndexedDB</span><span class="w"> </span><span class="nx">pending</span><span class="w"> </span><span class="nx">count</span><span class="o">:</span><span class="w"> </span><span class="mf">3</span>
+<span class="p">[</span><span class="nx">CACHE</span><span class="p">]</span><span class="w"> </span><span class="nx">Sending</span><span class="w"> </span><span class="nx">metrics</span><span class="w"> </span><span class="nx">to</span><span class="w"> </span><span class="nx">backend</span>
+</pre></div>
+</div>
+<p><strong>Backend (Logs):</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">CACHE_METRICS</span><span class="p">]</span> <span class="n">Storing</span> <span class="n">metrics</span> <span class="kn">from</span><span class="w"> </span><span class="nn">client_id</span><span class="o">=</span><span class="n">abc123</span><span class="o">...</span>
+<span class="p">[</span><span class="n">CACHE_METRICS</span><span class="p">]</span> <span class="n">Aggregated</span> <span class="n">metrics</span><span class="p">:</span> <span class="n">clients</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">sw_size</span><span class="o">=</span><span class="mi">12345678</span><span class="p">,</span> <span class="n">idb_pending</span><span class="o">=</span><span class="mi">15</span>
+<span class="p">[</span><span class="n">CACHE_METRICS</span><span class="p">]</span> <span class="n">Cleanup</span> <span class="n">removed</span> <span class="mi">2</span> <span class="n">expired</span> <span class="n">clients</span>
+</pre></div>
+</div>
+<p><strong>Log Module:</strong> <code class="docutils literal notranslate"><span class="pre">CACHE</span></code> (development only via <code class="docutils literal notranslate"><span class="pre">logging.js</span></code> config)</p>
+</section>
+<section id="performance-characteristics">
+<h3>Performance Characteristics<a class="headerlink" href="#performance-characteristics" title="Link to this heading">¶</a></h3>
+<p><strong>Collection Time:</strong></p>
+<ul class="simple">
+<li><p>Full collection: ~40-100ms (with sampled SW cache)</p></li>
+<li><p>Without sampling: ~200-500ms (too slow for 5s interval)</p></li>
+</ul>
+<p><strong>Memory Footprint:</strong></p>
+<ul class="simple">
+<li><p>Per-client metrics: ~100KB (JSON payload)</p></li>
+<li><p>Max expected clients: ~100 concurrent</p></li>
+<li><p>Total memory cap: ~10MB (acceptable for monitoring feature)</p></li>
+</ul>
+<p><strong>Network Overhead:</strong></p>
+<ul class="simple">
+<li><p>POST payload: ~100KB per client per 5s</p></li>
+<li><p>Compressed (gzip): ~20-30KB</p></li>
+<li><p>Bandwidth impact: ~4-6KB/s per active admin client</p></li>
+</ul>
+</section>
+<section id="use-cases">
+<h3>Use Cases<a class="headerlink" href="#use-cases" title="Link to this heading">¶</a></h3>
+<p><strong>Operational Monitoring:</strong></p>
+<ul class="simple">
+<li><p>Detect cache bloat (too many cached files)</p></li>
+<li><p>Monitor offline sync queue health</p></li>
+<li><p>Identify storage quota issues (clients approaching 80% usage)</p></li>
+<li><p>Debug client-side performance issues</p></li>
+</ul>
+<p><strong>Capacity Planning:</strong></p>
+<ul class="simple">
+<li><p>Track average storage consumption per user</p></li>
+<li><p>Identify users with large offline queues</p></li>
+<li><p>Predict when users might hit storage limits</p></li>
+</ul>
+<p><strong>Troubleshooting:</strong></p>
+<ul class="simple">
+<li><p>Verify Service Worker is caching files correctly</p></li>
+<li><p>Check if offline data is being synced</p></li>
+<li><p>Diagnose storage quota warnings from browser</p></li>
+</ul>
+</section>
+<section id="related-files">
+<h3>Related Files<a class="headerlink" href="#related-files" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/static/js/utils/cacheMetricsCollector.js</span></code> - Client-side collector</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/static/js/config/logging.js</span></code> - CACHE module configuration</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/templates/admin_monitoring.html</span></code> - Monitoring UI</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">backend/app/services/cache_metrics_service.py</span></code> - Metrics aggregation service</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">backend/app/api/v1/endpoints/cache_metrics.py</span></code> - API endpoints</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">backend/app/schemas/cache_metrics.py</span></code> - Pydantic schemas</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="cache-busting">
+<h2>Cache Busting<a class="headerlink" href="#cache-busting" title="Link to this heading">¶</a></h2>
+<section id="query-parameter-strategy">
+<h3>Query Parameter Strategy<a class="headerlink" href="#query-parameter-strategy" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Cache-busting for dynamic queries</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">url</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="sb">`/api/v1/facts?date_from=</span><span class="si">${</span><span class="nx">date</span><span class="si">}</span><span class="sb">&amp;_t=</span><span class="si">${</span><span class="nb">Date</span><span class="p">.</span><span class="nx">now</span><span class="p">()</span><span class="si">}</span><span class="sb">`</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>Service Worker honors <code class="docutils literal notranslate"><span class="pre">ignoreSearch:</span> <span class="pre">true</span></code>:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">.css?v=123</span></code> matches <code class="docutils literal notranslate"><span class="pre">.css?v=456</span></code> (same cache entry)</p></li>
+<li><p>Prevents cache fragmentation for static files</p></li>
+</ul>
+</section>
+<section id="etag-support">
+<h3>ETag Support<a class="headerlink" href="#etag-support" title="Link to this heading">¶</a></h3>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Service Worker checks ETag in background</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">cachedResponse</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;etag&#39;</span><span class="p">)</span><span class="w"> </span><span class="o">!==</span><span class="w"> </span><span class="nx">freshResponse</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s1">&#39;etag&#39;</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">cache</span><span class="p">.</span><span class="nx">put</span><span class="p">(</span><span class="nx">request</span><span class="p">,</span><span class="w"> </span><span class="nx">freshResponse</span><span class="p">);</span><span class="w">  </span><span class="c1">// Update cache</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="static-file-versioning">
+<h3>Static File Versioning<a class="headerlink" href="#static-file-versioning" title="Link to this heading">¶</a></h3>
+<p>The application uses <strong>semantic version-based query parameters</strong> for cache busting of static files.</p>
+<p><strong>Mechanism:</strong></p>
+<ul class="simple">
+<li><p>All <code class="docutils literal notranslate"><span class="pre">.min.js</span></code> and <code class="docutils literal notranslate"><span class="pre">.min.css</span></code> files include <code class="docutils literal notranslate"><span class="pre">?v=PLACEHOLDER</span></code> in templates</p></li>
+<li><p>During deployment, <code class="docutils literal notranslate"><span class="pre">scripts/lib/cache_busting.sh</span></code> replaces <code class="docutils literal notranslate"><span class="pre">PLACEHOLDER</span></code> with semantic version from <code class="docutils literal notranslate"><span class="pre">VERSION</span></code> file</p></li>
+<li><p>Example: <code class="docutils literal notranslate"><span class="pre">choices.min.css?v=11.0.1</span></code></p></li>
+</ul>
+<p><strong>Supported paths:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">/static/</span></code> - Web application static files</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/webapp/</span></code> - Telegram WebApp static files</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/shared/</span></code> - Shared modules</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/vendor/</span></code> - Third-party libraries (Choices.js, HTMX, etc.)</p></li>
+</ul>
+<p><strong>Workflow:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Deployment pipeline</span>
+deploy.sh<span class="w"> </span>→<span class="w"> </span>minification<span class="w"> </span>→<span class="w"> </span>cache_busting.sh<span class="w"> </span>→<span class="w"> </span>version<span class="w"> </span>update
+</pre></div>
+</div>
+<p><strong>Script:</strong> <code class="docutils literal notranslate"><span class="pre">scripts/lib/cache_busting.sh</span></code></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">update_cache_versions()</span></code> - Replaces <code class="docutils literal notranslate"><span class="pre">?v=PLACEHOLDER</span></code> or old versions with new timestamp</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">check_cache_versions()</span></code> - Audits current versions in templates</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">run_cache_busting(mode)</span></code> - Entry point (<code class="docutils literal notranslate"><span class="pre">auto</span></code>, <code class="docutils literal notranslate"><span class="pre">check</span></code>, <code class="docutils literal notranslate"><span class="pre">manual</span></code>)</p></li>
+</ul>
+<p><strong>Regex patterns:</strong></p>
+<div class="highlight-perl notranslate"><div class="highlight"><pre><span></span><span class="c1"># Matches all static files with ?v= parameter</span>
+<span class="sr">s{(\/static\/js\/(?:[a-zA-Z_\-]+\/)?)([a-zA-Z_\-]+\.(?:min\.)?js)\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}</span><span class="p">}</span><span class="n">g</span><span class="p">;</span>
+<span class="sr">s{(\/static\/css\/(?:[a-zA-Z_\-]+\/)?)([a-zA-Z_\-]+\.(?:min\.)?css)\?v=(PLACEHOLDER|[0-9]+_[0-9]+)}{\$1\$2?v=${version}</span><span class="p">}</span><span class="n">g</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>Files covered:</strong></p>
+<ul class="simple">
+<li><p>26+ templates (web + webapp)</p></li>
+<li><p>All minified files (vendor libraries + custom modules)</p></li>
+</ul>
+</section>
+<section id="service-worker-versioning-separate-strategy">
+<h3>Service Worker Versioning (Separate Strategy)<a class="headerlink" href="#service-worker-versioning-separate-strategy" title="Link to this heading">¶</a></h3>
+<p><strong>Why different from static files:</strong></p>
+<ul class="simple">
+<li><p>Service Worker <strong>content itself changes</strong> - no query parameters needed</p></li>
+<li><p>Delivered via <strong>nginx</strong> with <code class="docutils literal notranslate"><span class="pre">Cache-Control:</span> <span class="pre">no-cache,</span> <span class="pre">must-revalidate</span></code></p></li>
+<li><p>Browser always checks for updates on every page load</p></li>
+</ul>
+<p><strong>Mechanism:</strong></p>
+<ul>
+<li><p>Internal <code class="docutils literal notranslate"><span class="pre">CACHE_VERSION</span></code> constant in <code class="docutils literal notranslate"><span class="pre">sw.js</span></code>:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">CACHE_VERSION</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;CACHE_VERSION_PLACEHOLDER&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+<li><p>During deployment, <code class="docutils literal notranslate"><span class="pre">scripts/update-sw-version.sh</span></code> replaces placeholder with timestamp:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">CACHE_VERSION</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;v20251224_1430&#39;</span><span class="p">;</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p><strong>Delivery architecture:</strong></p>
+<ul>
+<li><p><strong>Full profile (production):</strong> Nginx serves <code class="docutils literal notranslate"><span class="pre">sw.min.js</span></code> and <code class="docutils literal notranslate"><span class="pre">sw.min.js.gz</span></code></p>
+<div class="highlight-nginx notranslate"><div class="highlight"><pre><span></span><span class="k">location</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s">/sw.min.js</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kn">alias</span><span class="w"> </span><span class="s">/usr/share/nginx/html/sw.min.js</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">gzip_static</span><span class="w"> </span><span class="no">on</span><span class="p">;</span><span class="w">  </span><span class="c1"># Serve pre-compressed .gz version</span>
+<span class="w">    </span><span class="kn">add_header</span><span class="w"> </span><span class="s">Cache-Control</span><span class="w"> </span><span class="s">&quot;no-cache,</span><span class="w"> </span><span class="s">no-store,</span><span class="w"> </span><span class="s">must-revalidate&quot;</span><span class="w"> </span><span class="s">always</span><span class="p">;</span>
+<span class="w">    </span><span class="kn">add_header</span><span class="w"> </span><span class="s">Service-Worker-Allowed</span><span class="w"> </span><span class="s">&quot;/&quot;</span><span class="w"> </span><span class="s">always</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Basic profile:</strong> FastAPI backend serves from <code class="docutils literal notranslate"><span class="pre">/app/sw.min.js</span></code></p></li>
+</ul>
+<p><strong>Why nginx (not backend):</strong></p>
+<ul class="simple">
+<li><p>✅ Performance: <code class="docutils literal notranslate"><span class="pre">gzip_static</span> <span class="pre">on</span></code> serves pre-compressed <code class="docutils literal notranslate"><span class="pre">.gz</span></code> files</p></li>
+<li><p>✅ No backend involvement: Static file serving optimized for nginx</p></li>
+<li><p>✅ HTTP/2 push capability (if enabled)</p></li>
+<li><p>✅ Cache headers: Already has <code class="docutils literal notranslate"><span class="pre">no-cache</span></code> headers</p></li>
+</ul>
+<p><strong>Architecture decision:</strong> Do NOT move to backend delivery (loses performance benefits).</p>
+<p><strong>Validation:</strong> <code class="docutils literal notranslate"><span class="pre">deploy.sh</span></code> aborts deployment if <code class="docutils literal notranslate"><span class="pre">CACHE_VERSION_PLACEHOLDER</span></code> remains (lines 1175-1199).</p>
+</section>
+<section id="developer-guidelines">
+<h3>Developer Guidelines<a class="headerlink" href="#developer-guidelines" title="Link to this heading">¶</a></h3>
+<p><strong>Adding new static files:</strong></p>
+<ol class="arabic">
+<li><p>Always add <code class="docutils literal notranslate"><span class="pre">?v=PLACEHOLDER</span></code> to <code class="docutils literal notranslate"><span class="pre">&lt;link&gt;</span></code> and <code class="docutils literal notranslate"><span class="pre">&lt;script&gt;</span></code> tags:</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- ✅ CORRECT --&gt;</span>
+<span class="p">&lt;</span><span class="nt">link</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;stylesheet&quot;</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;/static/css/vendor/newlib.min.css?v=PLACEHOLDER&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/static/js/vendor/newlib.min.js?v=PLACEHOLDER&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+
+<span class="cm">&lt;!-- ❌ WRONG - missing cache busting --&gt;</span>
+<span class="p">&lt;</span><span class="nt">link</span> <span class="na">rel</span><span class="o">=</span><span class="s">&quot;stylesheet&quot;</span> <span class="na">href</span><span class="o">=</span><span class="s">&quot;/static/css/vendor/newlib.min.css&quot;</span><span class="p">&gt;</span>
+<span class="p">&lt;</span><span class="nt">script</span> <span class="na">src</span><span class="o">=</span><span class="s">&quot;/static/js/vendor/newlib.min.js&quot;</span><span class="p">&gt;&lt;/</span><span class="nt">script</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Vendor libraries</strong> (third-party): Same rule applies</p>
+<ul class="simple">
+<li><p>Choices.js, HTMX, ECharts, etc. all use <code class="docutils literal notranslate"><span class="pre">?v=PLACEHOLDER</span></code></p></li>
+</ul>
+</li>
+<li><p><strong>Testing before commit:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check current versions</span>
+./scripts/lib/cache_busting.sh<span class="w"> </span>check
+
+<span class="c1"># Manual update (for testing)</span>
+./scripts/lib/cache_busting.sh<span class="w"> </span>manual
+</pre></div>
+</div>
+</li>
+<li><p><strong>Deployment validation:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">deploy.sh</span></code> automatically runs <code class="docutils literal notranslate"><span class="pre">cache_busting.sh</span></code></p></li>
+<li><p>Deployment fails if Service Worker cache version still has <code class="docutils literal notranslate"><span class="pre">PLACEHOLDER</span></code></p></li>
+<li><p>All templates updated with new timestamp version</p></li>
+</ul>
+</li>
+</ol>
+<p><strong>File coverage checklist:</strong></p>
+<ul class="simple">
+<li><p>[ ] Web templates: <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/*.html</span></code></p></li>
+<li><p>[ ] Webapp templates: <code class="docutils literal notranslate"><span class="pre">frontend/webapp/*.html</span></code></p></li>
+<li><p>[ ] Supports subdirectories: <code class="docutils literal notranslate"><span class="pre">/vendor/</span></code>, <code class="docutils literal notranslate"><span class="pre">/offline/</span></code>, <code class="docutils literal notranslate"><span class="pre">/budget/</span></code></p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="testing-cache-behavior">
+<h2>Testing Cache Behavior<a class="headerlink" href="#testing-cache-behavior" title="Link to this heading">¶</a></h2>
+<section id="clear-all-caches">
+<h3>Clear All Caches<a class="headerlink" href="#clear-all-caches" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Browser: Hard refresh (Ctrl+Shift+R or Cmd+Shift+R)</span>
+
+<span class="c1"># Redis: Flush database</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>redis<span class="w"> </span>redis-cli<span class="w"> </span>FLUSHDB
+
+<span class="c1"># Service Worker: Chrome DevTools → Application → Clear storage</span>
+</pre></div>
+</div>
+</section>
+<section id="verify-http-headers">
+<h3>Verify HTTP Headers<a class="headerlink" href="#verify-http-headers" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check Cache-Control headers</span>
+curl<span class="w"> </span>-I<span class="w"> </span>https://budget-dev.ikeniborn.ru/api/v1/facts
+
+<span class="c1"># Expected output:</span>
+<span class="c1"># Cache-Control: private, no-cache, must-revalidate</span>
+<span class="c1"># Pragma: no-cache</span>
+<span class="c1"># Vary: Cookie</span>
+</pre></div>
+</div>
+</section>
+<section id="monitor-cache-hits-misses">
+<h3>Monitor Cache Hits/Misses<a class="headerlink" href="#monitor-cache-hits-misses" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Backend logs (DEBUG level)</span>
+docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>backend<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;Cache HIT\|Cache MISS&quot;</span>
+
+<span class="c1"># Example output:</span>
+<span class="c1"># Cache HIT for articles list</span>
+<span class="c1"># Cache MISS for dashboard:quick_stats</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="performance-metrics">
+<h2>Performance Metrics<a class="headerlink" href="#performance-metrics" title="Link to this heading">¶</a></h2>
+<section id="before-cache-optimization">
+<h3>Before Cache Optimization<a class="headerlink" href="#before-cache-optimization" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Operation</p></th>
+<th class="head"><p>Time</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Dashboard load</p></td>
+<td><p>~2-3s</p></td>
+<td><p>3 separate DB queries</p></td>
+</tr>
+<tr class="row-odd"><td><p>Facts list</p></td>
+<td><p>~300-800ms</p></td>
+<td><p>Single query with JOINs</p></td>
+</tr>
+<tr class="row-even"><td><p>Article list</p></td>
+<td><p>~200-400ms</p></td>
+<td><p>Hierarchical query</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="after-cache-optimization">
+<h3>After Cache Optimization<a class="headerlink" href="#after-cache-optimization" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Operation</p></th>
+<th class="head"><p>Time</p></th>
+<th class="head"><p>Improvement</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Dashboard load</p></td>
+<td><p>~500ms-1s</p></td>
+<td><p>60-70% faster (cache hits)</p></td>
+</tr>
+<tr class="row-odd"><td><p>Facts list</p></td>
+<td><p>~300-800ms</p></td>
+<td><p>Same (no cache)</p></td>
+</tr>
+<tr class="row-even"><td><p>Article list</p></td>
+<td><p>~50-100ms</p></td>
+<td><p>75-80% faster (cache hits)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Cache Hit Rate (Production):</strong></p>
+<ul class="simple">
+<li><p>Reference data: ~90% (TTL=300s)</p></li>
+<li><p>Dashboard stats: ~70% (TTL=30s)</p></li>
+<li><p>Recent transactions: ~60% (TTL=10s)</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="common-issues-solutions">
+<h2>Common Issues &amp; Solutions<a class="headerlink" href="#common-issues-solutions" title="Link to this heading">¶</a></h2>
+<section id="issue-stale-data-after-mutation">
+<h3>Issue: Stale Data After Mutation<a class="headerlink" href="#issue-stale-data-after-mutation" title="Link to this heading">¶</a></h3>
+<p><strong>Symptoms:</strong> Creating a transaction shows old data in table, updates after delay.</p>
+<p><strong>Root Cause:</strong> Async cache invalidation not awaited:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">cache_service</span><span class="o">.</span><span class="n">invalidate_dashboard</span><span class="p">())</span>  <span class="c1"># NOT awaited</span>
+<span class="k">return</span> <span class="n">response</span>  <span class="c1"># Returns BEFORE cache cleared</span>
+</pre></div>
+</div>
+<p><strong>Fix:</strong> Await the invalidation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">await</span> <span class="n">cache_service</span><span class="o">.</span><span class="n">invalidate_dashboard</span><span class="p">()</span>  <span class="c1"># AWAIT it</span>
+<span class="k">return</span> <span class="n">response</span>  <span class="c1"># Cache guaranteed cleared</span>
+</pre></div>
+</div>
+<p><strong>Reference:</strong> Commit <code class="docutils literal notranslate"><span class="pre">fix(cache):</span> <span class="pre">await</span> <span class="pre">cache</span> <span class="pre">invalidation</span> <span class="pre">to</span> <span class="pre">prevent</span> <span class="pre">stale</span> <span class="pre">data</span> <span class="pre">display</span></code></p>
+</section>
+<section id="issue-service-worker-caching-dynamic-data">
+<h3>Issue: Service Worker Caching Dynamic Data<a class="headerlink" href="#issue-service-worker-caching-dynamic-data" title="Link to this heading">¶</a></h3>
+<p><strong>Symptoms:</strong> <code class="docutils literal notranslate"><span class="pre">/api/v1/facts</span></code> responses cached by Service Worker despite changes.</p>
+<p><strong>Solution:</strong> HTTP Cache-Control headers override SW behavior:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">response</span><span class="o">.</span><span class="n">headers</span><span class="p">[</span><span class="s2">&quot;Cache-Control&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;private, no-cache, must-revalidate&quot;</span>
+</pre></div>
+</div>
+<p>Service Worker respects <code class="docutils literal notranslate"><span class="pre">no-cache</span></code> and always revalidates with server.</p>
+</section>
+<section id="issue-cache-not-invalidating">
+<h3>Issue: Cache Not Invalidating<a class="headerlink" href="#issue-cache-not-invalidating" title="Link to this heading">¶</a></h3>
+<p><strong>Symptoms:</strong> Changes not reflected after mutation.</p>
+<p><strong>Debug Steps:</strong></p>
+<ol class="arabic simple">
+<li><p>Check Redis logs: <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">compose</span> <span class="pre">logs</span> <span class="pre">redis</span></code></p></li>
+<li><p>Verify cache key patterns match: <code class="docutils literal notranslate"><span class="pre">cache:dashboard:*</span></code></p></li>
+<li><p>Ensure invalidation is awaited</p></li>
+<li><p>Check TTL hasn’t already expired</p></li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
+<section id="id2">
+<h3>Related Files<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">backend/app/services/cache_service.py</span></code> - Redis cache service</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">backend/app/api/v1/endpoints/facts.py</span></code> - Facts API with cache invalidation</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/static/sw.js</span></code> - Service Worker caching logic</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">frontend/web/static/js/idb.js</span></code> - IndexedDB offline storage</p></li>
+</ul>
+</section>
+<section id="architecture-docs">
+<h3>Architecture Docs<a class="headerlink" href="#architecture-docs" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">/docs/architecture/README.md</span></code> - Architecture overview</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/docs/architecture/frontend-loading-patterns.md</span></code> - Frontend loading strategies</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">/docs/architecture/backup-system.md</span></code> - Data persistence and backups</p></li>
+</ul>
+</section>
+<section id="external-resources">
+<h3>External Resources<a class="headerlink" href="#external-resources" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Caching">HTTP Caching - MDN</a></p></li>
+<li><p><a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API">Service Worker API - MDN</a></p></li>
+<li><p><a class="reference external" href="https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API">IndexedDB API - MDN</a></p></li>
+<li><p><a class="reference external" href="https://redis.io/docs/manual/patterns/">Redis Cache Patterns</a></p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Caching Strategy</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#http-cache-headers">HTTP Cache Headers</a><ul>
+<li><a class="reference internal" href="#facts-api-api-v1-facts">Facts API (<code class="docutils literal notranslate"><span class="pre">/api/v1/facts</span></code>)</a></li>
+<li><a class="reference internal" href="#reference-data-api-v1-articles-api-v1-financial-centers-api-v1-cost-centers">Reference Data (<code class="docutils literal notranslate"><span class="pre">/api/v1/articles</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/financial-centers</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/cost-centers</span></code>)</a></li>
+<li><a class="reference internal" href="#dashboard-widgets-api-v1-analytics-quick-stats-html-api-v1-facts-recent-html">Dashboard Widgets (<code class="docutils literal notranslate"><span class="pre">/api/v1/analytics/quick-stats-html</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/facts/recent-html</span></code>)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#redis-cache-backend">Redis Cache (Backend)</a><ul>
+<li><a class="reference internal" href="#cache-keys">Cache Keys</a></li>
+<li><a class="reference internal" href="#read-through-cache-pattern">Read-Through Cache Pattern</a></li>
+<li><a class="reference internal" href="#cache-invalidation">Cache Invalidation</a><ul>
+<li><a class="reference internal" href="#rule-always-await-cache-invalidation">Rule: Always AWAIT Cache Invalidation</a></li>
+<li><a class="reference internal" href="#invalidation-triggers">Invalidation Triggers</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><a class="reference internal" href="#service-worker-caching">Service Worker Caching</a><ul>
+<li><a class="reference internal" href="#strategies-by-resource-type">Strategies by Resource Type</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#indexeddb-frontend">IndexedDB (Frontend)</a><ul>
+<li><a class="reference internal" href="#offline-storage">Offline Storage</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#client-side-cache-monitoring-v6-2">Client-Side Cache Monitoring (v6.2+)</a><ul>
+<li><a class="reference internal" href="#id1">Overview</a></li>
+<li><a class="reference internal" href="#architecture">Architecture</a></li>
+<li><a class="reference internal" href="#metrics-collection">Metrics Collection</a></li>
+<li><a class="reference internal" href="#backend-storage">Backend Storage</a></li>
+<li><a class="reference internal" href="#api-endpoints">API Endpoints</a></li>
+<li><a class="reference internal" href="#browser-compatibility">Browser Compatibility</a></li>
+<li><a class="reference internal" href="#logging">Logging</a></li>
+<li><a class="reference internal" href="#performance-characteristics">Performance Characteristics</a></li>
+<li><a class="reference internal" href="#use-cases">Use Cases</a></li>
+<li><a class="reference internal" href="#related-files">Related Files</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#cache-busting">Cache Busting</a><ul>
+<li><a class="reference internal" href="#query-parameter-strategy">Query Parameter Strategy</a></li>
+<li><a class="reference internal" href="#etag-support">ETag Support</a></li>
+<li><a class="reference internal" href="#static-file-versioning">Static File Versioning</a></li>
+<li><a class="reference internal" href="#service-worker-versioning-separate-strategy">Service Worker Versioning (Separate Strategy)</a></li>
+<li><a class="reference internal" href="#developer-guidelines">Developer Guidelines</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#testing-cache-behavior">Testing Cache Behavior</a><ul>
+<li><a class="reference internal" href="#clear-all-caches">Clear All Caches</a></li>
+<li><a class="reference internal" href="#verify-http-headers">Verify HTTP Headers</a></li>
+<li><a class="reference internal" href="#monitor-cache-hits-misses">Monitor Cache Hits/Misses</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#performance-metrics">Performance Metrics</a><ul>
+<li><a class="reference internal" href="#before-cache-optimization">Before Cache Optimization</a></li>
+<li><a class="reference internal" href="#after-cache-optimization">After Cache Optimization</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#common-issues-solutions">Common Issues &amp; Solutions</a><ul>
+<li><a class="reference internal" href="#issue-stale-data-after-mutation">Issue: Stale Data After Mutation</a></li>
+<li><a class="reference internal" href="#issue-service-worker-caching-dynamic-data">Issue: Service Worker Caching Dynamic Data</a></li>
+<li><a class="reference internal" href="#issue-cache-not-invalidating">Issue: Cache Not Invalidating</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#references">References</a><ul>
+<li><a class="reference internal" href="#id2">Related Files</a></li>
+<li><a class="reference internal" href="#architecture-docs">Architecture Docs</a></li>
+<li><a class="reference internal" href="#external-resources">External Resources</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

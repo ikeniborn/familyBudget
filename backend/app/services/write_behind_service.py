@@ -278,12 +278,12 @@ class WriteBehindService:
                 await redis.rpush(QUEUE_KEY, item.to_json())
                 self._stats["queued"] += 1
                 logger.debug(
-                    f"Write-behind queued: {item.operation.value} {item.entity_type} "
-                    f"request_id={item.request_id}"
+                    "Write-behind queued: %s %s request_id=%s",
+                    item.operation.value, item.entity_type, item.request_id,
                 )
                 return item.request_id
         except Exception as e:
-            logger.error(f"Failed to queue write operation: {e}")
+            logger.error("Failed to queue write operation: %s", e)
             raise
 
     async def _process_item(self, item: WriteQueueItem) -> bool:
@@ -311,15 +311,15 @@ class WriteBehindService:
                 await session.commit()
                 self._stats["processed"] += 1
                 logger.info(
-                    f"Write-behind processed: {item.operation.value} {item.entity_type} "
-                    f"request_id={item.request_id}"
+                    "Write-behind processed: %s %s request_id=%s",
+                    item.operation.value, item.entity_type, item.request_id,
                 )
                 return True
 
         except Exception as e:
             logger.error(
-                f"Write-behind failed: {item.operation.value} {item.entity_type} "
-                f"request_id={item.request_id} error={e}"
+                "Write-behind failed: %s %s request_id=%s error=%s",
+                item.operation.value, item.entity_type, item.request_id, e,
             )
             return False
 
@@ -537,10 +537,11 @@ class WriteBehindService:
 
             await manager.broadcast(event_type, broadcast_data)
             logger.debug(
-                f"Write-behind broadcast: {event_type}, id={fact_id}"
+                "Write-behind broadcast: %s, id=%s",
+                event_type, fact_id,
             )
         except Exception as e:
-            logger.warning(f"Failed to broadcast write-behind event: {e}")
+            logger.warning("Failed to broadcast write-behind event: %s", e)
 
     async def _retry_item(self, item: WriteQueueItem):
         """Retry a failed item with exponential backoff."""
@@ -560,9 +561,9 @@ class WriteBehindService:
         )
 
         logger.warning(
-            f"Write-behind retry {item.retries}/{max_retries}: "
-            f"{item.operation.value} {item.entity_type} "
-            f"request_id={item.request_id} backoff={backoff_ms}ms"
+            "Write-behind retry %s/%s: %s %s request_id=%s backoff=%sms",
+            item.retries, max_retries, item.operation.value, item.entity_type,
+            item.request_id, backoff_ms,
         )
 
         # Wait and re-queue
@@ -573,7 +574,7 @@ class WriteBehindService:
                 await redis.rpush(QUEUE_KEY, item.to_json())
                 self._stats["retried"] += 1
         except Exception as e:
-            logger.error(f"Failed to re-queue item: {e}")
+            logger.error("Failed to re-queue item: %s", e)
             await self._move_to_dlq(item, str(e))
             self._stats["failed"] += 1
 
@@ -593,8 +594,8 @@ class WriteBehindService:
                 }
                 await redis.rpush(DLQ_KEY, json_dumps(dlq_item))
                 logger.error(
-                    f"Write-behind DLQ: {item.operation.value} {item.entity_type} "
-                    f"request_id={item.request_id} error={error}"
+                    "Write-behind DLQ: %s %s request_id=%s error=%s",
+                    item.operation.value, item.entity_type, item.request_id, error,
                 )
 
                 # Trim DLQ to max size (keep newest items)
@@ -606,11 +607,11 @@ class WriteBehindService:
                     for _ in range(items_to_remove):
                         await redis.lpop(DLQ_KEY)
                     logger.warning(
-                        f"DLQ trimmed: removed {items_to_remove} oldest items, "
-                        f"max_size={max_size}"
+                        "DLQ trimmed: removed %s oldest items, max_size=%s",
+                        items_to_remove, max_size,
                     )
         except Exception as e:
-            logger.error(f"Failed to move to DLQ: {e}")
+            logger.error("Failed to move to DLQ: %s", e)
 
     async def _cleanup_dlq(self):
         """Remove expired items from DLQ based on TTL.
@@ -652,11 +653,11 @@ class WriteBehindService:
 
                 if removed_count > 0:
                     logger.info(
-                        f"DLQ cleanup: removed {removed_count} expired items "
-                        f"(TTL={ttl_seconds // 86400} days)"
+                        "DLQ cleanup: removed %s expired items (TTL=%s days)",
+                        removed_count, ttl_seconds // 86400,
                     )
         except Exception as e:
-            logger.warning(f"DLQ cleanup failed: {e}")
+            logger.warning("DLQ cleanup failed: %s", e)
 
     async def _acquire_lock(self) -> bool:
         """Acquire processing lock."""
@@ -694,7 +695,7 @@ class WriteBehindService:
 
     async def _worker_loop(self):
         """Main worker loop for processing queue items."""
-        logger.info(f"Write-behind worker started: worker_id={self._worker_id}")
+        logger.info("Write-behind worker started: worker_id=%s", self._worker_id)
 
         # DLQ cleanup interval (every 60 seconds)
         dlq_cleanup_interval = 60
@@ -744,10 +745,10 @@ class WriteBehindService:
                 logger.info("Write-behind worker cancelled")
                 break
             except Exception as e:
-                logger.error(f"Write-behind worker error: {e}")
+                logger.error("Write-behind worker error: %s", e)
                 await asyncio.sleep(1)  # Prevent tight loop on errors
 
-        logger.info(f"Write-behind worker stopped: worker_id={self._worker_id}")
+        logger.info("Write-behind worker stopped: worker_id=%s", self._worker_id)
 
     async def start_worker(self) -> None:
         """Start the background worker."""

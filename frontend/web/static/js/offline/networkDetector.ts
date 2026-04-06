@@ -644,6 +644,38 @@ class SmartNetworkDetector {
     isOfflineModeEnabled(): boolean {
         return this.autoOfflineMode;
     }
+
+    // ==================== P2P CAPABILITY ====================
+
+    /**
+     * Detect whether this device/browser can initiate P2P WebRTC sync.
+     * Emits 'p2p-capability-change' CustomEvent with { capable: boolean, reason: string }.
+     * @returns {{ capable: boolean, reason: string }}
+     */
+    detectP2PCapability(): { capable: boolean; reason: string } {
+        const isHttps = window.location.protocol === 'https:' || window.location.hostname === 'localhost';
+        const hasRTC = typeof RTCPeerConnection !== 'undefined';
+        const hasGetUserMedia = !!(navigator.mediaDevices?.getUserMedia);
+
+        let capable = false;
+        let reason = '';
+
+        if (!isHttps) {
+            reason = 'requires HTTPS';
+        } else if (!hasRTC) {
+            reason = 'RTCPeerConnection not supported in this browser';
+        } else {
+            capable = true;
+            reason = hasGetUserMedia ? 'full support' : 'limited (no getUserMedia, iOS ICE workaround unavailable)';
+        }
+
+        window.dispatchEvent(new CustomEvent('p2p-capability-change', {
+            detail: { capable, reason }
+        }));
+
+        _networkLog('[NetworkDetector] P2P capability:', capable, reason);
+        return { capable, reason };
+    }
 }
 
 // Export as global

@@ -11,9 +11,10 @@ Endpoints tested:
 import hashlib
 import hmac
 import time
+from typing import Any
 
 import pytest
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -34,7 +35,7 @@ def generate_valid_telegram_auth_data(
     last_name: str = None,
     username: str = None,
     photo_url: str = None,
-) -> dict[str, any]:
+) -> dict[str, Any]:
     """
     Generate valid Telegram OAuth data with correct HMAC-SHA256 hash.
 
@@ -352,7 +353,7 @@ async def test_telegram_login_cookie_attributes(client: AsyncClient, session: As
 
 
 @pytest.mark.asyncio
-async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: AsyncSession):
+async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: AsyncSession, engine):
     """Test that JWT token can be used for authenticated requests."""
     # Pre-create user (admin registration required)
     jwt_user = User(
@@ -360,6 +361,7 @@ async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: Asyn
         username="johndoe",
         first_name="John",
         is_admin=False,
+        is_active=True,
     )
     session.add(jwt_user)
     await session.commit()
@@ -385,14 +387,15 @@ async def test_telegram_login_jwt_token_valid(client: AsyncClient, session: Asyn
     from backend.app.core.dependencies import get_session
 
     async def override_get_session():
-        async with AsyncSession(session.bind, expire_on_commit=False) as s:
+        # Use engine directly (session.bind removed in SQLAlchemy 2.0)
+        async with AsyncSession(engine, expire_on_commit=False) as s:
             yield s
 
     from backend.app.main import app
 
     app.dependency_overrides[get_session] = override_get_session
 
-    async with AsyncClient(app=app, base_url="http://test") as auth_client:
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as auth_client:
         auth_client.cookies.set("access_token", access_token)
 
         # Try accessing protected endpoint (e.g., /users/me)
@@ -491,8 +494,18 @@ async def test_telegram_login_multiple_users(client: AsyncClient, session: Async
 
 
 @pytest.mark.asyncio
-async def test_telegram_login_returns_user_id(client: AsyncClient):
+async def test_telegram_login_returns_user_id(client: AsyncClient, session: AsyncSession):
     """Test that login response includes user ID."""
+    # Pre-create user (admin registration required)
+    user = User(
+        telegram_id=123456789,
+        first_name="John",
+        is_admin=False,
+    )
+    session.add(user)
+    await session.commit()
+    await session.refresh(user)
+
     auth_data = generate_valid_telegram_auth_data(
         telegram_id=123456789,
         first_name="John",
@@ -512,6 +525,17 @@ async def test_telegram_login_returns_user_id(client: AsyncClient):
 @pytest.mark.asyncio
 async def test_telegram_login_with_photo_url(client: AsyncClient, session: AsyncSession):
     """Test Telegram login with photo_url field."""
+    # Pre-create user (admin registration required)
+    photo_user = User(
+        telegram_id=123456789,
+        first_name="John",
+        username="johndoe",
+        is_admin=False,
+    )
+    session.add(photo_user)
+    await session.commit()
+    await session.refresh(photo_user)
+
     auth_data = generate_valid_telegram_auth_data(
         telegram_id=123456789,
         first_name="John",

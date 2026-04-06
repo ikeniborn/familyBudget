@@ -8,13 +8,14 @@
  * Extracted from: frontend/web/static/js/lists/listsManager.ts lines 126-708
  *
  * Phase 3.2 (task-015): DataLayer Integration
- * Replaced direct API fetch with dataLayer (PGlite-first + API fallback)
+ * Replaced direct API fetch with dataLayer (Dexie-first + API fallback)
  */
 
 import { getState, updateState } from './ListsState';
 import type { ShoppingList, ShoppingItem, Store, ProductGroup } from './ListsState';
 import { dataLayer } from '../../../data/DataLayer';
 import { getDexieManager } from '@db/dexie';
+import { shouldSimulateLoadError, isVerboseLoggingEnabled } from '../testing/debugUtils';
 import type {
   LocalShoppingList,
   ShoppingListWithStats,
@@ -22,7 +23,15 @@ import type {
   LocalStore,
   LocalProductGroup
 } from '@db/dexie';
-import { isValidListId } from '../../utils/listIdUtils';
+
+// ============================================================================
+// Constants
+// ============================================================================
+
+/** Prefix for generated temp_id when backend doesn't provide one */
+const TEMP_ID_PREFIX = 'list_';
+/** Suffix for generated temp_id (indicates fallback generation) */
+const TEMP_ID_SUFFIX = '_temp';
 
 // ============================================================================
 // Type Definitions
@@ -40,34 +49,55 @@ declare global {
 }
 
 // ============================================================================
-// Type Converters (PGlite Local* types → State types)
+// Type Converters (Dexie Local* types → State types)
 // ============================================================================
+
+/**
+ * Generate stable negative numeric ID from UUID temp_id
+ * Used when items don't have a server ID yet (pending sync)
+ * Negative to avoid collisions with real server IDs (which are positive)
+ */
+function tempIdToVirtualId(tempId: string): number {
+  // FNV-1a hash: fast, good distribution for UUIDs
+  let hash = 2166136261 >>> 0;
+  for (let i = 0; i < tempId.length; i++) {
+    hash ^= tempId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619) >>> 0;
+  }
+  // Return as negative integer (range: -1 to -2147483647)
+  return -(hash >>> 0 || 1);
+}
 
 /**
  * Convert LocalShoppingList (or ShoppingListWithStats) to ShoppingList
  *
- * Handles both PGlite records (without stats) and API responses (with stats).
+ * Handles both Dexie records (without stats) and API responses (with stats).
+ *
+ * CRITICAL FIX (Task #9): Generate temp_id if missing (backend doesn't return it yet)
+ * This ensures Dexie queries work correctly when matching items by shopping_list_temp_id
  */
 function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): ShoppingList {
-  // DEFENSIVE: Type coercion for temp_id (handle legacy string values from pre-v11.6.0 data)
-  let normalizedTempId: number | undefined;
-  if (typeof local.temp_id === 'number') {
-    normalizedTempId = local.temp_id;
-  } else if (typeof local.temp_id === 'string') {
-    const parsed = parseInt(local.temp_id, 10);
-    normalizedTempId = isNaN(parsed) ? undefined : parsed;
-  } else {
-    normalizedTempId = undefined;
+  // CRITICAL: Generate temp_id if missing (backend API doesn't include it yet)
+  // Format: "list_{id}_{timestamp}" - stable across page reloads for same list
+  const temp_id = local.temp_id || `${TEMP_ID_PREFIX}${local.id}${TEMP_ID_SUFFIX}`;
+
+  // Log warning if temp_id is missing (indicates backend API issue)
+  if (!local.temp_id) {
+    console.warn('[STATE_MANAGER] Missing temp_id for list, using fallback', {
+      listId: local.id,
+      fallback: temp_id,
+      message: 'Backend API should return temp_id field'
+    });
   }
 
   return {
     id: local.id || 0, // Use temp_id hash or 0 if no server ID yet
-    temp_id: normalizedTempId,     // Preserve PGlite temp_id for write operations (task-015 Phase 4, fixed type coercion)
+    temp_id,        // Preserve or generate temp_id for Dexie operations
     name: local.name,
     is_active: local.is_active,
-    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
-    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
-    // TODO (task-016): Normalize LocalShoppingList timestamp types to string at PGlite query layer
+    // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and Dexie (string)
+    // TODO (task-016): Normalize LocalShoppingList timestamp types to string at Dexie query layer
     created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString(),
     description: local.description || undefined,
@@ -83,22 +113,22 @@ function convertShoppingList(local: LocalShoppingList | ShoppingListWithStats): 
  */
 function convertShoppingListItem(local: LocalShoppingListItem, listId: number): ShoppingItem {
   return {
-    id: local.id || 0,
+    id: local.id ?? tempIdToVirtualId(local.temp_id),
     list_id: listId,
-    temp_id: local.temp_id,         // Preserve PGlite temp_id for write operations (task-015 Phase 4)
+    temp_id: local.temp_id,         // Preserve Dexie temp_id for write operations (task-015 Phase 4)
     product_name: local.product_name,
     quantity: local.quantity,
     unit: local.unit,
     is_completed: local.is_completed,
     // DEFENSIVE: Handle both Date and string for nullable completed_at
-    // TODO (task-016): Normalize LocalShoppingListItem timestamp types to string at PGlite query layer
+    // TODO (task-016): Normalize LocalShoppingListItem timestamp types to string at Dexie query layer
     completed_at: local.completed_at
       ? (typeof local.completed_at === 'string' ? local.completed_at : local.completed_at.toISOString())
       : undefined,
     store_id: local.store_id,
     product_group_id: local.product_group_id,
-    notes: local.comment, // PGlite uses 'comment', UI uses 'notes'
-    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
+    notes: local.comment, // Dexie uses 'comment', UI uses 'notes'
+    // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
     created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString(),
   };
@@ -112,9 +142,9 @@ function convertStore(local: LocalStore): Store {
     id: local.id,
     name: local.name,
     is_active: local.is_active,
-    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
-    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
-    // TODO (task-016): Normalize LocalStore.created_at type to string at PGlite query layer
+    // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and Dexie (string)
+    // TODO (task-016): Normalize LocalStore.created_at type to string at Dexie query layer
     created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     // updated_at is optional in State type
   };
@@ -129,9 +159,9 @@ function convertProductGroup(local: LocalProductGroup): ProductGroup {
     name: local.name,
     parent_id: local.parent_id,
     is_active: local.is_active,
-    // DEFENSIVE: PGlite returns TIMESTAMP as ISO strings, but types define Date
-    // Runtime check provides backward compatibility with both API (Date) and PGlite (string)
-    // TODO (task-016): Normalize LocalProductGroup.created_at type to string at PGlite query layer
+    // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
+    // Runtime check provides backward compatibility with both API (Date) and Dexie (string)
+    // TODO (task-016): Normalize LocalProductGroup.created_at type to string at Dexie query layer
     created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
     // updated_at is optional in State type
   };
@@ -209,13 +239,21 @@ export function isOnline(): boolean {
 // ============================================================================
 
 /**
- * Load all shopping lists (PGlite-first with API fallback)
+ * Load all shopping lists (Dexie-first with API fallback)
  *
  * Uses DataLayer for unified data access (task-015 phase 3)
  */
 export async function loadShoppingLists(): Promise<void> {
+  // DEBUG: Simulate load error for async error testing
+  if (shouldSimulateLoadError()) {
+    if (isVerboseLoggingEnabled()) {
+      debugLog('[ListsManager] ❌ Simulating load error (debug mode)');
+    }
+    throw new Error('Simulated load error for testing');
+  }
+
   try {
-    // DataLayer automatically handles PGlite-first + API fallback
+    // DataLayer automatically handles Dexie-first + API fallback
     const localLists = await dataLayer.getShoppingLists({ is_active: true });
     const shoppingLists = localLists.map(convertShoppingList);
 
@@ -229,94 +267,30 @@ export async function loadShoppingLists(): Promise<void> {
 }
 
 /**
- * Helper: Get numeric temp_id from server ID
+ * Load items for specific shopping list (Dexie-first with API fallback)
  *
- * @param serverId - Server-assigned list ID
- * @returns Numeric temp_id for Dexie query
- */
-async function getListTempId(serverId: number): Promise<number> {
-  // CRITICAL: Validate serverId before proceeding
-  if (!isValidListId(serverId)) {
-    throw new Error(
-      `[ListsManager] Invalid server ID: ${serverId} (must be positive integer)`
-    );
-  }
-
-  const state = getState();
-  const list = state.shoppingLists.find(l => l.id === serverId);
-
-  if (list?.temp_id) {
-    // DEFENSIVE: Handle both number and string temp_id (legacy data compatibility)
-    if (typeof list.temp_id === 'number') {
-      return list.temp_id;
-    } else if (typeof list.temp_id === 'string') {
-      const parsed = parseInt(list.temp_id, 10);
-      if (!isNaN(parsed)) {
-        return parsed;
-      }
-    }
-    // If temp_id is invalid, fall through to Dexie query below
-  }
-
-  // Fallback: query Dexie directly using public API
-  try {
-    const dexieManager = await getDexieManager();
-    const allLists = await dexieManager.queryShoppingLists();
-    const dexieList = allLists.find(l => l.id === serverId);
-
-    // CRITICAL FIX (v11.6.1): Return serverId for legacy lists without temp_id
-    // Backend supports backward compatible shopping_list_id parameter
-    // See listIdUtils.ts for heuristic details (LIST_ID_HEURISTIC_THRESHOLD)
-    const resolvedId = dexieList?.temp_id || serverId;
-
-    // Validate resolved ID before returning
-    if (!isValidListId(resolvedId)) {
-      console.error(
-        `[ListsManager] Resolved invalid ID: ${resolvedId} from serverId: ${serverId}`
-      );
-      // Last resort: return serverId (backend will handle via shopping_list_id)
-      return serverId;
-    }
-
-    return resolvedId;
-  } catch (error) {
-    console.warn('[ListsManager] Failed to get temp_id from Dexie:', error);
-    // Return serverId as fallback (backward compatible with shopping_list_id)
-    return serverId;
-  }
-}
-
-/**
- * Load items for specific shopping list (PGlite-first with API fallback)
- *
- * @param listId - Shopping list ID or temp_id (number for both Dexie and API)
+ * @param listId - Shopping list numeric ID
  *
  * Uses DataLayer for unified data access (task-015 phase 3)
- * FIXED (v11.6.0): Use numeric temp_id instead of string conversion (bug fix)
  */
-export async function loadShoppingListItems(listId: number | string): Promise<void> {
+export async function loadShoppingListItems(listId: number): Promise<void> {
   try {
-    // Accept both numeric ID (server) and temp_id (client)
-    // CRITICAL FIX: Use numeric temp_id instead of string conversion
-    const listTempId = typeof listId === 'string'
-      ? parseInt(listId, 10) || await getListTempId(parseInt(listId, 10))
-      : await getListTempId(listId);
+    // DataLayer now accepts numeric ID and handles Dexie temp_id lookup internally
+    const localItems = await dataLayer.getShoppingListItems(listId);
 
-    const localItems = await dataLayer.getShoppingListItems(listTempId);
-
-    // Convert to UI types (use numeric listId for compatibility)
-    const numericListId = typeof listId === 'number' ? listId : parseInt(listId, 10) || 0;
-    const currentItems = localItems.map(item => convertShoppingListItem(item, numericListId));
+    // Convert to UI types
+    const currentItems = localItems.map(item => convertShoppingListItem(item, listId));
 
     updateState({ currentItems });
-    debugLog('[ListsManager] Loaded items:', currentItems.length, 'for temp_id:', listTempId);
+    debugLog('[ListsManager] Loaded items:', currentItems.length);
 
     // Load stores and product groups for dropdowns
     await loadStoresAndGroups();
   } catch (error) {
     console.error('[ListsManager] Error loading items:', error);
     showToast('Ошибка загрузки элементов', 'error');
-    updateState({ currentItems: [] });
+    // On list switch: items were already cleared by switchToList — no stale data risk.
+    // On in-place reload (network restore): preserve last known items for continuity.
   }
 }
 
@@ -324,7 +298,7 @@ export async function loadShoppingListItems(listId: number | string): Promise<vo
  * Load stores and product groups for dropdowns
  */
 /**
- * Load stores (PGlite-first with API fallback)
+ * Load stores (Dexie-first with API fallback)
  * Used by CSVImporter after creating new stores
  */
 export async function loadStores(): Promise<void> {
@@ -340,7 +314,7 @@ export async function loadStores(): Promise<void> {
 }
 
 /**
- * Load product groups (PGlite-first with API fallback)
+ * Load product groups (Dexie-first with API fallback)
  * Used by CSVImporter after creating new product groups
  */
 export async function loadProductGroups(): Promise<void> {
@@ -371,6 +345,7 @@ async function loadStoresAndGroups(): Promise<void> {
  * @param listId - Shopping list ID
  */
 export async function switchToList(listId: number): Promise<void> {
-  updateState({ currentListId: listId });
+  // Clear stale items from previous list immediately — prevents wrong items showing on load error
+  updateState({ currentListId: listId, currentItems: [] });
   await loadShoppingListItems(listId);
 }

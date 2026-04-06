@@ -13,7 +13,7 @@ Endpoints tested:
     DELETE /api/v1/facts/{id} - Hard delete fact
 """
 
-from datetime import date, datetime
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -31,7 +31,7 @@ from backend.app.models.user import User
 
 
 @pytest.mark.asyncio
-async def test_create_fact_basic(auth_client: AsyncClient, test_article_root: Article, test_user: User):
+async def test_create_fact_basic(auth_client: AsyncClient, test_article_root: Article, test_user: User, test_financial_center):
     """Test creating a basic budget fact."""
     response = await auth_client.post(
         "/api/v1/facts",
@@ -40,6 +40,7 @@ async def test_create_fact_basic(auth_client: AsyncClient, test_article_root: Ar
             "fact_date": "2025-10-13",
             "amount": "100.50",
             "description": "Test expense",
+            "financial_center_id": test_financial_center.id,
         }
     )
 
@@ -55,7 +56,7 @@ async def test_create_fact_basic(auth_client: AsyncClient, test_article_root: Ar
 
 @pytest.mark.asyncio
 async def test_create_fact_without_description(
-    auth_client: AsyncClient, test_article_root: Article
+    auth_client: AsyncClient, test_article_root: Article, test_financial_center
 ):
     """Test creating fact without optional description."""
     response = await auth_client.post(
@@ -64,6 +65,7 @@ async def test_create_fact_without_description(
             "article_id": test_article_root.id,
             "fact_date": "2025-10-13",
             "amount": "50.00",
+            "financial_center_id": test_financial_center.id,
         }
     )
 
@@ -75,7 +77,7 @@ async def test_create_fact_without_description(
 
 @pytest.mark.asyncio
 async def test_create_fact_with_global_article(
-    auth_client: AsyncClient, test_global_article: Article
+    auth_client: AsyncClient, test_global_article: Article, test_financial_center
 ):
     """Test creating fact with global article (should work)."""
     response = await auth_client.post(
@@ -84,6 +86,7 @@ async def test_create_fact_with_global_article(
             "article_id": test_global_article.id,
             "fact_date": "2025-10-13",
             "amount": "500.00",
+            "financial_center_id": test_financial_center.id,
         }
     )
 
@@ -91,7 +94,7 @@ async def test_create_fact_with_global_article(
 
 
 @pytest.mark.asyncio
-async def test_create_fact_article_not_found(auth_client: AsyncClient):
+async def test_create_fact_article_not_found(auth_client: AsyncClient, test_financial_center):
     """Test creating fact with non-existent article."""
     response = await auth_client.post(
         "/api/v1/facts",
@@ -99,6 +102,7 @@ async def test_create_fact_article_not_found(auth_client: AsyncClient):
             "article_id": 99999,
             "fact_date": "2025-10-13",
             "amount": "100.00",
+            "financial_center_id": test_financial_center.id,
         }
     )
 
@@ -106,18 +110,15 @@ async def test_create_fact_article_not_found(auth_client: AsyncClient):
 
 
 @pytest.mark.asyncio
-async def test_create_fact_article_not_accessible(
-    auth_client: AsyncClient, session: AsyncSession
+async def test_create_fact_article_shared(
+    auth_client: AsyncClient, session: AsyncSession, test_financial_center, test_admin: User
 ):
-    """Test creating fact with other user's article (should fail)."""
-    # Create article for another user
+    """Test creating fact with another user's article (should succeed - articles are shared)."""
+    # Create article for another user (test_admin) to avoid FK violation with user_id=999
     other_article = Article(
-        user_id=999,
+        user_id=test_admin.id,
         name="Other Article",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(other_article)
     await session.commit()
@@ -129,14 +130,16 @@ async def test_create_fact_article_not_accessible(
             "article_id": other_article.id,
             "fact_date": "2025-10-13",
             "amount": "100.00",
+            "financial_center_id": test_financial_center.id,
         }
     )
 
-    assert response.status_code == 403
+    # Shared Family Budget: all users can use all articles (no ownership check)
+    assert response.status_code == 201
 
 
 @pytest.mark.asyncio
-async def test_create_fact_large_amount(auth_client: AsyncClient, test_article_root: Article):
+async def test_create_fact_large_amount(auth_client: AsyncClient, test_article_root: Article, test_financial_center):
     """Test creating fact with large amount."""
     response = await auth_client.post(
         "/api/v1/facts",
@@ -144,6 +147,7 @@ async def test_create_fact_large_amount(auth_client: AsyncClient, test_article_r
             "article_id": test_article_root.id,
             "fact_date": "2025-10-13",
             "amount": "9999999.99",
+            "financial_center_id": test_financial_center.id,
         }
     )
 
@@ -154,7 +158,7 @@ async def test_create_fact_large_amount(auth_client: AsyncClient, test_article_r
 
 
 @pytest.mark.asyncio
-async def test_create_fact_small_amount(auth_client: AsyncClient, test_article_root: Article):
+async def test_create_fact_small_amount(auth_client: AsyncClient, test_article_root: Article, test_financial_center):
     """Test creating fact with small amount (cents)."""
     response = await auth_client.post(
         "/api/v1/facts",
@@ -162,6 +166,7 @@ async def test_create_fact_small_amount(auth_client: AsyncClient, test_article_r
             "article_id": test_article_root.id,
             "fact_date": "2025-10-13",
             "amount": "0.01",
+            "financial_center_id": test_financial_center.id,
         }
     )
 
@@ -209,15 +214,15 @@ async def test_list_facts_basic(auth_client: AsyncClient, test_fact: BudgetFact)
 
 
 @pytest.mark.asyncio
-async def test_list_facts_pagination(auth_client: AsyncClient, session: AsyncSession, test_article_root: Article):
+async def test_list_facts_pagination(auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_user: User):
     """Test pagination of facts list."""
     # Create 10 facts
     for i in range(10):
         fact = BudgetFact(
-            user_id=1,
+            user_id=test_user.id,
             article_id=test_article_root.id,
             fact_date=date(2025, 10, i + 1),
-            amount=Decimal(f"{i * 10}.00"),
+            amount=Decimal(f"{(i + 1) * 10}.00"),  # Start from 10 to avoid amount=0
         )
         session.add(fact)
     await session.commit()
@@ -235,14 +240,14 @@ async def test_list_facts_pagination(auth_client: AsyncClient, session: AsyncSes
 
 @pytest.mark.asyncio
 async def test_list_facts_filter_by_date_range(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article
+    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_user: User
 ):
     """Test filtering facts by date range."""
     # Create facts with different dates
     dates = [date(2025, 10, 1), date(2025, 10, 15), date(2025, 10, 30)]
     for d in dates:
         fact = BudgetFact(
-            user_id=1,
+            user_id=test_user.id,
             article_id=test_article_root.id,
             fact_date=d,
             amount=Decimal("100.00"),
@@ -268,18 +273,18 @@ async def test_list_facts_filter_by_date_range(
 
 @pytest.mark.asyncio
 async def test_list_facts_filter_by_article(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_article_child: Article
+    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_article_child: Article, test_user: User
 ):
     """Test filtering facts by article_id."""
     # Create facts for different articles
     fact1 = BudgetFact(
-        user_id=1,
+        user_id=test_user.id,
         article_id=test_article_root.id,
         fact_date=date(2025, 10, 13),
         amount=Decimal("100.00"),
     )
     fact2 = BudgetFact(
-        user_id=1,
+        user_id=test_user.id,
         article_id=test_article_child.id,
         fact_date=date(2025, 10, 13),
         amount=Decimal("50.00"),
@@ -301,14 +306,14 @@ async def test_list_facts_filter_by_article(
 
 @pytest.mark.asyncio
 async def test_list_facts_ordered_by_date_desc(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article
+    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_user: User
 ):
     """Test facts are ordered by date descending (newest first)."""
     # Create facts with different dates
     dates = [date(2025, 10, 1), date(2025, 10, 15), date(2025, 10, 30)]
     for d in dates:
         fact = BudgetFact(
-            user_id=1,
+            user_id=test_user.id,
             article_id=test_article_root.id,
             fact_date=d,
             amount=Decimal("100.00"),
@@ -330,12 +335,12 @@ async def test_list_facts_ordered_by_date_desc(
 
 @pytest.mark.asyncio
 async def test_list_facts_user_isolation(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article
+    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_admin: User
 ):
     """Test that regular user only sees their own facts."""
-    # Create fact for another user
+    # Create fact for another user (admin, which is a real user in the DB)
     other_fact = BudgetFact(
-        user_id=999,  # Different user
+        user_id=test_admin.id,  # Different user
         article_id=test_article_root.id,
         fact_date=date(2025, 10, 13),
         amount=Decimal("100.00"),
@@ -350,23 +355,24 @@ async def test_list_facts_user_isolation(
     data = response.json()
     # Should not include other user's facts
     user_ids = {fact["user_id"] for fact in data["facts"]}
-    assert 999 not in user_ids
+    assert test_admin.id not in user_ids
 
 
 @pytest.mark.asyncio
 async def test_list_facts_admin_sees_all(
-    admin_client: AsyncClient, session: AsyncSession, test_article_root: Article
+    admin_client: AsyncClient, session: AsyncSession, test_article_root: Article,
+    test_user: User, test_admin: User
 ):
     """Test that admin sees facts from all users."""
-    # Create facts for different users
+    # Create facts for different users (use real user IDs from fixtures)
     fact1 = BudgetFact(
-        user_id=1,
+        user_id=test_user.id,
         article_id=test_article_root.id,
         fact_date=date(2025, 10, 13),
         amount=Decimal("100.00"),
     )
     fact2 = BudgetFact(
-        user_id=999,
+        user_id=test_admin.id,
         article_id=test_article_root.id,
         fact_date=date(2025, 10, 13),
         amount=Decimal("200.00"),
@@ -382,7 +388,7 @@ async def test_list_facts_admin_sees_all(
     data = response.json()
     # Admin should see facts from all users
     user_ids = {fact["user_id"] for fact in data["facts"]}
-    assert 1 in user_ids or 999 in user_ids  # At least some facts visible
+    assert test_user.id in user_ids or test_admin.id in user_ids
 
 
 @pytest.mark.asyncio
@@ -400,18 +406,19 @@ async def test_list_facts_unauthenticated(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_get_facts_summary_basic(
-    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article, test_global_article: Article
+    auth_client: AsyncClient, session: AsyncSession, test_article_root: Article,
+    test_global_article: Article, test_user: User
 ):
     """Test getting facts summary with income/expense totals."""
     # Create income and expense facts
     expense_fact = BudgetFact(
-        user_id=1,
+        user_id=test_user.id,
         article_id=test_article_root.id,  # expense type
         fact_date=date(2025, 10, 13),
         amount=Decimal("100.00"),
     )
     income_fact = BudgetFact(
-        user_id=1,
+        user_id=test_user.id,
         article_id=test_global_article.id,  # income type
         fact_date=date(2025, 10, 13),
         amount=Decimal("500.00"),
@@ -692,18 +699,15 @@ async def test_update_fact_article_not_found(auth_client: AsyncClient, test_fact
 
 
 @pytest.mark.asyncio
-async def test_update_fact_article_not_accessible(
+async def test_update_fact_article_shared(
     auth_client: AsyncClient, test_fact: BudgetFact, session: AsyncSession
 ):
-    """Test updating fact with other user's article (should fail)."""
-    # Create article for another user
+    """Test updating fact with another user's article (should succeed - articles are shared)."""
+    # Create article for another user (user_id=999)
     other_article = Article(
         user_id=999,
         name="Other Article",
         type="expense",
-        is_current=True,
-        valid_from=datetime.utcnow(),
-        valid_to=datetime(9999, 12, 31, 23, 59, 59),
     )
     session.add(other_article)
     await session.commit()
@@ -714,7 +718,8 @@ async def test_update_fact_article_not_accessible(
         json={"article_id": other_article.id}
     )
 
-    assert response.status_code == 403
+    # Shared Family Budget: all users can use all articles (no ownership check)
+    assert response.status_code == 200
 
 
 @pytest.mark.asyncio

@@ -11,5 +11,5 @@ pytest-xdist==3.6.1  # Parallel test execution
 httpx==0.28.1
 
 # Code Quality Tools
-black==24.10.0
+black==26.3.1
 ruff==0.8.4

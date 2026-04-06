@@ -217,14 +217,27 @@ configure_docker_firewall() {
     info "Current DOCKER-USER rules:"
     sudo iptables -L DOCKER-USER -n -v --line-numbers | head -20
 
-    # Make rules persistent (reload on Docker restart)
-    info ""
-    info "To make rules persistent across Docker restarts, add to /etc/docker/daemon.json:"
-    echo '  {
-    "iptables": true,
-    "userland-proxy": false
-  }'
-    warning "⚠ Re-run this function after Docker service restart to restore rules"
+    # Persist iptables rules across Docker/host restarts
+    info "Persisting iptables rules..."
+
+    # Ensure iptables-persistent is installed (provides netfilter-persistent restore on boot)
+    if ! dpkg -l iptables-persistent > /dev/null 2>&1; then
+        info "Installing iptables-persistent for rule persistence..."
+        if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent > /dev/null 2>&1; then
+            success "iptables-persistent installed"
+        else
+            warning "Could not install iptables-persistent — rules will not survive reboot"
+            warning "Manual install: sudo apt-get install iptables-persistent"
+            return 1
+        fi
+    fi
+
+    # Save current iptables rules (loaded on boot by netfilter-persistent)
+    if sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null 2>&1; then
+        success "iptables rules saved to /etc/iptables/rules.v4 (persistent across reboots)"
+    else
+        warning "Could not save iptables rules — rules will be lost on Docker/host restart"
+    fi
 
     return 0
 }

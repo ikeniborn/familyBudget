@@ -101,11 +101,11 @@ class CSVAnalyzer:
         # Use user-specified delimiter or auto-detect
         if user_delimiter:
             delimiter = user_delimiter
-            logger.info(f"Using user-specified delimiter: {repr(delimiter)}")
+            logger.info("Using user-specified delimiter: %r", delimiter)
         else:
             # Auto-detect delimiter using csv.Sniffer (more reliable)
             delimiter = CSVAnalyzer.detect_delimiter(text)
-            logger.info(f"Auto-detected delimiter: {repr(delimiter)}")
+            logger.info("Auto-detected delimiter: %r", delimiter)
 
         # Parse CSV
         reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
@@ -208,10 +208,10 @@ class CSVAnalyzer:
             # Extended delimiter list: semicolon, comma, tab, pipe, colon, space
             dialect = sniffer.sniff(sample, delimiters=';,\t|: ')
             detected = dialect.delimiter
-            logger.debug(f"csv.Sniffer detected delimiter: {repr(detected)}")
+            logger.debug("csv.Sniffer detected delimiter: %r", detected)
             return detected
         except csv.Error as e:
-            logger.warning(f"csv.Sniffer failed: {e}, falling back to heuristic")
+            logger.warning("csv.Sniffer failed: %s, falling back to heuristic", e)
 
         # Fallback: count consistent column counts per delimiter
         # Get first 10 lines for analysis
@@ -247,11 +247,11 @@ class CSVAnalyzer:
             consistency = sum(1 for c in column_counts if c == first_count) / len(column_counts)
             score = first_count * consistency if first_count > 1 else 0
 
-            logger.debug(f"Delimiter {repr(delim)}: columns={first_count}, consistency={consistency:.2f}, score={score:.2f}")
+            logger.debug("Delimiter %r: columns=%s, consistency=%.2f, score=%.2f", delim, first_count, consistency, score)
 
             if score > best_score:
                 best_score = score
                 best_delimiter = delim
 
-        logger.info(f"Heuristic detected delimiter: {repr(best_delimiter)} (score={best_score:.2f})")
+        logger.info("Heuristic detected delimiter: %r (score=%.2f)", best_delimiter, best_score)
         return best_delimiter

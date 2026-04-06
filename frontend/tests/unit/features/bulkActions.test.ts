@@ -119,7 +119,7 @@ describe('bulkActions', () => {
 
             // Should delete items 2 and 4 (completed)
             expect(listOperations.deleteMultipleItems).toHaveBeenCalledTimes(1);
-            expect(listOperations.deleteMultipleItems).toHaveBeenCalledWith([2, 4]);
+            expect(listOperations.deleteMultipleItems).toHaveBeenCalledWith([2, 4], true);
 
             // Should re-render and show success message
             expect(tableBuilder.renderCurrentView).toHaveBeenCalled();
@@ -155,7 +155,7 @@ describe('bulkActions', () => {
 
             await deleteCompleted();
 
-            expect(listOperations.deleteMultipleItems).toHaveBeenCalledWith([1]);
+            expect(listOperations.deleteMultipleItems).toHaveBeenCalledWith([1], true);
             expect(global.showToast).toHaveBeenCalledWith('Удалено: 1', 'success');
         });
     });

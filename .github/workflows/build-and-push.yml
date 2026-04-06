@@ -1,4 +1,4 @@
-name: Build and Push Docker Images
+name: Build → Push → Deploy → Test
 
 on:
   push:
@@ -15,7 +15,7 @@ on:
       - 'scripts/**'
       - 'package.json'
       - 'package-lock.json'
-      - '.github/workflows/build-and-push.yml'
+      - '.trivyignore'
   workflow_dispatch:
     inputs:
       custom_tag:
@@ -51,6 +51,7 @@ jobs:
     outputs:
       version_changed: ${{ steps.check.outputs.changed }}
       current_version: ${{ steps.read.outputs.VERSION }}
+      trivyignore_changed: ${{ steps.check.outputs.trivyignore_changed }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -74,11 +75,35 @@ jobs:
               echo "⚠ VERSION not changed, build may create duplicate tags"
             fi
 
+            # Check if .trivyignore changed (triggers security re-scan without image rebuild)
+            if git diff HEAD~1 HEAD -- .trivyignore | grep -q "^[+-]"; then
+              echo "trivyignore_changed=true" >> $GITHUB_OUTPUT
+              echo "✓ .trivyignore changed — security re-scan needed"
+            else
+              echo "trivyignore_changed=false" >> $GITHUB_OUTPUT
+            fi
+
           # Для tags и manual
           else
             echo "changed=true" >> $GITHUB_OUTPUT
+            echo "trivyignore_changed=false" >> $GITHUB_OUTPUT
             echo "✓ Skipping VERSION check for tag/manual trigger"
           fi
+
+      - name: Notify workflow started (Telegram)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: |
+            🚀 Workflow Started
+
+            Version: ${{ steps.read.outputs.VERSION }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.event.head_commit.message }}
+            Author: ${{ github.actor }}
 
   # ============================================================================
   # Job 2: Build services (frontend: cache busting, minification, validation)
@@ -153,7 +178,7 @@ jobs:
           NODE_ENV: production
         run: npm run build:prod  # Skip type-check (38 Dexie errors)
 
-      - name: Validate cache busting and PGlite
+      - name: Validate cache busting
         run: bash scripts/ci/validate_build_artifacts.sh "$CACHE_VERSION" --strict-sw
 
       # NOTE: Template files (frontend/web/templates/, frontend/webapp/) are NOT committed back to git
@@ -225,41 +250,41 @@ jobs:
 
       - name: Check image changes
         id: changes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Backend changes
-          if bash scripts/ci/check_image_changes.sh backend | grep -q "build"; then
-            echo "backend=true" >> $GITHUB_OUTPUT
-          else
-            echo "backend=false" >> $GITHUB_OUTPUT
-          fi
+          # Returns 0 (build) if: hash changed OR image tag missing from registry
+          needs_build() {
+            local service="$1"
+            # Check git hash first
+            if bash scripts/ci/check_image_changes.sh "$service" | grep -q "build"; then
+              return 0
+            fi
+            # Fallback: verify image tag exists in registry via GitHub API
+            # Guards against accidental deletion of images that haven't changed
+            local version
+            version=$(jq -r ".${service}.version // empty" IMAGE_VERSIONS.json 2>/dev/null)
+            if [[ -n "$version" ]]; then
+              local found
+              found=$(gh api \
+                --paginate \
+                -H "Accept: application/vnd.github+json" \
+                "/users/${{ github.repository_owner }}/packages/container/familybudget-${service}/versions?per_page=100" \
+                --jq "[.[] | select(.metadata.container.tags | contains([\"${version}\"]))] | length" \
+                2>/dev/null | awk '{s+=$1} END {print s+0}' || echo "0")
+              if [[ -z "$found" || "$found" -eq 0 ]]; then
+                echo "⚠️ ${service}:${version} not found in registry — forcing rebuild" >&2
+                return 0
+              fi
+            fi
+            return 1
+          }
 
-          # Bot changes
-          if bash scripts/ci/check_image_changes.sh bot | grep -q "build"; then
-            echo "bot=true" >> $GITHUB_OUTPUT
-          else
-            echo "bot=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Nginx changes
-          if bash scripts/ci/check_image_changes.sh nginx | grep -q "build"; then
-            echo "nginx=true" >> $GITHUB_OUTPUT
-          else
-            echo "nginx=false" >> $GITHUB_OUTPUT
-          fi
-
-          # Redis changes
-          if bash scripts/ci/check_image_changes.sh redis | grep -q "build"; then
-            echo "redis=true" >> $GITHUB_OUTPUT
-          else
-            echo "redis=false" >> $GITHUB_OUTPUT
-          fi
-
-          # PostgreSQL changes
-          if bash scripts/ci/check_image_changes.sh postgresql | grep -q "build"; then
-            echo "postgresql=true" >> $GITHUB_OUTPUT
-          else
-            echo "postgresql=false" >> $GITHUB_OUTPUT
-          fi
+          needs_build backend    && echo "backend=true"    >> $GITHUB_OUTPUT || echo "backend=false"    >> $GITHUB_OUTPUT
+          needs_build bot        && echo "bot=true"        >> $GITHUB_OUTPUT || echo "bot=false"        >> $GITHUB_OUTPUT
+          needs_build nginx      && echo "nginx=true"      >> $GITHUB_OUTPUT || echo "nginx=false"      >> $GITHUB_OUTPUT
+          needs_build redis      && echo "redis=true"      >> $GITHUB_OUTPUT || echo "redis=false"      >> $GITHUB_OUTPUT
+          needs_build postgresql && echo "postgresql=true" >> $GITHUB_OUTPUT || echo "postgresql=false" >> $GITHUB_OUTPUT
 
       - name: Docker meta (backend)
         id: meta-backend
@@ -452,6 +477,25 @@ jobs:
             echo ""
             echo "📦 Processing package: $PACKAGE"
 
+            # Collect protected tags from IMAGE_VERSIONS.json (never delete these)
+            PROTECTED_TAGS=$(jq -r '.[].version' IMAGE_VERSIONS.json 2>/dev/null | sort -u)
+            echo "   Protected tags: $(echo $PROTECTED_TAGS | tr '\n' ' ')"
+
+            # Get total version count for this package (to protect the last one)
+            TOTAL_VERSIONS=$(gh api \
+              --paginate \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions?per_page=100" \
+              --jq '.[].id' 2>/dev/null | wc -l || echo "0")
+            echo "   Total versions in registry: $TOTAL_VERSIONS"
+
+            # Never delete if package has 2 or fewer versions total (keep at least 1 as buffer)
+            if [[ "$TOTAL_VERSIONS" -le 2 ]]; then
+              echo "   🛡️ Skipping cleanup — package has only $TOTAL_VERSIONS version(s), keeping all"
+              continue
+            fi
+
             # Get all untagged versions older than cutoff date
             OLD_VERSIONS=$(gh api \
               --paginate \
@@ -468,8 +512,52 @@ jobs:
             COUNT=$(echo "$OLD_VERSIONS" | wc -l)
             echo "   Found $COUNT old untagged images to delete"
 
-            # Delete each old version
+            # Safety: never delete more versions than (total - 1) to keep at least one
+            VERSIONS_TO_DELETE=0
+            # Delete each old version, skipping any that match a protected tag
             while IFS= read -r VERSION_ID; do
+              [[ -z "$VERSION_ID" ]] && continue
+
+              # Stop if deleting this would leave 0 versions
+              REMAINING=$((TOTAL_VERSIONS - VERSIONS_TO_DELETE))
+              if [[ "$REMAINING" -le 1 ]]; then
+                echo "   🛡️ Stopping cleanup — would leave package empty (total=$TOTAL_VERSIONS, deleted=$VERSIONS_TO_DELETE)"
+                break
+              fi
+
+              # Verify this version has no tags (re-fetch to guard against race conditions)
+              VERSION_DATA=$(gh api \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions/$VERSION_ID" \
+                2>/dev/null || echo "")
+
+              if [[ -z "$VERSION_DATA" ]]; then
+                echo "   ⚠️ Could not fetch data for version $VERSION_ID, skipping"
+                continue
+              fi
+
+              VERSION_TAGS=$(echo "$VERSION_DATA" | jq -r '.metadata.container.tags[]?' 2>/dev/null || echo "")
+
+              # Skip if any tag is in the protected list
+              PROTECTED=false
+              while IFS= read -r TAG; do
+                [[ -z "$TAG" ]] && continue
+                if echo "$PROTECTED_TAGS" | grep -qx "$TAG"; then
+                  echo "   🛡️ Skipping protected version $VERSION_ID (tag: $TAG is in IMAGE_VERSIONS.json)"
+                  PROTECTED=true
+                  break
+                fi
+              done <<< "$VERSION_TAGS"
+              [[ "$PROTECTED" == "true" ]] && continue
+
+              # Double-check: skip if version still has any tags (guard against race condition)
+              TAG_COUNT=$(echo "$VERSION_DATA" | jq '.metadata.container.tags | length' 2>/dev/null || echo "1")
+              if [[ "$TAG_COUNT" -gt 0 ]]; then
+                echo "   🛡️ Skipping version $VERSION_ID — still has $TAG_COUNT tag(s) (race condition guard)"
+                continue
+              fi
+
               if gh api \
                 --method DELETE \
                 -H "Accept: application/vnd.github+json" \
@@ -477,6 +565,7 @@ jobs:
                 "/users/${{ github.repository_owner }}/packages/container/$PACKAGE/versions/$VERSION_ID" \
                 2>/dev/null; then
                 TOTAL_DELETED=$((TOTAL_DELETED + 1))
+                VERSIONS_TO_DELETE=$((VERSIONS_TO_DELETE + 1))
                 echo "   ✓ Deleted image ID: $VERSION_ID"
               else
                 echo "   ✗ Failed to delete image ID: $VERSION_ID"
@@ -548,6 +637,7 @@ jobs:
             echo "ℹ️ No changes to IMAGE_VERSIONS.json"
           fi
 
+
   # ============================================================================
   # Job 4: Security scanning with Trivy (CRITICAL and HIGH vulnerabilities)
   # ============================================================================
@@ -556,7 +646,11 @@ jobs:
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: |
       always() &&
-      (needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch') &&
+      (
+        needs.check-version.outputs.version_changed == 'true' ||
+        needs.check-version.outputs.trivyignore_changed == 'true' ||
+        github.event_name == 'workflow_dispatch'
+      ) &&
       needs.image-build-push.result == 'success'
     permissions:
       contents: read
@@ -564,6 +658,14 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Sync .trivyignore from branch HEAD
+        run: |
+          # On rerun or when SHA is older than latest push, ensure .trivyignore
+          # reflects the current branch HEAD (not the SHA that triggered the run)
+          git fetch origin ${{ github.ref_name }} --depth=1
+          git checkout origin/${{ github.ref_name }} -- .trivyignore
+          echo "Using .trivyignore from origin/${{ github.ref_name }} HEAD"
 
       - name: Read VERSION
         id: version
@@ -580,7 +682,6 @@ jobs:
           echo "Using image tag: $TAG"
 
       - name: Run Trivy scanner (backend)
-        if: needs.image-build-push.outputs.backend_built == 'true'
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.tag.outputs.TAG }}
@@ -592,7 +693,6 @@ jobs:
           trivyignores: '.trivyignore'
 
       - name: Generate vulnerability summary (backend)
-        if: needs.image-build-push.outputs.backend_built == 'true'
         run: |
           echo "## 🔒 Security Scan: Backend" >> $GITHUB_STEP_SUMMARY
           docker run --rm \
@@ -606,7 +706,6 @@ jobs:
         continue-on-error: true
 
       - name: Check HIGH/CRITICAL vulnerabilities (backend)
-        if: needs.image-build-push.outputs.backend_built == 'true'
         run: |
           echo "🔍 Checking for HIGH/CRITICAL vulnerabilities in backend image (with .trivyignore exceptions)..."
 
@@ -631,7 +730,6 @@ jobs:
           fi
 
       - name: Upload Trivy results (backend)
-        if: needs.image-build-push.outputs.backend_built == 'true'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-backend.sarif'
@@ -701,37 +799,213 @@ jobs:
   # Job 5: Pipeline summary (version, commit, job statuses, Docker image tags)
   # ============================================================================
   summary:
-    needs: [check-version, service-build, image-build-push, security-scan, deploy-test]
+    needs: [check-version, service-build, image-build-push, security-scan, deploy-test, post-deploy-tests, post-deploy-summary]
     runs-on: ${{ github.event.inputs.runner_type || 'ubuntu-latest' }}
     if: always()
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Read VERSION
-        id: version
-        run: echo "VERSION=$(cat VERSION)" >> $GITHUB_OUTPUT
-
-      - name: Create summary
+      - name: Query container versions from registry
+        id: registry
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER:    ${{ github.repository_owner }}
         run: |
-          echo "## 🚀 CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Version:** ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Branch/Tag:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Job Status" >> $GITHUB_STEP_SUMMARY
-          echo "- Frontend Build: ${{ needs.service-build.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Build & Push: ${{ needs.image-build-push.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Security Scan: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "- Deploy to Test: ${{ needs.deploy-test.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Docker Images" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-backend:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-bot:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-nginx:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-redis:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`ghcr.io/${{ github.repository_owner }}/familybudget-postgresql:${{ steps.version.outputs.VERSION }}\`" >> $GITHUB_STEP_SUMMARY
+          # Get the latest semver tag (X.Y.Z) for a container package in ghcr.io
+          get_latest_tag() {
+            local pkg="$1"
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              "/users/${OWNER}/packages/container/${pkg}/versions?per_page=100" \
+              --jq '[
+                .[] |
+                select(.metadata.container.tags |
+                  map(select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))) | length > 0
+                )
+              ] | sort_by(.updated_at) | last |
+              .metadata.container.tags[] | select(test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' \
+              2>/dev/null | head -1 || echo "?"
+          }
+
+          echo "backend=$(    get_latest_tag familybudget-backend)"    >> "$GITHUB_OUTPUT"
+          echo "bot=$(        get_latest_tag familybudget-bot)"        >> "$GITHUB_OUTPUT"
+          echo "nginx=$(      get_latest_tag familybudget-nginx)"      >> "$GITHUB_OUTPUT"
+          echo "redis=$(      get_latest_tag familybudget-redis)"      >> "$GITHUB_OUTPUT"
+          echo "postgresql=$( get_latest_tag familybudget-postgresql)" >> "$GITHUB_OUTPUT"
+
+      - name: Compute pipeline status and build Telegram message
+        id: msg
+        env:
+          RESULT_CHECK:    ${{ needs.check-version.result }}
+          RESULT_BUILD:    ${{ needs.service-build.result }}
+          RESULT_DOCKER:   ${{ needs.image-build-push.result }}
+          RESULT_SECURITY: ${{ needs.security-scan.result }}
+          RESULT_DEPLOY:   ${{ needs.deploy-test.result }}
+          RESULT_TESTS:    ${{ needs.post-deploy-tests.result }}
+          BUILT_BACKEND:   ${{ needs.image-build-push.outputs.backend_built }}
+          BUILT_BOT:       ${{ needs.image-build-push.outputs.bot_built }}
+          BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
+          BUILT_REDIS:     ${{ needs.image-build-push.outputs.redis_built }}
+          BUILT_PG:        ${{ needs.image-build-push.outputs.postgresql_built }}
+          VER_BACKEND:     ${{ steps.registry.outputs.backend }}
+          VER_BOT:         ${{ steps.registry.outputs.bot }}
+          VER_NGINX:       ${{ steps.registry.outputs.nginx }}
+          VER_REDIS:       ${{ steps.registry.outputs.redis }}
+          VER_PG:          ${{ steps.registry.outputs.postgresql }}
+          BRANCH:          ${{ github.ref_name }}
+          RUN_URL:         ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          VERSION=$(cat VERSION)
+
+          # Commit subject (first line only — avoid multi-line commit messages)
+          COMMIT=$(git log -1 --pretty=format:"%s")
+
+          # Overall status:
+          # - any failure  → ❌ Pipeline Failed
+          # - build jobs all skipped (no VERSION change) → ⏭ Pipeline Skipped
+          # - otherwise    → ✅ Pipeline Completed
+          if [[ "$RESULT_BUILD" == "failure" || "$RESULT_DOCKER" == "failure" ||
+                "$RESULT_SECURITY" == "failure" || "$RESULT_DEPLOY" == "failure" ||
+                "$RESULT_TESTS" == "failure" ]]; then
+            OVERALL="❌ Pipeline Failed"
+          elif [[ "$RESULT_BUILD" == "skipped" && "$RESULT_DOCKER" == "skipped" &&
+                  "$RESULT_SECURITY" == "skipped" && "$RESULT_DEPLOY" == "skipped" ]]; then
+            OVERALL="⏭ Pipeline Skipped (no VERSION change)"
+          else
+            OVERALL="✅ Pipeline Completed"
+          fi
+
+          # Job status icon helper
+          icon() {
+            case "$1" in
+              success)   echo "✅" ;;
+              skipped)   echo "⏭" ;;
+              failure)   echo "❌" ;;
+              cancelled) echo "🚫" ;;
+              *)         echo "❓" ;;
+            esac
+          }
+
+          # Container line: ✅ name:ver (new) OR ✅ name:ver (current) OR ⏭ name:ver
+          # Show ✅ current only when Docker Images job actually ran (not skipped)
+          c_line() {
+            local name="$1" built="$2" ver="$3"
+            if [[ "$built" == "true" ]]; then
+              echo "✅ ${name}:${ver} (new)"
+            elif [[ "$RESULT_DOCKER" == "success" && "$ver" == "$VERSION" ]]; then
+              echo "✅ ${name}:${ver}"
+            else
+              echo "⏭ ${name}:${ver}"
+            fi
+          }
+
+          # Build multi-line GITHUB_OUTPUT value
+          {
+            echo 'message<<TEOF'
+            echo "$OVERALL"
+            echo ""
+            echo "v${VERSION} · ${BRANCH}"
+            echo "${COMMIT}"
+            echo ""
+            echo "Jobs:"
+            echo "$(icon "$RESULT_CHECK")  Version Check"
+            echo "$(icon "$RESULT_BUILD")  Frontend Build"
+            echo "$(icon "$RESULT_DOCKER")  Docker Images"
+            echo "$(icon "$RESULT_SECURITY")  Security Scan"
+            echo "$(icon "$RESULT_DEPLOY")  Deploy → fbd.ikeniborn.ru"
+            echo "$(icon "$RESULT_TESTS")  Post-Deploy Tests"
+            echo ""
+            echo "Containers:"
+            echo "$(c_line backend    "$BUILT_BACKEND" "$VER_BACKEND")"
+            echo "$(c_line bot        "$BUILT_BOT"     "$VER_BOT")"
+            echo "$(c_line nginx      "$BUILT_NGINX"   "$VER_NGINX")"
+            echo "$(c_line redis      "$BUILT_REDIS"   "$VER_REDIS")"
+            echo "$(c_line postgresql "$BUILT_PG"      "$VER_PG")"
+            echo ""
+            echo "Logs: ${RUN_URL}"
+            echo 'TEOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create summary (markdown)
+        env:
+          RESULT_CHECK:    ${{ needs.check-version.result }}
+          RESULT_BUILD:    ${{ needs.service-build.result }}
+          RESULT_DOCKER:   ${{ needs.image-build-push.result }}
+          RESULT_SECURITY: ${{ needs.security-scan.result }}
+          RESULT_DEPLOY:   ${{ needs.deploy-test.result }}
+          RESULT_TESTS:    ${{ needs.post-deploy-tests.result }}
+          BUILT_BACKEND:   ${{ needs.image-build-push.outputs.backend_built }}
+          BUILT_BOT:       ${{ needs.image-build-push.outputs.bot_built }}
+          BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
+          BUILT_REDIS:     ${{ needs.image-build-push.outputs.redis_built }}
+          BUILT_PG:        ${{ needs.image-build-push.outputs.postgresql_built }}
+          VER_BACKEND:     ${{ steps.registry.outputs.backend }}
+          VER_BOT:         ${{ steps.registry.outputs.bot }}
+          VER_NGINX:       ${{ steps.registry.outputs.nginx }}
+          VER_REDIS:       ${{ steps.registry.outputs.redis }}
+          VER_PG:          ${{ steps.registry.outputs.postgresql }}
+        run: |
+          VERSION=$(cat VERSION)
+
+          icon_md() {
+            case "$1" in
+              success)   echo "✅" ;;
+              skipped)   echo "⏭" ;;
+              failure)   echo "❌" ;;
+              cancelled) echo "🚫" ;;
+              *)         echo "❓" ;;
+            esac
+          }
+
+          c_md() {
+            local name="$1" built="$2" ver="$3"
+            if [[ "$built" == "true" ]]; then
+              echo "| ${name} | \`${ver}\` | ✅ updated |"
+            elif [[ "$RESULT_DOCKER" == "success" && "$ver" == "$VERSION" ]]; then
+              echo "| ${name} | \`${ver}\` | ✅ current |"
+            else
+              echo "| ${name} | \`${ver}\` | ⏭ unchanged |"
+            fi
+          }
+
+          {
+            echo "## 🚀 CI/CD Pipeline Summary"
+            echo ""
+            echo "**Version:** \`${VERSION}\`  |  **Branch:** \`${{ github.ref_name }}\`"
+            echo "**Commit:** \`${{ github.sha }}\`"
+            echo ""
+            echo "### Job Status"
+            echo "| Job | Result |"
+            echo "|-----|--------|"
+            echo "| Version Check     | $(icon_md "$RESULT_CHECK")  \`${RESULT_CHECK}\` |"
+            echo "| Frontend Build    | $(icon_md "$RESULT_BUILD")  \`${RESULT_BUILD}\` |"
+            echo "| Docker Images     | $(icon_md "$RESULT_DOCKER")  \`${RESULT_DOCKER}\` |"
+            echo "| Security Scan     | $(icon_md "$RESULT_SECURITY")  \`${RESULT_SECURITY}\` |"
+            echo "| Deploy Test       | $(icon_md "$RESULT_DEPLOY")  \`${RESULT_DEPLOY}\` |"
+            echo "| Post-Deploy Tests | $(icon_md "$RESULT_TESTS")  \`${RESULT_TESTS}\` |"
+            echo ""
+            echo "### Container Versions (from ghcr.io)"
+            echo "| Image | Version | Status |"
+            echo "|-------|---------|--------|"
+            echo "$(c_md backend    "$BUILT_BACKEND" "$VER_BACKEND")"
+            echo "$(c_md bot        "$BUILT_BOT"     "$VER_BOT")"
+            echo "$(c_md nginx      "$BUILT_NGINX"   "$VER_NGINX")"
+            echo "$(c_md redis      "$BUILT_REDIS"   "$VER_REDIS")"
+            echo "$(c_md postgresql "$BUILT_PG"      "$VER_PG")"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Notify pipeline summary (Telegram)
+        if: always()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TEST_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}
+          message: ${{ steps.msg.outputs.message }}
 
   # ============================================================================
   # Job 6: Deploy to test server (only for test branch)
@@ -770,9 +1044,22 @@ jobs:
             git checkout test
             git pull origin test
 
+            # CRITICAL: Wait for IMAGE_VERSIONS.json commit to propagate
+            # Race condition: image-build-push may still be pushing the commit
+            echo "⏳ Waiting for IMAGE_VERSIONS.json commit to propagate (10s)..."
+            sleep 10
+
+            # Pull again to ensure we have the latest IMAGE_VERSIONS.json
+            echo "📥 Pulling IMAGE_VERSIONS.json updates..."
+            git pull origin test
+
             # Run deploy script in registry mode
+            # CRITICAL: Check exit code to catch deployment failures (sync errors, etc.)
             echo "🐳 Pulling Docker images and restarting containers..."
-            sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart
+            if ! sudo bash deploy.sh --use-registry --sync-mode update --cleanup-mode smart; then
+              echo "❌ Deployment failed! Check logs for details."
+              exit 1
+            fi
 
             # Wait for services to start
             echo "⏳ Waiting for services to initialize (30s)..."
@@ -804,3 +1091,203 @@ jobs:
         run: |
           echo "❌ Deployment to test server failed" >> $GITHUB_STEP_SUMMARY
           echo "📋 Check logs for details" >> $GITHUB_STEP_SUMMARY
+
+
+  # ============================================================================
+  # Job 7: Post-Deploy Tests (AUTOMATIC validation after deployment)
+  # ============================================================================
+  post-deploy-tests:
+    name: Post-Deploy Tests (${{ matrix.test-suite }})
+    needs: [deploy-test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: |
+      always() &&
+      needs.deploy-test.result == 'success'
+
+    strategy:
+      matrix:
+        test-suite: [frontend, backend]
+      fail-fast: false  # Continue all tests even if one fails
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ============================================================================
+      # SSH Setup (for backend tests)
+      # ============================================================================
+      - name: Setup SSH for backend tests
+        if: matrix.test-suite == 'backend'
+        env:
+          SSH_HOST: ${{ secrets.TEST_SERVER_HOST }}
+          SSH_USER: ${{ secrets.TEST_SERVER_USER }}
+          SSH_PORT: ${{ secrets.TEST_SERVER_SSH_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.TEST_SERVER_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+          # Add test server to known_hosts
+          ssh-keyscan -p "$SSH_PORT" "$SSH_HOST" >> ~/.ssh/known_hosts
+
+          # Create SSH config
+          cat >> ~/.ssh/config << EOF
+          Host budget-test
+            HostName $SSH_HOST
+            User $SSH_USER
+            Port $SSH_PORT
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+          EOF
+
+      # ============================================================================
+      # Frontend Tests (Vitest unit/integration)
+      # ============================================================================
+      - name: Setup Node.js (frontend tests)
+        if: matrix.test-suite == 'frontend'
+        uses: ./.github/actions/setup-node
+
+      - name: Install dependencies (frontend tests)
+        if: matrix.test-suite == 'frontend'
+        run: npm ci
+
+      - name: Run frontend tests
+        if: matrix.test-suite == 'frontend'
+        env:
+          VITE_API_URL: https://fbd.ikeniborn.ru
+        run: npm run test:coverage
+
+      - name: Upload frontend coverage
+        if: matrix.test-suite == 'frontend' && always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-post-deploy
+          path: coverage/
+          retention-days: 7
+
+      # ============================================================================
+      # Backend Tests (pytest via SSH)
+      # ============================================================================
+      - name: Run backend tests on test server
+        if: matrix.test-suite == 'backend'
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.TEST_POSTGRES_PASSWORD }}
+        run: |
+          ssh budget-test "bash -s" << 'EOF'
+            set -e
+            cd ~/familyBudget
+
+            # Pull latest changes and checkout specific commit
+            git fetch origin
+            git checkout ${{ github.sha }}
+
+            # Build DATABASE_URL with localhost (tests run on host, not inside Docker network)
+            # All secrets passed via GitHub Actions expression expansion inside the heredoc
+            export DATABASE_URL="postgresql+asyncpg://familybudget:${{ secrets.TEST_POSTGRES_PASSWORD }}@localhost:5432/familybudget"
+            export JWT_SECRET="${{ secrets.TEST_JWT_SECRET }}"
+            export TELEGRAM_BOT_TOKEN="${{ secrets.TEST_TELEGRAM_BOT_TOKEN }}"
+            export ADMIN_TELEGRAM_ID="${{ secrets.TEST_ADMIN_TELEGRAM_ID }}"
+            export API_INTERNAL_KEY="${{ secrets.TEST_API_INTERNAL_KEY }}"
+            export CORS_ORIGINS="${{ secrets.TEST_CORS_ORIGINS }}"
+
+            # ================================================================
+            # PRE-TEST BACKUP: Snapshot live DB before pytest can modify it
+            # ================================================================
+            # pytest conftest._clean_database_before_session (autouse, session scope)
+            # runs DELETE across all 37 tables before any test starts.
+            # --clean --if-exists добавляет DROP TABLE IF EXISTS перед каждым CREATE,
+            # что гарантирует чистое восстановление без конфликтов дубликатов.
+            BACKUP_FILE="/tmp/pre_test_backup_$(date +%Y%m%d_%H%M%S).sql"
+            echo "Creating pre-test database backup: $BACKUP_FILE"
+            sudo docker compose -f /opt/budget/docker-compose.yml exec -T postgres \
+              pg_dump --clean --if-exists -U familybudget familybudget > "$BACKUP_FILE"
+            BACKUP_SIZE=$(wc -c < "$BACKUP_FILE")
+            echo "Backup created: ${BACKUP_SIZE} bytes"
+            if [ "$BACKUP_SIZE" -lt 1000 ]; then
+              echo "ERROR: Backup file is suspiciously small (${BACKUP_SIZE} bytes), aborting"
+              exit 1
+            fi
+
+            # Register restore trap: runs on EXIT (success AND failure AND SIGTERM)
+            # --clean в дампе гарантирует: DROP TABLE IF EXISTS → CREATE TABLE → INSERT
+            # то есть полное восстановление без ошибок дубликатов
+            restore_database() {
+              local EXIT_CODE=$?
+              echo "=== POST-TEST RESTORE (exit code: ${EXIT_CODE}) ==="
+              echo "Restoring database from backup: $BACKUP_FILE"
+              # Отключаем все активные соединения с БД перед восстановлением
+              sudo docker compose -f /opt/budget/docker-compose.yml exec -T postgres \
+                psql -U familybudget -d postgres -c \
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
+                 WHERE datname='familybudget' AND pid <> pg_backend_pid();" \
+                2>/dev/null || true
+              # Восстанавливаем: DROP TABLE IF EXISTS + CREATE TABLE + INSERT (из --clean дампа)
+              sudo docker compose -f /opt/budget/docker-compose.yml exec -T postgres \
+                psql -U familybudget familybudget < "$BACKUP_FILE"
+              echo "Database restored successfully"
+              rm -f "$BACKUP_FILE"
+              echo "Backup file removed"
+              echo "=== RESTORE COMPLETE ==="
+            }
+            trap restore_database EXIT
+
+            # ================================================================
+            # Apply migrations (idempotent — deployment already ran them)
+            # ================================================================
+            backend/.venv/bin/alembic -c backend/db/migrations/alembic.ini upgrade head
+
+            # ================================================================
+            # Run pytest — non-destructive only (-m "not destructive")
+            # ================================================================
+            # SAFETY: -m "not e2e and not destructive" prevents tests that
+            # permanently DELETE/MODIFY real data from running against live DB.
+            # DB is backed up above and restored via EXIT trap after this block.
+            cd backend
+            export ENVIRONMENT="test"
+            export PYTHONPATH="/home/ikeniborn/familyBudget"
+
+            .venv/bin/pytest tests/ \
+              -m "not e2e and not destructive" \
+              --maxfail=5 \
+              -v \
+              --tb=short
+          EOF
+
+  # ============================================================================
+  # Job 8: Post-Deploy Summary
+  # ============================================================================
+  post-deploy-summary:
+    name: Post-Deploy Summary
+    needs: [post-deploy-tests]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🧪 Post-Deploy Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** https://fbd.ikeniborn.ru/" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Overall status
+          if [ "${{ needs.post-deploy-tests.result }}" == "success" ]; then
+            echo "### ✅ All Test Suites Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Some Test Suites Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Test Suites (parallel execution):**" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend:** Vitest unit/integration tests" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend:** pytest read-only mode (via SSH to test server)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 💡 E2E tests (Playwright) run separately — trigger manually via [e2e-tests workflow](${{ github.server_url }}/${{ github.repository }}/actions/workflows/e2e-tests.yml)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**View individual test suite results:**" >> $GITHUB_STEP_SUMMARY
+          echo "[Post-Deploy Tests job logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Data Safety:** Backend tests run with \`-m 'not e2e and not destructive'\` filter. DB is snapshotted via pg_dump before tests and restored via EXIT trap after — even on test failure." >> $GITHUB_STEP_SUMMARY
+

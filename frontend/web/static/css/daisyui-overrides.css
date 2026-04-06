@@ -209,8 +209,17 @@ body.modal-open {
     position: relative;
 }
 
-.modal .choices__list--dropdown {
-    z-index: 1061 !important;
+/* Specificity 0-3-0 — beats choices-tailwind.css (.choices-tailwind .choices__list--dropdown,
+   specificity 0-2-0) even though choices-tailwind.css loads later in the cascade.
+   Using .choices.is-open parent ensures rule only fires when dropdown is actually open. */
+.modal .choices.is-open .choices__list--dropdown {
+    z-index: var(--z-autocomplete) !important; /* 9999 */
+}
+
+/* Safety net: keep modal-action buttons below the open dropdown stacking context */
+.modal-box:has(.choices.is-open) .modal-action {
+    position: relative;
+    z-index: 0;
 }
 
 /* Store dropdown open state class */
@@ -343,7 +352,7 @@ body.modal-open {
     }
 
     /* Modal action buttons - larger touch targets */
-    .modal-action .btn {
+    .modal-action .btn:not(.btn-square) {
         min-height: 2.875rem;       /* 46px vs default 40px */
         padding-left: 1.15rem;
         padding-right: 1.15rem;

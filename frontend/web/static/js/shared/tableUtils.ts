@@ -106,8 +106,8 @@ export class TableFormatters {
   static formatAmount(amount: number, type: string): string {
     // Safe: Number.toLocaleString() doesn't produce executable code
     const value = Number(amount).toLocaleString('ru-RU', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0
     });
     const sign = (type === 'income' || type === 'credit') ? '+' : '-';
     return `${sign}${value}`;
@@ -150,6 +150,26 @@ export class TableFormatters {
   static formatDate(isoDate: string): string {
     // BudgetShared.DateFormatter output is trusted (no user input)
     return BudgetShared.DateFormatter.formatForDisplay(isoDate);
+  }
+
+  /**
+   * Format updated_at timestamp for display (DD.MM.YYYY HH:MM in local timezone)
+   * Handles backend UTC datetimes that may lack timezone suffix
+   *
+   * @param value - ISO datetime string or Date object
+   * @returns Formatted local datetime string or '—' if invalid
+   */
+  static formatUpdatedAt(value: string | Date | null | undefined): string {
+    if (!value) return '—';
+    const str = typeof value === 'string' ? value : value.toISOString();
+    const normalized = str.endsWith('Z') || /[+-]\d{2}:\d{2}$/.test(str) ? str : str + 'Z';
+    const d = new Date(normalized);
+    if (isNaN(d.getTime())) return '—';
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}.${mm}.${d.getFullYear()} ${hh}:${min}`;
   }
 
   /**

@@ -16,7 +16,7 @@ export {}; // Force module scope
 
 export interface ShoppingList {
   id: number;
-  temp_id?: number;              // Numeric temp_id for offline operations (int53)
+  temp_id?: string;              // Dexie temp_id for offline operations (task-015 Phase 4)
   name: string;
   is_active: boolean;
   created_at: string;
@@ -30,7 +30,7 @@ export interface ShoppingList {
 export interface ShoppingItem {
   id: number;
   list_id: number;
-  temp_id?: number;               // Numeric temp_id for offline operations (int53)
+  temp_id?: string;               // Dexie temp_id for offline operations (task-015 Phase 4)
   product_name: string;
   quantity: number | null;
   unit: string | null;

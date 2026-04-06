@@ -1,7 +1,7 @@
 /**
  * Schema operations for reference data
  * CRUD methods для Articles, Financial Centers, Cost Centers
- * Адаптация PGlite → Dexie.js
+ * Dexie.js implementation
  */
 
 import { db } from '../core/database';

@@ -20,6 +20,7 @@ Endpoints:
 """
 
 import logging
+import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -27,6 +28,11 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from backend.app.api.v1.endpoints.budget_ws import (
+    broadcast_shopping_list_created,
+    broadcast_shopping_list_deleted,
+    broadcast_shopping_list_updated,
+)
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
 from backend.app.models.shopping_list import ShoppingList
@@ -128,16 +134,28 @@ async def create_shopping_list(
         temp_id=temp_id,  # Use client's temp_id or server-generated
     )
 
+    # Generate temp_id server-side for lists created via web UI (not offline).
+    # Offline-created lists already have client-generated temp_id.
+    shopping_list.temp_id = str(uuid.uuid4())
+
     session.add(shopping_list)
     await session.commit()
     await session.refresh(shopping_list)
 
     logger.info(
-        f"Created shopping list {shopping_list.id} ({shopping_list.name}) "
-        f"by user {current_user.id}"
+        "Created shopping list %s (%s) by user %s",
+        shopping_list.id, shopping_list.name, current_user.id
     )
 
-    return ShoppingListResponse.model_validate(shopping_list)
+    response = ShoppingListResponse.model_validate(shopping_list)
+
+    # Broadcast WebSocket event for multi-client sync
+    try:
+        await broadcast_shopping_list_created(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("WebSocket broadcast failed for created list %s: %s", shopping_list.id, e)
+
+    return response
 
 
 @router.get(
@@ -268,11 +286,19 @@ async def update_shopping_list(
     await session.refresh(shopping_list)
 
     logger.info(
-        f"Updated shopping list {shopping_list_id} ({shopping_list.name}) "
-        f"fields: {changed_fields} by user {current_user.id}"
+        "Updated shopping list %s (%s) fields: %s by user %s",
+        shopping_list_id, shopping_list.name, changed_fields, current_user.id
     )
 
-    return ShoppingListResponse.model_validate(shopping_list)
+    response = ShoppingListResponse.model_validate(shopping_list)
+
+    # Broadcast WebSocket event for multi-client sync
+    try:
+        await broadcast_shopping_list_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("WebSocket broadcast failed for updated list %s: %s", shopping_list_id, e)
+
+    return response
 
 
 @router.put(
@@ -309,8 +335,8 @@ async def archive_shopping_list(
     )
 
     logger.info(
-        f"Archived shopping list {shopping_list_id} ({shopping_list.name}) "
-        f"by user {current_user.id}"
+        "Archived shopping list %s (%s) by user %s",
+        shopping_list_id, shopping_list.name, current_user.id
     )
 
     return ShoppingListResponse.model_validate(archived_list)
@@ -349,8 +375,8 @@ async def restore_shopping_list(
     )
 
     logger.info(
-        f"Restored shopping list {shopping_list_id} ({shopping_list.name}) "
-        f"by user {current_user.id}"
+        "Restored shopping list %s (%s) by user %s",
+        shopping_list_id, shopping_list.name, current_user.id
     )
 
     return ShoppingListResponse.model_validate(restored_list)
@@ -422,9 +448,15 @@ async def delete_shopping_list(
     await session.delete(shopping_list)
     await session.commit()
 
+    # Broadcast WebSocket event for multi-client sync
+    try:
+        await broadcast_shopping_list_deleted(shopping_list_id)
+    except Exception as e:
+        logger.warning("WebSocket broadcast failed for deleted list %s: %s", shopping_list_id, e)
+
     logger.info(
-        f"Deleted shopping list {shopping_list_id} ({shopping_list.name}) "
-        f"with {items_count} items by owner {current_user.id}"
+        "Deleted shopping list %s (%s) with %s items by owner %s",
+        shopping_list_id, shopping_list.name, items_count, current_user.id
     )
 
     return None  # 204 No Content

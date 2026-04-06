@@ -42,7 +42,7 @@ export async function loadUsers(): Promise<User[]> {
  * Load all articles (categories)
  */
 export async function loadArticles(): Promise<Article[]> {
-    // Use DataLayer (PGlite-first with API fallback)
+    // Use DataLayer (Dexie-first with API fallback)
     const articles = await dataLayer.getArticles() as unknown as Article[];
 
     if (!Array.isArray(articles)) {
@@ -64,7 +64,7 @@ export async function loadFinancialCenters(): Promise<FinancialCenter[]> {
     // Get user ID for data layer queries
     const userId = await getCurrentUserId();
 
-    // Use DataLayer (PGlite-first with API fallback)
+    // Use DataLayer (Dexie-first with API fallback)
     return await dataLayer.getFinancialCenters(userId, true) as unknown as FinancialCenter[];
 }
 
@@ -79,7 +79,7 @@ export async function loadCostCenters(): Promise<CostCenter[]> {
     // Get user ID for data layer queries
     const userId = await getCurrentUserId();
 
-    // Use DataLayer (PGlite-first with API fallback)
+    // Use DataLayer (Dexie-first with API fallback)
     return await dataLayer.getCostCenters(userId, null, true) as unknown as CostCenter[];
 }
 
@@ -120,7 +120,7 @@ export function buildArticleTree(articles: Article[]): ArticleTreeNode[] {
         return {
             id: article.id,
             name: article.name,
-            record_type: article.record_type,
+            type: article.type,
             parent_id: article.parent_id,
             level,
             path: article.path,
@@ -166,8 +166,8 @@ export function groupArticlesByType(articles: Article[]): ArticleTreeNode[] {
     };
 
     flatNodes.forEach(node => {
-        if (groupedByType[node.record_type]) {
-            groupedByType[node.record_type].push(node);
+        if (groupedByType[node.type]) {
+            groupedByType[node.type].push(node);
         }
     });
 

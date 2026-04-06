@@ -1219,7 +1219,9 @@ body.modal-open .fab-common-wrapper {
 
 /* Гарантированная видимость delete кнопки на мобильных */
 .modal-action button.btn-square.btn-error {
-    display: block !important; /* Показывать по умолчанию */
+    display: inline-flex !important; /* Показывать по умолчанию, flex для центрирования иконки */
+    align-items: center;
+    justify-content: center;
 }
 
 /* Скрыть на desktop (где есть чекбоксы) */

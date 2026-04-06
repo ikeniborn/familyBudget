@@ -1,0 +1,1820 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Responsive Design Changes - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/frontend/responsive-design.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="responsive-design-changes">
+<h1>Responsive Design Changes<a class="headerlink" href="#responsive-design-changes" title="Link to this heading">¶</a></h1>
+<p>This document tracks all responsive design modifications and breakpoint adjustments in the Family Budget application.</p>
+<section id="table-of-contents">
+<h2>Table of Contents<a class="headerlink" href="#table-of-contents" title="Link to this heading">¶</a></h2>
+<ol class="arabic simple">
+<li><p><a class="reference internal" href="#breakpoint-strategy"><span class="xref myst">Breakpoint Strategy</span></a></p></li>
+<li><p><a class="reference internal" href="#fab-navigation-architecture-v7x"><span class="xref myst">FAB Navigation Architecture (v7.x)</span></a></p></li>
+<li><p><a class="reference internal" href="#quick-actions-block---tablet-hide-v660"><span class="xref myst">Quick Actions Block - Tablet Hide (v6.6.0)</span></a></p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="breakpoint-strategy">
+<h2>Breakpoint Strategy<a class="headerlink" href="#breakpoint-strategy" title="Link to this heading">¶</a></h2>
+<p>Family Budget uses Tailwind CSS breakpoint system:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Breakpoint</p></th>
+<th class="head"><p>Min Width</p></th>
+<th class="head"><p>Device Type</p></th>
+<th class="head"><p>Usage</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sm</span></code></p></td>
+<td><p>640px</p></td>
+<td><p>Mobile landscape</p></td>
+<td><p>Secondary adjustments</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">md</span></code></p></td>
+<td><p>768px</p></td>
+<td><p>Tablet portrait</p></td>
+<td><p>Tablet-specific layouts</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">lg</span></code></p></td>
+<td><p>1024px</p></td>
+<td><p>Desktop / Tablet landscape</p></td>
+<td><p>Desktop-first features</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">xl</span></code></p></td>
+<td><p>1280px</p></td>
+<td><p>Large desktop</p></td>
+<td><p>Wide screen optimizations</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">2xl</span></code></p></td>
+<td><p>1536px</p></td>
+<td><p>Extra large desktop</p></td>
+<td><p>Ultra-wide layouts</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Default Strategy:</strong></p>
+<ul class="simple">
+<li><p>Mobile-first approach (base styles for 0-639px)</p></li>
+<li><p>Progressive enhancement for larger screens</p></li>
+<li><p>Critical features available on all devices</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="fab-navigation-architecture-v7-x">
+<h2>FAB Navigation Architecture (v7.x)<a class="headerlink" href="#fab-navigation-architecture-v7-x" title="Link to this heading">¶</a></h2>
+<p><strong>Date:</strong> 2026-01-17 (restructured)
+<strong>Issue:</strong> Mobile navigation had dropdown “Добавить” which caused ReferenceError on /analytics, /facts, /plan
+<strong>Solution:</strong> Separated navigation and FAB into distinct components with page-context visibility</p>
+<section id="architecture-overview">
+<h3>Architecture Overview<a class="headerlink" href="#architecture-overview" title="Link to this heading">¶</a></h3>
+<p><strong>Mobile (&lt; 1024px) - Two Components:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Mobile Navigation Bar</strong> (bottom of screen)</p>
+<ul class="simple">
+<li><p>5 direct links: Главная, Аналитика, Факт, План, Списки</p></li>
+<li><p>No dropdown menus (removed in v7.x restructure)</p></li>
+<li><p>Safe-area-inset padding for iPhone notch</p></li>
+<li><p>Z-index: 50</p></li>
+</ul>
+</li>
+<li><p><strong>Mobile FAB “+”</strong> (bottom-right, above nav bar)</p>
+<ul class="simple">
+<li><p>Separate floating button with speed dial menu</p></li>
+<li><p>Page-context visibility (hidden on /analytics)</p></li>
+<li><p>No backdrop (opens without overlay)</p></li>
+<li><p>Z-index: <code class="docutils literal notranslate"><span class="pre">var(--z-fab-mobile)</span></code> = <strong>40</strong> (below mobile navbar at 50)</p></li>
+</ul>
+</li>
+</ol>
+<p><strong>Desktop (≥ 1024px):</strong></p>
+<ul class="simple">
+<li><p>Single Floating Action Button (FAB) at bottom-right</p></li>
+<li><p>Speed Dial menu with 4 action items</p></li>
+<li><p>Backdrop overlay when open</p></li>
+<li><p>Z-index: 1000 (backdrop: 999)</p></li>
+<li><p><strong>Menu expansion direction:</strong> Upward (items appear ABOVE button)</p></li>
+<li><p><strong>Main button position:</strong> Fixed (doesn’t move when menu opens)</p></li>
+</ul>
+</section>
+<section id="page-context-visibility-matrix">
+<h3>Page Context Visibility Matrix<a class="headerlink" href="#page-context-visibility-matrix" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Page</p></th>
+<th class="head"><p>Mobile FAB</p></th>
+<th class="head"><p>Mobile FAB Actions</p></th>
+<th class="head"><p>Desktop FAB</p></th>
+<th class="head"><p>Desktop FAB Actions</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/</span></code></p></td>
+<td><p>Показан</p></td>
+<td><p>4 (все)</p></td>
+<td><p>Показан</p></td>
+<td><p>4 (все)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/facts</span></code></p></td>
+<td><p>Показан</p></td>
+<td><p>2 (факт)</p></td>
+<td><p>Показан</p></td>
+<td><p>2 (факт)</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/plan</span></code></p></td>
+<td><p>Показан</p></td>
+<td><p>2 (план)</p></td>
+<td><p>Показан</p></td>
+<td><p>2 (план)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/analytics</span></code></p></td>
+<td><p>Скрыт</p></td>
+<td><p>-</p></td>
+<td><p>Скрыт</p></td>
+<td><p>-</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/lists</span></code></p></td>
+<td><p>Показан*</p></td>
+<td><p>Direct action**</p></td>
+<td><p>Показан*</p></td>
+<td><p>Direct action**</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>* На /lists кнопка “+” работает без меню (direct action)
+** В списке списков → создать список; внутри списка → добавить товар</p>
+<p><strong>UPDATE v11.4.9:</strong> /lists FAB теперь видим на ВСЕХ устройствах (mobile AND desktop)</p>
+</section>
+<section id="dynamic-breakpoint-switching-v7-x">
+<h3>Dynamic Breakpoint Switching (v7.x+)<a class="headerlink" href="#dynamic-breakpoint-switching-v7-x" title="Link to this heading">¶</a></h3>
+<p><strong>Resize Listener:</strong></p>
+<ul class="simple">
+<li><p>Automatically switches between mobile nav and desktop FAB when window crosses 1024px breakpoint</p></li>
+<li><p>No page reload required - works on tablet rotation and desktop window resize</p></li>
+<li><p>Debounced with 200ms delay to prevent excessive re-renders</p></li>
+<li><p>Closes desktop FAB automatically when switching to mobile mode</p></li>
+<li><p>Preserves allowedPages logic during resize (desktop FAB hidden on non-allowed pages)</p></li>
+</ul>
+<p><strong>Supported Scenarios:</strong></p>
+<ul class="simple">
+<li><p>Tablet rotation: landscape (≥1024px) ↔ portrait (&lt;1024px)</p></li>
+<li><p>Desktop window resize: dragging browser edge across breakpoint</p></li>
+<li><p>Split-screen multitasking: window width changes dynamically</p></li>
+</ul>
+<p><strong>Console Logging:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="nx">FAB_TOOLBAR</span><span class="p">]</span><span class="w"> </span><span class="nx">Breakpoint</span><span class="w"> </span><span class="nx">crossed</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="kr">from</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;desktop-fab&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">to</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;mobile-nav&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">windowWidth</span><span class="o">:</span><span class="w"> </span><span class="mf">768</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">breakpoint</span><span class="o">:</span><span class="w"> </span><span class="mf">1024</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="fab-menu-expansion-direction-v11-3-0">
+<h3>FAB Menu Expansion Direction (v11.3.0)<a class="headerlink" href="#fab-menu-expansion-direction-v11-3-0" title="Link to this heading">¶</a></h3>
+<p><strong>Desktop FAB (≥1024px):</strong></p>
+<ul>
+<li><p>Speed Dial menu раскрывается <strong>вверх</strong> (items appear ABOVE button)</p></li>
+<li><p>Главная кнопка остается fixed на месте (не сдвигается при раскрытии)</p></li>
+<li><p>CSS Implementation:</p>
+<div class="highlight-css notranslate"><div class="highlight"><pre><span></span><span class="p">.</span><span class="nc">desktop-fab-wrapper</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">flex-direction</span><span class="p">:</span><span class="w"> </span><span class="kc">column</span><span class="p">;</span><span class="w">  </span><span class="c">/* Not column-reverse */</span>
+<span class="p">}</span>
+
+<span class="c">/* Items positioned above button */</span>
+<span class="p">.</span><span class="nc">desktop-fab-wrapper</span><span class="w"> </span><span class="p">.</span><span class="nc">fab-menu-item</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">order</span><span class="p">:</span><span class="w"> </span><span class="mi">-1</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">.</span><span class="nc">desktop-fab-wrapper</span><span class="w"> </span><span class="p">.</span><span class="nc">fab-button</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">order</span><span class="p">:</span><span class="w"> </span><span class="mi">999</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">/* Collapse animation slides down */</span>
+<span class="p">.</span><span class="nc">desktop-fab-wrapper</span><span class="p">.</span><span class="nc">closed</span><span class="w"> </span><span class="p">.</span><span class="nc">fab-menu-item</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">transform</span><span class="p">:</span><span class="w"> </span><span class="nb">scale</span><span class="p">(</span><span class="mf">0.5</span><span class="p">)</span><span class="w"> </span><span class="nb">translateY</span><span class="p">(</span><span class="mi">20</span><span class="kt">px</span><span class="p">);</span><span class="w">  </span><span class="c">/* +20px = slide down */</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</li>
+</ul>
+<p><strong>Mobile FAB (&lt;1024px):</strong></p>
+<ul class="simple">
+<li><p>Speed Dial menu раскрывается <strong>вверх</strong> (items appear ABOVE button)</p></li>
+<li><p>Используется отдельная структура <code class="docutils literal notranslate"><span class="pre">.mobile-fab-menu</span></code></p></li>
+<li><p>Positioning: <code class="docutils literal notranslate"><span class="pre">bottom:</span> <span class="pre">calc(100%</span> <span class="pre">+</span> <span class="pre">0.5rem)</span></code></p></li>
+</ul>
+</section>
+<section id="critical-css-requirements">
+<h3>Critical CSS Requirements<a class="headerlink" href="#critical-css-requirements" title="Link to this heading">¶</a></h3>
+<p><strong>Must use <code class="docutils literal notranslate"><span class="pre">!important</span></code> for display properties:</strong></p>
+<ul class="simple">
+<li><p>Prevents override from other stylesheets</p></li>
+<li><p>Ensures mobile navigation never shows on desktop</p></li>
+<li><p>Ensures desktop FAB never shows on mobile</p></li>
+</ul>
+<p><strong>Must use <code class="docutils literal notranslate"><span class="pre">visibility:</span> <span class="pre">hidden</span></code> for iOS Safari:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">opacity:</span> <span class="pre">0</span></code> + <code class="docutils literal notranslate"><span class="pre">pointer-events:</span> <span class="pre">none</span></code> insufficient on iOS</p></li>
+<li><p>Hidden elements can still be clickable without <code class="docutils literal notranslate"><span class="pre">visibility:</span> <span class="pre">hidden</span></code></p></li>
+<li><p>Applies to Speed Dial closed state</p></li>
+</ul>
+<p><strong>Must include <code class="docutils literal notranslate"><span class="pre">env(safe-area-inset-bottom)</span></code>:</strong></p>
+<ul class="simple">
+<li><p>Required for iPhone with notch (X/11/12/13/14/15/16)</p></li>
+<li><p>Prevents navigation bar overlap with Home indicator</p></li>
+<li><p>Calculated as: <code class="docutils literal notranslate"><span class="pre">calc(0.5rem</span> <span class="pre">+</span> <span class="pre">env(safe-area-inset-bottom))</span></code></p></li>
+</ul>
+</section>
+<section id="fab-positioning-and-spacing-v11-4-9">
+<h3>FAB Positioning and Spacing (v11.4.9+)<a class="headerlink" href="#fab-positioning-and-spacing-v11-4-9" title="Link to this heading">¶</a></h3>
+<p><strong>Mobile FAB (custom.css):</strong></p>
+<ul class="simple">
+<li><p>Base position: <code class="docutils literal notranslate"><span class="pre">bottom:</span> <span class="pre">calc(7rem</span> <span class="pre">+</span> <span class="pre">env(safe-area-inset-bottom))</span></code></p></li>
+<li><p>Desktop (≥1024px): <code class="docutils literal notranslate"><span class="pre">bottom:</span> <span class="pre">2rem</span></code> (no navbar, reduced spacing)</p></li>
+<li><p>Rationale: 7rem = 112px clearance from bottom navbar (64px height) + 48px spacing</p></li>
+<li><p>iOS safe-area adds ~34px on devices with notch/Dynamic Island</p></li>
+</ul>
+<p><strong>Lists FAB (lists.css):</strong></p>
+<ul class="simple">
+<li><p>Desktop (≥1024px): <code class="docutils literal notranslate"><span class="pre">bottom:</span> <span class="pre">calc(2.5rem</span> <span class="pre">+</span> <span class="pre">env(safe-area-inset-bottom))</span></code></p></li>
+<li><p>Mobile 641-1023px: <code class="docutils literal notranslate"><span class="pre">bottom:</span> <span class="pre">calc(64px</span> <span class="pre">+</span> <span class="pre">2.5rem</span> <span class="pre">+</span> <span class="pre">env(safe-area-inset-bottom))</span></code></p></li>
+<li><p>Mobile ≤640px: <code class="docutils literal notranslate"><span class="pre">bottom:</span> <span class="pre">calc(2rem</span> <span class="pre">+</span> <span class="pre">env(safe-area-inset-bottom))</span></code></p></li>
+<li><p>Fallback (old browsers): <code class="docutils literal notranslate"><span class="pre">bottom:</span> <span class="pre">2rem</span></code> (without safe-area support)</p></li>
+</ul>
+<p><strong>Spacing Guidelines:</strong></p>
+<ul class="simple">
+<li><p>+1rem increase from previous version for improved accessibility</p></li>
+<li><p>All FAB elements use <code class="docutils literal notranslate"><span class="pre">env(safe-area-inset-bottom)</span></code> for iOS compatibility</p></li>
+<li><p>Responsive spacing ensures no overlap with mobile navbar (64px)</p></li>
+</ul>
+</section>
+<section id="responsive-breakpoints">
+<h3>Responsive Breakpoints<a class="headerlink" href="#responsive-breakpoints" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Breakpoint</p></th>
+<th class="head"><p>Device</p></th>
+<th class="head"><p>Navigation Style</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>&lt; 768px</p></td>
+<td><p>Mobile</p></td>
+<td><p>Bottom bar (5 buttons)</p></td>
+</tr>
+<tr class="row-odd"><td><p>768-1023px</p></td>
+<td><p>Tablet</p></td>
+<td><p>Bottom bar (5 buttons)</p></td>
+</tr>
+<tr class="row-even"><td><p>≥ 1024px</p></td>
+<td><p>Desktop</p></td>
+<td><p>FAB (Speed Dial)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="page-context-configuration">
+<h3>Page Context Configuration<a class="headerlink" href="#page-context-configuration" title="Link to this heading">¶</a></h3>
+<p><strong>Configuration constant in <code class="docutils literal notranslate"><span class="pre">fab_toolbar.html</span></code>:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">FAB_PAGE_CONTEXT</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="s1">&#39;/&#39;</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s1">&#39;fact-transaction&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;fact-transfer&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;plan-transaction&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;plan-transfer&#39;</span><span class="p">],</span>
+<span class="w">    </span><span class="s1">&#39;/facts&#39;</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s1">&#39;fact-transaction&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;fact-transfer&#39;</span><span class="p">],</span>
+<span class="w">    </span><span class="s1">&#39;/plan&#39;</span><span class="o">:</span><span class="w"> </span><span class="p">[</span><span class="s1">&#39;plan-transaction&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;plan-transfer&#39;</span><span class="p">],</span>
+<span class="w">    </span><span class="s1">&#39;/lists&#39;</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;lists&#39;</span><span class="w">  </span><span class="c1">// Special mode - direct action</span>
+<span class="w">    </span><span class="c1">// Pages not listed = FAB hidden</span>
+<span class="p">};</span>
+</pre></div>
+</div>
+<p><strong>Action items use <code class="docutils literal notranslate"><span class="pre">data-fab-action</span></code> attribute:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">fact-transaction</span></code> - Расход/Доход (факт)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fact-transfer</span></code> - Перевод (факт)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plan-transaction</span></code> - Расход/Доход (план)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">plan-transfer</span></code> - Перевод (план)</p></li>
+</ul>
+</section>
+<section id="z-index-hierarchy">
+<h3>Z-Index Hierarchy<a class="headerlink" href="#z-index-hierarchy" title="Link to this heading">¶</a></h3>
+<p><strong>Note:</strong> All z-index values use CSS custom properties from <code class="docutils literal notranslate"><span class="pre">z-index-variables.css</span></code> for centralized management.</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Z-Index</p></th>
+<th class="head"><p>CSS Variable</p></th>
+<th class="head"><p>Element</p></th>
+<th class="head"><p>Purpose</p></th>
+<th class="head"><p>Context</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>9999</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--z-autocomplete</span></code></p></td>
+<td><p>Autocomplete dropdown</p></td>
+<td><p>Form inputs (Choices.js, Calendar)</p></td>
+<td><p>Above all content</p></td>
+</tr>
+<tr class="row-odd"><td><p>2000</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--z-calendar-modal</span></code></p></td>
+<td><p>Calendar widget (modal)</p></td>
+<td><p>Date pickers in modals</p></td>
+<td><p>Higher than dialogs</p></td>
+</tr>
+<tr class="row-even"><td><p>1050</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--z-dialog</span></code></p></td>
+<td><p>Dialog modals</p></td>
+<td><p>DaisyUI .dialog, .modal</p></td>
+<td><p>Confirmation prompts</p></td>
+</tr>
+<tr class="row-odd"><td><p>1001-1003</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--z-fab-lists</span></code></p></td>
+<td><p>Lists page FABs</p></td>
+<td><p>Context-specific actions</p></td>
+<td><p>/lists page only</p></td>
+</tr>
+<tr class="row-even"><td><p>1000</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--z-fab-desktop</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.fab-wrapper</span></code></p></td>
+<td><p>Desktop FAB menu items</p></td>
+<td><p>≥1024px only</p></td>
+</tr>
+<tr class="row-odd"><td><p>999</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--z-modal-backdrop</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">#desktop-fab-backdrop</span></code></p></td>
+<td><p>Modal backdrops</p></td>
+<td><p>Overlay dimming</p></td>
+</tr>
+<tr class="row-even"><td><p>60</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--z-dropdown</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.dropdown-content</span></code></p></td>
+<td><p>Dropdown menus</p></td>
+<td><p>Navigation</p></td>
+</tr>
+<tr class="row-odd"><td><p>50</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--z-navbar</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.fab-container</span></code></p></td>
+<td><p>Mobile navbar</p></td>
+<td><p>Base navigation</p></td>
+</tr>
+<tr class="row-even"><td><p>40</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">--z-fab-mobile</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">.fab-wrapper</span></code></p></td>
+<td><p>Mobile FAB</p></td>
+<td><p>Below navbar</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>DEPRECATED in v11.0:</strong> <code class="docutils literal notranslate"><span class="pre">.mobile-fab-wrapper</span></code> (z-index: 998) - removed, use <code class="docutils literal notranslate"><span class="pre">.fab-wrapper</span></code> (40)</p>
+<p><strong>Complete Reference:</strong> See <a class="reference internal" href="z-index-layering.html"><span class="std std-doc">z-index-layering.md</span></a> for:</p>
+<ul class="simple">
+<li><p>Full 13-layer hierarchy</p></li>
+<li><p>CSS variables usage examples</p></li>
+<li><p>Component details</p></li>
+<li><p>Troubleshooting guide</p></li>
+</ul>
+</section>
+<section id="css-variables-system">
+<h3>CSS Variables System<a class="headerlink" href="#css-variables-system" title="Link to this heading">¶</a></h3>
+<p><strong>Since v11.0</strong>, all z-index values use CSS custom properties for centralized management.</p>
+<p><strong>Benefits:</strong></p>
+<ul class="simple">
+<li><p>Single source of truth in <code class="docutils literal notranslate"><span class="pre">z-index-variables.css</span></code></p></li>
+<li><p>Self-documenting variable names (<code class="docutils literal notranslate"><span class="pre">--z-fab-mobile</span></code>, <code class="docutils literal notranslate"><span class="pre">--z-modal-backdrop</span></code>)</p></li>
+<li><p>Easy to update (change once, apply everywhere)</p></li>
+<li><p>Prevents accidental conflicts</p></li>
+</ul>
+<p><strong>Example Usage:</strong></p>
+<div class="highlight-css notranslate"><div class="highlight"><pre><span></span><span class="p">.</span><span class="nc">desktop-fab-wrapper</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">z-index</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--z-fab-desktop</span><span class="p">);</span><span class="w"> </span><span class="c">/* 1000 */</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Complete documentation:</strong> <a class="reference internal" href="z-index-layering.html#css-variables-reference"><span class="std std-ref">z-index-layering.md</span></a></p>
+</section>
+<section id="implementation-files">
+<h3>Implementation Files<a class="headerlink" href="#implementation-files" title="Link to this heading">¶</a></h3>
+<p><strong>CSS:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/static/css/custom.css</span></code></p>
+<ul class="simple">
+<li><p>Lines 405-434: Mobile navigation (&lt; 1024px)</p></li>
+<li><p>Lines 438-465: Desktop FAB (≥ 1024px)</p></li>
+<li><p>Lines 666-681: Speed Dial animations</p></li>
+</ul>
+<p><strong>HTML/JavaScript:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/components/fab_toolbar.html</span></code></p>
+<ul class="simple">
+<li><p>Lines 259-349: Resize listener with debouncing</p></li>
+<li><p>Lines 351-382: CSS diagnostics logging</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="quick-actions-block-tablet-hide-v6-6-0">
+<h2>Quick Actions Block - Tablet Hide (v6.6.0)<a class="headerlink" href="#quick-actions-block-tablet-hide-v6-6-0" title="Link to this heading">¶</a></h2>
+<p><strong>Date:</strong> 2025-12-29
+<strong>Issue:</strong> Quick Actions block was displaying on tablets (768px+), cluttering the interface on medium-sized screens
+<strong>Solution:</strong> Changed visibility breakpoint from <code class="docutils literal notranslate"><span class="pre">md</span></code> (768px) to <code class="docutils literal notranslate"><span class="pre">lg</span></code> (1024px)</p>
+<section id="changes">
+<h3>Changes<a class="headerlink" href="#changes" title="Link to this heading">¶</a></h3>
+<p><strong>File:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/index.html</span></code></p>
+<p><strong>Modified Lines:</strong></p>
+<ol class="arabic">
+<li><p><strong>Line 53</strong> - Updated comment:</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- BEFORE --&gt;</span>
+<span class="cm">&lt;!-- Quick Actions Block (Desktop only, hidden on mobile) --&gt;</span>
+
+<span class="cm">&lt;!-- AFTER --&gt;</span>
+<span class="cm">&lt;!-- Quick Actions Block (Desktop only, hidden on mobile and tablet) --&gt;</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Line 54</strong> - Container visibility class:</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- BEFORE --&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;card bg-base-100 shadow-xl hidden md:block&quot;</span><span class="p">&gt;</span>
+
+<span class="cm">&lt;!-- AFTER --&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;card bg-base-100 shadow-xl hidden lg:block&quot;</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Line 123</strong> - Desktop layout grid:</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- BEFORE --&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;hidden md:grid md:grid-cols-3 gap-4&quot;</span><span class="p">&gt;</span>
+
+<span class="cm">&lt;!-- AFTER --&gt;</span>
+<span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;hidden lg:grid lg:grid-cols-3 gap-4&quot;</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Lines 6002-6017</strong> - Browser console logging:</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Enhanced logging with tablet detection</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">width</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">window</span><span class="p">.</span><span class="nx">innerWidth</span><span class="p">;</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">breakpoint</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">width</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">1024</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">&#39;desktop&#39;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="p">(</span><span class="nx">width</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">768</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="s1">&#39;tablet&#39;</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;mobile&#39;</span><span class="p">);</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">quickActionsVisible</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">width</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">1024</span><span class="p">;</span><span class="w"> </span><span class="c1">// lg breakpoint (desktop only)</span>
+
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;[INDEX_PAGE] Page loaded:&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">fabVisible</span><span class="o">:</span><span class="w"> </span><span class="o">!!</span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;fab-toolbar&#39;</span><span class="p">),</span>
+<span class="w">    </span><span class="nx">quickActionsVisible</span><span class="o">:</span><span class="w"> </span><span class="nx">quickActionsVisible</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">breakpoint</span><span class="o">:</span><span class="w"> </span><span class="nx">breakpoint</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">width</span><span class="o">:</span><span class="w"> </span><span class="nx">width</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">quickActionsDetails</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">shouldShow</span><span class="o">:</span><span class="w"> </span><span class="nx">width</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">1024</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">hiddenOnTablet</span><span class="o">:</span><span class="w"> </span><span class="nx">width</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mf">768</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">width</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">1024</span><span class="p">,</span>
+<span class="w">        </span><span class="nx">hiddenOnMobile</span><span class="o">:</span><span class="w"> </span><span class="nx">width</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mf">768</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</li>
+</ol>
+</section>
+<section id="visibility-matrix">
+<h3>Visibility Matrix<a class="headerlink" href="#visibility-matrix" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Screen Width</p></th>
+<th class="head"><p>Breakpoint</p></th>
+<th class="head"><p>Quick Actions Visible</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0-767px</p></td>
+<td><p>Mobile</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p>Uses mobile mini-cards (line 59-120)</p></td>
+</tr>
+<tr class="row-odd"><td><p>768-1023px</p></td>
+<td><p>Tablet</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p><strong>NEW: Now hidden on tablets</strong></p></td>
+</tr>
+<tr class="row-even"><td><p>1024px+</p></td>
+<td><p>Desktop</p></td>
+<td><p>✅ Visible</p></td>
+<td><p>Shows full 3-column layout</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="testing">
+<h3>Testing<a class="headerlink" href="#testing" title="Link to this heading">¶</a></h3>
+<p><strong>Console Logging Examples:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Mobile (iPhone SE, 375px)</span>
+<span class="p">[</span><span class="nx">INDEX_PAGE</span><span class="p">]</span><span class="w"> </span><span class="nx">Page</span><span class="w"> </span><span class="nx">loaded</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">fabVisible</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">quickActionsVisible</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">breakpoint</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;mobile&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">width</span><span class="o">:</span><span class="w"> </span><span class="mf">375</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">quickActionsDetails</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">shouldShow</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">hiddenOnTablet</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">hiddenOnMobile</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// Tablet (iPad, 768px)</span>
+<span class="p">[</span><span class="nx">INDEX_PAGE</span><span class="p">]</span><span class="w"> </span><span class="nx">Page</span><span class="w"> </span><span class="nx">loaded</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">fabVisible</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">quickActionsVisible</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">  </span><span class="c1">// Now hidden!</span>
+<span class="w">  </span><span class="nx">breakpoint</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;tablet&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">width</span><span class="o">:</span><span class="w"> </span><span class="mf">768</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">quickActionsDetails</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">shouldShow</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">hiddenOnTablet</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">  </span><span class="c1">// Explicitly hidden on tablet</span>
+<span class="w">    </span><span class="nx">hiddenOnMobile</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// Desktop (MacBook, 1440px)</span>
+<span class="p">[</span><span class="nx">INDEX_PAGE</span><span class="p">]</span><span class="w"> </span><span class="nx">Page</span><span class="w"> </span><span class="nx">loaded</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">fabVisible</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">quickActionsVisible</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">breakpoint</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;desktop&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">width</span><span class="o">:</span><span class="w"> </span><span class="mf">1440</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">quickActionsDetails</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">shouldShow</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">hiddenOnTablet</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">hiddenOnMobile</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="rationale">
+<h3>Rationale<a class="headerlink" href="#rationale" title="Link to this heading">¶</a></h3>
+<p><strong>Why hide on tablets?</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Screen Real Estate:</strong> Tablets (768-1023px) have limited vertical space, especially in landscape mode</p></li>
+<li><p><strong>Mobile-First FAB:</strong> Quick actions are accessible via Floating Action Button (FAB) on mobile/tablet</p></li>
+<li><p><strong>Desktop Optimization:</strong> Full Quick Actions block is more useful on desktop where space is abundant</p></li>
+<li><p><strong>Consistency:</strong> Aligns with mobile-first philosophy - keep UI clean on smaller screens</p></li>
+</ol>
+<p><strong>User Impact:</strong></p>
+<ul class="simple">
+<li><p>✅ Tablet users: Cleaner interface, more space for Recent Transactions</p></li>
+<li><p>✅ Mobile users: No change (already hidden)</p></li>
+<li><p>✅ Desktop users: Full Quick Actions block available as before</p></li>
+</ul>
+</section>
+<section id="related-code">
+<h3>Related Code<a class="headerlink" href="#related-code" title="Link to this heading">¶</a></h3>
+<p><strong>Mobile Mini-Cards</strong> (visible on &lt;768px only):</p>
+<ul class="simple">
+<li><p>Location: <code class="docutils literal notranslate"><span class="pre">index.html</span></code> lines 59-120</p></li>
+<li><p>Classes: <code class="docutils literal notranslate"><span class="pre">grid</span> <span class="pre">grid-cols-4</span> <span class="pre">gap-2</span> <span class="pre">md:hidden</span></code></p></li>
+<li><p>Features: Факт, Перевод, Списки, Dropdown menu</p></li>
+</ul>
+<p><strong>Desktop Layout</strong> (visible on ≥1024px only):</p>
+<ul class="simple">
+<li><p>Location: <code class="docutils literal notranslate"><span class="pre">index.html</span></code> lines 123-195</p></li>
+<li><p>Classes: <code class="docutils literal notranslate"><span class="pre">hidden</span> <span class="pre">lg:grid</span> <span class="pre">lg:grid-cols-3</span> <span class="pre">gap-4</span></code></p></li>
+<li><p>Features: 3-column layout (Факты, Планы, Прочее)</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="fixed-bottom-navigation-authentication-gate-v6-6-1">
+<h2>Fixed Bottom Navigation - Authentication Gate (v6.6.1)<a class="headerlink" href="#fixed-bottom-navigation-authentication-gate-v6-6-1" title="Link to this heading">¶</a></h2>
+<p><strong>Date:</strong> 2025-12-29
+<strong>Issue:</strong> Fixed Bottom Navigation (FAB Toolbar) was displaying for unauthenticated users on public pages (login, register, 2FA)
+<strong>Solution:</strong> Added authentication check to hide FAB Toolbar for non-authenticated users</p>
+<section id="id1">
+<h3>Changes<a class="headerlink" href="#id1" title="Link to this heading">¶</a></h3>
+<p><strong>File:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/base.html</span></code></p>
+<p><strong>Modified Line 1025:</strong></p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="cm">&lt;!-- BEFORE --&gt;</span>
+<span class="cm">&lt;!-- Fixed Bottom FAB Toolbar (all pages except admin logs) --&gt;</span>
+{% if not request.path.startswith(&#39;/admin/logs&#39;) %}
+    {% include &#39;components/fab_toolbar.html&#39; %}
+{% endif %}
+
+<span class="cm">&lt;!-- AFTER --&gt;</span>
+<span class="cm">&lt;!-- Fixed Bottom FAB Toolbar (authenticated users only, except admin logs) --&gt;</span>
+{% if user and not request.path.startswith(&#39;/admin/logs&#39;) %}
+    {% include &#39;components/fab_toolbar.html&#39; %}
+{% endif %}
+</pre></div>
+</div>
+<p><strong>File:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/components/fab_toolbar.html</span></code></p>
+<p><strong>Added Logging (Lines 127-130, 140):</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">fabToolbar</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s1">&#39;fab-toolbar&#39;</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">fabToolbar</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;[FAB_TOOLBAR] Navigation hidden: User not authenticated&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">return</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;[FAB_TOOLBAR] Enhanced navigation initialized:&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">page</span><span class="o">:</span><span class="w"> </span><span class="nb">window</span><span class="p">.</span><span class="nx">location</span><span class="p">.</span><span class="nx">pathname</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">buttonsCount</span><span class="o">:</span><span class="w"> </span><span class="nx">fabToolbar</span><span class="p">.</span><span class="nx">querySelectorAll</span><span class="p">(</span><span class="s1">&#39;.icon-btn, .dropdown&#39;</span><span class="p">).</span><span class="nx">length</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">offlineMode</span><span class="o">:</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">documentElement</span><span class="p">.</span><span class="nx">classList</span><span class="p">.</span><span class="nx">contains</span><span class="p">(</span><span class="s1">&#39;offline-mode&#39;</span><span class="p">),</span>
+<span class="w">    </span><span class="nx">style</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;dropdown-enhanced&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">position</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;fixed bottom&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">safeAreaBottom</span><span class="o">:</span><span class="w"> </span><span class="nx">getComputedStyle</span><span class="p">(</span><span class="nx">fabToolbar</span><span class="p">).</span><span class="nx">paddingBottom</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">zIndex</span><span class="o">:</span><span class="w"> </span><span class="nx">getComputedStyle</span><span class="p">(</span><span class="nx">fabToolbar</span><span class="p">).</span><span class="nx">zIndex</span><span class="p">,</span>
+<span class="w">    </span><span class="nx">userAuthenticated</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span><span class="w">  </span><span class="c1">// NEW: Explicit authentication flag</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h3>Visibility Matrix<a class="headerlink" href="#id2" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Page</p></th>
+<th class="head"><p>User State</p></th>
+<th class="head"><p>FAB Toolbar Visible</p></th>
+<th class="head"><p>Console Log</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/login-email</span></code></p></td>
+<td><p>Unauthenticated</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[FAB_TOOLBAR]</span> <span class="pre">Navigation</span> <span class="pre">hidden:</span> <span class="pre">User</span> <span class="pre">not</span> <span class="pre">authenticated</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/register</span></code></p></td>
+<td><p>Unauthenticated</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[FAB_TOOLBAR]</span> <span class="pre">Navigation</span> <span class="pre">hidden:</span> <span class="pre">User</span> <span class="pre">not</span> <span class="pre">authenticated</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/2fa-verify</span></code></p></td>
+<td><p>Unauthenticated</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[FAB_TOOLBAR]</span> <span class="pre">Navigation</span> <span class="pre">hidden:</span> <span class="pre">User</span> <span class="pre">not</span> <span class="pre">authenticated</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/2fa-setup-login</span></code></p></td>
+<td><p>Unauthenticated</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[FAB_TOOLBAR]</span> <span class="pre">Navigation</span> <span class="pre">hidden:</span> <span class="pre">User</span> <span class="pre">not</span> <span class="pre">authenticated</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/pending-activation</span></code></p></td>
+<td><p>Unauthenticated</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[FAB_TOOLBAR]</span> <span class="pre">Navigation</span> <span class="pre">hidden:</span> <span class="pre">User</span> <span class="pre">not</span> <span class="pre">authenticated</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/analytics</span></code></p></td>
+<td><p>Unauthenticated</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[FAB_TOOLBAR]</span> <span class="pre">Navigation</span> <span class="pre">hidden:</span> <span class="pre">User</span> <span class="pre">not</span> <span class="pre">authenticated</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/</span></code> (index)</p></td>
+<td><p>Authenticated</p></td>
+<td><p>✅ Visible</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[FAB_TOOLBAR]</span> <span class="pre">Enhanced</span> <span class="pre">navigation</span> <span class="pre">initialized:</span> <span class="pre">{...,</span> <span class="pre">userAuthenticated:</span> <span class="pre">true}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/facts</span></code></p></td>
+<td><p>Authenticated</p></td>
+<td><p>✅ Visible</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[FAB_TOOLBAR]</span> <span class="pre">Enhanced</span> <span class="pre">navigation</span> <span class="pre">initialized:</span> <span class="pre">{...,</span> <span class="pre">userAuthenticated:</span> <span class="pre">true}</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/plan</span></code></p></td>
+<td><p>Authenticated</p></td>
+<td><p>✅ Visible</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[FAB_TOOLBAR]</span> <span class="pre">Enhanced</span> <span class="pre">navigation</span> <span class="pre">initialized:</span> <span class="pre">{...,</span> <span class="pre">userAuthenticated:</span> <span class="pre">true}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/lists</span></code></p></td>
+<td><p>Authenticated</p></td>
+<td><p>✅ Visible</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">[FAB_TOOLBAR]</span> <span class="pre">Enhanced</span> <span class="pre">navigation</span> <span class="pre">initialized:</span> <span class="pre">{...,</span> <span class="pre">userAuthenticated:</span> <span class="pre">true}</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">/admin/logs</span></code></p></td>
+<td><p>Authenticated</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p>(No log - component not included)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="backend-integration">
+<h3>Backend Integration<a class="headerlink" href="#backend-integration" title="Link to this heading">¶</a></h3>
+<p><strong>Authentication Check:</strong></p>
+<p>The <code class="docutils literal notranslate"><span class="pre">user</span></code> variable in templates is populated by <code class="docutils literal notranslate"><span class="pre">CurrentUserOptional</span></code> dependency in web routers:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># backend/app/api/web/router.py</span>
+
+<span class="nd">@web_router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/login-email&quot;</span><span class="p">,</span> <span class="n">response_class</span><span class="o">=</span><span class="n">HTMLResponse</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">login_email_page</span><span class="p">(</span>
+    <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+    <span class="n">current_user</span><span class="p">:</span> <span class="n">CurrentUserOptional</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># Returns None if not authenticated</span>
+<span class="p">):</span>
+    <span class="k">return</span> <span class="n">templates</span><span class="o">.</span><span class="n">TemplateResponse</span><span class="p">(</span>
+        <span class="s2">&quot;login_email.html&quot;</span><span class="p">,</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;request&quot;</span><span class="p">:</span> <span class="n">request</span><span class="p">,</span>
+            <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="n">current_user</span><span class="p">,</span>  <span class="c1"># None for unauthenticated users</span>
+            <span class="s2">&quot;page_title&quot;</span><span class="p">:</span> <span class="s2">&quot;Вход по Email&quot;</span>
+        <span class="p">}</span>
+    <span class="p">)</span>
+
+<span class="nd">@web_router</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">response_class</span><span class="o">=</span><span class="n">HTMLResponse</span><span class="p">)</span>
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">index</span><span class="p">(</span>
+    <span class="n">request</span><span class="p">:</span> <span class="n">Request</span><span class="p">,</span>
+    <span class="n">current_user</span><span class="p">:</span> <span class="n">CurrentUserOptional</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="p">):</span>
+    <span class="c1"># Redirect unauthenticated users to login page</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">current_user</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">RedirectResponse</span><span class="p">(</span><span class="n">url</span><span class="o">=</span><span class="s2">&quot;/login-email&quot;</span><span class="p">,</span> <span class="n">status_code</span><span class="o">=</span><span class="mi">303</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">templates</span><span class="o">.</span><span class="n">TemplateResponse</span><span class="p">(</span>
+        <span class="s2">&quot;index.html&quot;</span><span class="p">,</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;request&quot;</span><span class="p">:</span> <span class="n">request</span><span class="p">,</span>
+            <span class="s2">&quot;user&quot;</span><span class="p">:</span> <span class="n">current_user</span><span class="p">,</span>  <span class="c1"># User object for authenticated users</span>
+            <span class="s2">&quot;page_title&quot;</span><span class="p">:</span> <span class="s2">&quot;Family Budget&quot;</span>
+        <span class="p">}</span>
+    <span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h3>Testing<a class="headerlink" href="#id3" title="Link to this heading">¶</a></h3>
+<p><strong>Console Logging Examples:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// Public page (/login-email) - Unauthenticated</span>
+<span class="p">[</span><span class="nx">FAB_TOOLBAR</span><span class="p">]</span><span class="w"> </span><span class="nx">Navigation</span><span class="w"> </span><span class="nx">hidden</span><span class="o">:</span><span class="w"> </span><span class="nx">User</span><span class="w"> </span><span class="nx">not</span><span class="w"> </span><span class="nx">authenticated</span>
+
+<span class="c1">// Authenticated page (/) - Authenticated</span>
+<span class="p">[</span><span class="nx">FAB_TOOLBAR</span><span class="p">]</span><span class="w"> </span><span class="nx">Enhanced</span><span class="w"> </span><span class="nx">navigation</span><span class="w"> </span><span class="nx">initialized</span><span class="o">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="nx">page</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;/&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">buttonsCount</span><span class="o">:</span><span class="w"> </span><span class="mf">5</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">offlineMode</span><span class="o">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">style</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;dropdown-enhanced&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">position</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;fixed bottom&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">safeAreaBottom</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;env(safe-area-inset-bottom)&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">zIndex</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;1000&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">userAuthenticated</span><span class="o">:</span><span class="w"> </span><span class="kc">true</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id4">
+<h3>Rationale<a class="headerlink" href="#id4" title="Link to this heading">¶</a></h3>
+<p><strong>Why hide for unauthenticated users?</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Security:</strong> Authenticated-only actions (add transaction, view lists) should not be accessible to guests</p></li>
+<li><p><strong>UX Clarity:</strong> Public pages (login/register) should focus on authentication flow without distractions</p></li>
+<li><p><strong>Mobile/PWA:</strong> Clean interface on mobile devices for login screens</p></li>
+<li><p><strong>Consistency:</strong> Aligns with authentication-first philosophy - navigation only for logged-in users</p></li>
+</ol>
+<p><strong>User Impact:</strong></p>
+<ul class="simple">
+<li><p>✅ Unauthenticated users: Clean login/register screens without bottom navigation clutter</p></li>
+<li><p>✅ Authenticated users: Full navigation available on all protected pages</p></li>
+<li><p>✅ Mobile/PWA users: Focused authentication experience</p></li>
+<li><p>✅ Tablet users: Consistent behavior across all device sizes</p></li>
+</ul>
+</section>
+<section id="device-compatibility">
+<h3>Device Compatibility<a class="headerlink" href="#device-compatibility" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Device</p></th>
+<th class="head"><p>Screen Size</p></th>
+<th class="head"><p>Unauthenticated</p></th>
+<th class="head"><p>Authenticated</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Mobile</p></td>
+<td><p>&lt;768px</p></td>
+<td><p>❌ FAB hidden</p></td>
+<td><p>✅ FAB visible</p></td>
+</tr>
+<tr class="row-odd"><td><p>Tablet</p></td>
+<td><p>768-1023px</p></td>
+<td><p>❌ FAB hidden</p></td>
+<td><p>✅ FAB visible</p></td>
+</tr>
+<tr class="row-even"><td><p>Desktop</p></td>
+<td><p>≥1024px</p></td>
+<td><p>❌ FAB hidden</p></td>
+<td><p>✅ FAB visible</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id5">
+<h3>Related Code<a class="headerlink" href="#id5" title="Link to this heading">¶</a></h3>
+<p><strong>FAB Toolbar Component:</strong></p>
+<ul class="simple">
+<li><p>Location: <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/components/fab_toolbar.html</span></code></p></li>
+<li><p>Features: 5 buttons (Главная, Аналитика, Добавить, Данные, Списки)</p></li>
+<li><p>Special behavior: Context-aware center FAB on <code class="docutils literal notranslate"><span class="pre">/lists</span></code> page</p></li>
+</ul>
+<p><strong>Base Template:</strong></p>
+<ul class="simple">
+<li><p>Location: <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/base.html</span></code></p></li>
+<li><p>Line 1025: Authentication gate for FAB inclusion</p></li>
+<li><p>Conditional: <code class="docutils literal notranslate"><span class="pre">{%</span> <span class="pre">if</span> <span class="pre">user</span> <span class="pre">and</span> <span class="pre">not</span> <span class="pre">request.path.startswith('/admin/logs')</span> <span class="pre">%}</span></code></p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="swipe-indicator-arrow-v6-7-0">
+<h2>Swipe Indicator Arrow (v6.7.0+)<a class="headerlink" href="#swipe-indicator-arrow-v6-7-0" title="Link to this heading">¶</a></h2>
+<p><strong>Date:</strong> 2026-01-02
+<strong>Feature:</strong> Visual swipe gesture indicator for shopping lists
+<strong>Solution:</strong> Always-visible pulsing arrow icon on right side of items</p>
+<section id="overview">
+<h3>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h3>
+<p>Mobile-only visual hint for swipe-to-edit gesture in shopping lists. Provides clear affordance that items are swipeable without requiring user discovery.</p>
+</section>
+<section id="visual-design">
+<h3>Visual Design<a class="headerlink" href="#visual-design" title="Link to this heading">¶</a></h3>
+<p><strong>Arrow Icon:</strong></p>
+<ul class="simple">
+<li><p><strong>SVG Chevron:</strong> Simple right-pointing chevron (9 18l6-6-6-6 path)</p></li>
+<li><p><strong>Size:</strong> 1.25rem × 1.25rem (20px × 20px)</p></li>
+<li><p><strong>Color:</strong> Accent color from DaisyUI theme (<code class="docutils literal notranslate"><span class="pre">var(--fallback-p,</span> <span class="pre">oklch(var(--p)))</span></code>)</p></li>
+<li><p><strong>Position:</strong> Absolute right (0.75rem from edge), vertically centered</p></li>
+</ul>
+<p><strong>Animation:</strong></p>
+<ul class="simple">
+<li><p><strong>Name:</strong> <code class="docutils literal notranslate"><span class="pre">swipe-pulse</span></code></p></li>
+<li><p><strong>Duration:</strong> 2s ease-in-out infinite</p></li>
+<li><p><strong>Effect:</strong> Pulsing opacity (0.6 → 1.0) + horizontal shift (0 → -4px)</p></li>
+<li><p><strong>Purpose:</strong> Draw attention without being distracting</p></li>
+</ul>
+</section>
+<section id="css-implementation">
+<h3>CSS Implementation<a class="headerlink" href="#css-implementation" title="Link to this heading">¶</a></h3>
+<p><strong>Location:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/static/css/lists.css</span></code> (lines 558-585)</p>
+<div class="highlight-css notranslate"><div class="highlight"><pre><span></span><span class="c">/* ---- Swipe Indicator Arrow ---- */</span>
+<span class="p">.</span><span class="nc">swipe-indicator</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">position</span><span class="p">:</span><span class="w"> </span><span class="kc">absolute</span><span class="p">;</span>
+<span class="w">    </span><span class="k">right</span><span class="p">:</span><span class="w"> </span><span class="mf">0.75</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">    </span><span class="k">top</span><span class="p">:</span><span class="w"> </span><span class="mi">50</span><span class="kt">%</span><span class="p">;</span>
+<span class="w">    </span><span class="k">transform</span><span class="p">:</span><span class="w"> </span><span class="nb">translateY</span><span class="p">(</span><span class="mi">-50</span><span class="kt">%</span><span class="p">);</span>
+<span class="w">    </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="kc">flex</span><span class="p">;</span>
+<span class="w">    </span><span class="k">align-items</span><span class="p">:</span><span class="w"> </span><span class="kc">center</span><span class="p">;</span>
+<span class="w">    </span><span class="k">justify-content</span><span class="p">:</span><span class="w"> </span><span class="kc">center</span><span class="p">;</span>
+<span class="w">    </span><span class="k">width</span><span class="p">:</span><span class="w"> </span><span class="mf">1.5</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">    </span><span class="k">height</span><span class="p">:</span><span class="w"> </span><span class="mf">1.5</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">    </span><span class="k">z-index</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">;</span>
+<span class="w">    </span><span class="k">pointer-events</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
+<span class="w">    </span><span class="k">opacity</span><span class="p">:</span><span class="w"> </span><span class="mf">0.6</span><span class="p">;</span>
+<span class="w">    </span><span class="k">animation</span><span class="p">:</span><span class="w"> </span><span class="n">swipe-pulse</span><span class="w"> </span><span class="mi">2</span><span class="kt">s</span><span class="w"> </span><span class="kc">ease-in-out</span><span class="w"> </span><span class="kc">infinite</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="p">.</span><span class="nc">swipe-arrow</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">width</span><span class="p">:</span><span class="w"> </span><span class="mf">1.25</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">    </span><span class="k">height</span><span class="p">:</span><span class="w"> </span><span class="mf">1.25</span><span class="kt">rem</span><span class="p">;</span>
+<span class="w">    </span><span class="k">color</span><span class="p">:</span><span class="w"> </span><span class="nf">var</span><span class="p">(</span><span class="nv">--fallback-p</span><span class="p">,</span><span class="w"> </span><span class="nf">oklch</span><span class="p">(</span><span class="nf">var</span><span class="p">(</span><span class="nv">--p</span><span class="p">)));</span>
+<span class="p">}</span>
+
+<span class="p">@</span><span class="k">keyframes</span><span class="w"> </span><span class="nt">swipe-pulse</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">0</span><span class="o">%,</span><span class="w"> </span><span class="nt">100</span><span class="o">%</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">opacity</span><span class="p">:</span><span class="w"> </span><span class="mf">0.6</span><span class="p">;</span>
+<span class="w">        </span><span class="k">transform</span><span class="p">:</span><span class="w"> </span><span class="nb">translateY</span><span class="p">(</span><span class="mi">-50</span><span class="kt">%</span><span class="p">)</span><span class="w"> </span><span class="nb">translateX</span><span class="p">(</span><span class="mi">0</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nt">50</span><span class="o">%</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">opacity</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">        </span><span class="k">transform</span><span class="p">:</span><span class="w"> </span><span class="nb">translateY</span><span class="p">(</span><span class="mi">-50</span><span class="kt">%</span><span class="p">)</span><span class="w"> </span><span class="nb">translateX</span><span class="p">(</span><span class="mi">-4</span><span class="kt">px</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">/* Hide on completed items */</span>
+<span class="p">.</span><span class="nc">hierarchy-item</span><span class="p">.</span><span class="nc">completed</span><span class="w"> </span><span class="p">.</span><span class="nc">swipe-indicator</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c">/* Hide on desktop (show inline buttons instead) */</span>
+<span class="p">@</span><span class="k">media</span><span class="w"> </span><span class="o">(</span><span class="nt">min-width</span><span class="o">:</span><span class="w"> </span><span class="nt">1024px</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">.</span><span class="nc">swipe-indicator</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="kc">none</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c">/* Hide when swiped (avoid visual conflict) */</span>
+<span class="p">.</span><span class="nc">hierarchy-item</span><span class="p">.</span><span class="nc">swiped</span><span class="w"> </span><span class="p">.</span><span class="nc">swipe-indicator</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">opacity</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="html-structure">
+<h3>HTML Structure<a class="headerlink" href="#html-structure" title="Link to this heading">¶</a></h3>
+<p><strong>Location:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/static/js/lists/hierarchyView.js</span></code> (renderItems method, lines 576-607)</p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;hierarchy-item&quot;</span> <span class="na">data-item-id</span><span class="o">=</span><span class="s">&quot;42&quot;</span><span class="p">&gt;</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;hierarchy-item-content cursor-pointer&quot;</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;hierarchy-item-name&quot;</span><span class="p">&gt;</span>Milk<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">span</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;hierarchy-item-qty&quot;</span><span class="p">&gt;</span>2 л<span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+
+        <span class="cm">&lt;!-- Swipe indicator arrow --&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;swipe-indicator&quot;</span> <span class="na">aria-hidden</span><span class="o">=</span><span class="s">&quot;true&quot;</span><span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="nt">svg</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;swipe-arrow&quot;</span> <span class="na">xmlns</span><span class="o">=</span><span class="s">&quot;http://www.w3.org/2000/svg&quot;</span>
+                 <span class="na">viewBox</span><span class="o">=</span><span class="s">&quot;0 0 24 24&quot;</span> <span class="na">fill</span><span class="o">=</span><span class="s">&quot;none&quot;</span> <span class="na">stroke</span><span class="o">=</span><span class="s">&quot;currentColor&quot;</span> <span class="na">stroke-width</span><span class="o">=</span><span class="s">&quot;2&quot;</span><span class="p">&gt;</span>
+                <span class="p">&lt;</span><span class="nt">path</span> <span class="na">d</span><span class="o">=</span><span class="s">&quot;M9 18l6-6-6-6&quot;</span><span class="p">/&gt;</span>
+            <span class="p">&lt;/</span><span class="nt">svg</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+
+        <span class="cm">&lt;!-- Desktop inline actions --&gt;</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;hierarchy-item-actions&quot;</span><span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="nt">button</span><span class="p">&gt;</span>✏️<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="nt">button</span><span class="p">&gt;</span>🗑️<span class="p">&lt;/</span><span class="nt">button</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+</section>
+<section id="id6">
+<h3>Visibility Matrix<a class="headerlink" href="#id6" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Screen Width</p></th>
+<th class="head"><p>Device</p></th>
+<th class="head"><p>Arrow Visible</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0-1023px</p></td>
+<td><p>Mobile/Tablet</p></td>
+<td><p>✅ Visible</p></td>
+<td><p>Pulsing animation active</p></td>
+</tr>
+<tr class="row-odd"><td><p>1024px+</p></td>
+<td><p>Desktop</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p>Desktop uses inline buttons</p></td>
+</tr>
+<tr class="row-even"><td><p>Any</p></td>
+<td><p>Completed items</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p>No swipe action available</p></td>
+</tr>
+<tr class="row-odd"><td><p>Any</p></td>
+<td><p>During swipe</p></td>
+<td><p>❌ Hidden</p></td>
+<td><p>Avoid visual conflict</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="accessibility">
+<h3>Accessibility<a class="headerlink" href="#accessibility" title="Link to this heading">¶</a></h3>
+<p><strong>ARIA Attributes:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">aria-hidden=&quot;true&quot;</span></code> - Decorative element, not announced by screen readers</p></li>
+<li><p><strong>Rationale:</strong> Visual affordance only; swipe gesture itself is touch-based</p></li>
+</ul>
+<p><strong>Touch Target:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">pointer-events:</span> <span class="pre">none</span></code> - Arrow doesn’t interfere with item tap/swipe</p></li>
+<li><p><strong>Touch area:</strong> Entire <code class="docutils literal notranslate"><span class="pre">.hierarchy-item-content</span></code> remains clickable</p></li>
+</ul>
+</section>
+<section id="performance">
+<h3>Performance<a class="headerlink" href="#performance" title="Link to this heading">¶</a></h3>
+<p><strong>Animation Optimization:</strong></p>
+<ul class="simple">
+<li><p><strong>GPU-accelerated:</strong> Uses <code class="docutils literal notranslate"><span class="pre">transform</span></code> and <code class="docutils literal notranslate"><span class="pre">opacity</span></code> (not <code class="docutils literal notranslate"><span class="pre">left</span></code> or <code class="docutils literal notranslate"><span class="pre">margin</span></code>)</p></li>
+<li><p><strong>Composite layer:</strong> Browser promotes to separate layer for 60fps animation</p></li>
+<li><p><strong>Battery impact:</strong> Minimal (2s duration, subtle movement)</p></li>
+</ul>
+<p><strong>CSS Efficiency:</strong></p>
+<ul class="simple">
+<li><p>Media query (<code class="docutils literal notranslate"><span class="pre">&#64;media</span> <span class="pre">(min-width:</span> <span class="pre">1024px)</span></code>) prevents animation on desktop</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">display:</span> <span class="pre">none</span></code> on completed items avoids unnecessary animations</p></li>
+</ul>
+</section>
+<section id="user-experience">
+<h3>User Experience<a class="headerlink" href="#user-experience" title="Link to this heading">¶</a></h3>
+<p><strong>Affordance Benefits:</strong></p>
+<ul class="simple">
+<li><p>✅ <strong>Discovery:</strong> Users immediately understand items are swipeable</p></li>
+<li><p>✅ <strong>Direction:</strong> Arrow points right → suggests left-to-right swipe</p></li>
+<li><p>✅ <strong>Confirmation:</strong> Pulsing draws attention without being intrusive</p></li>
+</ul>
+<p><strong>Testing Feedback:</strong></p>
+<ul class="simple">
+<li><p>Mobile users: “Arrow makes it obvious I can swipe” (positive)</p></li>
+<li><p>Desktop users: “Clean, no clutter” (arrow hidden, no impact)</p></li>
+<li><p>Accessibility: Screen readers ignore decorative arrow (no confusion)</p></li>
+</ul>
+</section>
+<section id="design-rationale">
+<h3>Design Rationale<a class="headerlink" href="#design-rationale" title="Link to this heading">¶</a></h3>
+<p><strong>Why always visible (not hidden until swipe)?</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Discoverability:</strong> New users need visual hint to discover swipe functionality</p></li>
+<li><p><strong>Consistency:</strong> Same affordance on all items (predictable behavior)</p></li>
+<li><p><strong>Low friction:</strong> No need to “hunt” for swipeable items</p></li>
+</ol>
+<p><strong>Why pulsing animation?</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Attention:</strong> Subtle movement draws eye without being distracting</p></li>
+<li><p><strong>Directionality:</strong> Left shift suggests swipe direction</p></li>
+<li><p><strong>Feedback:</strong> Animation confirms element is interactive</p></li>
+</ol>
+<p><strong>Why hide on desktop?</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Desktop has inline buttons:</strong> Edit/Delete buttons always visible (no swipe needed)</p></li>
+<li><p><strong>Space efficiency:</strong> Desktop has more horizontal space for buttons</p></li>
+<li><p><strong>Consistency:</strong> Mobile = swipe, Desktop = click (platform conventions)</p></li>
+</ol>
+</section>
+<section id="related-features">
+<h3>Related Features<a class="headerlink" href="#related-features" title="Link to this heading">¶</a></h3>
+<p><strong>Swipe Gesture Handler:</strong></p>
+<ul class="simple">
+<li><p>File: <code class="docutils literal notranslate"><span class="pre">frontend/web/static/js/lists/hierarchyView.js</span></code></p></li>
+<li><p>Class: <code class="docutils literal notranslate"><span class="pre">SwipeHandler</span></code></p></li>
+<li><p>Threshold: 50% of item width</p></li>
+<li><p>See: <code class="docutils literal notranslate"><span class="pre">/docs/architecture/pwa.md</span></code> → “Mobile Swipe Gestures for Lists (v6.7.0+)”</p></li>
+</ul>
+<p><strong>Delete Button in Modal:</strong></p>
+<ul class="simple">
+<li><p>Location: <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/lists.html</span></code> (lines 395-414)</p></li>
+<li><p>Visibility: Edit mode only (hidden for new items)</p></li>
+<li><p>Style: DaisyUI <code class="docutils literal notranslate"><span class="pre">btn-error</span></code> (red)</p></li>
+</ul>
+</section>
+<section id="testing-checklist">
+<h3>Testing Checklist<a class="headerlink" href="#testing-checklist" title="Link to this heading">¶</a></h3>
+<p><strong>Visual:</strong></p>
+<ul class="simple">
+<li><p>[ ] Arrow visible on mobile (&lt;1024px)</p></li>
+<li><p>[ ] Arrow hidden on desktop (≥1024px)</p></li>
+<li><p>[ ] Arrow hidden on completed items</p></li>
+<li><p>[ ] Arrow hidden during swipe</p></li>
+<li><p>[ ] Pulsing animation smooth (60fps)</p></li>
+</ul>
+<p><strong>Functional:</strong></p>
+<ul class="simple">
+<li><p>[ ] Arrow doesn’t block item tap/swipe</p></li>
+<li><p>[ ] Screen readers ignore arrow (aria-hidden)</p></li>
+<li><p>[ ] Animation stops when arrow hidden (battery efficiency)</p></li>
+</ul>
+<p><strong>Cross-browser:</strong></p>
+<ul class="simple">
+<li><p>[ ] iOS Safari 14+ (primary target)</p></li>
+<li><p>[ ] Chrome Mobile (Android)</p></li>
+<li><p>[ ] Yandex Browser (Android/iOS)</p></li>
+<li><p>[ ] Desktop browsers (arrow hidden, no impact)</p></li>
+</ul>
+</section>
+<section id="version-history">
+<h3>Version History<a class="headerlink" href="#version-history" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Version</p></th>
+<th class="head"><p>Date</p></th>
+<th class="head"><p>Changes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>6.7.0</p></td>
+<td><p>2026-01-02</p></td>
+<td><p>Initial implementation with pulsing animation</p></td>
+</tr>
+<tr class="row-odd"><td><p>6.8.0</p></td>
+<td><p>2026-01-02</p></td>
+<td><p>Mobile navbar pending sync badge design</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="mobile-navbar-badge-design-v6-8-0">
+<h2>Mobile Navbar Badge Design (v6.8.0+)<a class="headerlink" href="#mobile-navbar-badge-design-v6-8-0" title="Link to this heading">¶</a></h2>
+<p>Pending sync badge scales responsively:</p>
+<p><strong>Desktop</strong> (sm:):</p>
+<ul class="simple">
+<li><p>Badge size: <code class="docutils literal notranslate"><span class="pre">badge-sm</span></code> (1.5rem, 14px font)</p></li>
+<li><p>Icon size: <code class="docutils literal notranslate"><span class="pre">h-6</span> <span class="pre">w-6</span></code> (24px)</p></li>
+<li><p>Button size: <code class="docutils literal notranslate"><span class="pre">btn-md</span></code></p></li>
+</ul>
+<p><strong>Mobile</strong> (&lt;640px):</p>
+<ul class="simple">
+<li><p>Badge size: <code class="docutils literal notranslate"><span class="pre">badge-xs</span></code> (1.25rem, 12px font)</p></li>
+<li><p>Icon size: <code class="docutils literal notranslate"><span class="pre">h-5</span> <span class="pre">w-5</span></code> (20px)</p></li>
+<li><p>Button size: <code class="docutils literal notranslate"><span class="pre">btn-sm</span></code></p></li>
+</ul>
+<p><strong>Accessibility</strong>:</p>
+<ul class="simple">
+<li><p>ARIA label: “Ожидают синхронизации”</p></li>
+<li><p>Tooltip on hover: “Ожидают синхронизации (N записей)”</p></li>
+<li><p>High contrast badge (warning yellow on dark/light themes)</p></li>
+<li><p>Disabled state (not clickable) with appropriate cursor</p></li>
+</ul>
+<p><strong>Touch targets</strong>: Button meets WCAG 2.5.5 AAA (44x44px minimum)</p>
+<p><strong>DaisyUI Indicator Pattern</strong>:</p>
+<ul class="simple">
+<li><p>Uses <code class="docutils literal notranslate"><span class="pre">indicator</span></code> + <code class="docutils literal notranslate"><span class="pre">indicator-item</span></code> for badge positioning</p></li>
+<li><p>Badge auto-positions at top-right of icon</p></li>
+<li><p>Responsive indicator sizing via Tailwind classes</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="telegram-login-button-responsive-design-v7-x">
+<h2>Telegram Login Button Responsive Design (v7.x+)<a class="headerlink" href="#telegram-login-button-responsive-design-v7-x" title="Link to this heading">¶</a></h2>
+<p><strong>Date:</strong> 2026-01-12 (Updated)
+<strong>Issue:</strong> Telegram OAuth кнопка имела огромные пустые области (150px высоты вместо 40px), обрезалась на мобильных и неправильно центрировалась
+<strong>Root Cause:</strong> CSS <code class="docutils literal notranslate"><span class="pre">width:</span> <span class="pre">auto</span> <span class="pre">!important</span></code> вычислялся браузером как размер parent container (300×150px), а не как intrinsic размер iframe содержимого
+<strong>Solution:</strong> JavaScript читает реальные размеры из HTML-атрибутов iframe и принудительно устанавливает их с <code class="docutils literal notranslate"><span class="pre">!important</span></code></p>
+<section id="id7">
+<h3>Архитектурное решение<a class="headerlink" href="#id7" title="Link to this heading">¶</a></h3>
+<p><strong>Проблема CSS auto:</strong></p>
+<ul class="simple">
+<li><p>CSS <code class="docutils literal notranslate"><span class="pre">width:</span> <span class="pre">auto</span></code> для iframe не работает как ожидалось</p></li>
+<li><p>Браузер вычисляет auto как размер родительского flex-контейнера, а не размер содержимого iframe</p></li>
+<li><p>Результат: 300×150px вместо реальных 238×40px</p></li>
+</ul>
+<p><strong>Решение через HTML-атрибуты:</strong></p>
+<ul class="simple">
+<li><p>Telegram виджет устанавливает HTML-атрибуты <code class="docutils literal notranslate"><span class="pre">width=&quot;238&quot;</span></code> и <code class="docutils literal notranslate"><span class="pre">height=&quot;40&quot;</span></code> на iframe</p></li>
+<li><p>JavaScript читает эти атрибуты после загрузки виджета</p></li>
+<li><p>Принудительно применяет размеры через <code class="docutils literal notranslate"><span class="pre">iframe.style.setProperty(width,</span> <span class="pre">value,</span> <span class="pre">'important')</span></code></p></li>
+</ul>
+</section>
+<section id="id8">
+<h3>Реализация<a class="headerlink" href="#id8" title="Link to this heading">¶</a></h3>
+<p><strong>CSS (минимальный, только контейнер):</strong></p>
+<div class="highlight-css notranslate"><div class="highlight"><pre><span></span><span class="p">.</span><span class="nc">telegram-widget-container</span><span class="w"> </span><span class="nt">iframe</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c">/* НЕ используем width/height - JS управляет размерами */</span>
+<span class="w">    </span><span class="k">max-width</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="kt">%</span><span class="w"> </span><span class="cp">!important</span><span class="p">;</span><span class="w">       </span><span class="c">/* Не выходить за контейнер на маленьких экранах */</span>
+<span class="w">    </span><span class="k">display</span><span class="p">:</span><span class="w"> </span><span class="kc">block</span><span class="p">;</span>
+<span class="w">    </span><span class="k">margin</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="cp">!important</span><span class="p">;</span><span class="w">             </span><span class="c">/* Flex родитель центрирует через justify-center */</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>JavaScript (в transitionTo(‘success’)):</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">var</span><span class="w"> </span><span class="nx">iframe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">container</span><span class="p">.</span><span class="nx">querySelector</span><span class="p">(</span><span class="s1">&#39;iframe&#39;</span><span class="p">);</span>
+<span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">iframe</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// Читаем реальные размеры из HTML-атрибутов Telegram</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">naturalWidth</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">iframe</span><span class="p">.</span><span class="nx">getAttribute</span><span class="p">(</span><span class="s1">&#39;width&#39;</span><span class="p">);</span><span class="w">   </span><span class="c1">// &quot;238&quot; для &quot;Войти как Илья&quot;</span>
+<span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="nx">naturalHeight</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">iframe</span><span class="p">.</span><span class="nx">getAttribute</span><span class="p">(</span><span class="s1">&#39;height&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">// &quot;40&quot;</span>
+
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">naturalWidth</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nx">naturalHeight</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// Принудительно устанавливаем с !important</span>
+<span class="w">        </span><span class="nx">iframe</span><span class="p">.</span><span class="nx">style</span><span class="p">.</span><span class="nx">setProperty</span><span class="p">(</span><span class="s1">&#39;width&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">naturalWidth</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s1">&#39;px&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;important&#39;</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">iframe</span><span class="p">.</span><span class="nx">style</span><span class="p">.</span><span class="nx">setProperty</span><span class="p">(</span><span class="s1">&#39;height&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">naturalHeight</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="s1">&#39;px&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;important&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>Контейнер (убраны min-h и items-center):</strong></p>
+<div class="highlight-html notranslate"><div class="highlight"><pre><span></span><span class="p">&lt;</span><span class="nt">div</span> <span class="na">class</span><span class="o">=</span><span class="s">&quot;telegram-widget-container relative flex justify-center overflow-visible&quot;</span>
+     <span class="na">id</span><span class="o">=</span><span class="s">&quot;telegram-widget-container&quot;</span>
+     <span class="na">style</span><span class="o">=</span><span class="s">&quot;min-width: min(100%, 220px);&quot;</span><span class="p">&gt;</span>
+</pre></div>
+</div>
+</section>
+<section id="id9">
+<h3>Размеры кнопки (динамические)<a class="headerlink" href="#id9" title="Link to this heading">¶</a></h3>
+<p>Telegram устанавливает размеры в зависимости от режима и языка:</p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Режим</p></th>
+<th class="head"><p>Текст</p></th>
+<th class="head"><p>Ширина</p></th>
+<th class="head"><p>Высота</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Не залогинен</p></td>
+<td><p>“Войти через Telegram”</p></td>
+<td><p>~233px</p></td>
+<td><p>40px</p></td>
+</tr>
+<tr class="row-odd"><td><p>Залогинен (RU)</p></td>
+<td><p>“Войти как Илья”</p></td>
+<td><p>~238px</p></td>
+<td><p>40px</p></td>
+</tr>
+<tr class="row-even"><td><p>Залогинен (EN)</p></td>
+<td><p>“Log in as John”</p></td>
+<td><p>~186px</p></td>
+<td><p>34px</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Важно:</strong> Размеры <strong>не фиксированы в CSS</strong>, а читаются из HTML-атрибутов iframe для каждого конкретного случая.</p>
+</section>
+<section id="id10">
+<h3>Почему предыдущие подходы не сработали<a class="headerlink" href="#id10" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>CSS width: 186px !important</strong> ❌</p>
+<ul class="simple">
+<li><p>Обрезал русский текст “Войти как Илья” (238px &gt; 186px)</p></li>
+</ul>
+</li>
+<li><p><strong>CSS width: auto !important</strong> ❌</p>
+<ul class="simple">
+<li><p>Браузер вычислял auto как размер parent container (300px)</p></li>
+<li><p>Создавал огромные пустые области вокруг кнопки</p></li>
+</ul>
+</li>
+<li><p><strong>removeProperty(‘width’)</strong> ❌</p>
+<ul class="simple">
+<li><p>После удаления inline стилей браузер снова применял auto из CSS</p></li>
+<li><p>Возвращал проблему с 300×150px</p></li>
+</ul>
+</li>
+<li><p><strong>HTML-атрибуты с setProperty(…, ‘important’)</strong> ✅</p>
+<ul class="simple">
+<li><p>Читает точные размеры от Telegram</p></li>
+<li><p>Перебивает любые CSS правила</p></li>
+<li><p>Адаптируется под разные режимы (залогинен/не залогинен)</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<section id="diagnostic-logging">
+<h3>Diagnostic Logging<a class="headerlink" href="#diagnostic-logging" title="Link to this heading">¶</a></h3>
+<p><strong>При DEBUG=true в консоли:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="nx">TelegramWidget</span><span class="p">]</span><span class="w"> </span><span class="nb">Set</span><span class="w"> </span><span class="nx">iframe</span><span class="w"> </span><span class="nx">to</span><span class="w"> </span><span class="nx">natural</span><span class="w"> </span><span class="nx">size</span><span class="o">:</span><span class="w"> </span><span class="mf">238</span><span class="nx">x40</span>
+</pre></div>
+</div>
+<p><strong>Для диагностики проблем:</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">const</span><span class="w"> </span><span class="nx">iframe</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">document</span><span class="p">.</span><span class="nx">querySelector</span><span class="p">(</span><span class="s1">&#39;#telegram-widget-container iframe&#39;</span><span class="p">);</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">({</span>
+<span class="w">    </span><span class="nx">htmlWidth</span><span class="o">:</span><span class="w"> </span><span class="nx">iframe</span><span class="p">.</span><span class="nx">getAttribute</span><span class="p">(</span><span class="s1">&#39;width&#39;</span><span class="p">),</span><span class="w">        </span><span class="c1">// &quot;238&quot;</span>
+<span class="w">    </span><span class="nx">htmlHeight</span><span class="o">:</span><span class="w"> </span><span class="nx">iframe</span><span class="p">.</span><span class="nx">getAttribute</span><span class="p">(</span><span class="s1">&#39;height&#39;</span><span class="p">),</span><span class="w">      </span><span class="c1">// &quot;40&quot;</span>
+<span class="w">    </span><span class="nx">computedWidth</span><span class="o">:</span><span class="w"> </span><span class="nx">getComputedStyle</span><span class="p">(</span><span class="nx">iframe</span><span class="p">).</span><span class="nx">width</span><span class="p">,</span><span class="w">  </span><span class="c1">// &quot;238px&quot;</span>
+<span class="w">    </span><span class="nx">computedHeight</span><span class="o">:</span><span class="w"> </span><span class="nx">getComputedStyle</span><span class="p">(</span><span class="nx">iframe</span><span class="p">).</span><span class="nx">height</span><span class="w"> </span><span class="c1">// &quot;40px&quot;</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</section>
+<section id="id11">
+<h3>Тестирование<a class="headerlink" href="#id11" title="Link to this heading">¶</a></h3>
+<p><strong>Результаты тестирования (2026-01-12):</strong></p>
+<ul class="simple">
+<li><p>✅ iPhone Safari - Кнопка центрирована, нет обрезки</p></li>
+<li><p>✅ iPhone PWA - Кнопка центрирована, нет обрезки</p></li>
+<li><p>✅ Yandex Browser (Desktop) - Кнопка центрирована, нет обрезки</p></li>
+<li><p>✅ Кнопка “Войти как Илья” видна полностью (238px)</p></li>
+<li><p>✅ Нет пустых областей (высота ~40px вместо 150px)</p></li>
+<li><p>✅ Центрирование работает через flex justify-center</p></li>
+</ul>
+</section>
+<section id="id12">
+<h3>Связанные файлы<a class="headerlink" href="#id12" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Template:</strong> <code class="docutils literal notranslate"><span class="pre">/frontend/web/templates/telegram_login.html</span></code> (строки 10-16 CSS, строки 300-316 JS)</p></li>
+<li><p><strong>Base template:</strong> <code class="docutils literal notranslate"><span class="pre">/frontend/web/templates/base.html</span></code> (viewport meta)</p></li>
+<li><p><strong>Documentation:</strong> <code class="docutils literal notranslate"><span class="pre">/docs/architecture/authentication.md</span></code> (Telegram OAuth)</p></li>
+</ul>
+</section>
+<section id="git-history">
+<h3>Git History<a class="headerlink" href="#git-history" title="Link to this heading">¶</a></h3>
+<p><strong>Коммиты (в хронологическом порядке):</strong></p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">da59b3ff</span></code> - Попытка использовать <code class="docutils literal notranslate"><span class="pre">width:</span> <span class="pre">auto</span></code> (не сработало)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">31d96e40</span></code> - Исправление центрирования (убран margin: auto)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">ec27d3fe</span></code> - Попытка удалить inline стили (не сработало)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">8a754839</span></code> - <strong>Финальное решение:</strong> использование HTML-атрибутов с setProperty ✅</p></li>
+</ol>
+</section>
+<section id="lessons-learned">
+<h3>Lessons Learned<a class="headerlink" href="#lessons-learned" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p><strong>CSS auto для iframe не надёжен</strong> - браузер вычисляет auto как размер контейнера, а не содержимого</p></li>
+<li><p><strong>HTML-атрибуты iframe содержат точные размеры</strong> от внешнего сервиса (Telegram)</p></li>
+<li><p><strong>setProperty(…, ‘important’) перебивает любые CSS</strong> - единственный способ гарантированно установить размер</p></li>
+<li><p><strong>Diagnostic logging критически важен</strong> для отладки cross-origin iframe</p></li>
+<li><p><strong>Тестировать нужно в реальных условиях</strong> (залогиненным в Telegram), а не только с дефолтной кнопкой</p></li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section id="future-responsive-improvements">
+<h2>Future Responsive Improvements<a class="headerlink" href="#future-responsive-improvements" title="Link to this heading">¶</a></h2>
+<p><strong>Potential Areas for Enhancement:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>Dynamic FAB on Tablet:</strong> Consider showing FAB on tablets (768-1023px) for quick access to actions</p></li>
+<li><p><strong>Tablet-Specific Layouts:</strong> Design 2-column layouts optimized for tablet portrait mode</p></li>
+<li><p><strong>Breakpoint Refinement:</strong> Evaluate <code class="docutils literal notranslate"><span class="pre">xl</span></code> (1280px) breakpoint for ultra-wide desktop features</p></li>
+<li><p><strong>Touch Optimization:</strong> Larger touch targets on tablet for better UX</p></li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="references">
+<h2>References<a class="headerlink" href="#references" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://tailwindcss.com/docs/responsive-design">Tailwind CSS Breakpoints</a></p></li>
+<li><p><a class="reference external" href="https://daisyui.com/docs/utilities/">DaisyUI Responsive Utilities</a></p></li>
+<li><p>Project file: <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/index.html</span></code></p></li>
+<li><p>Build system: <code class="docutils literal notranslate"><span class="pre">/docs/architecture/build-system.md</span></code></p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="shopping-lists-fab-visibility-v11-4-9">
+<h2>Shopping Lists FAB Visibility (v11.4.9+)<a class="headerlink" href="#shopping-lists-fab-visibility-v11-4-9" title="Link to this heading">¶</a></h2>
+<p><strong>Date:</strong> 2026-02-08 (enabled mobile FAB)
+<strong>Issue:</strong> FAB buttons hidden on mobile via CSS &#64;media (max-width: 1023px) + JS isDesktop() checks
+<strong>Solution:</strong> Removed mobile-hiding logic, FAB now visible on ALL devices</p>
+<section id="behavior-changes">
+<h3>Behavior Changes<a class="headerlink" href="#behavior-changes" title="Link to this heading">¶</a></h3>
+<p><strong>BEFORE v11.4.9 (Desktop Only):</strong></p>
+<ul class="simple">
+<li><p>❌ Mobile: FAB hidden via CSS media query</p></li>
+<li><p>❌ Mobile: JavaScript <code class="docutils literal notranslate"><span class="pre">isDesktop()</span></code> checks prevented FAB from showing</p></li>
+<li><p>✅ Desktop (≥1024px): FAB visible</p></li>
+</ul>
+<p><strong>AFTER v11.4.9 (ALL Devices):</strong></p>
+<ul class="simple">
+<li><p>✅ Mobile (&lt;768px): FAB visible, positioned above mobile menu (btm-nav)</p></li>
+<li><p>✅ Desktop (≥1024px): FAB visible, same position as before</p></li>
+<li><p>✅ Mobile menu (btm-nav) provides ADDITIONAL option, FAB remains PRIMARY</p></li>
+</ul>
+</section>
+<section id="mobile-fab-positioning">
+<h3>Mobile FAB Positioning<a class="headerlink" href="#mobile-fab-positioning" title="Link to this heading">¶</a></h3>
+<p><strong>Challenge:</strong> Mobile menu (btm-nav) height = 4rem (64px) at bottom of screen</p>
+<p><strong>Solution:</strong> Adjust FAB bottom position on mobile (&lt;768px):</p>
+<div class="highlight-css notranslate"><div class="highlight"><pre><span></span><span class="c">/* Mobile menu adjustment (&lt; 768px) */</span>
+<span class="p">@</span><span class="k">media</span><span class="w"> </span><span class="o">(</span><span class="nt">max-width</span><span class="o">:</span><span class="w"> </span><span class="nt">767px</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="c">/* FAB Speed Dial (Detail View) */</span>
+<span class="w">  </span><span class="p">#</span><span class="nn">lists-fab-menu</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">bottom</span><span class="p">:</span><span class="w"> </span><span class="nb">calc</span><span class="p">(</span><span class="mi">4</span><span class="kt">rem</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">)</span><span class="w"> </span><span class="cp">!important</span><span class="p">;</span><span class="w"> </span><span class="c">/* 4rem menu + 1rem spacing */</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="c">/* FAB Create List (Landing View) */</span>
+<span class="w">  </span><span class="p">#</span><span class="nn">create-list-fab</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">bottom</span><span class="p">:</span><span class="w"> </span><span class="nb">calc</span><span class="p">(</span><span class="mi">4</span><span class="kt">rem</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="p">)</span><span class="w"> </span><span class="cp">!important</span><span class="p">;</span>
+<span class="w">  </span><span class="p">}</span>
+
+<span class="w">  </span><span class="c">/* FAB Add Item (Detail View) - above Speed Dial */</span>
+<span class="w">  </span><span class="p">#</span><span class="nn">add-item-fab</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">bottom</span><span class="p">:</span><span class="w"> </span><span class="nb">calc</span><span class="p">(</span><span class="mi">4</span><span class="kt">rem</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">3.5</span><span class="kt">rem</span><span class="p">)</span><span class="w"> </span><span class="cp">!important</span><span class="p">;</span><span class="w"> </span><span class="c">/* +3.5rem above Speed Dial */</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>iOS Safe Area Support:</strong></p>
+<div class="highlight-css notranslate"><div class="highlight"><pre><span></span><span class="p">@</span><span class="k">supports</span><span class="w"> </span><span class="o">(</span><span class="nt">padding-bottom</span><span class="o">:</span><span class="w"> </span><span class="nt">env</span><span class="o">(</span><span class="nt">safe-area-inset-bottom</span><span class="o">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="p">@</span><span class="k">media</span><span class="w"> </span><span class="o">(</span><span class="nt">max-width</span><span class="o">:</span><span class="w"> </span><span class="nt">767px</span><span class="o">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">#</span><span class="nn">create-list-fab</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="k">bottom</span><span class="p">:</span><span class="w"> </span><span class="nb">calc</span><span class="p">(</span><span class="mi">4</span><span class="kt">rem</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="kt">rem</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nf">env</span><span class="p">(</span><span class="n">safe</span><span class="nv">-area-inset-bottom</span><span class="p">))</span><span class="w"> </span><span class="cp">!important</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="fab-visibility-breakpoints">
+<h3>FAB Visibility Breakpoints<a class="headerlink" href="#fab-visibility-breakpoints" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Breakpoint</p></th>
+<th class="head"><p>Mobile Menu (btm-nav)</p></th>
+<th class="head"><p>FAB Buttons</p></th>
+<th class="head"><p>FAB Bottom Position</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>&lt; 768px</p></td>
+<td><p>Visible (md:hidden)</p></td>
+<td><p>Visible</p></td>
+<td><p>calc(4rem + 1rem)</p></td>
+</tr>
+<tr class="row-odd"><td><p>768px - 1023px</p></td>
+<td><p>Hidden (md:hidden becomes visible)</p></td>
+<td><p>Visible</p></td>
+<td><p>1.5rem (default)</p></td>
+</tr>
+<tr class="row-even"><td><p>≥ 1024px</p></td>
+<td><p>Hidden</p></td>
+<td><p>Visible</p></td>
+<td><p>1.5rem (default)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Note:</strong> Mobile menu uses Tailwind <code class="docutils literal notranslate"><span class="pre">md:hidden</span></code> (&lt; 768px), NOT lg breakpoint (1024px)</p>
+</section>
+<section id="javascript-changes">
+<h3>JavaScript Changes<a class="headerlink" href="#javascript-changes" title="Link to this heading">¶</a></h3>
+<p><strong>Removed isDesktop() checks from 6 functions:</strong></p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">showFAB()</span></code> - removed <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(!isDesktopResult)</span> <span class="pre">return;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hideFAB()</span></code> - removed <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(!isDesktopResult)</span> <span class="pre">return;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">showAddItemFAB()</span></code> - removed <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(!isDesktopResult)</span> <span class="pre">return;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hideAddItemFAB()</span></code> - removed <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(!isDesktopResult)</span> <span class="pre">return;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">showCreateListFAB()</span></code> - removed <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(!isDesktopResult)</span> <span class="pre">return;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">hideCreateListFAB()</span></code> - removed <code class="docutils literal notranslate"><span class="pre">if</span> <span class="pre">(!isDesktopResult)</span> <span class="pre">return;</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">updateFABVisibility()</span></code> - removed <code class="docutils literal notranslate"><span class="pre">&amp;&amp;</span> <span class="pre">isDesktopResult</span></code> condition</p></li>
+</ol>
+<p><strong>Deleted unused function:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">isDesktop()</span></code> - no longer needed</p></li>
+</ul>
+</section>
+<section id="id13">
+<h3>User Experience<a class="headerlink" href="#id13" title="Link to this heading">¶</a></h3>
+<p><strong>Mobile (&lt;768px):</strong></p>
+<ul class="simple">
+<li><p>Primary: FAB buttons (bottom-right, above mobile menu)</p></li>
+<li><p>Secondary: Mobile menu “Добавить” button (bottom nav bar)</p></li>
+<li><p>Both options available - user choice</p></li>
+</ul>
+<p><strong>Desktop (≥768px):</strong></p>
+<ul class="simple">
+<li><p>FAB buttons (bottom-right)</p></li>
+<li><p>No mobile menu</p></li>
+</ul>
+</section>
+<section id="breaking-changes">
+<h3>Breaking Changes<a class="headerlink" href="#breaking-changes" title="Link to this heading">¶</a></h3>
+<p><strong>v11.4.9:</strong></p>
+<ul class="simple">
+<li><p>⚠️ FAB buttons now visible on mobile (previously desktop-only)</p></li>
+<li><p>✅ Backward compatible (no API changes)</p></li>
+<li><p>✅ UX improvement (consistent across devices)</p></li>
+</ul>
+</section>
+<section id="related-files">
+<h3>Related Files<a class="headerlink" href="#related-files" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>CSS:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/static/css/lists.css:1557-1650</span></code> (mobile positioning)</p></li>
+<li><p><strong>CSS:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/static/css/custom.css:755-762</span></code> (removed mobile-hiding rule)</p></li>
+<li><p><strong>JS:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/static/js/lists/listsManager/rendering/listRenderer.ts:65-166</span></code> (removed isDesktop checks)</p></li>
+<li><p><strong>Template:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/components/lists/fab_buttons.html</span></code> (updated comments)</p></li>
+<li><p><strong>Mobile Menu:</strong> <code class="docutils literal notranslate"><span class="pre">frontend/web/templates/components/lists/mobile_menu.html</span></code> (unchanged, still available)</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Responsive Design Changes</a><ul>
+<li><a class="reference internal" href="#table-of-contents">Table of Contents</a></li>
+<li><a class="reference internal" href="#breakpoint-strategy">Breakpoint Strategy</a></li>
+<li><a class="reference internal" href="#fab-navigation-architecture-v7-x">FAB Navigation Architecture (v7.x)</a><ul>
+<li><a class="reference internal" href="#architecture-overview">Architecture Overview</a></li>
+<li><a class="reference internal" href="#page-context-visibility-matrix">Page Context Visibility Matrix</a></li>
+<li><a class="reference internal" href="#dynamic-breakpoint-switching-v7-x">Dynamic Breakpoint Switching (v7.x+)</a></li>
+<li><a class="reference internal" href="#fab-menu-expansion-direction-v11-3-0">FAB Menu Expansion Direction (v11.3.0)</a></li>
+<li><a class="reference internal" href="#critical-css-requirements">Critical CSS Requirements</a></li>
+<li><a class="reference internal" href="#fab-positioning-and-spacing-v11-4-9">FAB Positioning and Spacing (v11.4.9+)</a></li>
+<li><a class="reference internal" href="#responsive-breakpoints">Responsive Breakpoints</a></li>
+<li><a class="reference internal" href="#page-context-configuration">Page Context Configuration</a></li>
+<li><a class="reference internal" href="#z-index-hierarchy">Z-Index Hierarchy</a></li>
+<li><a class="reference internal" href="#css-variables-system">CSS Variables System</a></li>
+<li><a class="reference internal" href="#implementation-files">Implementation Files</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#quick-actions-block-tablet-hide-v6-6-0">Quick Actions Block - Tablet Hide (v6.6.0)</a><ul>
+<li><a class="reference internal" href="#changes">Changes</a></li>
+<li><a class="reference internal" href="#visibility-matrix">Visibility Matrix</a></li>
+<li><a class="reference internal" href="#testing">Testing</a></li>
+<li><a class="reference internal" href="#rationale">Rationale</a></li>
+<li><a class="reference internal" href="#related-code">Related Code</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#fixed-bottom-navigation-authentication-gate-v6-6-1">Fixed Bottom Navigation - Authentication Gate (v6.6.1)</a><ul>
+<li><a class="reference internal" href="#id1">Changes</a></li>
+<li><a class="reference internal" href="#id2">Visibility Matrix</a></li>
+<li><a class="reference internal" href="#backend-integration">Backend Integration</a></li>
+<li><a class="reference internal" href="#id3">Testing</a></li>
+<li><a class="reference internal" href="#id4">Rationale</a></li>
+<li><a class="reference internal" href="#device-compatibility">Device Compatibility</a></li>
+<li><a class="reference internal" href="#id5">Related Code</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#swipe-indicator-arrow-v6-7-0">Swipe Indicator Arrow (v6.7.0+)</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#visual-design">Visual Design</a></li>
+<li><a class="reference internal" href="#css-implementation">CSS Implementation</a></li>
+<li><a class="reference internal" href="#html-structure">HTML Structure</a></li>
+<li><a class="reference internal" href="#id6">Visibility Matrix</a></li>
+<li><a class="reference internal" href="#accessibility">Accessibility</a></li>
+<li><a class="reference internal" href="#performance">Performance</a></li>
+<li><a class="reference internal" href="#user-experience">User Experience</a></li>
+<li><a class="reference internal" href="#design-rationale">Design Rationale</a></li>
+<li><a class="reference internal" href="#related-features">Related Features</a></li>
+<li><a class="reference internal" href="#testing-checklist">Testing Checklist</a></li>
+<li><a class="reference internal" href="#version-history">Version History</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#mobile-navbar-badge-design-v6-8-0">Mobile Navbar Badge Design (v6.8.0+)</a></li>
+<li><a class="reference internal" href="#telegram-login-button-responsive-design-v7-x">Telegram Login Button Responsive Design (v7.x+)</a><ul>
+<li><a class="reference internal" href="#id7">Архитектурное решение</a></li>
+<li><a class="reference internal" href="#id8">Реализация</a></li>
+<li><a class="reference internal" href="#id9">Размеры кнопки (динамические)</a></li>
+<li><a class="reference internal" href="#id10">Почему предыдущие подходы не сработали</a></li>
+<li><a class="reference internal" href="#diagnostic-logging">Diagnostic Logging</a></li>
+<li><a class="reference internal" href="#id11">Тестирование</a></li>
+<li><a class="reference internal" href="#id12">Связанные файлы</a></li>
+<li><a class="reference internal" href="#git-history">Git History</a></li>
+<li><a class="reference internal" href="#lessons-learned">Lessons Learned</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#future-responsive-improvements">Future Responsive Improvements</a></li>
+<li><a class="reference internal" href="#references">References</a></li>
+<li><a class="reference internal" href="#shopping-lists-fab-visibility-v11-4-9">Shopping Lists FAB Visibility (v11.4.9+)</a><ul>
+<li><a class="reference internal" href="#behavior-changes">Behavior Changes</a></li>
+<li><a class="reference internal" href="#mobile-fab-positioning">Mobile FAB Positioning</a></li>
+<li><a class="reference internal" href="#fab-visibility-breakpoints">FAB Visibility Breakpoints</a></li>
+<li><a class="reference internal" href="#javascript-changes">JavaScript Changes</a></li>
+<li><a class="reference internal" href="#id13">User Experience</a></li>
+<li><a class="reference internal" href="#breaking-changes">Breaking Changes</a></li>
+<li><a class="reference internal" href="#related-files">Related Files</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

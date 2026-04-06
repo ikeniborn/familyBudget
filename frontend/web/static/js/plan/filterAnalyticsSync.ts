@@ -129,7 +129,6 @@ export function debouncedSyncFiltersToAnalytics(
   // Cancel pending sync
   if (syncDebounceTimer !== null) {
     clearTimeout(syncDebounceTimer);
-    console.log('[FILTER_SYNC] Debounced - canceling pending sync');
   }
 
   // Schedule new sync
@@ -178,7 +177,6 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
 
   // Prevent infinite loops
   if (isSyncInProgress) {
-    console.log('[syncFiltersToAnalytics] Sync already in progress, skipping');
     return;
   }
 
@@ -194,13 +192,6 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
       const currentAnalyticsMonth = PlanAnalytics.getCurrentAnalyticsMonth();
 
       if (monthFromRange && monthFromRange !== currentAnalyticsMonth) {
-        console.log(
-          '[syncFiltersToAnalytics] Month changed:',
-          currentAnalyticsMonth,
-          '→',
-          monthFromRange
-        );
-
         // Update month selection
         PlanAnalytics.setCurrentAnalyticsMonth(monthFromRange);
 
@@ -214,8 +205,7 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
 
         needsReload = true;
       } else if (!monthFromRange && currentAnalyticsMonth) {
-        console.log('[syncFiltersToAnalytics] Partial/multi-month range detected, clearing month selection');
-        // Partial month or multi-month range - clear all button selections
+        // Partial month or multi-month range — clear all button selections
         const buttons = document.querySelectorAll<HTMLButtonElement>('#analytics-month-buttons button');
         buttons.forEach(btn => {
           btn.classList.remove('btn-primary');
@@ -231,15 +221,9 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
     if (filterArticleType && analyticsArticleType) {
       const newValue = filterArticleType.value || '';
       if (analyticsArticleType.value !== newValue) {
-        console.log(
-          '[syncFiltersToAnalytics] Article type changed:',
-          analyticsArticleType.value,
-          '→',
-          newValue
-        );
         analyticsArticleType.value = newValue;
-        // Reload article dropdown for analytics (filtered by type)
-        await PlanAnalytics.loadAnalyticsArticleFilter(newValue || null);
+        const cached = await PlanAnalytics.loadAnalyticsFilterOptions();
+        await PlanAnalytics.loadAnalyticsArticleFilter(newValue || null, cached ? cached.articles : null);
         needsReload = true;
       }
     }
@@ -253,11 +237,8 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
       // Check if option exists in analytics dropdown
       const optionExists = analyticsArticle.querySelector(`option[value="${newValue}"]`);
       if (optionExists && analyticsArticle.value !== newValue) {
-        console.log('[syncFiltersToAnalytics] Article changed:', analyticsArticle.value, '→', newValue);
         analyticsArticle.value = newValue;
         needsReload = true;
-      } else if (!optionExists && newValue) {
-        console.log('[syncFiltersToAnalytics] Article option not found in analytics dropdown, skipping');
       }
     }
 
@@ -268,7 +249,6 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
     if (filterFC && analyticsCFO) {
       const newValue = filterFC.value || '';
       if (analyticsCFO.value !== newValue) {
-        console.log('[syncFiltersToAnalytics] CFO changed:', analyticsCFO.value, '→', newValue);
         analyticsCFO.value = newValue;
         needsReload = true;
       }
@@ -276,7 +256,6 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
 
     // 5. Reload charts if any value changed
     if (needsReload && !skipReload) {
-      console.log('[syncFiltersToAnalytics] Reloading charts...');
       await PlanAnalytics.loadPlanAnalytics();
     }
   } catch (error) {
@@ -303,7 +282,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
 
   // Prevent infinite loops
   if (isSyncInProgress) {
-    console.log('[syncAnalyticsToFilters] Sync already in progress, skipping');
     return;
   }
 
@@ -319,17 +297,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
       const filters = PlanFilters.getFilters();
 
       if (filters.date_from !== from || filters.date_to !== to) {
-        console.log(
-          '[syncAnalyticsToFilters] Date range changed:',
-          filters.date_from,
-          '-',
-          filters.date_to,
-          '→',
-          from,
-          '-',
-          to
-        );
-
         // Update filters object
         PlanFilters.setFilters({ date_from: from, date_to: to });
 
@@ -356,7 +323,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
     if (analyticsArticleType && filterArticleType) {
       const newValue = analyticsArticleType.value || '';
       if (filterArticleType.value !== newValue) {
-        console.log('[syncAnalyticsToFilters] Article type changed:', filterArticleType.value, '→', newValue);
         filterArticleType.value = newValue;
 
         // Update filters object immediately
@@ -366,7 +332,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
         if (filterArticle) {
           filterArticle.value = '';
           PlanFilters.setFilters({ article_id: null });
-          console.log('[syncAnalyticsToFilters] Article filter reset due to type change');
         }
 
         needsReload = true;
@@ -381,12 +346,9 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
       // Check if option exists in filter dropdown
       const optionExists = filterArticle.querySelector(`option[value="${newValue}"]`);
       if (optionExists && filterArticle.value !== newValue) {
-        console.log('[syncAnalyticsToFilters] Article changed:', filterArticle.value, '→', newValue);
         filterArticle.value = newValue;
         PlanFilters.setFilters({ article_id: parseInt(newValue) || null });
         needsReload = true;
-      } else if (!optionExists && newValue) {
-        console.log('[syncAnalyticsToFilters] Article option not found in filter dropdown, skipping');
       }
     }
 
@@ -397,7 +359,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
     if (analyticsCFO && filterFC) {
       const newValue = analyticsCFO.value || '';
       if (filterFC.value !== newValue) {
-        console.log('[syncAnalyticsToFilters] CFO changed:', filterFC.value, '→', newValue);
         filterFC.value = newValue;
         PlanFilters.setFilters({ financial_center_id: parseInt(newValue) || null });
         needsReload = true;
@@ -406,11 +367,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
 
     // 5. Reload facts table if any value changed
     if (needsReload && !skipReload) {
-      console.log('[syncAnalyticsToFilters] Reloading facts table with filters:', {
-        article_type: filterArticleType?.value || null,
-        article_id: filterArticle?.value || null,
-        financial_center_id: filterFC?.value || null
-      });
       PlanFactsTable.setCurrentPage(0);
       await PlanFactsTable.loadFacts();
       PlanFilters.updateFilterIndicator();

@@ -1,5 +1,6 @@
 # Multi-stage build for Family Budget Bot
 # Stage 1: Builder
+# Force rebuild: v11.4.51 - healthcheck fix deployed
 FROM python:3.11-slim-bookworm as builder
 
 ARG PYTHON_VERSION=3.11
@@ -47,16 +48,16 @@ WORKDIR /app
 # Copy bot application (distroless runs as nonroot user UID 65532)
 COPY bot/ /app/bot/
 
-# Copy healthcheck script (Python-based, no pgrep needed in distroless)
-COPY bot/healthcheck.py /app/healthcheck.py
+# Copy healthcheck script with executable permissions (Python-based, no pgrep needed in distroless)
+COPY --chmod=755 bot/healthcheck.py /app/healthcheck.py
 
 # Note: Runtime directories (/app/logs) will be created via volume mounts in docker-compose.yml
 
-# Python-based healthcheck (no shell in distroless)
-# Uses distroless system Python with explicit interpreter invocation
-# Validates bot.main module import (process health + environment integrity)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD ["/usr/bin/python3.11", "/app/healthcheck.py"]
+# Python-based healthcheck (no pgrep in distroless)
+# ENTRYPOINT is inherited from distroless base image (/usr/bin/python3.11)
+# NOTE: Distroless doesn't support shebang, must explicitly call python3
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD ["python3", "/app/healthcheck.py"]
 
 # OCI Image Labels (OpenContainer Initiative metadata standard)
 LABEL org.opencontainers.image.title="Family Budget Bot" \
@@ -73,4 +74,6 @@ LABEL org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${GIT_COMMIT}" \
       org.opencontainers.image.created="${BUILD_DATE}"
 
+# ENTRYPOINT is inherited from distroless base image (/usr/bin/python3.11)
+# CMD provides only the arguments to python
 CMD ["-m", "bot.main"]

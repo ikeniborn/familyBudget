@@ -21,7 +21,7 @@ engine = create_async_engine(
     echo=False,  # Set to True for SQL query logging
     future=True,
     pool_size=5,
-    max_overflow=15,
+    max_overflow=10,
 )
 
 # Create async session factory

@@ -145,8 +145,8 @@ async def create_product_group(
     - Name is required, max 255 characters
     """
     # Debug logging for validation troubleshooting
-    logger.debug(f"create_product_group called by user {current_user.id}")
-    logger.debug(f"product_group_data received: {product_group_data.model_dump()}")
+    logger.debug("create_product_group called by user %s", current_user.id)
+    logger.debug("product_group_data received: %s", product_group_data.model_dump())
 
     # Validate: Parent product group must exist if provided
     if product_group_data.parent_id:
@@ -193,8 +193,8 @@ async def create_product_group(
     )
 
     logger.info(
-        f"Created product group {product_group.id} ({product_group.name}) "
-        f"under parent {product_group.parent_id} by admin {current_user.id}"
+        "Created product group %s (%s) under parent %s by admin %s",
+        product_group.id, product_group.name, product_group.parent_id, current_user.id
     )
 
     return ProductGroupResponse.model_validate(product_group)
@@ -286,8 +286,8 @@ async def update_product_group(
     )
 
     logger.info(
-        f"Updated product group {product_group_id} ({product_group.name}) "
-        f"fields: {changed_fields} by admin {current_user.id}"
+        "Updated product group %s (%s) fields: %s by admin %s",
+        product_group_id, product_group.name, changed_fields, current_user.id
     )
 
     return ProductGroupResponse.model_validate(updated_product_group)
@@ -336,8 +336,8 @@ async def archive_product_group(
     await session.refresh(product_group)
 
     logger.info(
-        f"Archived product group {product_group_id} ({product_group.name}) "
-        f"by admin {current_user.id}"
+        "Archived product group %s (%s) by admin %s",
+        product_group_id, product_group.name, current_user.id
     )
 
     return ProductGroupResponse.model_validate(product_group)
@@ -385,8 +385,8 @@ async def restore_product_group(
     await session.refresh(product_group)
 
     logger.info(
-        f"Restored product group {product_group_id} ({product_group.name}) "
-        f"by admin {current_user.id}"
+        "Restored product group %s (%s) by admin %s",
+        product_group_id, product_group.name, current_user.id
     )
 
     return ProductGroupResponse.model_validate(product_group)

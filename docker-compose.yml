@@ -56,7 +56,7 @@ services:
       - "-c"
       - "effective_cache_size=1GB"
       - "-c"
-      - "maintenance_work_mem=256MB"
+      - "maintenance_work_mem=64MB"
       - "-c"
       - "checkpoint_completion_target=0.9"
       - "-c"
@@ -160,6 +160,7 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
 
       # Admin
       ADMIN_TELEGRAM_ID: ${ADMIN_TELEGRAM_ID:?ADMIN_TELEGRAM_ID is required}
@@ -255,6 +256,7 @@ services:
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:?TELEGRAM_BOT_TOKEN is required}
       TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
       TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
 
       # Backend API
       BACKEND_API_URL: http://backend:8000/api/v1

@@ -283,6 +283,22 @@ JWT_EXPIRE_DAYS=7
 API_INTERNAL_KEY=  # Generate with: openssl rand -hex 32
 ```
 
+### Proxy Configuration
+
+For servers with restricted access to Telegram API, configure `TELEGRAM_PROXY_URL`:
+
+```env
+# HTTP/HTTPS proxy
+TELEGRAM_PROXY_URL=https://[CREDENTIALS]@proxy.example.com:8080
+
+# SOCKS5 proxy (requires python-telegram-bot[socks])
+TELEGRAM_PROXY_URL=socks5://proxy.example.com:1080
+```
+
+If not set, all requests to `api.telegram.org` are made directly.
+
+Supported formats: `http://`, `https://`, `socks5://`. The `tg://` MTProxy format is NOT supported.
+
 **Configuration class:**
 ```python
 # backend/app/core/config.py

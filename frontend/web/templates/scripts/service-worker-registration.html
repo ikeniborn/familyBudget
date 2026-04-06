@@ -98,10 +98,13 @@
             const issues = [];
 
             // Check Cache Storage
+            // Exclude '__sw_update_mode__' signal cache - it is intentionally preserved
+            // for the new Service Worker to detect post-update mode during install
             try {
                 const cacheNames = await caches.keys();
-                if (cacheNames.length > 0) {
-                    issues.push(`Cache Storage not empty: ${cacheNames.length} caches remain`);
+                const filteredCaches = cacheNames.filter(name => name !== '__sw_update_mode__');
+                if (filteredCaches.length > 0) {
+                    issues.push(`Cache Storage not empty: ${filteredCaches.length} caches remain`);
                 }
             } catch (e) {
                 issues.push(`Cache verification failed: ${e.message}`);
@@ -136,7 +139,9 @@
             console.log('[SW_UPDATE] Retrying cleanup...');
 
             // Re-clear caches if needed
-            const cacheNamesRetry = await caches.keys();
+            // Exclude '__sw_update_mode__' signal cache - must survive to signal new SW on install
+            const allCachesRetry = await caches.keys();
+            const cacheNamesRetry = allCachesRetry.filter(name => name !== '__sw_update_mode__');
             if (cacheNamesRetry.length > 0) {
                 await Promise.all(cacheNamesRetry.map(name => caches.delete(name)));
                 console.log('[SW_UPDATE] Re-cleared', cacheNamesRetry.length, 'caches');
@@ -212,7 +217,36 @@
 
             showToast('Обновление приложения...', 'info', 15000);
 
+            // Show "updating" state in Dexie indicator (yellow icon) while update is in progress
+            if (typeof updateDexieIndicator === 'function') {
+                updateDexieIndicator('initializing');
+                console.log('[SW_UPDATE] Dexie indicator set to "initializing" (yellow)');
+            }
+
             try {
+                // Step 0.5/5: Put active SW into passthrough mode
+                console.log('[SW_UPDATE] Step 0.5/5: Entering update mode...');
+                const controller = navigator.serviceWorker.controller;
+                if (controller) {
+                    try {
+                        await new Promise((resolve) => {
+                            const messageChannel = new MessageChannel();
+                            const timeout = setTimeout(() => {
+                                console.warn('[SW_UPDATE] enterUpdateMode timeout');
+                                resolve();
+                            }, 3000);
+                            messageChannel.port1.onmessage = () => {
+                                clearTimeout(timeout);
+                                console.log('[SW_UPDATE] ✅ Step 0.5/5: SW in update mode');
+                                resolve();
+                            };
+                            controller.postMessage({ action: 'enterUpdateMode' }, [messageChannel.port2]);
+                        });
+                    } catch (e) {
+                        console.warn('[SW_UPDATE] ⚠️ Step 0.5/5:', e.message);
+                    }
+                }
+
                 // Step 1/5: Unregister Service Worker
                 console.log('[SW_UPDATE] Step 1/5: Unregister SW...');
                 const registration = await navigator.serviceWorker.getRegistration();
@@ -229,12 +263,38 @@
                 await Promise.all(cacheNames.map(name => caches.delete(name)));
                 console.log('[SW_UPDATE] ✅ Step 2/5: Cleared', cacheNames.length, 'caches');
 
+                // Step 2.3/5: Upload pending shopping data before DB deletion
+                // CRITICAL: Must run BEFORE close() and BEFORE indexedDB.deleteDatabase()
+                // Pending items (sync_status='pending') would be lost forever if DB is deleted first.
+                // NOTE: dexie.min.js is IIFE format — import() returns {}. Use window.Dexie instead.
+                console.log('[SW_UPDATE] Step 2.3/5: Upload pending shopping data...');
+                try {
+                    const dexieMod = window.Dexie;
+                    if (dexieMod && typeof dexieMod.getDexieManager === 'function') {
+                        const dexieManagerForUpload = dexieMod.getDexieManager();
+                        if (dexieManagerForUpload && dexieManagerForUpload.isReady()) {
+                            const result = await dexieManagerForUpload.uploadPendingShoppingData();
+                            console.log(`[SW_UPDATE] ✅ Step 2.3/5: Uploaded ${result.listsUploaded} lists, ${result.itemsUploaded} items (${result.failed} failed)`);
+                        } else {
+                            console.log('[SW_UPDATE] ℹ️ Step 2.3/5: Dexie not initialized, no pending shopping data to upload');
+                        }
+                    } else {
+                        console.log('[SW_UPDATE] ℹ️ Step 2.3/5: window.Dexie not available, skipping upload');
+                    }
+                } catch (e) {
+                    // Non-blocking: update continues even if upload fails
+                    // Items remain on server if they were previously synced; only truly pending local-only items may be lost
+                    console.warn('[SW_UPDATE] ⚠️ Step 2.3/5: Failed to upload pending shopping data (continuing update):', e.message);
+                }
+
                 // Step 2.5/5: Close Dexie connections
+                // NOTE: dexie.min.js is IIFE format — import() returns {}. Use window.Dexie instead.
                 console.log('[SW_UPDATE] Step 2.5/5: Closing Dexie connections...');
                 try {
-                    // Dynamic import to get DexieManager (same pattern as periodic pruning)
-                    const { getDexieManager } = await import('/shared/db/dexie.min.js?v=PLACEHOLDER');
-                    const dexieManager = getDexieManager();
+                    const dexieMod = window.Dexie;
+                    const dexieManager = dexieMod && typeof dexieMod.getDexieManager === 'function'
+                        ? dexieMod.getDexieManager()
+                        : null;
 
                     if (dexieManager && dexieManager.isReady()) {
                         await dexieManager.close();
@@ -264,9 +324,17 @@
                 const lsKeys = Object.keys(localStorage).length;
                 localStorage.clear();
                 if (newVersion) localStorage.setItem(SW_VERSION_KEY, newVersion);
-                // NEW: Skip SW registration on next load to keep cache empty
+                // Skip SW registration on next load to keep cache empty
                 localStorage.setItem(SW_SKIP_REGISTRATION_KEY, 'true');
-                console.log('[SW_UPDATE] ✅ Step 4/5: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration flag');
+                // Signal post-update: Dexie DB was cleared, next load must re-sync reference data
+                // This flag is read by base.html DOMContentLoaded handler after module loading completes
+                localStorage.setItem('sw_post_update_sync', 'true');
+                // Restore dexieActive flag so pwa-splash-screen.html does NOT trigger an extra
+                // syncReferenceData() on Load 1. Without this, pwa-splash-screen sees dexieActive=null
+                // (because localStorage was just cleared) and fires a redundant sync alongside
+                // the sw_post_update_sync sync in base.html, causing Dexie race conditions.
+                localStorage.setItem('dexieActive', 'true');
+                console.log('[SW_UPDATE] ✅ Step 4/5: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration + sw_post_update_sync + dexieActive flags');
 
                 // Set Cache API flag for SW to detect post-update mode
                 // This is more reliable than MessageChannel after unregister()
@@ -318,7 +386,7 @@
                 // Reload current page (hard reload with cache bust)
                 // User session preserved - JWT tokens in httpOnly cookies (access_token, refresh_token)
                 console.log('[SW_UPDATE] Reloading current page...');
-                window.location.reload(true);
+                window.location.reload();
 
             } catch (error) {
                 console.error('[SW_UPDATE] ❌ ERROR:', error);
@@ -327,6 +395,13 @@
                     message: error.message,
                     stack: error.stack
                 });
+
+                // Show error state in Dexie indicator (red icon) on update failure
+                if (typeof updateDexieIndicator === 'function') {
+                    updateDexieIndicator('error');
+                    console.log('[SW_UPDATE] Dexie indicator set to "error" (red)');
+                }
+
                 showToast('Ошибка обновления, перезагрузка...', 'error');
 
                 // Force reload on error
@@ -359,30 +434,36 @@
 
             const currentElem = document.getElementById('sw-current-version');
             const newElem = document.getElementById('sw-new-version');
+            const arrowElem = document.getElementById('sw-version-arrow');
 
             // Defensive check: Ensure DOM elements exist
-            if (!currentElem || !newElem) {
+            if (!currentElem || !newElem || !arrowElem) {
                 console.warn('[SW_UPDATE] ⚠️ Version display elements not found in modal DOM');
                 console.warn('[SW_UPDATE] Modal will show without version information');
                 return;
             }
 
-            // Display current version with fallback
-            const currentText = currentVersion || '(неизвестно)';
-            currentElem.textContent = currentText;
-
-            // Display new version with fallback
+            // Display new version (always shown)
             const newText = newVersion || '(неизвестно)';
             newElem.textContent = newText;
 
-            // Log version transition for debugging
-            if (currentVersion && newVersion) {
-            } else if (!currentVersion && newVersion) {
-                console.warn('[SW_UPDATE] ⚠️ Current version missing (first install or localStorage cleared)');
-            } else if (currentVersion && !newVersion) {
-                console.error('[SW_UPDATE] ❌ ERROR: New version missing from localStorage (should not happen)');
+            // Show current version and arrow only when version is known and different
+            const hasTransition = currentVersion && currentVersion !== newVersion;
+            if (hasTransition) {
+                currentElem.textContent = currentVersion;
+                currentElem.classList.remove('hidden');
+                arrowElem.classList.remove('hidden');
             } else {
-                console.error('[SW_UPDATE] ❌ ERROR: Both versions missing from localStorage');
+                currentElem.textContent = '';
+                currentElem.classList.add('hidden');
+                arrowElem.classList.add('hidden');
+                if (!currentVersion) {
+                    console.warn('[SW_UPDATE] ⚠️ Current version missing (first install or localStorage cleared)');
+                }
+            }
+
+            if (!newVersion) {
+                console.error('[SW_UPDATE] ❌ ERROR: New version missing from localStorage (should not happen)');
             }
         }
 
@@ -529,24 +610,26 @@
             }
         })();
 
-        window.addEventListener('load', () => {
+        window.addEventListener('load', async () => {
             // Check if SW registration was blocked by skip flag
             if (window.__SW_REGISTRATION_BLOCKED) {
                 console.log('[SW] ⏭️ Skipping SW registration (blocked at page load)');
                 localStorage.removeItem(SW_SKIP_REGISTRATION_KEY);
                 delete window.__SW_REGISTRATION_BLOCKED;
 
-                // Clear any remaining caches (safety measure)
-                caches.keys().then(names => {
+                // Clear any remaining caches (safety measure) - awaited for reliability
+                try {
+                    const names = await caches.keys();
                     if (names.length > 0) {
                         console.log('[SW] 🗑️ Clearing remaining caches:', names);
-                        Promise.all(names.map(name => caches.delete(name)))
-                            .then(() => console.log('[SW] ✅ All remaining caches cleared'))
-                            .catch(err => console.warn('[SW] ⚠️ Cache cleanup error:', err));
+                        await Promise.all(names.map(name => caches.delete(name)));
+                        console.log('[SW] ✅ All remaining caches cleared');
                     } else {
                         console.log('[SW] ✅ Cache Storage is empty');
                     }
-                }).catch(err => console.warn('[SW] ⚠️ Failed to read caches:', err));
+                } catch (err) {
+                    console.warn('[SW] ⚠️ Cache cleanup error:', err);
+                }
 
                 return; // Skip SW registration
             }
@@ -556,13 +639,16 @@
 
             navigator.serviceWorker.register('/sw.min.js')
                 .then(async (registration) => {
-                    // Сохраняем текущую версию SW при загрузке
+                    // Save current SW version on load; skip if update pending (avoids X → X display)
                     if (navigator.serviceWorker.controller) {
-                        const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
-                        if (currentVersion) {
-                            localStorage.setItem(SW_VERSION_KEY, currentVersion);
-                        } else {
-                            console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
+                        const updatePending = localStorage.getItem(SW_UPDATE_AVAILABLE_KEY) === 'true';
+                        if (!updatePending) {
+                            const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
+                            if (currentVersion) {
+                                localStorage.setItem(SW_VERSION_KEY, currentVersion);
+                            } else {
+                                console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
+                            }
                         }
                     }
 

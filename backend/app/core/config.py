@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     TELEGRAM_BOT_USERNAME: str | None = None  # Bot username for Telegram Login Widget (e.g., "ikenibornbudgetbot")
     # Note: If not provided, will be auto-fetched from Telegram API at startup
     ADMIN_TELEGRAM_ID: int  # Telegram ID of the admin user
+    TELEGRAM_PROXY_URL: str | None = None  # Optional HTTPS/HTTP/SOCKS5 proxy for Telegram API (e.g. https://[CREDENTIALS]@host:port)
 
     # Admin Email Authentication (optional - emergency access without 2FA)
     ADMIN_EMAIL: str | None = None  # Admin email for emergency login (bypasses 2FA)
@@ -135,7 +136,7 @@ class Settings(BaseSettings):
 
     @field_validator("SYSTEM_TIMEZONE")
     @classmethod
-    def validate_timezone(cls, v):
+    def validate_timezone(cls, v: str) -> str:
         """
         Validate IANA timezone name.
 
@@ -152,7 +153,7 @@ class Settings(BaseSettings):
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
-    def parse_cors_origins(cls, v):
+    def parse_cors_origins(cls, v: str | list[str]) -> list[str]:
         """
         Parse CORS origins from various formats.
 
@@ -197,7 +198,7 @@ class Settings(BaseSettings):
 
     @field_validator("CORS_ORIGINS")
     @classmethod
-    def validate_cors(cls, v):
+    def validate_cors(cls, v: list[str]) -> list[str]:
         """
         Validate CORS origins - block wildcard for security.
 

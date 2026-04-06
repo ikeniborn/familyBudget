@@ -14,20 +14,25 @@ import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
 export async function savePlanTransfer(form: HTMLFormElement): Promise<void> {
   const formData = new FormData(form);
 
-  // Convert YYYY-MM to YYYY-MM-01 (first day of month)
-  const period = formData.get('transfer_plan_month') as string; // YYYY-MM (field name from plan_transfer_tab.html)
-  const transferDate = period ? `${period}-01` : null; // YYYY-MM-01
+  // Get values from transfer tab fields (form has duplicate field names across tabs)
+  const transferTab = form.querySelector('[data-tab="transfer"]') as HTMLElement;
+  const amountInput = transferTab?.querySelector('input[name="amount"]') as HTMLInputElement;
+  const descriptionInput = transferTab?.querySelector('textarea[name="description"]') as HTMLTextAreaElement;
+
+  // Convert transfer_plan_month (YYYY-MM) to transfer_date (YYYY-MM-01)
+  const planMonth = formData.get('transfer_plan_month') as string; // "2025-12"
+  const transferDate = `${planMonth}-01`; // "2025-12-01"
 
   // Build request data for plan transfer
   const data = {
     record_type: 'plan',
-    transfer_date: transferDate, // YYYY-MM-01 (backend expects transfer_date, not transfer_period)
+    transfer_date: transferDate, // YYYY-MM-DD (first day of selected month)
     from_financial_center_id: parseIntOrNull(formData.get('from_financial_center_id'))!,
     to_financial_center_id: parseIntOrNull(formData.get('to_financial_center_id'))!,
-    from_article_id: parseIntOrNull(formData.get('from_article_id'))!, // required field (HTML required attr ensures non-null)
-    to_article_id: parseIntOrNull(formData.get('to_article_id'))!,     // required field (HTML required attr ensures non-null)
-    amount: parseFloat(formData.get('transfer_amount') as string), // Prefixed to avoid conflict with transaction tab
-    description: formData.get('transfer_description') || null // Prefixed to avoid conflict with transaction tab
+    from_article_id: parseIntOrNull(formData.get('from_article_id')),
+    to_article_id: parseIntOrNull(formData.get('to_article_id')),
+    amount: parseFloat(amountInput?.value || '0'),
+    description: descriptionInput?.value || null
   };
 
   // POST /api/v1/transfers

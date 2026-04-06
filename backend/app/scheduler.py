@@ -111,7 +111,7 @@ async def recalculate_article_usage_stats_job():
                 # Always release the lock
                 await release_advisory_lock(session, LOCK_ID_ARTICLE_STATS)
     except Exception as e:
-        logger.error(f"[SCHEDULER] Error recalculating article usage statistics: {e}", exc_info=True)
+        logger.error("[SCHEDULER] Error recalculating article usage statistics: %s", e, exc_info=True)
         raise
 
 
@@ -144,12 +144,12 @@ async def send_weekly_reports_job():
                 notification_service = NotificationService(settings)
                 sent_count = await notification_service.send_weekly_reports()
 
-                logger.info(f"[SCHEDULER] Weekly reports job completed: {sent_count} reports sent")
+                logger.info("[SCHEDULER] Weekly reports job completed: %s reports sent", sent_count)
             finally:
                 # Always release the lock
                 await release_advisory_lock(session, LOCK_ID_WEEKLY_REPORTS)
     except Exception as e:
-        logger.error(f"[SCHEDULER] Error in weekly reports job: {e}", exc_info=True)
+        logger.error("[SCHEDULER] Error in weekly reports job: %s", e, exc_info=True)
         raise
 
 
@@ -183,15 +183,15 @@ async def check_budget_thresholds_job():
                 notifications_sent = await notification_service.check_all_budget_thresholds()
 
                 logger.info(
-                    f"[SCHEDULER] Budget threshold check completed: "
-                    f"{notifications_sent} notifications sent"
+                    "[SCHEDULER] Budget threshold check completed: %s notifications sent",
+                    notifications_sent
                 )
             finally:
                 # Always release the lock
                 await release_advisory_lock(session, LOCK_ID_BUDGET_THRESHOLDS)
 
     except Exception as e:
-        logger.error(f"[SCHEDULER] Error in budget threshold check job: {e}", exc_info=True)
+        logger.error("[SCHEDULER] Error in budget threshold check job: %s", e, exc_info=True)
         raise
 
 
@@ -233,17 +233,18 @@ async def refresh_balance_aggregates_job():
                 result = await refresh_monthly_balances(session=session)
 
                 logger.info(
-                    f"[SCHEDULER] Balance aggregates refreshed successfully: "
-                    f"{result['updated_count']} records updated, "
-                    f"{result['financial_centers']} financial centers, "
-                    f"{result['months_processed']} months processed"
+                    "[SCHEDULER] Balance aggregates refreshed successfully: "
+                    "%s records updated, %s financial centers, %s months processed",
+                    result['updated_count'],
+                    result['financial_centers'],
+                    result['months_processed']
                 )
             finally:
                 # Always release the lock
                 await release_advisory_lock(session, LOCK_ID_BALANCE_AGGREGATES)
 
     except Exception as e:
-        logger.error(f"[SCHEDULER] Error refreshing balance aggregates: {e}", exc_info=True)
+        logger.error("[SCHEDULER] Error refreshing balance aggregates: %s", e, exc_info=True)
         raise
 
 
@@ -285,7 +286,7 @@ async def send_plan_reminders_job():
                     logger.debug("[SCHEDULER] No due plan reminders found")
                     return
 
-                logger.info(f"[SCHEDULER] Found {len(due_reminders)} due plan reminders")
+                logger.info("[SCHEDULER] Found %s due plan reminders", len(due_reminders))
 
                 # Send each reminder
                 sent_count = 0
@@ -298,8 +299,9 @@ async def send_plan_reminders_job():
                         sent_count += 1
 
                 logger.info(
-                    f"[SCHEDULER] Plan reminders job completed: "
-                    f"{sent_count}/{len(due_reminders)} reminders sent successfully"
+                    "[SCHEDULER] Plan reminders job completed: %s/%s reminders sent successfully",
+                    sent_count,
+                    len(due_reminders)
                 )
 
             finally:
@@ -307,7 +309,7 @@ async def send_plan_reminders_job():
                 await release_advisory_lock(session, LOCK_ID_PLAN_REMINDERS)
 
     except Exception as e:
-        logger.error(f"[SCHEDULER] Error in plan reminders job: {e}", exc_info=True)
+        logger.error("[SCHEDULER] Error in plan reminders job: %s", e, exc_info=True)
         raise
 
 
@@ -347,9 +349,10 @@ async def generate_recurring_facts_job():
                 result = await service.generate_pending_facts(session=session)
 
                 logger.info(
-                    f"[SCHEDULER] Recurring facts generation completed: "
-                    f"{result['facts_created']} facts created for "
-                    f"{result['plans_processed']} plans"
+                    "[SCHEDULER] Recurring facts generation completed: "
+                    "%s facts created for %s plans",
+                    result['facts_created'],
+                    result['plans_processed']
                 )
 
                 # ✅ CRITICAL: Invalidate cache + WebSocket broadcast after scheduler generation
@@ -361,8 +364,8 @@ async def generate_recurring_facts_job():
                     cache_service = CacheService()
                     await cache_service.invalidate_recurring_plans(user_id=None)
                     logger.info(
-                        f"[SCHEDULER] Cache invalidated after generating "
-                        f"{result['facts_created']} facts"
+                        "[SCHEDULER] Cache invalidated after generating %s facts",
+                        result['facts_created']
                     )
 
                     # Broadcast WebSocket event to ALL users
@@ -372,8 +375,10 @@ async def generate_recurring_facts_job():
                         "reminders_count": result.get('reminders_created', 0),
                     })
                     logger.info(
-                        f"[SCHEDULER] Broadcasted recurring_plan_facts_generated: "
-                        f"{result['facts_created']} facts for {result['plans_processed']} plans"
+                        "[SCHEDULER] Broadcasted recurring_plan_facts_generated: "
+                        "%s facts for %s plans",
+                        result['facts_created'],
+                        result['plans_processed']
                     )
 
             finally:
@@ -381,7 +386,7 @@ async def generate_recurring_facts_job():
                 await release_advisory_lock(session, LOCK_ID_RECURRING_PLANS)
 
     except Exception as e:
-        logger.error(f"[SCHEDULER] Error in recurring facts generation job: {e}", exc_info=True)
+        logger.error("[SCHEDULER] Error in recurring facts generation job: %s", e, exc_info=True)
         raise
 
 
@@ -430,7 +435,8 @@ async def cleanup_expired_webauthn_challenges_job():
                     return
 
                 logger.info(
-                    f"[SCHEDULER] Found {count_before} expired WebAuthn challenges"
+                    "[SCHEDULER] Found %s expired WebAuthn challenges",
+                    count_before
                 )
 
                 # Delete expired challenges
@@ -441,8 +447,8 @@ async def cleanup_expired_webauthn_challenges_job():
                 await session.commit()
 
                 logger.info(
-                    f"[SCHEDULER] WebAuthn challenge cleanup completed: "
-                    f"{count_before} challenges deleted"
+                    "[SCHEDULER] WebAuthn challenge cleanup completed: %s challenges deleted",
+                    count_before
                 )
 
             finally:
@@ -450,7 +456,7 @@ async def cleanup_expired_webauthn_challenges_job():
                 await release_advisory_lock(session, LOCK_ID_WEBAUTHN_CLEANUP)
 
     except Exception as e:
-        logger.error(f"[SCHEDULER] Error in WebAuthn challenge cleanup job: {e}", exc_info=True)
+        logger.error("[SCHEDULER] Error in WebAuthn challenge cleanup job: %s", e, exc_info=True)
         raise
 
 
@@ -574,9 +580,9 @@ async def start_scheduler():
 
         # Log scheduled jobs
         jobs = scheduler.get_jobs()
-        logger.info(f"[SCHEDULER] Active jobs: {len(jobs)}")
+        logger.info("[SCHEDULER] Active jobs: %s", len(jobs))
         for job in jobs:
-            logger.info(f"[SCHEDULER]   - {job.id}: {job.name} (next run: {job.next_run_time})")
+            logger.info("[SCHEDULER]   - %s: %s (next run: %s)", job.id, job.name, job.next_run_time)
     else:
         logger.warning("[SCHEDULER] Scheduler is already running")
 

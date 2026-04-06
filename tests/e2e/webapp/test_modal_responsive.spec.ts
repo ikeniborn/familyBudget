@@ -25,7 +25,7 @@ test.describe('Modal - Responsive Behavior', () => {
   test.beforeEach(async ({ page }) => {
     // Authentication handled by global setup (storage state)
     await page.goto('/');  // Uses baseURL from playwright.config.ts
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');  // networkidle hangs with WebSocket
 
     // Close cookie consent modal if present
     const acceptAllButton = page.locator('button:has-text("Принять все")');

@@ -1,0 +1,67 @@
+/**
+ * P2P Sync UI Styles
+ * Mobile-responsive with DaisyUI + Tailwind integration.
+ * @version 1.1.0
+ */
+
+/* ── Modal / Overlay ──────────────────────────────────── */
+#p2p-modal-wrapper {
+    /* Full-screen modal for P2P flow */
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+#p2p-modal-content {
+    background: oklch(var(--b1));
+    border-radius: 1.25rem 1.25rem 0 0;
+    width: 100%;
+    max-width: 480px;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: p2p-slide-up 0.25s ease-out;
+}
+
+@media (min-width: 640px) {
+    #p2p-modal-wrapper {
+        align-items: center;
+    }
+    #p2p-modal-content {
+        border-radius: 1.25rem;
+        max-height: 85vh;
+    }
+}
+
+@keyframes p2p-slide-up {
+    from {
+        transform: translateY(100%);
+        opacity: 0.5;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+/* ── Status overlay ───────────────────────────────────── */
+#p2p-status-overlay {
+    padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* ── Timer / progress ─────────────────────────────────── */
+#p2p-offer-timer {
+    min-width: 2.5rem;
+    text-align: right;
+}
+
+/* ── Utility: hidden ──────────────────────────────────── */
+.p2p-hidden {
+    display: none !important;
+}

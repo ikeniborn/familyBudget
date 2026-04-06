@@ -1079,7 +1079,7 @@ async def refresh_user_profile_from_telegram(
     try:
         telegram_info = await fetch_telegram_user_info(user.telegram_id)
     except Exception as e:
-        logger.error(f"Failed to fetch Telegram info for user {user_id}: {e}")
+        logger.error("Failed to fetch Telegram info for user %s: %s", user_id, e)
         raise HTTPException(
             status_code=404,
             detail=(
@@ -1108,7 +1108,7 @@ async def refresh_user_profile_from_telegram(
                 user_id=user.id
             )
         except Exception as e:
-            logger.warning(f"Failed to download avatar for user {user_id}: {e}")
+            logger.warning("Failed to download avatar for user %s: %s", user_id, e)
             # Continue without avatar update
 
     # Update profile using User Service (Hybrid SCD1 + History SCD2)
@@ -1651,11 +1651,11 @@ async def update_article(
         if is_active_change is False:
             # Archive article and all descendants
             archived_count = await archive_recursive(session, article_id)
-            logger.info(f"Archived {archived_count} articles")
+            logger.info("Archived %s articles", archived_count)
         else:
             # Restore article and all descendants
             restored_count = await restore_recursive(session, article_id)
-            logger.info(f"Restored {restored_count} articles")
+            logger.info("Restored %s articles", restored_count)
 
         # Refresh article to get updated is_active status
         await session.refresh(article)
@@ -1792,11 +1792,11 @@ async def update_article(
     # TRIGGER: Recalculate article usage statistics after category update
     # This ensures usage_count is up-to-date for category selection UI sorting
     try:
-        logger.info(f"Triggering article usage statistics recalculation after update of article {updated_article.id}")
+        logger.info("Triggering article usage statistics recalculation after update of article %s", updated_article.id)
         await session.execute(text("SELECT recalculate_article_usage_stats()"))
         logger.info("Article usage statistics recalculated successfully")
     except Exception as e:
-        logger.error(f"Error recalculating article usage statistics: {e}", exc_info=True)
+        logger.error("Error recalculating article usage statistics: %s", e, exc_info=True)
 
     # Return dict with datetime converted to ISO strings for JSON serialization
     # ArticleResponse includes usage_count which is not in Article model (comes from separate stats table)
@@ -2366,7 +2366,7 @@ async def delete_fact(
     await session.delete(fact)
     await session.commit()
 
-    logger.info(f"Fact {fact_id} deleted successfully by admin {current_admin.id}")
+    logger.info("Fact %s deleted successfully by admin %s", fact_id, current_admin.id)
 
     return {
         "message": "Fact deleted successfully",

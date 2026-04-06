@@ -1,0 +1,1463 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../genindex.html"><link rel="search" title="Search" href="../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>6. Database Design - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../_sources/prd/06-database-design.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="database-design">
+<h1>6. Database Design<a class="headerlink" href="#database-design" title="Link to this heading">¶</a></h1>
+<section id="database-schema-overview">
+<h2>6.1 Database Schema Overview<a class="headerlink" href="#database-schema-overview" title="Link to this heading">¶</a></h2>
+<p><strong>Naming conventions:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">t_d_*</span></code> - dimension tables (справочники)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">t_f_*</span></code> - fact tables (транзакции)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">v_d_*_current</span></code> - views для актуальных SCD2 записей</p></li>
+</ul>
+<p><strong>Типы таблиц:</strong></p>
+<ul class="simple">
+<li><p><strong>Dimension tables</strong> - справочники с SCD2</p></li>
+<li><p><strong>Fact tables</strong> - транзакционные данные (план/факт)</p></li>
+<li><p><strong>Hierarchy tables</strong> - Closure Table для иерархии</p></li>
+<li><p><strong>Views</strong> - представления для упрощения запросов</p></li>
+</ul>
+</section>
+<section id="dimension-tables">
+<h2>6.2 Dimension Tables<a class="headerlink" href="#dimension-tables" title="Link to this heading">¶</a></h2>
+<section id="t-d-user">
+<h3>t_d_user<a class="headerlink" href="#t-d-user" title="Link to this heading">¶</a></h3>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">t_d_user</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">SERIAL</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">telegram_id</span><span class="w"> </span><span class="nb">BIGINT</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">username</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">),</span>
+<span class="w">    </span><span class="n">first_name</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">),</span>
+<span class="w">    </span><span class="n">is_admin</span><span class="w"> </span><span class="nb">BOOLEAN</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">FALSE</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">-- SCD Type 2 fields</span>
+<span class="w">    </span><span class="n">valid_from</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span>
+<span class="w">    </span><span class="n">valid_to</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;9999-12-31 23:59:59&#39;</span><span class="p">::</span><span class="k">TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">is_current</span><span class="w"> </span><span class="nb">BOOLEAN</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">TRUE</span><span class="p">,</span>
+
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+
+<span class="w">    </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">check_user_valid_dates</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">valid_from</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">valid_to</span><span class="p">)</span>
+<span class="p">);</span>
+
+<span class="c1">-- Unique constraint on telegram_id for current records</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">UNIQUE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_user_telegram_current</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_user</span><span class="p">(</span><span class="n">telegram_id</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">)</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">TRUE</span><span class="p">;</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_user_current</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_user</span><span class="p">(</span><span class="n">is_current</span><span class="p">)</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">TRUE</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="t-d-article-scd2">
+<h3>t_d_article (SCD2)<a class="headerlink" href="#t-d-article-scd2" title="Link to this heading">¶</a></h3>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">SERIAL</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">name</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="k">type</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="k">type</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;income&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;expense&#39;</span><span class="p">)),</span>
+<span class="w">    </span><span class="n">parent_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">user_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_user</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">description</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">-- SCD2 fields</span>
+<span class="w">    </span><span class="n">valid_from</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">valid_to</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;9999-12-31&#39;</span><span class="p">::</span><span class="k">TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">is_current</span><span class="w"> </span><span class="nb">BOOLEAN</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">true</span><span class="p">,</span>
+
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span>
+<span class="p">);</span>
+
+<span class="c1">-- Unique index ensuring one active article per user/name/type combination</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">UNIQUE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_article_user_name_type_current</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">)</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_article_current</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="n">is_current</span><span class="p">)</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_article_user</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="n">user_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_article_parent</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="n">parent_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_article_type</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="k">type</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="t-d-financial-center-scd2">
+<h3>t_d_financial_center (SCD2)<a class="headerlink" href="#t-d-financial-center-scd2" title="Link to this heading">¶</a></h3>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">t_d_financial_center</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">SERIAL</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">name</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">user_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_user</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">description</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">-- SCD2 fields</span>
+<span class="w">    </span><span class="n">valid_from</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">valid_to</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;9999-12-31&#39;</span><span class="p">::</span><span class="k">TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">is_current</span><span class="w"> </span><span class="nb">BOOLEAN</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">true</span><span class="p">,</span>
+
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span>
+<span class="p">);</span>
+
+<span class="c1">-- Unique index ensuring one active financial center per user/name combination</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">UNIQUE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_fc_user_name_current</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_financial_center</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">)</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_fc_current</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_financial_center</span><span class="p">(</span><span class="n">is_current</span><span class="p">)</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_fc_user</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_financial_center</span><span class="p">(</span><span class="n">user_id</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="t-d-cost-center-scd2">
+<h3>t_d_cost_center (SCD2)<a class="headerlink" href="#t-d-cost-center-scd2" title="Link to this heading">¶</a></h3>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">t_d_cost_center</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">SERIAL</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">name</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">255</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">user_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_user</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">description</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
+
+<span class="w">    </span><span class="c1">-- SCD2 fields</span>
+<span class="w">    </span><span class="n">valid_from</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">valid_to</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;9999-12-31&#39;</span><span class="p">::</span><span class="k">TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">is_current</span><span class="w"> </span><span class="nb">BOOLEAN</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">true</span><span class="p">,</span>
+
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span>
+<span class="p">);</span>
+
+<span class="c1">-- Unique index ensuring one active cost center per user/name combination</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">UNIQUE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_cc_user_name_current</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_cost_center</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">)</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_cc_current</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_cost_center</span><span class="p">(</span><span class="n">is_current</span><span class="p">)</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_cc_user</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_cost_center</span><span class="p">(</span><span class="n">user_id</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<section id="t-d-period-scd2">
+<h3>t_d_period (SCD2)<a class="headerlink" href="#t-d-period-scd2" title="Link to this heading">¶</a></h3>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">t_d_period</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">SERIAL</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">code</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">name</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">start_date</span><span class="w"> </span><span class="nb">DATE</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">end_date</span><span class="w"> </span><span class="nb">DATE</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span><span class="n">user_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_user</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="c1">-- SCD2 fields</span>
+<span class="w">    </span><span class="n">valid_from</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">valid_to</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="s1">&#39;9999-12-31&#39;</span><span class="p">::</span><span class="k">TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">is_current</span><span class="w"> </span><span class="nb">BOOLEAN</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">true</span><span class="p">,</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">unique_period_code_current</span><span class="w"> </span><span class="k">UNIQUE</span><span class="w"> </span><span class="p">(</span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">),</span>
+<span class="w">    </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">check_period_dates</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">start_date</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="n">end_date</span><span class="p">)</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_period_current</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_period</span><span class="p">(</span><span class="n">is_current</span><span class="p">)</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_period_user</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_period</span><span class="p">(</span><span class="n">user_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_period_dates</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_period</span><span class="p">(</span><span class="n">start_date</span><span class="p">,</span><span class="w"> </span><span class="n">end_date</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="fact-tables">
+<h2>6.3 Fact Tables<a class="headerlink" href="#fact-tables" title="Link to this heading">¶</a></h2>
+<section id="t-f-registry">
+<h3>t_f_registry<a class="headerlink" href="#t-f-registry" title="Link to this heading">¶</a></h3>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">t_f_registry</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">id</span><span class="w"> </span><span class="nb">SERIAL</span><span class="w"> </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="p">,</span>
+<span class="w">    </span><span class="n">user_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_user</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">article_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">financial_center_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_financial_center</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">cost_center_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_cost_center</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+<span class="w">    </span><span class="n">period_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_period</span><span class="p">(</span><span class="n">id</span><span class="p">),</span>
+
+<span class="w">    </span><span class="n">record_type</span><span class="w"> </span><span class="nb">VARCHAR</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">record_type</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;plan&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;fact&#39;</span><span class="p">)),</span>
+<span class="w">    </span><span class="n">amount</span><span class="w"> </span><span class="nb">DECIMAL</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">)</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">amount</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">),</span>
+<span class="w">    </span><span class="n">transaction_date</span><span class="w"> </span><span class="nb">DATE</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_DATE</span><span class="p">,</span>
+<span class="w">    </span><span class="k">comment</span><span class="w"> </span><span class="nb">TEXT</span><span class="p">,</span>
+
+<span class="w">    </span><span class="n">created_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">updated_at</span><span class="w"> </span><span class="k">TIMESTAMP</span><span class="w"> </span><span class="k">DEFAULT</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_registry_user</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_registry</span><span class="p">(</span><span class="n">user_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_registry_article</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_registry</span><span class="p">(</span><span class="n">article_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_registry_period</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_registry</span><span class="p">(</span><span class="n">period_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_registry_type</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_registry</span><span class="p">(</span><span class="n">record_type</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_registry_date</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_registry</span><span class="p">(</span><span class="n">transaction_date</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_registry_analytics</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_registry</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">period_id</span><span class="p">,</span><span class="w"> </span><span class="n">article_id</span><span class="p">);</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="transfer-support-fields">
+<h2>6.3.1 Transfer Support Fields<a class="headerlink" href="#transfer-support-fields" title="Link to this heading">¶</a></h2>
+<p><strong>Добавлено в версии:</strong> v5.1.4+
+<strong>Branch:</strong> <code class="docutils literal notranslate"><span class="pre">feature/ui-improvements-and-transfers</span></code>
+<strong>Статус:</strong> ✅ IMPLEMENTED</p>
+<p><strong>Описание:</strong>
+Поддержка переводов между Счетами реализована через дополнительное поле <code class="docutils literal notranslate"><span class="pre">transfer_id</span></code> в таблице фактов и расширение типов статей.</p>
+<section id="transfer-id-t-f-budget-fact">
+<h3>transfer_id (t_f_budget_fact)<a class="headerlink" href="#transfer-id-t-f-budget-fact" title="Link to this heading">¶</a></h3>
+<p><strong>Назначение:</strong> Связывает 2 транзакции, созданные одним переводом.</p>
+<p><strong>Характеристики:</strong></p>
+<ul class="simple">
+<li><p><strong>Type:</strong> <code class="docutils literal notranslate"><span class="pre">INTEGER</span> <span class="pre">NULL</span></code></p></li>
+<li><p><strong>Index:</strong> <code class="docutils literal notranslate"><span class="pre">ix_budget_fact_transfer_id</span></code> (B-tree)</p></li>
+<li><p><strong>Nullable:</strong> <code class="docutils literal notranslate"><span class="pre">true</span></code> (обратная совместимость с existing facts)</p></li>
+<li><p><strong>Foreign Key:</strong> Нет (логическая связь через одинаковое значение)</p></li>
+</ul>
+<p><strong>Логика использования:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">transfer_id</span> <span class="pre">=</span> <span class="pre">NULL</span></code> → обычная транзакция (income/expense)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">transfer_id</span> <span class="pre">!=</span> <span class="pre">NULL</span></code> → транзакция является частью перевода</p></li>
+</ul>
+<p><strong>Пример:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Перевод 1000 руб из &quot;Кошелек&quot; в &quot;Банк&quot;</span>
+<span class="c1">-- Создаются 2 связанные транзакции:</span>
+
+<span class="c1">-- Факт 1: Списание с кошелька</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">t_f_budget_fact</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">article_id</span><span class="p">,</span><span class="w"> </span><span class="n">financial_center_id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">,</span>
+<span class="w">    </span><span class="n">record_type</span><span class="p">,</span><span class="w"> </span><span class="n">fact_date</span><span class="p">,</span><span class="w"> </span><span class="n">transfer_id</span><span class="p">,</span><span class="w"> </span><span class="n">description</span>
+<span class="p">)</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">.</span><span class="mi">00</span><span class="p">,</span><span class="w">  </span><span class="c1">-- article_id=42 имеет type=&#39;debit&#39;</span>
+<span class="w">    </span><span class="s1">&#39;fact&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;2025-11-24&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Перевод в банк&#39;</span>
+<span class="p">);</span>
+
+<span class="c1">-- Факт 2: Пополнение банка</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">t_f_budget_fact</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">article_id</span><span class="p">,</span><span class="w"> </span><span class="n">financial_center_id</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">,</span>
+<span class="w">    </span><span class="n">record_type</span><span class="p">,</span><span class="w"> </span><span class="n">fact_date</span><span class="p">,</span><span class="w"> </span><span class="n">transfer_id</span><span class="p">,</span><span class="w"> </span><span class="n">description</span>
+<span class="p">)</span><span class="w"> </span><span class="k">VALUES</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">43</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">.</span><span class="mi">00</span><span class="p">,</span><span class="w">  </span><span class="c1">-- article_id=43 имеет type=&#39;credit&#39;</span>
+<span class="w">    </span><span class="s1">&#39;fact&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;2025-11-24&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Перевод из кошелька&#39;</span>
+<span class="p">);</span>
+
+<span class="c1">-- Обе транзакции имеют transfer_id=100 → они связаны</span>
+</pre></div>
+</div>
+<p><strong>Генерация transfer_id:</strong></p>
+<ul class="simple">
+<li><p>Используется pattern: <code class="docutils literal notranslate"><span class="pre">MAX(transfer_id)</span> <span class="pre">+</span> <span class="pre">1</span></code></p></li>
+<li><p>Реализовано в: <code class="docutils literal notranslate"><span class="pre">backend/app/api/v1/endpoints/transfers.py::generate_transfer_id()</span></code></p></li>
+<li><p>Thread-safe в PostgreSQL через SERIALIZABLE isolation level</p></li>
+</ul>
+<p><strong>Индекс:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">ix_budget_fact_transfer_id</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_budget_fact</span><span class="p">(</span><span class="n">transfer_id</span><span class="p">)</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">transfer_id</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>Преимущества partial index:</strong></p>
+<ul class="simple">
+<li><p>Меньший размер индекса (индексируются только transfer facts)</p></li>
+<li><p>Быстрее queries для поиска связанных транзакций</p></li>
+<li><p>Не затрагивает обычные транзакции (transfer_id = NULL)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="article-types-extension">
+<h3>Article Types Extension<a class="headerlink" href="#article-types-extension" title="Link to this heading">¶</a></h3>
+<p><strong>Добавлено в версии:</strong> v5.1.4+
+<strong>Alembic migration:</strong> <code class="docutils literal notranslate"><span class="pre">20251124_add_debit_credit_types.py</span></code></p>
+<p><strong>Изменения в CHECK constraint:</strong></p>
+<p><strong>Старый constraint (до v5.1.4):</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">t_d_article_type_check</span>
+<span class="w">    </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="k">type</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;income&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;expense&#39;</span><span class="p">));</span>
+</pre></div>
+</div>
+<p><strong>Новый constraint (с v5.1.4):</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">ALTER</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="k">ADD</span><span class="w"> </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">t_d_article_type_check</span>
+<span class="w">    </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="k">type</span><span class="w"> </span><span class="k">IN</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;income&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;expense&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;debit&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;credit&#39;</span><span class="p">));</span>
+</pre></div>
+</div>
+<p><strong>Типы статей:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Type</p></th>
+<th class="head"><p>Русский</p></th>
+<th class="head"><p>Назначение</p></th>
+<th class="head"><p>Использование</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">income</span></code></p></td>
+<td><p>Доход</p></td>
+<td><p>Обычные доходы</p></td>
+<td><p>Зарплата, подработки, проценты</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">expense</span></code></p></td>
+<td><p>Расход</p></td>
+<td><p>Обычные расходы</p></td>
+<td><p>Продукты, транспорт, развлечения</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">debit</span></code></p></td>
+<td><p>Списание</p></td>
+<td><p>Списание при переводе</p></td>
+<td><p>“Из кошелька”, “Со сбережений”</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">credit</span></code></p></td>
+<td><p>Пополнение</p></td>
+<td><p>Пополнение при переводе</p></td>
+<td><p>“В банк”, “На сбережения”</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Особенности типов <code class="docutils literal notranslate"><span class="pre">debit</span></code> и <code class="docutils literal notranslate"><span class="pre">credit</span></code>:</strong></p>
+<ol class="arabic simple">
+<li><p><strong>User-defined categories:</strong></p>
+<ul class="simple">
+<li><p>Пользователи создают собственные категории с типами <code class="docutils literal notranslate"><span class="pre">debit</span></code>/<code class="docutils literal notranslate"><span class="pre">credit</span></code></p></li>
+<li><p>Иерархическая структура поддерживается (подкатегории)</p></li>
+<li><p>Коды генерируются автоматически: ART-{seq}</p></li>
+</ul>
+</li>
+<li><p><strong>Transfer validation:</strong></p>
+<ul class="simple">
+<li><p>FROM article MUST have <code class="docutils literal notranslate"><span class="pre">type='debit'</span></code></p></li>
+<li><p>TO article MUST have <code class="docutils literal notranslate"><span class="pre">type='credit'</span></code></p></li>
+<li><p>Валидация на уровне backend API</p></li>
+</ul>
+</li>
+<li><p><strong>Analytics:</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">debit</span></code> транзакции суммируются с <code class="docutils literal notranslate"><span class="pre">expense</span></code> (списания)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">credit</span></code> транзакции суммируются с <code class="docutils literal notranslate"><span class="pre">income</span></code> (поступления)</p></li>
+<li><p>Фильтры в аналитике: “Расходы” включает expense + debit</p></li>
+</ul>
+</li>
+<li><p><strong>Code generation:</strong></p>
+<ul class="simple">
+<li><p>Переиспользуется существующая логика <code class="docutils literal notranslate"><span class="pre">generate_code()</span></code></p></li>
+<li><p>Нет отдельной последовательности TRF-{seq}</p></li>
+<li><p>Все типы статей используют единую нумерацию ART-{seq}</p></li>
+</ul>
+</li>
+</ol>
+<p><strong>Пример категорий переводов:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Пользователь создает категории для переводов</span>
+<span class="c1">-- Категория списания</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">description</span><span class="p">,</span><span class="w"> </span><span class="n">user_id</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;Списание с кошелька&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">&#39;debit&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">&#39;ART-150&#39;</span><span class="p">,</span><span class="w">  </span><span class="c1">-- Автоматически сгенерирован</span>
+<span class="w">    </span><span class="s1">&#39;Перевод средств из кошелька&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="mi">1</span>
+<span class="p">);</span>
+
+<span class="c1">-- Категория пополнения</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">description</span><span class="p">,</span><span class="w"> </span><span class="n">user_id</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;Пополнение банка&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">&#39;credit&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">&#39;ART-151&#39;</span><span class="p">,</span><span class="w">  </span><span class="c1">-- Следующий код</span>
+<span class="w">    </span><span class="s1">&#39;Перевод средств в банк&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="mi">1</span>
+<span class="p">);</span>
+
+<span class="c1">-- Иерархическая структура (подкатегории)</span>
+<span class="c1">-- Родительская категория</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">description</span><span class="p">,</span><span class="w"> </span><span class="n">user_id</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;Переводы&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;debit&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;ART-152&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;Все переводы&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+
+<span class="c1">-- Дочерняя категория</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">code</span><span class="p">,</span><span class="w"> </span><span class="n">description</span><span class="p">,</span><span class="w"> </span><span class="n">parent_id</span><span class="p">,</span><span class="w"> </span><span class="n">user_id</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;На сбережения&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">&#39;debit&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">&#39;ART-153&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">&#39;Перевод на накопления&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="p">(</span><span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">code</span><span class="o">=</span><span class="s1">&#39;ART-152&#39;</span><span class="p">),</span>
+<span class="w">    </span><span class="mi">1</span>
+<span class="p">);</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="migration-strategy">
+<h3>Migration Strategy<a class="headerlink" href="#migration-strategy" title="Link to this heading">¶</a></h3>
+<p><strong>Alembic migration:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;add debit/credit types for transfer categories</span>
+
+<span class="sd">Revision ID: add_debit_credit_types</span>
+<span class="sd">Revises: previous_revision</span>
+<span class="sd">Create Date: 2025-11-24</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">upgrade</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="c1"># 1. Drop old CHECK constraint</span>
+    <span class="n">op</span><span class="o">.</span><span class="n">drop_constraint</span><span class="p">(</span><span class="s1">&#39;t_d_article_type_check&#39;</span><span class="p">,</span> <span class="s1">&#39;t_d_article&#39;</span><span class="p">,</span> <span class="n">type_</span><span class="o">=</span><span class="s1">&#39;check&#39;</span><span class="p">)</span>
+
+    <span class="c1"># 2. Create new CHECK constraint with debit/credit</span>
+    <span class="n">op</span><span class="o">.</span><span class="n">create_check_constraint</span><span class="p">(</span>
+        <span class="s1">&#39;t_d_article_type_check&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;t_d_article&#39;</span><span class="p">,</span>
+        <span class="s2">&quot;type IN (&#39;income&#39;, &#39;expense&#39;, &#39;debit&#39;, &#39;credit&#39;)&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># 3. Delete old static categories (if they exist)</span>
+    <span class="c1"># TRF-OUT and TRF-IN from Phase 2 implementation</span>
+    <span class="n">op</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        DELETE FROM t_d_article</span>
+<span class="s2">        WHERE code IN (&#39;TRF-OUT&#39;, &#39;TRF-IN&#39;)</span>
+<span class="s2">          AND is_current = true</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">downgrade</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="c1"># 1. Restore old CHECK constraint</span>
+    <span class="n">op</span><span class="o">.</span><span class="n">drop_constraint</span><span class="p">(</span><span class="s1">&#39;t_d_article_type_check&#39;</span><span class="p">,</span> <span class="s1">&#39;t_d_article&#39;</span><span class="p">,</span> <span class="n">type_</span><span class="o">=</span><span class="s1">&#39;check&#39;</span><span class="p">)</span>
+    <span class="n">op</span><span class="o">.</span><span class="n">create_check_constraint</span><span class="p">(</span>
+        <span class="s1">&#39;t_d_article_type_check&#39;</span><span class="p">,</span>
+        <span class="s1">&#39;t_d_article&#39;</span><span class="p">,</span>
+        <span class="s2">&quot;type IN (&#39;income&#39;, &#39;expense&#39;)&quot;</span>
+    <span class="p">)</span>
+
+    <span class="c1"># 2. Recreate static categories TRF-OUT, TRF-IN</span>
+    <span class="c1"># (Only if no user-created debit/credit categories exist)</span>
+</pre></div>
+</div>
+<p><strong>Data Migration:</strong></p>
+<ul class="simple">
+<li><p>✅ Не требуется для existing facts (transfer_id = NULL)</p></li>
+<li><p>✅ Старые категории TRF-OUT, TRF-IN удаляются (функционал в тестировании)</p></li>
+<li><p>✅ Пользователи создают новые категории с типами debit/credit</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="hierarchical-structure-closure-table">
+<h2>6.4 Hierarchical Structure (Closure Table)<a class="headerlink" href="#hierarchical-structure-closure-table" title="Link to this heading">¶</a></h2>
+<section id="t-d-article-hierarchy">
+<h3>t_d_article_hierarchy<a class="headerlink" href="#t-d-article-hierarchy" title="Link to this heading">¶</a></h3>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">t_d_article_hierarchy</span><span class="w"> </span><span class="p">(</span>
+<span class="w">    </span><span class="n">ancestor_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">CASCADE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">descendant_id</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="w"> </span><span class="k">REFERENCES</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="n">id</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">DELETE</span><span class="w"> </span><span class="k">CASCADE</span><span class="p">,</span>
+<span class="w">    </span><span class="n">depth</span><span class="w"> </span><span class="nb">INTEGER</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="k">PRIMARY</span><span class="w"> </span><span class="k">KEY</span><span class="w"> </span><span class="p">(</span><span class="n">ancestor_id</span><span class="p">,</span><span class="w"> </span><span class="n">descendant_id</span><span class="p">),</span>
+<span class="w">    </span><span class="k">CONSTRAINT</span><span class="w"> </span><span class="n">check_depth</span><span class="w"> </span><span class="k">CHECK</span><span class="w"> </span><span class="p">(</span><span class="n">depth</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="p">);</span>
+
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_hierarchy_ancestor</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article_hierarchy</span><span class="p">(</span><span class="n">ancestor_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_hierarchy_descendant</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article_hierarchy</span><span class="p">(</span><span class="n">descendant_id</span><span class="p">);</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_hierarchy_depth</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article_hierarchy</span><span class="p">(</span><span class="n">depth</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><strong>Пример запроса - Получение поддерева:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Получить все дочерние статьи для статьи с id=5</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="n">a</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">t_d_article_hierarchy</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">descendant_id</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">ancestor_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">depth</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>Пример запроса - Путь к узлу:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Получить путь от корня до статьи с id=15</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="n">a</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">t_d_article_hierarchy</span><span class="w"> </span><span class="n">h</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">ancestor_id</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">descendant_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">15</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">h</span><span class="p">.</span><span class="n">depth</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="scd-type-2-implementation">
+<h2>6.5 SCD Type 2 Implementation<a class="headerlink" href="#scd-type-2-implementation" title="Link to this heading">¶</a></h2>
+<p><strong>Views для актуальных записей:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- View для актуальных статей</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">v_d_article_current</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+
+<span class="c1">-- View для актуальных Счетов (FinancialCenter)</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">v_d_financial_center_current</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">t_d_financial_center</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+
+<span class="c1">-- View для актуальных Мест затрат (CostCenter)</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">v_d_cost_center_current</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">t_d_cost_center</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+
+<span class="c1">-- View для актуальных периодов</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">v_d_period_current</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">t_d_period</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>Sample UPDATE scenario (SCD2):</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Обновление статьи &quot;Продукты&quot; → &quot;Продукты питания&quot;</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+
+<span class="c1">-- 1. Закрыть старую запись</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">t_d_article</span>
+<span class="k">SET</span><span class="w"> </span><span class="n">valid_to</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span>
+<span class="w">    </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+
+<span class="c1">-- 2. Вставить новую запись</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">parent_id</span><span class="p">,</span><span class="w"> </span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">valid_from</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;Продукты питания&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;expense&#39;</span><span class="p">,</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="p">,</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+
+<span class="k">COMMIT</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>Изменение типа категории (type change):</strong></p>
+<p>SCD Type 2 позволяет изменять тип категории (income/expense) с сохранением истории изменений. При изменении типа применяются следующие правила валидации:</p>
+<ol class="arabic simple">
+<li><p><strong>Проверка дубликата</strong>: Не должно существовать другой активной категории с тем же именем и новым типом (<code class="docutils literal notranslate"><span class="pre">user_id</span></code>, <code class="docutils literal notranslate"><span class="pre">name</span></code>, <code class="docutils literal notranslate"><span class="pre">type</span></code>, <code class="docutils literal notranslate"><span class="pre">is_current</span></code> = unique).</p></li>
+<li><p><strong>Проверка parent type mismatch</strong>: Если категория имеет родительскую категорию, parent должен иметь тот же тип. При попытке изменить тип блокируется с ошибкой.</p></li>
+<li><p><strong>Каскадное изменение children</strong>: Все подкатегории автоматически изменяют тип рекурсивно. Каждая подкатегория получает новую версию через SCD Type 2.</p></li>
+</ol>
+<p><strong>Пример каскадного изменения типа:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Начальное состояние:</span>
+<span class="c1">-- Продукты (expense, id=10) → Овощи (expense, id=20) → Помидоры (expense, id=30)</span>
+
+<span class="c1">-- Изменить тип &quot;Продукты&quot; с expense → income</span>
+<span class="k">BEGIN</span><span class="p">;</span>
+
+<span class="c1">-- 1. Закрыть старую версию &quot;Продукты&quot;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">valid_to</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span>
+
+<span class="c1">-- 2. Создать новую версию &quot;Продукты&quot; с type=income</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">parent_id</span><span class="p">,</span><span class="w"> </span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">valid_from</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;Продукты&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;income&#39;</span><span class="p">,</span><span class="w"> </span><span class="k">NULL</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span><span class="w"> </span><span class="k">true</span><span class="p">)</span>
+<span class="n">RETURNING</span><span class="w"> </span><span class="n">id</span><span class="p">;</span><span class="w"> </span><span class="c1">-- Получим id=40</span>
+
+<span class="c1">-- 3. CASCADE: Закрыть и пересоздать &quot;Овощи&quot;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">valid_to</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">parent_id</span><span class="p">,</span><span class="w"> </span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">valid_from</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;Овощи&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;income&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">40</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span><span class="w"> </span><span class="k">true</span><span class="p">)</span>
+<span class="n">RETURNING</span><span class="w"> </span><span class="n">id</span><span class="p">;</span><span class="w"> </span><span class="c1">-- Получим id=50</span>
+
+<span class="c1">-- 4. CASCADE: Закрыть и пересоздать &quot;Помидоры&quot;</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">valid_to</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">false</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span><span class="p">;</span>
+<span class="k">INSERT</span><span class="w"> </span><span class="k">INTO</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">parent_id</span><span class="p">,</span><span class="w"> </span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">valid_from</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">)</span>
+<span class="k">VALUES</span><span class="w"> </span><span class="p">(</span><span class="s1">&#39;Помидоры&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;income&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">NOW</span><span class="p">(),</span><span class="w"> </span><span class="k">true</span><span class="p">);</span>
+
+<span class="c1">-- 5. Обновить иерархию (Closure Table)</span>
+<span class="c1">-- ArticleHierarchy автоматически обновляется через SCD2 service</span>
+
+<span class="k">COMMIT</span><span class="p">;</span>
+
+<span class="c1">-- Результат:</span>
+<span class="c1">-- Все 3 категории теперь имеют type=income</span>
+<span class="c1">-- История сохранена: старые версии (id=10,20,30) с type=expense доступны для аудита</span>
+<span class="c1">-- Иерархия сохранена через новые id (40→50→60)</span>
+
+<span class="c1">-- 6. КРИТИЧНО: Обновить транзакции для корректной аналитики</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">t_f_budget_fact</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">article_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">40</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">article_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">10</span><span class="p">;</span><span class="w">  </span><span class="c1">-- Продукты</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">t_f_budget_fact</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">article_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">50</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">article_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span><span class="w">  </span><span class="c1">-- Овощи</span>
+<span class="k">UPDATE</span><span class="w"> </span><span class="n">t_f_budget_fact</span><span class="w"> </span><span class="k">SET</span><span class="w"> </span><span class="n">article_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">60</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">article_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span><span class="p">;</span><span class="w">  </span><span class="c1">-- Помидоры</span>
+
+<span class="k">COMMIT</span><span class="p">;</span>
+
+<span class="c1">-- Результат после обновления транзакций:</span>
+<span class="c1">-- ✅ Все исторические транзакции теперь связаны с новыми версиями категорий</span>
+<span class="c1">-- ✅ Аналитика по типу &quot;income&quot; будет включать ВСЕ транзакции (старые + новые)</span>
+<span class="c1">-- ✅ История изменений сохранена в старых версиях (id=10,20,30) для аудита</span>
+</pre></div>
+</div>
+<p><strong>ВАЖНО: Обновление транзакций</strong></p>
+<p>При изменении атрибутов категории (особенно <code class="docutils literal notranslate"><span class="pre">type</span></code>) необходимо обновить <code class="docutils literal notranslate"><span class="pre">article_id</span></code> во всех связанных транзакциях для корректной работы аналитики. Без обновления старые транзакции не попадут в выборки по новым атрибутам, так как ссылаются на неактуальные версии (<code class="docutils literal notranslate"><span class="pre">is_current=false</span></code>).</p>
+</section>
+<section id="indexes-performance">
+<h2>6.6 Indexes &amp; Performance<a class="headerlink" href="#indexes-performance" title="Link to this heading">¶</a></h2>
+<p><strong>Composite indexes для аналитики:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Основной индекс для аналитических запросов</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_registry_analytics</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_registry</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">period_id</span><span class="p">,</span><span class="w"> </span><span class="n">article_id</span><span class="p">);</span>
+
+<span class="c1">-- Индекс для запросов по типу записи</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_registry_type_date</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_registry</span><span class="p">(</span><span class="n">record_type</span><span class="p">,</span><span class="w"> </span><span class="n">transaction_date</span><span class="p">);</span>
+
+<span class="c1">-- Индекс для фильтрации по Счету/Месту затрат</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_registry_centers</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_registry</span><span class="p">(</span><span class="n">financial_center_id</span><span class="p">,</span><span class="w"> </span><span class="n">cost_center_id</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><strong>EXPLAIN ANALYZE пример:</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">EXPLAIN</span><span class="w"> </span><span class="k">ANALYZE</span>
+<span class="k">SELECT</span><span class="w"> </span>
+<span class="w">    </span><span class="n">p</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">period_name</span><span class="p">,</span>
+<span class="w">    </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">article_name</span><span class="p">,</span>
+<span class="w">    </span><span class="k">SUM</span><span class="p">(</span><span class="k">CASE</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">record_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;plan&#39;</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">amount</span><span class="w"> </span><span class="k">ELSE</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">END</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">plan</span><span class="p">,</span>
+<span class="w">    </span><span class="k">SUM</span><span class="p">(</span><span class="k">CASE</span><span class="w"> </span><span class="k">WHEN</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">record_type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;fact&#39;</span><span class="w"> </span><span class="k">THEN</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">amount</span><span class="w"> </span><span class="k">ELSE</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="k">END</span><span class="p">)</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="n">fact</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">t_f_registry</span><span class="w"> </span><span class="n">r</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">v_d_period_current</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">period_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">id</span>
+<span class="k">JOIN</span><span class="w"> </span><span class="n">v_d_article_current</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">article_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">id</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">r</span><span class="p">.</span><span class="n">user_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span>
+<span class="w">  </span><span class="k">AND</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">code</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">&#39;2025-10&#39;</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">a</span><span class="p">.</span><span class="n">name</span><span class="p">;</span>
+</pre></div>
+</div>
+<section id="advanced-index-optimization">
+<h3>6.6.1 Advanced Index Optimization<a class="headerlink" href="#advanced-index-optimization" title="Link to this heading">¶</a></h3>
+<p><strong>Covering Index Pattern:</strong> PostgreSQL использует index-only scans (без обращения к таблице) когда все нужные колонки есть в индексе через <code class="docutils literal notranslate"><span class="pre">INCLUDE</span></code> clause. Преимущества: ~2-5x быстрее, меньше disk I/O, лучший cache hit rate.</p>
+<p><strong>Все индексы проекта (15 шт):</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>#</p></th>
+<th class="head"><p>Название</p></th>
+<th class="head"><p>Тип</p></th>
+<th class="head"><p>Таблица</p></th>
+<th class="head"><p>Назначение</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>1</p></td>
+<td><p>idx_budget_fact_user_date_amount_covering</p></td>
+<td><p>Covering</p></td>
+<td><p>t_f_budget_fact</p></td>
+<td><p>Dashboard quick stats по дате</p></td>
+</tr>
+<tr class="row-odd"><td><p>2</p></td>
+<td><p>idx_budget_fact_article_date_amount_covering</p></td>
+<td><p>Covering</p></td>
+<td><p>t_f_budget_fact</p></td>
+<td><p>Category breakdown analytics</p></td>
+</tr>
+<tr class="row-even"><td><p>3</p></td>
+<td><p>idx_budget_fact_record_type_date</p></td>
+<td><p>Partial</p></td>
+<td><p>t_f_budget_fact</p></td>
+<td><p>Plan vs Fact comparison</p></td>
+</tr>
+<tr class="row-odd"><td><p>4</p></td>
+<td><p>idx_user_telegram_current_covering</p></td>
+<td><p>Covering</p></td>
+<td><p>t_d_user</p></td>
+<td><p>Telegram OAuth (каждый запрос)</p></td>
+</tr>
+<tr class="row-even"><td><p>5</p></td>
+<td><p>idx_article_code_current_covering</p></td>
+<td><p>Covering</p></td>
+<td><p>t_d_article</p></td>
+<td><p>Lookup by code (Bot API)</p></td>
+</tr>
+<tr class="row-odd"><td><p>6</p></td>
+<td><p>idx_article_current_covering</p></td>
+<td><p>Partial</p></td>
+<td><p>t_d_article</p></td>
+<td><p>Все Web Apps (dropdowns, меню)</p></td>
+</tr>
+<tr class="row-even"><td><p>7</p></td>
+<td><p>idx_hierarchy_ancestor_depth_covering</p></td>
+<td><p>Covering</p></td>
+<td><p>t_d_article_hierarchy</p></td>
+<td><p>Subtree queries (O(1))</p></td>
+</tr>
+<tr class="row-odd"><td><p>8</p></td>
+<td><p>idx_hierarchy_descendant_depth_covering</p></td>
+<td><p>Covering</p></td>
+<td><p>t_d_article_hierarchy</p></td>
+<td><p>Breadcrumbs navigation</p></td>
+</tr>
+<tr class="row-even"><td><p>9</p></td>
+<td><p>idx_budget_fact_user_article_date_covering</p></td>
+<td><p>Covering</p></td>
+<td><p>t_f_budget_fact</p></td>
+<td><p>Trends по категории</p></td>
+</tr>
+<tr class="row-odd"><td><p>10</p></td>
+<td><p>idx_budget_fact_centers_date_covering</p></td>
+<td><p>Covering</p></td>
+<td><p>t_f_budget_fact</p></td>
+<td><p>Счет/Место затрат analytics</p></td>
+</tr>
+<tr class="row-even"><td><p>11</p></td>
+<td><p>idx_budget_fact_recent</p></td>
+<td><p>Partial</p></td>
+<td><p>t_f_budget_fact</p></td>
+<td><p>Dashboard widget (30 дней)</p></td>
+</tr>
+<tr class="row-odd"><td><p>12</p></td>
+<td><p>idx_budget_fact_expensive</p></td>
+<td><p>Partial</p></td>
+<td><p>t_f_budget_fact</p></td>
+<td><p>Auditing (amount &gt; 10000)</p></td>
+</tr>
+<tr class="row-even"><td><p>13</p></td>
+<td><p>idx_fc_current_covering</p></td>
+<td><p>Partial</p></td>
+<td><p>t_d_financial_center</p></td>
+<td><p>Счет dropdown</p></td>
+</tr>
+<tr class="row-odd"><td><p>14</p></td>
+<td><p>idx_cc_current_covering</p></td>
+<td><p>Partial</p></td>
+<td><p>t_d_cost_center</p></td>
+<td><p>Место затрат dropdown</p></td>
+</tr>
+<tr class="row-even"><td><p>15</p></td>
+<td><p>idx_t_f_budget_fact_*_description_trgm</p></td>
+<td><p>GIN Trigram</p></td>
+<td><p>t_f_budget_fact (96 партиций)</p></td>
+<td><p>Full-text поиск по описанию (ILIKE)</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Критичные индексы (детальные примеры):</strong></p>
+<p><strong>#4: Telegram OAuth Lookup (sub-millisecond auth)</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_user_telegram_current_covering</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_user</span><span class="p">(</span><span class="n">telegram_id</span><span class="p">,</span><span class="w"> </span><span class="n">is_current</span><span class="p">)</span>
+<span class="w">    </span><span class="n">INCLUDE</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">first_name</span><span class="p">,</span><span class="w"> </span><span class="n">is_admin</span><span class="p">);</span>
+
+<span class="c1">-- Query: `/api/v1/auth/telegram`</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">first_name</span><span class="p">,</span><span class="w"> </span><span class="n">is_admin</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">t_d_user</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">telegram_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">123456789</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<span class="c1">-- Index-only scan - критично для каждого запроса!</span>
+</pre></div>
+</div>
+<p><strong>#6: Article Current Records (каждый Web App)</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_article_current_covering</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article</span><span class="p">(</span><span class="n">is_current</span><span class="p">)</span>
+<span class="w">    </span><span class="n">INCLUDE</span><span class="w"> </span><span class="p">(</span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">parent_id</span><span class="p">)</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+
+<span class="c1">-- Query: `/api/v1/articles` (sidebar, dropdowns)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">id</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="k">type</span><span class="p">,</span><span class="w"> </span><span class="n">parent_id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">t_d_article</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">is_current</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">true</span><span class="p">;</span>
+<span class="c1">-- Shared References Model: ~100 records в одном scan</span>
+</pre></div>
+</div>
+<p><strong>#7: Hierarchy Ancestor Lookup (O(1) Closure Table)</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_hierarchy_ancestor_depth_covering</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_d_article_hierarchy</span><span class="p">(</span><span class="n">ancestor_id</span><span class="p">,</span><span class="w"> </span><span class="n">depth</span><span class="p">)</span>
+<span class="w">    </span><span class="n">INCLUDE</span><span class="w"> </span><span class="p">(</span><span class="n">descendant_id</span><span class="p">);</span>
+
+<span class="c1">-- Query: `/api/v1/articles/{id}/children`</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">descendant_id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">t_d_article_hierarchy</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">ancestor_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">depth</span><span class="w"> </span><span class="o">&lt;=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">depth</span><span class="p">;</span>
+<span class="c1">-- O(1) complexity - pre-computed paths!</span>
+</pre></div>
+</div>
+<p><strong>#11: Recent Facts Partial Index (most common use case)</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_budget_fact_recent</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_budget_fact</span><span class="p">(</span><span class="n">fact_date</span><span class="w"> </span><span class="k">DESC</span><span class="p">,</span><span class="w"> </span><span class="n">user_id</span><span class="p">)</span>
+<span class="w">    </span><span class="n">INCLUDE</span><span class="w"> </span><span class="p">(</span><span class="n">amount</span><span class="p">,</span><span class="w"> </span><span class="n">article_id</span><span class="p">)</span>
+<span class="w">    </span><span class="k">WHERE</span><span class="w"> </span><span class="n">fact_date</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="k">CURRENT_DATE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">&#39;30 days&#39;</span><span class="p">;</span>
+
+<span class="c1">-- Query: Dashboard recent activity widget</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">fact_date</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">,</span><span class="w"> </span><span class="n">article_id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">t_f_budget_fact</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">fact_date</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="k">CURRENT_DATE</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">&#39;30 days&#39;</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">fact_date</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">20</span><span class="p">;</span>
+<span class="c1">-- Partial index автоматически maintained, только 30 дней данных</span>
+</pre></div>
+</div>
+<p><strong>#1: Dashboard Quick Stats</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_budget_fact_user_date_amount_covering</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_budget_fact</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span><span class="w"> </span><span class="n">fact_date</span><span class="w"> </span><span class="k">DESC</span><span class="p">)</span>
+<span class="w">    </span><span class="n">INCLUDE</span><span class="w"> </span><span class="p">(</span><span class="n">amount</span><span class="p">,</span><span class="w"> </span><span class="n">article_id</span><span class="p">,</span><span class="w"> </span><span class="n">cost_center_id</span><span class="p">,</span><span class="w"> </span><span class="n">financial_center_id</span><span class="p">);</span>
+
+<span class="c1">-- Query: Dashboard today/month stats</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">fact_date</span><span class="p">,</span><span class="w"> </span><span class="n">amount</span><span class="p">,</span><span class="w"> </span><span class="n">article_id</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">t_f_budget_fact</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">user_id</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">123</span><span class="w"> </span><span class="k">AND</span><span class="w"> </span><span class="n">fact_date</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="s1">&#39;2025-11-01&#39;</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">fact_date</span><span class="w"> </span><span class="k">DESC</span><span class="p">;</span>
+</pre></div>
+</div>
+<p><strong>#15: Full-Text Search with GIN Trigram (Partitioned Table)</strong></p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Требует расширение pg_trgm</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="k">IF</span><span class="w"> </span><span class="k">NOT</span><span class="w"> </span><span class="k">EXISTS</span><span class="w"> </span><span class="n">pg_trgm</span><span class="p">;</span>
+
+<span class="c1">-- Индекс создается на КАЖДОЙ партиции (96 индексов для 2023-01..2030-12)</span>
+<span class="c1">-- Автоматизировано через Alembic миграцию 713fcefee450</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_t_f_budget_fact_2025_11_description_trgm</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">t_f_budget_fact_2025_11</span>
+<span class="w">    </span><span class="k">USING</span><span class="w"> </span><span class="n">gin</span><span class="w"> </span><span class="p">(</span><span class="n">description</span><span class="w"> </span><span class="n">gin_trgm_ops</span><span class="p">);</span>
+
+<span class="c1">-- Query: `/api/v1/admin/facts?search=продукты`</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">t_f_budget_fact</span>
+<span class="k">WHERE</span><span class="w"> </span><span class="n">description</span><span class="w"> </span><span class="k">ILIKE</span><span class="w"> </span><span class="s1">&#39;%продукты%&#39;</span>
+<span class="k">ORDER</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">fact_date</span><span class="w"> </span><span class="k">DESC</span><span class="w"> </span><span class="k">LIMIT</span><span class="w"> </span><span class="mi">50</span><span class="p">;</span>
+
+<span class="c1">-- PostgreSQL автоматически использует GIN индексы на партициях</span>
+<span class="c1">-- Trigram matching: быстрый fuzzy search с учетом опечаток</span>
+</pre></div>
+</div>
+<p><strong>Почему GIN на партициях:</strong></p>
+<ul class="simple">
+<li><p><strong>Партиционирование по месяцам:</strong> 96 партиций (2023-01 → 2030-12)</p></li>
+<li><p><strong>Проблема:</strong> Индекс <code class="docutils literal notranslate"><span class="pre">ON</span> <span class="pre">ONLY</span> <span class="pre">parent_table</span></code> НЕ работает для партиций</p></li>
+<li><p><strong>Решение:</strong> Создан GIN индекс на КАЖДОЙ партиции через Alembic</p></li>
+<li><p><strong>Автоматизация:</strong> Миграция динамически находит все партиции</p></li>
+<li><p><strong>Производительность:</strong> ~10x speedup для ILIKE queries на больших данных</p></li>
+<li><p><strong>Maintenance:</strong> Новые партиции автоматически индексируются при создании</p></li>
+</ul>
+<p><strong>Performance Results:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Query Type</p></th>
+<th class="head"><p>Without Index</p></th>
+<th class="head"><p>With Covering Index</p></th>
+<th class="head"><p>Speedup</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Telegram OAuth</p></td>
+<td><p>25ms</p></td>
+<td><p>5ms</p></td>
+<td><p>5x</p></td>
+</tr>
+<tr class="row-odd"><td><p>Category list</p></td>
+<td><p>80ms</p></td>
+<td><p>12ms</p></td>
+<td><p>6.6x</p></td>
+</tr>
+<tr class="row-even"><td><p>Hierarchy queries</p></td>
+<td><p>120ms</p></td>
+<td><p>15ms</p></td>
+<td><p>8x</p></td>
+</tr>
+<tr class="row-odd"><td><p>Dashboard widget</p></td>
+<td><p>150ms</p></td>
+<td><p>30ms</p></td>
+<td><p>5x</p></td>
+</tr>
+<tr class="row-even"><td><p>Full-text search (ILIKE)</p></td>
+<td><p>500ms (Seq Scan)</p></td>
+<td><p>50ms (GIN Trigram)</p></td>
+<td><p>10x</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="database-migrations-alembic-based">
+<h2>6.7 Database Migrations (Alembic-Based)<a class="headerlink" href="#database-migrations-alembic-based" title="Link to this heading">¶</a></h2>
+<p><strong>Версия:</strong> 2.0 (Alembic-Only System, начиная с 2025-11-09)
+<strong>Статус:</strong> Production-ready для всех окружений (development + production)</p>
+<section id="migration-system-architecture">
+<h3>6.7.1 Migration System Architecture<a class="headerlink" href="#migration-system-architecture" title="Link to this heading">¶</a></h3>
+<p>Family Budget использует <strong>Alembic</strong> для всех операций управления схемой БД.</p>
+<p><strong>Эволюция системы миграций:</strong></p>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Система</p></th>
+<th class="head"><p>Период</p></th>
+<th class="head"><p>Метод</p></th>
+<th class="head"><p>Статус</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>2-Tier System</strong></p></td>
+<td><p>До 2025-11-09</p></td>
+<td><p>schema/*.sql + Alembic (unused)</p></td>
+<td><p>❌ DEPRECATED</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>Alembic-Only System</strong></p></td>
+<td><p>С 2025-11-09</p></td>
+<td><p>Alembic migrations only</p></td>
+<td><p>✅ CURRENT</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><strong>Старая архитектура (deprecated):</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>backend/db/
+├── schema/              # Tier 1: Base DDL files (raw SQL)
+│   ├── 001_core_dimensions.sql
+│   ├── 002_core_facts.sql
+│   └── ...
+└── migrations/          # Tier 2: Alembic (НЕ использовался)
+    └── versions/        # Пустая директория
+</pre></div>
+</div>
+<p><strong>Новая архитектура (current):</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>backend/db/
+├── migrations/                    # Alembic migrations
+│   ├── alembic.ini
+│   ├── env.py
+│   ├── versions/
+│   │   └── 20251109_001_baseline_schema_v5_0_0.py  # Baseline migration
+│   └── archive/                   # Old migrations (consolidated)
+│
+├── deprecated/                    # Archived schema files
+│   ├── README.md                  # Migration history
+│   └── schema/                    # Old DDL files (DO NOT USE)
+│
+├── run_migrations.sh              # Migration runner wrapper
+└── README.md                      # Database documentation
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="baseline-migration">
+<h3>6.7.2 Baseline Migration<a class="headerlink" href="#baseline-migration" title="Link to this heading">¶</a></h3>
+<p><strong>Файл:</strong> <code class="docutils literal notranslate"><span class="pre">backend/db/migrations/versions/20251109_001_baseline_schema_v5_0_0.py</span></code>
+<strong>Revision ID:</strong> <code class="docutils literal notranslate"><span class="pre">001_baseline</span></code>
+<strong>Down Revision:</strong> None (first migration)</p>
+<p><strong>Описание:</strong>
+Baseline migration консолидирует все 7 schema/*.sql файлов в единую версионированную миграцию.</p>
+<p><strong>Создает:</strong></p>
+<ul class="simple">
+<li><p>Core dimension tables: <code class="docutils literal notranslate"><span class="pre">t_d_user</span></code>, <code class="docutils literal notranslate"><span class="pre">t_d_article</span></code>, <code class="docutils literal notranslate"><span class="pre">t_d_financial_center</span></code>, <code class="docutils literal notranslate"><span class="pre">t_d_cost_center</span></code></p></li>
+<li><p>Fact table: <code class="docutils literal notranslate"><span class="pre">t_f_budget_fact</span></code></p></li>
+<li><p>Hierarchy table: <code class="docutils literal notranslate"><span class="pre">t_d_article_hierarchy</span></code> (Closure Table)</p></li>
+<li><p>Auth tables: <code class="docutils literal notranslate"><span class="pre">t_f_refresh_token</span></code>, <code class="docutils literal notranslate"><span class="pre">t_article_usage_stats</span></code></p></li>
+<li><p>Notification table: <code class="docutils literal notranslate"><span class="pre">t_notification</span></code></p></li>
+<li><p>Recommendations table: <code class="docutils literal notranslate"><span class="pre">t_recommended_amounts</span></code></p></li>
+<li><p>Все triggers, functions, indexes</p></li>
+</ul>
+<p><strong>Применение baseline миграции:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>backend/db/migrations
+alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+</pre></div>
+</div>
+<p><strong>Проверка:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Текущая ревизия должна быть 001_baseline</span>
+alembic<span class="w"> </span>current
+<span class="c1"># Output: 001_baseline (head)</span>
+
+<span class="c1"># Список таблиц</span>
+psql<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;\dt&quot;</span><span class="w"> </span>familybudget
+<span class="c1"># Output: 10 tables (t_d_*, t_f_*, t_notification, t_recommended_amounts)</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="development-workflow">
+<h3>6.7.3 Development Workflow<a class="headerlink" href="#development-workflow" title="Link to this heading">¶</a></h3>
+<p><strong>Создание новой миграции:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 1. Перейти в директорию Alembic</span>
+<span class="nb">cd</span><span class="w"> </span>backend/db/migrations
+
+<span class="c1"># 2. Создать миграцию вручную</span>
+alembic<span class="w"> </span>revision<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;add_user_preferences_table&quot;</span>
+
+<span class="c1"># ИЛИ автогенерация из изменений SQLModel</span>
+alembic<span class="w"> </span>revision<span class="w"> </span>--autogenerate<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;sync_user_model&quot;</span>
+
+<span class="c1"># 3. Отредактировать миграцию</span>
+nano<span class="w"> </span>versions/YYYYMMDD_REV_add_user_preferences_table.py
+
+<span class="c1"># 4. Тестировать миграцию (КРИТИЧНО!)</span>
+alembic<span class="w"> </span>upgrade<span class="w"> </span>head<span class="w">      </span><span class="c1"># Применить</span>
+alembic<span class="w"> </span>downgrade<span class="w"> </span>-1<span class="w">      </span><span class="c1"># Откатить</span>
+alembic<span class="w"> </span>upgrade<span class="w"> </span>head<span class="w">      </span><span class="c1"># Применить снова</span>
+
+<span class="c1"># 5. Зафиксировать</span>
+git<span class="w"> </span>add<span class="w"> </span>versions/YYYYMMDD_REV_add_user_preferences_table.py
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;feat(db): add user preferences table&quot;</span>
+</pre></div>
+</div>
+<p><strong>Пример миграции:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;add user preferences table</span>
+
+<span class="sd">Revision ID: 002_user_prefs</span>
+<span class="sd">Revises: 001_baseline</span>
+<span class="sd">Create Date: 2025-11-09 12:00:00.000000</span>
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">alembic</span><span class="w"> </span><span class="kn">import</span> <span class="n">op</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sa</span>
+
+<span class="c1"># revision identifiers</span>
+<span class="n">revision</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;002_user_prefs&#39;</span>
+<span class="n">down_revision</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="s1">&#39;001_baseline&#39;</span>
+<span class="n">branch_labels</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="n">depends_on</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">upgrade</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create user preferences table.&quot;&quot;&quot;</span>
+    <span class="n">op</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        CREATE TABLE t_user_preferences (</span>
+<span class="s2">            id SERIAL PRIMARY KEY,</span>
+<span class="s2">            user_id INTEGER NOT NULL REFERENCES t_d_user(id) ON DELETE CASCADE,</span>
+<span class="s2">            theme VARCHAR(20) DEFAULT &#39;light&#39;,</span>
+<span class="s2">            language VARCHAR(10) DEFAULT &#39;ru&#39;,</span>
+<span class="s2">            created_at TIMESTAMP DEFAULT NOW(),</span>
+<span class="s2">            updated_at TIMESTAMP DEFAULT NOW(),</span>
+
+<span class="s2">            CONSTRAINT uq_user_prefs_user UNIQUE (user_id)</span>
+<span class="s2">        )</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">)</span>
+
+    <span class="n">op</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        CREATE INDEX idx_user_prefs_user ON t_user_preferences(user_id)</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">downgrade</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Drop user preferences table.&quot;&quot;&quot;</span>
+    <span class="n">op</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;DROP TABLE IF EXISTS t_user_preferences CASCADE&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="production-deployment">
+<h3>6.7.4 Production Deployment<a class="headerlink" href="#production-deployment" title="Link to this heading">¶</a></h3>
+<p><strong>Автоматическое применение миграций:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Production deploy автоматически применяет миграции</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+./deploy.sh<span class="w"> </span>--profile<span class="w"> </span>full
+
+<span class="c1"># deploy.sh вызывает:</span>
+<span class="c1"># - docker compose exec backend bash /app/backend/db/run_migrations.sh</span>
+<span class="c1"># - run_migrations.sh выполняет: alembic upgrade head</span>
+</pre></div>
+</div>
+<p><strong>Ручное применение миграций (production):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Войти в backend container</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>backend<span class="w"> </span>bash
+
+<span class="c1"># Применить миграции</span>
+<span class="nb">cd</span><span class="w"> </span>/app/backend/db/migrations
+alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+
+<span class="c1"># Проверить статус</span>
+alembic<span class="w"> </span>current
+alembic<span class="w"> </span><span class="nb">history</span><span class="w"> </span>--verbose
+</pre></div>
+</div>
+<p><strong>Откат миграции (production):</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># ВНИМАНИЕ: Может привести к потере данных!</span>
+
+<span class="c1"># Откатить последнюю миграцию</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>backend<span class="w"> </span>bash
+<span class="nb">cd</span><span class="w"> </span>/app/backend/db/migrations
+alembic<span class="w"> </span>downgrade<span class="w"> </span>-1
+
+<span class="c1"># Откатить до конкретной ревизии</span>
+alembic<span class="w"> </span>downgrade<span class="w"> </span>a1b2c3d4e5f6
+
+<span class="c1"># Проверить результат</span>
+alembic<span class="w"> </span>current
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="best-practices">
+<h3>6.7.5 Best Practices<a class="headerlink" href="#best-practices" title="Link to this heading">¶</a></h3>
+<p><strong>Всегда:</strong></p>
+<ul class="simple">
+<li><p>Тестируй миграции в обе стороны: <code class="docutils literal notranslate"><span class="pre">upgrade</span> <span class="pre">head</span></code> → <code class="docutils literal notranslate"><span class="pre">downgrade</span> <span class="pre">-1</span></code> → <code class="docutils literal notranslate"><span class="pre">upgrade</span> <span class="pre">head</span></code></p></li>
+<li><p>Пиши полный <code class="docutils literal notranslate"><span class="pre">downgrade()</span></code> (не <code class="docutils literal notranslate"><span class="pre">pass</span></code>!)</p></li>
+<li><p>Используй транзакции для DDL (PostgreSQL поддерживает transactional DDL)</p></li>
+<li><p>Проверяй autogenerate результаты перед применением</p></li>
+</ul>
+<p><strong>Никогда:</strong></p>
+<ul class="simple">
+<li><p>НЕ редактируй примененные миграции (immutable в production)</p></li>
+<li><p>НЕ используй deprecated <code class="docutils literal notranslate"><span class="pre">backend/db/schema/</span></code> (только Alembic)</p></li>
+<li><p>НЕ пропускай миграции (только <code class="docutils literal notranslate"><span class="pre">alembic</span> <span class="pre">upgrade</span> <span class="pre">head</span></code>)</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="migration-commands-reference">
+<h3>6.7.6 Migration Commands Reference<a class="headerlink" href="#migration-commands-reference" title="Link to this heading">¶</a></h3>
+<div class="table-wrapper colwidths-auto docutils container">
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Команда</p></th>
+<th class="head"><p>Описание</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alembic</span> <span class="pre">upgrade</span> <span class="pre">head</span></code></p></td>
+<td><p>Применить все pending миграции</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alembic</span> <span class="pre">downgrade</span> <span class="pre">-1</span></code></p></td>
+<td><p>Откатить последнюю миграцию</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alembic</span> <span class="pre">downgrade</span> <span class="pre">-2</span></code></p></td>
+<td><p>Откатить 2 миграции</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alembic</span> <span class="pre">downgrade</span> <span class="pre">&lt;rev&gt;</span></code></p></td>
+<td><p>Откатить до конкретной ревизии</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alembic</span> <span class="pre">current</span></code></p></td>
+<td><p>Показать текущую ревизию</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alembic</span> <span class="pre">history</span> <span class="pre">--verbose</span></code></p></td>
+<td><p>Показать историю миграций</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alembic</span> <span class="pre">heads</span></code></p></td>
+<td><p>Показать последнюю ревизию (head)</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">alembic</span> <span class="pre">revision</span> <span class="pre">-m</span> <span class="pre">&quot;msg&quot;</span></code></p></td>
+<td><p>Создать пустую миграцию</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">alembic</span> <span class="pre">revision</span> <span class="pre">--autogenerate</span> <span class="pre">-m</span> <span class="pre">&quot;msg&quot;</span></code></p></td>
+<td><p>Автогенерация из SQLModel</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="changelog">
+<h2>6.8 Changelog<a class="headerlink" href="#changelog" title="Link to this heading">¶</a></h2>
+<section id="migration-to-alembic-only-system">
+<h3>2025-11-09: Migration to Alembic-Only System<a class="headerlink" href="#migration-to-alembic-only-system" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Что изменилось:</strong> Заменена 2-tier система (schema/*.sql + unused Alembic) на Alembic-only. Создана baseline migration консолидирующая все 7 schema файлов. Старые SQL файлы перемещены в <code class="docutils literal notranslate"><span class="pre">backend/db/deprecated/</span></code>.</p></li>
+<li><p><strong>Почему:</strong> Версионный контроль схемы БД, rollback support, production-ready incremental migrations.</p></li>
+<li><p><strong>Затронутые компоненты:</strong> <code class="docutils literal notranslate"><span class="pre">backend/db/migrations/</span></code>, <code class="docutils literal notranslate"><span class="pre">scripts/lib/alembic.sh</span></code>, <code class="docutils literal notranslate"><span class="pre">deploy.sh</span></code>, <code class="docutils literal notranslate"><span class="pre">CLAUDE.md</span></code>, документация ПРД.</p></li>
+</ul>
+</section>
+<section id="shared-references-model">
+<h3>2025-11-02: Shared References Model<a class="headerlink" href="#shared-references-model" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Что изменилось:</strong> Удалено поле <code class="docutils literal notranslate"><span class="pre">is_global</span></code> из всех dimension tables. Все справочники (articles, financial centers, cost centers) теперь shared для всех пользователей. Admin-only управление для CREATE/UPDATE/DELETE операций.</p></li>
+<li><p><strong>Почему:</strong> Упрощение модели доступа, align с семейным бюджетом (2-5 человек), single source of truth.</p></li>
+<li><p><strong>Затронутые компоненты:</strong> <code class="docutils literal notranslate"><span class="pre">t_d_article</span></code>, <code class="docutils literal notranslate"><span class="pre">t_d_financial_center</span></code>, <code class="docutils literal notranslate"><span class="pre">t_d_cost_center</span></code>, API endpoints, UI templates.</p></li>
+</ul>
+</section>
+<section id="shared-family-budget-model">
+<h3>2025-11-02: Shared Family Budget Model<a class="headerlink" href="#shared-family-budget-model" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p><strong>Что изменилось:</strong> Удалена user_id фильтрация из analytics и CRUD endpoints для fact tables. Все пользователи видят все транзакции. <code class="docutils literal notranslate"><span class="pre">user_id</span></code> сохраняется только для audit trail.</p></li>
+<li><p><strong>Почему:</strong> “Семейная прозрачность” - семья должна видеть общий бюджет.</p></li>
+<li><p><strong>Затронутые компоненты:</strong> <code class="docutils literal notranslate"><span class="pre">/api/v1/analytics/*</span></code>, <code class="docutils literal notranslate"><span class="pre">/api/v1/facts/*</span></code>, <code class="docutils literal notranslate"><span class="pre">CLAUDE.md</span></code>.</p></li>
+</ul>
+<hr class="docutils" />
+</section>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">6. Database Design</a><ul>
+<li><a class="reference internal" href="#database-schema-overview">6.1 Database Schema Overview</a></li>
+<li><a class="reference internal" href="#dimension-tables">6.2 Dimension Tables</a><ul>
+<li><a class="reference internal" href="#t-d-user">t_d_user</a></li>
+<li><a class="reference internal" href="#t-d-article-scd2">t_d_article (SCD2)</a></li>
+<li><a class="reference internal" href="#t-d-financial-center-scd2">t_d_financial_center (SCD2)</a></li>
+<li><a class="reference internal" href="#t-d-cost-center-scd2">t_d_cost_center (SCD2)</a></li>
+<li><a class="reference internal" href="#t-d-period-scd2">t_d_period (SCD2)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#fact-tables">6.3 Fact Tables</a><ul>
+<li><a class="reference internal" href="#t-f-registry">t_f_registry</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#transfer-support-fields">6.3.1 Transfer Support Fields</a><ul>
+<li><a class="reference internal" href="#transfer-id-t-f-budget-fact">transfer_id (t_f_budget_fact)</a></li>
+<li><a class="reference internal" href="#article-types-extension">Article Types Extension</a></li>
+<li><a class="reference internal" href="#migration-strategy">Migration Strategy</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#hierarchical-structure-closure-table">6.4 Hierarchical Structure (Closure Table)</a><ul>
+<li><a class="reference internal" href="#t-d-article-hierarchy">t_d_article_hierarchy</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#scd-type-2-implementation">6.5 SCD Type 2 Implementation</a></li>
+<li><a class="reference internal" href="#indexes-performance">6.6 Indexes &amp; Performance</a><ul>
+<li><a class="reference internal" href="#advanced-index-optimization">6.6.1 Advanced Index Optimization</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#database-migrations-alembic-based">6.7 Database Migrations (Alembic-Based)</a><ul>
+<li><a class="reference internal" href="#migration-system-architecture">6.7.1 Migration System Architecture</a></li>
+<li><a class="reference internal" href="#baseline-migration">6.7.2 Baseline Migration</a></li>
+<li><a class="reference internal" href="#development-workflow">6.7.3 Development Workflow</a></li>
+<li><a class="reference internal" href="#production-deployment">6.7.4 Production Deployment</a></li>
+<li><a class="reference internal" href="#best-practices">6.7.5 Best Practices</a></li>
+<li><a class="reference internal" href="#migration-commands-reference">6.7.6 Migration Commands Reference</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#changelog">6.8 Changelog</a><ul>
+<li><a class="reference internal" href="#migration-to-alembic-only-system">2025-11-09: Migration to Alembic-Only System</a></li>
+<li><a class="reference internal" href="#shared-references-model">2025-11-02: Shared References Model</a></li>
+<li><a class="reference internal" href="#shared-family-budget-model">2025-11-02: Shared Family Budget Model</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

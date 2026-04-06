@@ -2,7 +2,7 @@
  * Shopping Lists Conflict Resolution Types
  *
  * Defines types for conflict detection, diff computation, and resolution strategies
- * for Shopping Lists PGlite synchronization.
+ * for Shopping Lists Dexie synchronization.
  *
  * @module conflicts
  */

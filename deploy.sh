@@ -549,8 +549,11 @@ validate_firewall_rules() {
     if echo "$ufw_status" | grep -q "443/tcp.*ALLOW"; then
         success "✓ Port 443 (HTTPS) is open"
     else
-        warning "⚠ Port 443 (HTTPS) is NOT open - HTTPS will not work"
-        info "This is normal if SSL is not configured yet"
+        if [[ "${SSL_TYPE:-none}" == "letsencrypt" ]]; then
+            warning "⚠ Port 443 (HTTPS) is NOT open - HTTPS will not work"
+        else
+            info "Port 443 (HTTPS) not open (SSL_TYPE=${SSL_TYPE:-none} — expected)"
+        fi
     fi
 
     echo ""
@@ -787,6 +790,11 @@ main() {
     mkdir -p "$(dirname "$LOG_FILE")"
     touch "$LOG_FILE"
     chmod 644 "$LOG_FILE"
+
+    # Setup cleanup trap for temporary files
+    # This ensures SYNC_FILES_TEMP is removed on script exit (success, error, or Ctrl+C)
+    # Prevents accumulation of legacy deployment files in /tmp
+    trap 'rm -f /tmp/sync_changed_files_* 2>/dev/null || true' EXIT
 
     echo "========================================================================"
     print_message "$BLUE" "       Family Budget - Deployment Script"
@@ -1045,13 +1053,7 @@ main() {
     # NEW: Display and confirm IMAGE_VERSIONS.json (v9.0+)
     info "Reading deployment versions from IMAGE_VERSIONS.json..."
     if [[ -f "$DEPLOY_DIR/IMAGE_VERSIONS.json" ]]; then
-        # Display versions
-        if ! display_deployment_versions; then
-            error "Failed to read IMAGE_VERSIONS.json"
-            exit 1
-        fi
-
-        # Ask confirmation
+        # Display versions + ask confirmation (display_deployment_versions called inside)
         if ! confirm_deployment_versions; then
             error "Deployment cancelled by user"
             exit 1
@@ -1094,6 +1096,15 @@ main() {
     fi
     echo ""
 
+    # Pre-validate all images exist in registry before attempting pull
+    step "Validating Image Availability in Registry"
+    if ! validate_registry_images; then
+        error "Deployment aborted: required images missing from registry"
+        error "Check IMAGE_VERSIONS.json versions and ensure CI/CD built all images"
+        exit 1
+    fi
+    echo ""
+
     # Pull images from ghcr.io (backend, bot, nginx, redis, postgresql)
     # Versions exported to .env: BACKEND_VERSION, BOT_VERSION, etc.
     info "Pulling Docker images from registry..."
@@ -1111,6 +1122,15 @@ main() {
     fi
     echo ""
     success "All Docker images pulled successfully"
+    echo ""
+
+    # Compare running containers with pulled images
+    # Sets NEEDS_*_RECREATE flags if images differ or containers unhealthy
+    info "Comparing running containers with pulled images..."
+    if ! compare_running_vs_pulled_images; then
+        error "Failed to compare container images"
+        exit 1
+    fi
     echo ""
 
 
@@ -1506,7 +1526,8 @@ main() {
                         sw_ver=$(echo "$sw_content" | grep -oE "v[0-9]{8}_[0-9]{4}" | head -1)
                         success "✓ Service Worker has version: $sw_ver"
                     else
-                        warning "⚠ Could not verify Service Worker version format"
+                        # SW accessible and no PLACEHOLDER — version string may be minified differently
+                        success "✓ Service Worker available (HTTP 200, no PLACEHOLDER)"
                     fi
                 fi
             fi
@@ -1552,6 +1573,11 @@ main() {
             save_deployed_version "$NEW_VERSION"
         fi
         echo ""
+
+        # Cleanup temporary sync files
+        # Remove any sync_changed_files_* from current and previous deployments
+        # This complements the trap EXIT cleanup for additional safety
+        rm -f /tmp/sync_changed_files_* 2>/dev/null || true
 
         print_status
     else

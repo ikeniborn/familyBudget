@@ -50,7 +50,13 @@
     const flags = initializePostAuthFlags();
 
     // Trigger initial Dexie sync for new users
-    if (flags.dexieAutoEnabled || flags.justLoggedIn) {
+    // Guard: if sw_post_update_sync is active, base.html will handle sync — skip here
+    // to avoid double-sync race condition after PWA update (R5 mitigation)
+    const isPostUpdateSync = localStorage.getItem('sw_post_update_sync') !== null;
+    if (isPostUpdateSync) {
+        console.info('[PWA_SPLASH] Skipping sync — post-update sync delegated to base.html (sw_post_update_sync active)');
+    }
+    if (!isPostUpdateSync && (flags.dexieAutoEnabled || flags.justLoggedIn)) {
         console.info('[PWA_SPLASH] Triggering initial Dexie sync...');
 
         // Sync handler (extracted to avoid race condition)
@@ -127,6 +133,16 @@
 
     // Only show splash on cold start (NEW session), NOT on reload or in-session navigation
     if (!isColdStart || isReload) {
+        // IMPORTANT: If this is a reload on cold start (e.g. after SW update clears sessionStorage),
+        // set the session key now so subsequent page navigations don't show splash again.
+        if (isColdStart && isReload) {
+            try {
+                sessionStorage.setItem(SPLASH_SESSION_KEY, Date.now().toString());
+                console.log('[PWA_SPLASH] Set session key on cold-start reload (prevents splash on next navigation)');
+            } catch (e) {
+                console.warn('[PWA_SPLASH] Failed to set sessionStorage on reload:', e);
+            }
+        }
         try {
             console.log('[PWA_SPLASH] Skipping splash:', {
                 reason: !isColdStart ? 'session active' : 'page reload',

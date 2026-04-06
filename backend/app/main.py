@@ -81,7 +81,7 @@ async def lifespan(app: FastAPI):
         else:
             logger.warning("Redis not configured - caching will be unavailable")
     except Exception as e:
-        logger.warning(f"Failed to initialize Redis: {e} - caching will be unavailable")
+        logger.warning("Failed to initialize Redis: %s - caching will be unavailable", e)
 
     # Warmup Redis connection (ensure pool is ready before first user request)
     try:
@@ -91,7 +91,7 @@ async def lifespan(app: FastAPI):
             await cache_service.get(CacheKey.quick_stats())
             logger.info("Redis connection warmed up")
     except Exception as e:
-        logger.warning(f"Redis warmup failed (non-critical): {e}")
+        logger.warning("Redis warmup failed (non-critical): %s", e)
 
     # Initialize Redis WebSocket Pub/Sub (for multi-worker support)
     try:
@@ -99,7 +99,7 @@ async def lifespan(app: FastAPI):
         await init_redis_ws()
         logger.info("Redis WebSocket Pub/Sub initialized (multi-worker support enabled)")
     except Exception as e:
-        logger.warning(f"Failed to initialize Redis WebSocket Pub/Sub: {e} - single-worker mode")
+        logger.warning("Failed to initialize Redis WebSocket Pub/Sub: %s - single-worker mode", e)
 
     # Start Write-Behind worker (optional, enabled via WRITE_BEHIND_ENABLED)
     try:
@@ -107,7 +107,7 @@ async def lifespan(app: FastAPI):
         await start_write_behind_worker()
         # Log message is inside the function (checks if enabled)
     except Exception as e:
-        logger.warning(f"Failed to start Write-Behind worker: {e}")
+        logger.warning("Failed to start Write-Behind worker: %s", e)
 
     # Initialize push notification session factory (WebSocket)
     set_push_db_session_factory(get_session)
@@ -131,19 +131,19 @@ async def lifespan(app: FastAPI):
             if bot_username:
                 # Update settings with fetched username
                 settings.TELEGRAM_BOT_USERNAME = bot_username
-                logger.info(f"Bot username auto-configured: @{bot_username}")
+                logger.info("Bot username auto-configured: @%s", bot_username)
             else:
                 logger.warning(
                     "Failed to auto-fetch bot username. "
                     "Please set TELEGRAM_BOT_USERNAME in .env file for web login to work."
                 )
         except Exception as e:
-            logger.error(f"Error fetching bot username: {e}")
+            logger.error("Error fetching bot username: %s", e)
             logger.warning(
                 "Please set TELEGRAM_BOT_USERNAME in .env file for web login to work."
             )
     else:
-        logger.info(f"Using configured bot username: @{settings.TELEGRAM_BOT_USERNAME}")
+        logger.info("Using configured bot username: @%s", settings.TELEGRAM_BOT_USERNAME)
 
     yield
 
@@ -164,7 +164,7 @@ async def lifespan(app: FastAPI):
         await stop_write_behind_worker()
         # Log message is inside the function
     except Exception as e:
-        logger.warning(f"Error stopping Write-Behind worker: {e}")
+        logger.warning("Error stopping Write-Behind worker: %s", e)
 
     # Stop Redis WebSocket Pub/Sub
     try:
@@ -172,7 +172,7 @@ async def lifespan(app: FastAPI):
         await close_redis_ws()
         logger.info("Redis WebSocket Pub/Sub stopped")
     except Exception as e:
-        logger.warning(f"Error stopping Redis WebSocket Pub/Sub: {e}")
+        logger.warning("Error stopping Redis WebSocket Pub/Sub: %s", e)
 
     # Close Redis connection pool
     try:
@@ -180,7 +180,7 @@ async def lifespan(app: FastAPI):
         await close_redis_pool()
         logger.info("Redis connection pool closed")
     except Exception as e:
-        logger.warning(f"Error closing Redis pool: {e}")
+        logger.warning("Error closing Redis pool: %s", e)
 
     await close_db()
     logger.info("Database connections closed")

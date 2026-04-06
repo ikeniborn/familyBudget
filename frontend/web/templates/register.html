@@ -199,7 +199,16 @@ async function handleRegister(e) {
         const data = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.detail || 'Ошибка регистрации');
+            const detail = data.detail;
+            let errorMsg = 'Ошибка регистрации';
+            if (typeof detail === 'string') {
+                errorMsg = detail;
+            } else if (detail && detail.errors && detail.errors.length) {
+                errorMsg = detail.errors.map(e => e.message).join('. ');
+            } else if (detail && detail.message) {
+                errorMsg = detail.message;
+            }
+            throw new Error(errorMsg);
         }
 
         // Success - redirect to pending activation page

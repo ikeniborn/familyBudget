@@ -19,6 +19,23 @@ import { getDexieManager } from '@db/dexie';
 import { performanceMonitor } from '../../../monitoring/PerformanceMonitor';
 import { logger } from '@db/dexie/utils/logger';
 
+/**
+ * Resolve getDexieManager dynamically to handle the dexie-diagnostic.min.js bundle issue
+ * where @db/dexie is external and mapped to window.Dexie (which is null at load time).
+ * Falls back to window.Dexie.getDexieManager() at call time when window.Dexie is ready.
+ */
+function resolveDexieManager(): ReturnType<typeof getDexieManager> {
+  try {
+    return getDexieManager();
+  } catch {
+    const dexie = (window as any).Dexie;
+    if (dexie && typeof dexie.getDexieManager === 'function') {
+      return dexie.getDexieManager();
+    }
+    throw new Error('[DexieDiagnosticModal] getDexieManager not available (window.Dexie not initialized)');
+  }
+}
+
 // TODO: Move these types to @db/dexie when getDiagnosticData is implemented
 interface DiagnosticData {
   initializationStatus: string;
@@ -33,10 +50,12 @@ interface DiagnosticData {
     financial_centers: number;
     cost_centers: number;
     facts: number;
-    plans: number;
-    stores: number;           // v11.4.2+
-    productGroups: number;    // v11.4.2+
-    shoppingLists: number;    // v11.4.2+
+    plans: number;               // regular plans (record_type='plan') from budgetFacts
+    recurringPlans?: number;     // recurring plans from recurringPlans table (v11.6.1+)
+    stores: number;              // v11.4.2+
+    productGroups: number;       // v11.4.2+
+    shoppingLists: number;       // v11.4.2+
+    shoppingListItems?: number;  // v11.4.2+
   };
   syncStatus: 'error' | 'idle' | 'syncing';
   performance: {
@@ -58,12 +77,8 @@ interface DiagnosticData {
   syncPeriod: {
     facts: number;
     plans: number;
-  };
-  websocket?: {
-    connected: boolean;
-    state: string;
-    enabled: boolean;
-    offlineMode: boolean;
+    plansHistory: number;
+    plansFuture: number;
   };
   syncMetadata?: {
     recurring_plans?: {
@@ -94,6 +109,7 @@ export class DexieDiagnosticModal extends BaseModal {
   constructor() {
     super({
       id: 'dexie-diagnostic-modal',
+      hideCloseButton: true,
       title: '🔍 Dexie Diagnostics',
       size: 'max-w-full sm:max-w-xl md:max-w-2xl lg:max-w-4xl',
       onOpen: () => {
@@ -131,18 +147,18 @@ export class DexieDiagnosticModal extends BaseModal {
 
     try {
       // getDexieManager() returns Promise due to window.Dexie Proxy
-      const pglite = await getDexieManager();
+      const dexie = await resolveDexieManager();
 
       // Wait for Dexie initialization (with timeout)
       const maxWaitMs = 30000; // 30 seconds (increased from 10)
       const startTime = Date.now();
       let attempts = 0;
-      while (!pglite.isReady() && (Date.now() - startTime) < maxWaitMs) {
+      while (!dexie.isReady() && (Date.now() - startTime) < maxWaitMs) {
         attempts++;
 
         // Check for initialization error at every iteration (early exit)
         try {
-          const diagnosticData = await pglite.getDiagnosticData();
+          const diagnosticData = await dexie.getDiagnosticData();
 
           // If initialization failed, exit immediately instead of waiting 30s
           if (diagnosticData.initializationStatus === 'error') {
@@ -158,10 +174,10 @@ export class DexieDiagnosticModal extends BaseModal {
         await new Promise(resolve => setTimeout(resolve, 200));
       }
 
-      if (!pglite.isReady()) {
+      if (!dexie.isReady()) {
         let finalStatus;
         try {
-          finalStatus = await pglite.getDiagnosticData();
+          finalStatus = await dexie.getDiagnosticData();
         } catch (e) {
           finalStatus = { error: String(e) };
         }
@@ -181,17 +197,11 @@ export class DexieDiagnosticModal extends BaseModal {
         return;
       }
 
-      const baseData = await pglite.getDiagnosticData();
-
-      // Add sync period information (v11.4.0+)
-      const syncPeriodDays = pglite.getSyncPeriodDays?.() ?? 90;
-
-      // Add WebSocket diagnostics (v11.4.0+)
-      const budgetWSClient = (window as any).budgetWSClient;
+      const baseData = await dexie.getDiagnosticData();
 
       // Load conflict metrics (task-009)
       try {
-        this.conflictMetrics = await pglite.getConflictMetrics();
+        this.conflictMetrics = await dexie.getConflictMetrics();
       } catch (error) {
         console.warn('[CONFLICT_METRICS] Failed to load conflict metrics', error);
         this.conflictMetrics = null;
@@ -200,7 +210,7 @@ export class DexieDiagnosticModal extends BaseModal {
       // Load sync metadata for Plans sync status check (v11.4.10+)
       let plansSyncMetadata;
       try {
-        plansSyncMetadata = await pglite.getSyncMetadata('recurring_plans');
+        plansSyncMetadata = await dexie.getSyncMetadata('recurring_plans');
       } catch (error) {
         console.warn('[SYNC_METADATA] Failed to load Plans sync metadata', error);
         plansSyncMetadata = undefined;
@@ -209,18 +219,6 @@ export class DexieDiagnosticModal extends BaseModal {
       // Build complete diagnostic data object
       const data: DiagnosticData = {
         ...baseData,
-        syncPeriod: {
-          facts: syncPeriodDays,
-          plans: syncPeriodDays
-        },
-        websocket: {
-          connected: budgetWSClient?.ws?.readyState === 1,  // WebSocket.OPEN = 1
-          state: budgetWSClient?.ws
-            ? ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][budgetWSClient.ws.readyState]
-            : 'NO_SOCKET',
-          enabled: budgetWSClient?.enabled ?? false,
-          offlineMode: budgetWSClient?._isOfflineModeActive?.() ?? false
-        },
         syncMetadata: {
           recurring_plans: plansSyncMetadata ? {
             last_sync_timestamp: plansSyncMetadata.last_sync_timestamp,
@@ -275,6 +273,14 @@ export class DexieDiagnosticModal extends BaseModal {
         await this.handleRetrySyncPlans();
       });
     }
+
+    // Attach event listener for Retry Facts Sync button
+    const retryFactsSyncBtn = this.diagnosticContainer.querySelector('#retry-facts-sync-btn');
+    if (retryFactsSyncBtn) {
+      retryFactsSyncBtn.addEventListener('click', async () => {
+        await this.handleRetryFactsSync();
+      });
+    }
   }
 
   /**
@@ -297,8 +303,10 @@ export class DexieDiagnosticModal extends BaseModal {
    * @returns true if warning should be shown
    */
   private shouldShowPlansSyncWarning(data: DiagnosticData): boolean {
-    // If plans count > 0, no warning needed
-    if (data.tableStats.plans > 0) {
+    // If recurring plans count > 0, no warning needed
+    // Use recurringPlans if available (v11.6.1+), fallback to plans for backward compat
+    const recurringCount = data.tableStats.recurringPlans ?? data.tableStats.plans;
+    if (recurringCount > 0) {
       return false;
     }
 
@@ -330,7 +338,7 @@ export class DexieDiagnosticModal extends BaseModal {
     try {
       logger.info('[DIAGNOSTIC] Retrying Plans sync...');
 
-      const dexieManager = await getDexieManager();
+      const dexieManager = await resolveDexieManager();
 
       // Get userId from window context (same as DexieManager.syncReferenceData)
       let userId: number | undefined;
@@ -370,6 +378,56 @@ export class DexieDiagnosticModal extends BaseModal {
   }
 
   /**
+   * Check if Facts sync warning should be shown.
+   * Warning is shown when facts count is 0.
+   */
+  private shouldShowFactsSyncWarning(data: DiagnosticData): boolean {
+    return data.tableStats.facts === 0;
+  }
+
+  /**
+   * Handle Retry Facts Sync button click.
+   * Triggers fullFactSync via DexieManager.syncFacts() and reloads diagnostic.
+   */
+  private async handleRetryFactsSync(): Promise<void> {
+    try {
+      logger.info('[DIAGNOSTIC] Retrying Facts sync...');
+
+      const dexieManager = await resolveDexieManager();
+
+      let userId: number | undefined;
+      if (typeof window !== 'undefined' && (window as any).userData?.id) {
+        userId = (window as any).userData.id;
+      } else if (typeof window !== 'undefined' && (window as any).user?.id) {
+        userId = (window as any).user.id;
+      }
+
+      if (!userId) {
+        throw new Error('No user ID available for sync (check window.userData or window.user)');
+      }
+
+      const result = await dexieManager.syncFacts(userId);
+      logger.info('[DIAGNOSTIC] Facts sync completed', result);
+
+      await this.loadDiagnosticData();
+    } catch (error) {
+      logger.error('[DIAGNOSTIC] Facts sync retry failed:', error);
+
+      if (this.diagnosticContainer) {
+        const errorAlert = document.createElement('div');
+        errorAlert.className = 'alert alert-error mb-3';
+        errorAlert.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Failed to sync facts: ${error instanceof Error ? error.message : 'Unknown error'}</span>
+        `;
+        this.diagnosticContainer.prepend(errorAlert);
+      }
+    }
+  }
+
+  /**
    * Render diagnostic content HTML template
    */
   private renderDiagnosticContent(data: DiagnosticData): string {
@@ -401,14 +459,38 @@ export class DexieDiagnosticModal extends BaseModal {
             </tr>
             <tr>
               <td>Plans</td>
-              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(${data.syncPeriod.plans} days)</span></td>
+              <td>${data.tableStats.plans} <span class="text-xs opacity-60">(−${data.syncPeriod.plansHistory} / +${data.syncPeriod.plansFuture} months)</span></td>
+            </tr>
+            <tr>
+              <td>└ Recurring Plans</td>
+              <td>${data.tableStats.recurringPlans ?? '—'}</td>
             </tr>
             <tr><td>Stores</td><td>${data.tableStats.stores}</td></tr>
             <tr><td>Product Groups</td><td>${data.tableStats.productGroups}</td></tr>
             <tr><td>Shopping Lists</td><td>${data.tableStats.shoppingLists}</td></tr>
+            <tr><td>└ Items</td><td>${data.tableStats.shoppingListItems ?? '—'}</td></tr>
           </tbody>
         </table>
       </div>
+
+      ${this.shouldShowFactsSyncWarning(data) ? `
+        <!-- Facts Sync Warning -->
+        <div class="alert alert-warning mb-3 text-xs">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p class="font-semibold">Facts not synced to local DB</p>
+            <p class="text-xs opacity-80">Facts count is 0. Either sync hasn't run yet, or facts are outside the retention period (${data.syncPeriod.facts} days). Click to sync now.</p>
+            <button id="retry-facts-sync-btn" class="btn btn-xs btn-warning mt-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Sync Facts Now
+            </button>
+          </div>
+        </div>
+      ` : ''}
 
       ${this.shouldShowPlansSyncWarning(data) ? `
         <!-- Plans Sync Warning (v11.4.10+) -->
@@ -446,14 +528,12 @@ export class DexieDiagnosticModal extends BaseModal {
 
       ${this.renderConflictMetrics()}
 
-      ${this.renderWebSocketDiagnostics(data)}
-
       <!-- Sync Period Controls (v11.5.0+) -->
       <div class="mb-3">
         <h3 class="text-xs font-semibold mb-2">Sync Period (Offline Data Retention)</h3>
 
         <!-- Facts Slider (Days) -->
-        <div class="form-control mb-3">
+        <div class="form-control mb-3" style="min-height: 80px;">
           <label class="label">
             <span class="label-text text-xs">Facts retention (days):</span>
           </label>
@@ -471,22 +551,41 @@ export class DexieDiagnosticModal extends BaseModal {
           </div>
         </div>
 
-        <!-- Plans Slider (Months) -->
-        <div class="form-control">
+        <!-- Plans History Slider (months back) -->
+        <div class="form-control mb-3" style="min-height: 80px;">
           <label class="label">
-            <span class="label-text text-xs">Plans retention (months):</span>
+            <span class="label-text text-xs">Plans history (months back):</span>
           </label>
           <input type="range" min="1" max="6" step="1"
-                 value="${data.syncPeriod.plans}"
+                 value="${data.syncPeriod.plansHistory}"
                  class="range range-xs range-secondary"
-                 id="sync-period-plans-slider"
-                 oninput="window.updateSyncPeriodPlansDisplay?.(this.value)"
-                 onchange="window.updateSyncPeriodPlans?.(this.value)">
+                 id="sync-period-plans-history-slider"
+                 oninput="window.updateSyncPeriodPlansHistoryDisplay?.(this.value)"
+                 onchange="window.updateSyncPeriodPlansHistory?.(this.value)">
           <div class="w-full flex justify-between text-xs px-2 opacity-60">
             <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
           </div>
-          <div class="text-xs text-center mt-1" id="sync-period-plans-value">
-            ${data.syncPeriod.plans} months
+          <div class="text-xs text-center mt-1" id="sync-period-plans-history-value">
+            ${data.syncPeriod.plansHistory} months
+          </div>
+        </div>
+
+        <!-- Plans Future Slider (months ahead) -->
+        <div class="form-control mb-3" style="min-height: 80px;">
+          <label class="label">
+            <span class="label-text text-xs">Plans future (months ahead):</span>
+          </label>
+          <input type="range" min="1" max="6" step="1"
+                 value="${data.syncPeriod.plansFuture}"
+                 class="range range-xs range-accent"
+                 id="sync-period-plans-future-slider"
+                 oninput="window.updateSyncPeriodPlansFutureDisplay?.(this.value)"
+                 onchange="window.updateSyncPeriodPlansFuture?.(this.value)">
+          <div class="w-full flex justify-between text-xs px-2 opacity-60">
+            <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+          </div>
+          <div class="text-xs text-center mt-1" id="sync-period-plans-future-value">
+            ${data.syncPeriod.plansFuture} months
           </div>
         </div>
       </div>
@@ -613,36 +712,6 @@ export class DexieDiagnosticModal extends BaseModal {
     `;
   }
 
-  /**
-   * Render WebSocket diagnostics (v11.4.0+)
-   */
-  private renderWebSocketDiagnostics(data: DiagnosticData): string {
-    if (!data.websocket) {
-      return '';
-    }
-
-    const ws = data.websocket;
-    const stateClass = ws.connected ? 'text-success' : 'text-error';
-    const stateIcon = ws.connected ? '✓' : '✗';
-
-    return `
-      <!-- WebSocket Diagnostics (v11.4.0+) -->
-      <div class="overflow-x-auto mb-3">
-        <table class="table table-xs table-zebra w-full">
-          <thead><tr><th class="text-xs">WebSocket</th><th class="text-xs">Value</th></tr></thead>
-          <tbody class="text-xs">
-            <tr>
-              <td>Connection</td>
-              <td class="${stateClass}">${stateIcon} ${ws.connected ? 'Connected' : 'Disconnected'}</td>
-            </tr>
-            <tr><td>State</td><td>${ws.state}</td></tr>
-            <tr><td>Enabled</td><td>${ws.enabled ? 'Yes' : 'No'}</td></tr>
-            <tr><td>Offline Mode</td><td>${ws.offlineMode ? 'Active' : 'Inactive'}</td></tr>
-          </tbody>
-        </table>
-      </div>
-    `;
-  }
 
   /**
    * Update Facts sync period display (real-time slider feedback) (v11.5.0+)
@@ -659,7 +728,7 @@ export class DexieDiagnosticModal extends BaseModal {
    */
   private async updateSyncPeriodFacts(days: number): Promise<void> {
     try {
-      const dexieManager = await getDexieManager();
+      const dexieManager = await resolveDexieManager();
       dexieManager.setSyncPeriodDays(days);
       this.updateSyncPeriodFactsDisplay(days);
 
@@ -688,7 +757,7 @@ export class DexieDiagnosticModal extends BaseModal {
    */
   private async updateSyncPeriodPlans(months: number): Promise<void> {
     try {
-      const dexieManager = await getDexieManager();
+      const dexieManager = await resolveDexieManager();
       dexieManager.setSyncPeriodMonths(months);
       this.updateSyncPeriodPlansDisplay(months);
 
@@ -696,6 +765,58 @@ export class DexieDiagnosticModal extends BaseModal {
       await this.loadDiagnosticData();
     } catch (error) {
       logger.error('[SYNC_PERIOD] Failed to update Plans sync period', error);
+    }
+  }
+
+  /**
+   * Update Plans history display (real-time slider feedback) (v11.6.0+)
+   */
+  private updateSyncPeriodPlansHistoryDisplay(months: number): void {
+    const valueEl = document.getElementById('sync-period-plans-history-value');
+    if (valueEl) {
+      valueEl.textContent = `${months} months`;
+    }
+  }
+
+  /**
+   * Update Plans history sync period (v11.6.0+)
+   */
+  private async updateSyncPeriodPlansHistory(months: number): Promise<void> {
+    try {
+      const dexieManager = await resolveDexieManager();
+      dexieManager.setSyncPeriodPlansHistory(months);
+      this.updateSyncPeriodPlansHistoryDisplay(months);
+
+      logger.info('[SYNC_PERIOD] Plans history period updated (will apply on next sync):', months);
+      await this.loadDiagnosticData();
+    } catch (error) {
+      logger.error('[SYNC_PERIOD] Failed to update Plans history period', error);
+    }
+  }
+
+  /**
+   * Update Plans future display (real-time slider feedback) (v11.6.0+)
+   */
+  private updateSyncPeriodPlansFutureDisplay(months: number): void {
+    const valueEl = document.getElementById('sync-period-plans-future-value');
+    if (valueEl) {
+      valueEl.textContent = `${months} months`;
+    }
+  }
+
+  /**
+   * Update Plans future sync period (v11.6.0+)
+   */
+  private async updateSyncPeriodPlansFuture(months: number): Promise<void> {
+    try {
+      const dexieManager = await resolveDexieManager();
+      dexieManager.setSyncPeriodPlansFuture(months);
+      this.updateSyncPeriodPlansFutureDisplay(months);
+
+      logger.info('[SYNC_PERIOD] Plans future period updated (will apply on next sync):', months);
+      await this.loadDiagnosticData();
+    } catch (error) {
+      logger.error('[SYNC_PERIOD] Failed to update Plans future period', error);
     }
   }
 }
@@ -729,6 +850,22 @@ export function openDexieDiagnostic(): void {
 
   (window as any).updateSyncPeriodPlans = (months: number) => {
     diagnosticModalInstance?.['updateSyncPeriodPlans'](months);
+  };
+
+  (window as any).updateSyncPeriodPlansHistoryDisplay = (months: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodPlansHistoryDisplay'](months);
+  };
+
+  (window as any).updateSyncPeriodPlansHistory = (months: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodPlansHistory'](months);
+  };
+
+  (window as any).updateSyncPeriodPlansFutureDisplay = (months: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodPlansFutureDisplay'](months);
+  };
+
+  (window as any).updateSyncPeriodPlansFuture = (months: number) => {
+    diagnosticModalInstance?.['updateSyncPeriodPlansFuture'](months);
   };
 
   diagnosticModalInstance.open();

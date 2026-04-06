@@ -101,24 +101,25 @@ async def get_logs(
         HTTPException 500: Error collecting logs
     """
     logger.info(
-        f"[ADMIN_LOGS_API] GET /api/v1/admin/logs called by user_id={current_admin.id}, "
-        f"service={service}, level={level}, since={since}, until={until}, limit={limit}"
+        "[ADMIN_LOGS_API] GET /api/v1/admin/logs called by user_id=%s, "
+        "service=%s, level=%s, since=%s, until=%s, limit=%s",
+        current_admin.id, service, level, since, until, limit
     )
 
     # Validate parameters
     if limit < 1 or limit > 500:
-        logger.warning(f"[ADMIN_LOGS_API] Invalid limit={limit}, must be 1-500")
+        logger.warning("[ADMIN_LOGS_API] Invalid limit=%s, must be 1-500", limit)
         raise HTTPException(status_code=400, detail="Limit must be between 1 and 500")
 
     if service not in ["all", "browser", "backend", "bot", "postgres", "nginx"]:
-        logger.warning(f"[ADMIN_LOGS_API] Invalid service={service}")
+        logger.warning("[ADMIN_LOGS_API] Invalid service=%s", service)
         raise HTTPException(
             status_code=400,
             detail="Service must be one of: all, browser, backend, bot, postgres, nginx"
         )
 
     if level not in ["all", "info", "warning", "error"]:
-        logger.warning(f"[ADMIN_LOGS_API] Invalid level={level}")
+        logger.warning("[ADMIN_LOGS_API] Invalid level=%s", level)
         raise HTTPException(
             status_code=400,
             detail="Level must be one of: all, info, warning, error"
@@ -135,7 +136,7 @@ async def get_logs(
             if since_dt.tzinfo is None:
                 since_dt = since_dt.replace(tzinfo=get_system_timezone())
         except ValueError:
-            logger.warning(f"[ADMIN_LOGS_API] Invalid since datetime={since}")
+            logger.warning("[ADMIN_LOGS_API] Invalid since datetime=%s", since)
             raise HTTPException(status_code=400, detail="Invalid since datetime format (use ISO 8601)")
 
     if until:
@@ -145,7 +146,7 @@ async def get_logs(
             if until_dt.tzinfo is None:
                 until_dt = until_dt.replace(tzinfo=get_system_timezone())
         except ValueError:
-            logger.warning(f"[ADMIN_LOGS_API] Invalid until datetime={until}")
+            logger.warning("[ADMIN_LOGS_API] Invalid until datetime=%s", until)
             raise HTTPException(status_code=400, detail="Invalid until datetime format (use ISO 8601)")
 
     # Collect logs
@@ -160,14 +161,14 @@ async def get_logs(
         )
 
         logger.info(
-            f"[ADMIN_LOGS_API] Returning {result['filtered_count']} logs "
-            f"(from {result['total_count']} total)"
+            "[ADMIN_LOGS_API] Returning %s logs (from %s total)",
+            result['filtered_count'], result['total_count']
         )
 
         return LogsResponse(**result)
 
     except Exception as e:
-        logger.error(f"[ADMIN_LOGS_API] Error collecting logs: {e}", exc_info=True)
+        logger.error("[ADMIN_LOGS_API] Error collecting logs: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error collecting logs: {str(e)}")
 
 
@@ -194,21 +195,22 @@ async def receive_browser_logs(
         HTTPException 500: Error storing logs
     """
     logger.info(
-        f"[BROWSER_LOGS_API] POST /api/v1/admin/logs/browser called by user_id={current_user.id}, "
-        f"batch_size={len(data.logs)}, session_id={data.session_id}"
+        "[BROWSER_LOGS_API] POST /api/v1/admin/logs/browser called by user_id=%s, "
+        "batch_size=%s, session_id=%s",
+        current_user.id, len(data.logs), data.session_id
     )
 
     # Validate user_id matches current_user
     if data.user_id != current_user.id:
         logger.warning(
-            f"[BROWSER_LOGS_API] User ID mismatch: data.user_id={data.user_id}, "
-            f"current_user.id={current_user.id}"
+            "[BROWSER_LOGS_API] User ID mismatch: data.user_id=%s, current_user.id=%s",
+            data.user_id, current_user.id
         )
         raise HTTPException(status_code=400, detail="User ID mismatch")
 
     # Validate batch size
     if len(data.logs) > 500:
-        logger.warning(f"[BROWSER_LOGS_API] Batch size too large: {len(data.logs)} logs")
+        logger.warning("[BROWSER_LOGS_API] Batch size too large: %s logs", len(data.logs))
         raise HTTPException(status_code=400, detail="Batch size must not exceed 500 logs")
 
     if len(data.logs) == 0:
@@ -228,7 +230,8 @@ async def receive_browser_logs(
         )
 
         logger.info(
-            f"[BROWSER_LOGS_API] Stored {stored_count} browser logs from user_id={current_user.id}"
+            "[BROWSER_LOGS_API] Stored %s browser logs from user_id=%s",
+            stored_count, current_user.id
         )
 
         return BrowserLogResponse(
@@ -238,5 +241,5 @@ async def receive_browser_logs(
         )
 
     except Exception as e:
-        logger.error(f"[BROWSER_LOGS_API] Error storing browser logs: {e}", exc_info=True)
+        logger.error("[BROWSER_LOGS_API] Error storing browser logs: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error storing logs: {str(e)}")

@@ -74,7 +74,7 @@ async def list_banks(
     ]
     ```
     """
-    logger.info(f"Listing banks for user {current_user.id}")
+    logger.info("Listing banks for user %s", current_user.id)
     banks = await BankProviderService.list_active_banks(session)
     return [
         BankProviderResponse(
@@ -125,7 +125,7 @@ async def create_bank(
     **Errors:**
     - 400: Bank with this code already exists
     """
-    logger.info(f"Creating bank '{request.code}' by user {current_user.id}")
+    logger.info("Creating bank '%s' by user %s", request.code, current_user.id)
 
     # Normalize code: lowercase, replace spaces with underscores
     normalized_code = request.code.lower().strip().replace(" ", "_")
@@ -136,7 +136,7 @@ async def create_bank(
             code=normalized_code,
             name=request.name.strip()
         )
-        logger.info(f"Created bank id={bank.id}, code='{bank.code}'")
+        logger.info("Created bank id=%s, code='%s'", bank.id, bank.code)
         return BankProviderResponse(
             id=bank.id,
             code=bank.code,
@@ -144,7 +144,7 @@ async def create_bank(
             active=bank.active
         )
     except ValueError as e:
-        logger.warning(f"Failed to create bank '{normalized_code}': {e}")
+        logger.warning("Failed to create bank '%s': %s", normalized_code, e)
         raise HTTPException(400, str(e))
 
 
@@ -185,7 +185,7 @@ async def delete_bank(
     **Errors:**
     - 404: Bank not found
     """
-    logger.info(f"Deleting bank {bank_id} by user {current_user.id}")
+    logger.info("Deleting bank %s by user %s", bank_id, current_user.id)
 
     try:
         # Get bank name before deletion for response message
@@ -198,10 +198,8 @@ async def delete_bank(
         result = await BankProviderService.delete_bank(session, bank_id)
 
         logger.info(
-            f"Deleted bank id={bank_id}, code='{bank_code}': "
-            f"staging={result['deleted_staging']}, "
-            f"uploads={result['deleted_uploads']}, "
-            f"mappings={result['deleted_mappings']}"
+            "Deleted bank id=%s, code='%s': staging=%s, uploads=%s, mappings=%s",
+            bank_id, bank_code, result['deleted_staging'], result['deleted_uploads'], result['deleted_mappings']
         )
 
         return {
@@ -214,7 +212,7 @@ async def delete_bank(
             }
         }
     except ValueError as e:
-        logger.warning(f"Failed to delete bank {bank_id}: {e}")
+        logger.warning("Failed to delete bank %s: %s", bank_id, e)
         raise HTTPException(404, str(e))
 
 
@@ -266,7 +264,8 @@ async def upload_file(
             actual_delimiter = delimiter
 
     logger.info(
-        f"Uploading file {file.filename} for user {current_user.id}, bank {bank_provider_id}, delimiter={actual_delimiter or 'auto'}"
+        "Uploading file %s for user %s, bank %s, delimiter=%s",
+        file.filename, current_user.id, bank_provider_id, actual_delimiter or 'auto'
     )
 
     # Validate file size (100MB)
@@ -289,7 +288,7 @@ async def upload_file(
         with open(temp_file_path, "wb") as f:
             f.write(content)
     except Exception as e:
-        logger.error(f"Failed to save temp file {temp_file_path}: {e}")
+        logger.error("Failed to save temp file %s: %s", temp_file_path, e)
         raise HTTPException(500, f"Failed to save uploaded file: {str(e)}")
 
     # Create ImportFileUpload record
@@ -323,22 +322,22 @@ async def upload_file(
         await session.commit()
 
         logger.info(
-            f"Analyzed file {file_upload.id}: {analysis['total_rows']} rows, "
-            f"{len(analysis['headers'])} columns"
+            "Analyzed file %s: %s rows, %s columns",
+            file_upload.id, analysis['total_rows'], len(analysis['headers'])
         )
 
     except Exception as e:
         file_upload.status = "error"
         file_upload.error_message = str(e)
         await session.commit()
-        logger.error(f"Failed to analyze file {file_upload.id}: {e}")
+        logger.error("Failed to analyze file %s: %s", file_upload.id, e)
 
         # Clean up temp file on analysis failure
         if temp_file_path.exists():
             try:
                 temp_file_path.unlink()
             except Exception as cleanup_error:
-                logger.error(f"Failed to cleanup temp file {temp_file_path}: {cleanup_error}")
+                logger.error("Failed to cleanup temp file %s: %s", temp_file_path, cleanup_error)
 
         raise HTTPException(500, f"Failed to analyze CSV: {str(e)}")
 
@@ -402,8 +401,8 @@ async def upload_from_google_sheets(
     - 500: Failed to fetch or analyze
     """
     logger.info(
-        f"Uploading from Google Sheets for user {current_user.id}, "
-        f"bank {request.bank_provider_id}, URL: {request.google_sheets_url[:50]}..."
+        "Uploading from Google Sheets for user %s, bank %s, URL: %s...",
+        current_user.id, request.bank_provider_id, request.google_sheets_url[:50]
     )
 
     # Validate bank exists
@@ -419,12 +418,12 @@ async def upload_from_google_sheets(
         csv_bytes = await fetch_google_sheets_as_csv(spreadsheet_id, sheet_gid)
 
         logger.info(
-            f"Fetched Google Sheets: spreadsheet_id={spreadsheet_id}, "
-            f"sheet_gid={sheet_gid or 'default'}, size={len(csv_bytes)} bytes"
+            "Fetched Google Sheets: spreadsheet_id=%s, sheet_gid=%s, size=%s bytes",
+            spreadsheet_id, sheet_gid or 'default', len(csv_bytes)
         )
 
     except GoogleSheetsError as e:
-        logger.warning(f"Google Sheets fetch failed for user {current_user.id}: {str(e)}")
+        logger.warning("Google Sheets fetch failed for user %s: %s", current_user.id, e)
         raise HTTPException(400, str(e))
 
     # Save to temp file
@@ -437,7 +436,7 @@ async def upload_from_google_sheets(
         with open(temp_file_path, "wb") as f:
             f.write(csv_bytes)
     except Exception as e:
-        logger.error(f"Failed to save temp file {temp_file_path}: {e}")
+        logger.error("Failed to save temp file %s: %s", temp_file_path, e)
         raise HTTPException(500, f"Failed to save file: {str(e)}")
 
     # Create ImportFileUpload record
@@ -471,22 +470,22 @@ async def upload_from_google_sheets(
         await session.commit()
 
         logger.info(
-            f"Analyzed Google Sheets file {file_upload.id}: {analysis['total_rows']} rows, "
-            f"{len(analysis['headers'])} columns"
+            "Analyzed Google Sheets file %s: %s rows, %s columns",
+            file_upload.id, analysis['total_rows'], len(analysis['headers'])
         )
 
     except Exception as e:
         file_upload.status = "error"
         file_upload.error_message = str(e)
         await session.commit()
-        logger.error(f"Failed to analyze Google Sheets file {file_upload.id}: {e}")
+        logger.error("Failed to analyze Google Sheets file %s: %s", file_upload.id, e)
 
         # Clean up temp file on analysis failure
         if temp_file_path.exists():
             try:
                 temp_file_path.unlink()
             except Exception as cleanup_error:
-                logger.error(f"Failed to cleanup temp file {temp_file_path}: {cleanup_error}")
+                logger.error("Failed to cleanup temp file %s: %s", temp_file_path, cleanup_error)
 
         raise HTTPException(500, f"Failed to analyze CSV: {str(e)}")
 
@@ -534,7 +533,7 @@ async def analyze_file(
     import time
     start_time = time.time()
 
-    logger.info(f"Analyzing file {file_id} for user {current_user.id}")
+    logger.info("Analyzing file %s for user %s", file_id, current_user.id)
 
     file_upload = await session.get(ImportFileUpload, file_id)
     if not file_upload or file_upload.user_id != current_user.id:
@@ -546,8 +545,9 @@ async def analyze_file(
     elapsed = time.time() - start_time
     if elapsed > 5.0:  # Warn if slower than 5s
         logger.warning(
-            f"SLOW QUERY: analyze_file took {elapsed:.2f}s for file {file_id}. "
-            "This should be <1s. Check database indexes or CSVAnalyzer."
+            "SLOW QUERY: analyze_file took %.2fs for file %s. "
+            "This should be <1s. Check database indexes or CSVAnalyzer.",
+            elapsed, file_id
         )
 
     return AnalyzeResponse(
@@ -591,7 +591,7 @@ async def preview_file(
     }
     ```
     """
-    logger.info(f"Preview file {file_id} with delimiter={repr(delimiter)} for user {current_user.id}")
+    logger.info("Preview file %s with delimiter=%r for user %s", file_id, delimiter, current_user.id)
 
     file_upload = await session.get(ImportFileUpload, file_id)
     if not file_upload or file_upload.user_id != current_user.id:
@@ -634,7 +634,7 @@ async def preview_file(
         headers = list(rows[0].keys()) if rows else []
         sample_rows = rows[:5]
 
-        logger.info(f"Preview: {len(headers)} columns, {len(rows)} total rows")
+        logger.info("Preview: %s columns, %s total rows", len(headers), len(rows))
 
         return {
             "file_id": file_upload.id,
@@ -646,7 +646,7 @@ async def preview_file(
         }
 
     except Exception as e:
-        logger.error(f"Failed to preview file {file_id}: {e}")
+        logger.error("Failed to preview file %s: %s", file_id, e)
         raise HTTPException(500, f"Failed to preview CSV: {str(e)}")
 
 
@@ -688,7 +688,7 @@ async def get_mapping(
     }
     ```
     """
-    logger.info(f"Getting mapping for bank {bank_provider_id}, user {current_user.id}")
+    logger.info("Getting mapping for bank %s, user %s", bank_provider_id, current_user.id)
 
     mapping = await MappingService.get_mapping(session, bank_provider_id, current_user.id)
 
@@ -758,7 +758,7 @@ async def save_mapping(
     ```
     """
     logger.info(
-        f"Saving mapping for bank {request.bank_provider_id}, user {current_user.id}"
+        "Saving mapping for bank %s, user %s", request.bank_provider_id, current_user.id
     )
 
     # Validate bank exists
@@ -829,7 +829,7 @@ async def parse_file(
     - Implement temp file storage (currently file content not persisted)
     - Add error handling for parsing failures
     """
-    logger.info(f"Parsing file {file_id} with mapping {request.mapping_id}")
+    logger.info("Parsing file %s with mapping %s", file_id, request.mapping_id)
 
     # Get file upload
     file_upload = await session.get(ImportFileUpload, file_id)
@@ -854,7 +854,7 @@ async def parse_file(
         with open(temp_file_path, "rb") as f:
             file_content = f.read()
     except Exception as e:
-        logger.error(f"Failed to read temp file {temp_file_path}: {e}")
+        logger.error("Failed to read temp file %s: %s", temp_file_path, e)
         raise HTTPException(500, f"Failed to read temporary file: {str(e)}")
 
     # Get delimiter, date_format, number_format from mapping transformations (if set)
@@ -870,9 +870,8 @@ async def parse_file(
         delimiter = '\t'
 
     logger.info(
-        f"Parsing with delimiter={repr(delimiter)}, encoding={encoding}, "
-        f"date_format={date_format or 'auto'}, number_format={number_format or 'auto'}, "
-        f"transformations={mapping_record.transformations or {}}"
+        "Parsing with delimiter=%r, encoding=%s, date_format=%s, number_format=%s, transformations=%s",
+        delimiter, encoding, date_format or 'auto', number_format or 'auto', mapping_record.transformations or {}
     )
 
     try:
@@ -906,12 +905,13 @@ async def parse_file(
         # Clean up temp file after successful parsing
         try:
             temp_file_path.unlink()
-            logger.info(f"Deleted temp file {temp_file_path} after successful parsing")
+            logger.info("Deleted temp file %s after successful parsing", temp_file_path)
         except Exception as cleanup_error:
-            logger.error(f"Failed to cleanup temp file {temp_file_path}: {cleanup_error}")
+            logger.error("Failed to cleanup temp file %s: %s", temp_file_path, cleanup_error)
 
         logger.info(
-            f"Successfully parsed file {file_upload.id}: {len(staging_records)} records inserted to staging"
+            "Successfully parsed file %s: %s records inserted to staging",
+            file_upload.id, len(staging_records)
         )
 
         return ParseResponse(
@@ -924,5 +924,5 @@ async def parse_file(
         file_upload.status = "error"
         file_upload.error_message = f"Parsing failed: {str(e)}"
         await session.commit()
-        logger.error(f"Failed to parse file {file_upload.id}: {e}")
+        logger.error("Failed to parse file %s: %s", file_upload.id, e)
         raise HTTPException(500, f"Failed to parse CSV: {str(e)}")

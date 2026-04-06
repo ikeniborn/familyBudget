@@ -165,7 +165,7 @@ test.describe('Mobile Navigation - User Interactions', () => {
   test.beforeEach(async ({ page }) => {
     // Authentication handled by global setup (storage state)
     await page.goto('/');  // Uses baseURL from playwright.config.ts
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('domcontentloaded');  // networkidle hangs with WebSocket
     await page.setViewportSize(VIEWPORTS.mobile);
   });
 

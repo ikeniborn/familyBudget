@@ -13,6 +13,34 @@ import * as PlanHelpers from './helpers';
 declare const echarts: any;
 
 // ============================================================================
+// Filter Options Interface & Cache
+// ============================================================================
+
+/**
+ * Filter options response from /api/v1/analytics/plans/filter-options
+ */
+export interface PlanFilterOptionsResponse {
+  financial_centers: Array<{ id: number; name: string }>;
+  article_types: string[];
+  articles: Array<{ id: number; name: string; type: string; parent_id: number | null }>;
+}
+
+/**
+ * Cached filter options from API
+ */
+let cachedFilterOptions: PlanFilterOptionsResponse | null = null;
+
+/**
+ * Human-readable labels for article types
+ */
+const ARTICLE_TYPE_LABELS: Record<string, string> = {
+  expense: 'Расходы',
+  income: 'Доходы',
+  debit: 'Списание',
+  credit: 'Пополнение'
+};
+
+// ============================================================================
 // TypeScript Interfaces
 // ============================================================================
 
@@ -50,9 +78,12 @@ export interface CategoryComparison {
   category_id: number;
   category_name: string;
   category_type: 'expense' | 'income' | 'debit' | 'credit';
-  current_month_total: number;
-  previous_month_total: number;
+  current: number;
+  previous: number;
 }
+
+// Shared number formatter — reused across all chart tooltip formatters
+const numFmt = new Intl.NumberFormat('ru-RU');
 
 // ============================================================================
 // State Management
@@ -141,9 +172,8 @@ export function initAnalyticsMonthButtons(): void {
 
     container.appendChild(btn);
 
-    // Set initial month
     if (offset === 0) {
-      currentAnalyticsMonth = yearMonth;
+      setCurrentAnalyticsMonth(yearMonth);
     }
   }
 }
@@ -167,12 +197,26 @@ export async function selectAnalyticsMonth(month: string, clickedBtn: HTMLButton
   clickedBtn.classList.remove('btn-outline');
   clickedBtn.classList.add('btn-primary');
 
+  // Reload filter options for this month (cascade: FC, article types)
+  const filterOptions = await loadAnalyticsFilterOptions({ planning_month: month });
+  if (filterOptions) {
+    await loadAnalyticsCFOFilter(filterOptions.financial_centers);
+    populateArticleTypeFilter(filterOptions.article_types);
+    // Reload articles: use selected type if any, else use plan-filtered articles
+    const typeSelect = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
+    if (typeSelect?.value) {
+      await loadAnalyticsArticleFilter(typeSelect.value);
+    } else {
+      await loadAnalyticsArticleFilter(null, filterOptions.articles);
+    }
+  }
+
   // Reload analytics
   await loadPlanAnalytics();
 
-  // Sync to filters section (imported at runtime to avoid circular dependency)
-  if (typeof (window as any).syncAnalyticsToFilters === 'function') {
-    await (window as any).syncAnalyticsToFilters();
+  // Sync to filters section via PlanApp (avoids circular dependency)
+  if (typeof window.PlanApp?.syncAnalyticsToFilters === 'function') {
+    await window.PlanApp.syncAnalyticsToFilters();
   }
 }
 
@@ -247,20 +291,111 @@ function buildArticleOptions(select: HTMLSelectElement, sortedNodes: PlanHelpers
 }
 
 // ============================================================================
+// Filter Options - Dynamic from API
+// ============================================================================
+
+/**
+ * Load and cache filter options from /api/v1/analytics/plans/filter-options
+ * Returns cached result on subsequent calls
+ *
+ * @returns PlanFilterOptionsResponse or null on error
+ */
+export async function loadAnalyticsFilterOptions(
+  params?: { planning_month?: string; financial_center_id?: string | number }
+): Promise<PlanFilterOptionsResponse | null> {
+  // Use cache only when no params (initial/global load)
+  if (!params && cachedFilterOptions) {
+    return cachedFilterOptions;
+  }
+
+  try {
+    let url = '/api/v1/analytics/plans/filter-options';
+    if (params) {
+      const qp = new URLSearchParams();
+      if (params.planning_month) qp.set('planning_month', params.planning_month);
+      if (params.financial_center_id) qp.set('financial_center_id', String(params.financial_center_id));
+      if (qp.toString()) url += '?' + qp.toString();
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    const result: PlanFilterOptionsResponse = await response.json();
+    // Cache only the global (no-param) result
+    if (!params) {
+      cachedFilterOptions = result;
+    }
+    return result;
+  } catch (error) {
+    console.error('[PlanAnalytics] Error loading filter options:', error);
+    return null;
+  }
+}
+
+/**
+ * Populate article type select with dynamic values from filter options
+ * @param types - Array of article type strings from API
+ */
+export function populateArticleTypeFilter(types: string[]): void {
+  const select = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
+  if (!select) return;
+
+  // Remove all options except the first "Все типы" default
+  while (select.options.length > 1) {
+    select.remove(1);
+  }
+
+  types.forEach(type => {
+    const option = document.createElement('option');
+    option.value = type;
+    option.textContent = ARTICLE_TYPE_LABELS[type] || type;
+    select.appendChild(option);
+  });
+}
+
+/**
+ * Populate all analytics filter dropdowns using cached filter options
+ * Calls loadAnalyticsFilterOptions() internally; falls back to legacy endpoints on error
+ */
+export async function populateAllAnalyticsFilters(): Promise<void> {
+  const filterOptions = await loadAnalyticsFilterOptions();
+
+  if (filterOptions && filterOptions.article_types.length > 0) {
+    populateArticleTypeFilter(filterOptions.article_types);
+  }
+
+  await Promise.all([
+    loadAnalyticsCFOFilter(filterOptions ? filterOptions.financial_centers : null),
+    loadAnalyticsArticleFilter(null, filterOptions ? filterOptions.articles : null)
+  ]);
+}
+
+// ============================================================================
 // Filter Dropdowns
 // ============================================================================
 
 /**
  * Load CFO (financial center) filter options for analytics
+ * Uses filter-options data if provided; falls back to PlanHelpers.loadFinancialCenters()
+ *
+ * @param centers - Pre-fetched financial centers or null for fallback
  */
-export async function loadAnalyticsCFOFilter(): Promise<void> {
+export async function loadAnalyticsCFOFilter(
+  centers: Array<{ id: number; name: string }> | null = null
+): Promise<void> {
   try {
-    const centers = await PlanHelpers.loadFinancialCenters();
-    const select = document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null;
+    const centerList = centers !== null ? centers : await PlanHelpers.loadFinancialCenters();
 
+    const select = document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null;
     if (!select) return;
 
-    centers.forEach(center => {
+    // Clear existing options except "Все счета" default
+    while (select.options.length > 1) {
+      select.remove(1);
+    }
+
+    centerList.forEach(center => {
       const option = document.createElement('option');
       option.value = String(center.id);
       option.textContent = center.name;
@@ -272,26 +407,43 @@ export async function loadAnalyticsCFOFilter(): Promise<void> {
 }
 
 /**
- * Load article filter options for analytics
- * Filters by article type if provided
+ * Load article filter options for analytics.
+ * When articleType is specified: fetches full hierarchy from /api/v1/articles?type=...
+ * When no type: uses allArticles (plan-used subset) or full API as fallback.
  *
- * @param articleType - Article type filter ('expense' | 'income' | 'debit' | 'credit')
+ * @param articleType - Article type filter ('expense' | 'income' | 'debit' | 'credit') or null
+ * @param allArticles - Pre-fetched articles from filter-options (used only when articleType is null)
  */
-export async function loadAnalyticsArticleFilter(articleType: string | null = null): Promise<void> {
+export async function loadAnalyticsArticleFilter(
+  articleType: string | null = null,
+  allArticles: Array<{ id: number; name: string; type: string; parent_id: number | null }> | null = null
+): Promise<void> {
   try {
-    let url = '/api/v1/articles?limit=1000&sort_by=usage_count';
-    if (articleType) {
-      url += `&type=${articleType}`;
-    }
+    let articles: PlanHelpers.Article[];
 
-    const response = await fetch(url);
-    if (!response.ok) {
-      console.warn('[PlanAnalytics] Failed to load articles:', response.status);
-      return;
+    if (articleType !== null) {
+      // Type selected → fetch full hierarchy from API for proper tree display
+      const url = `/api/v1/articles?limit=1000&sort_by=usage_count&type=${encodeURIComponent(articleType)}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        console.warn('[PlanAnalytics] Failed to load articles:', response.status);
+        return;
+      }
+      const data = await response.json();
+      articles = Array.isArray(data) ? data : data.articles || [];
+    } else if (allArticles !== null) {
+      // No type filter + pre-fetched plan articles → use them
+      articles = allArticles as PlanHelpers.Article[];
+    } else {
+      // Fallback: fetch all articles
+      const response = await fetch('/api/v1/articles?limit=1000&sort_by=usage_count');
+      if (!response.ok) {
+        console.warn('[PlanAnalytics] Failed to load articles:', response.status);
+        return;
+      }
+      const data = await response.json();
+      articles = Array.isArray(data) ? data : data.articles || [];
     }
-
-    const data = await response.json();
-    const articles: PlanHelpers.Article[] = Array.isArray(data) ? data : data.articles || [];
 
     const select = document.getElementById('analytics-article') as HTMLSelectElement | null;
     if (!select) return;
@@ -505,13 +657,6 @@ function initCategoriesChart(): void {
  * @returns ECharts option object
  */
 function buildComparisonChartConfig(data: MonthlyAnalyticsData): any {
-  const typeLabels: Record<string, string> = {
-    expense: 'Расходы',
-    income: 'Доходы',
-    debit: 'Списание',
-    credit: 'Пополнение'
-  };
-
   const typeColors: Record<string, string> = {
     expense: '#ef4444',
     income: '#22c55e',
@@ -530,8 +675,7 @@ function buildComparisonChartConfig(data: MonthlyAnalyticsData): any {
       formatter: function (params: any[]) {
         let result = params[0].axisValue + '<br/>';
         params.forEach(param => {
-          const value = new Intl.NumberFormat('ru-RU').format(param.value);
-          result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
+          result += `${param.marker} ${param.seriesName}: ${numFmt.format(param.value)} ₽<br/>`;
         });
         return result;
       }
@@ -549,7 +693,7 @@ function buildComparisonChartConfig(data: MonthlyAnalyticsData): any {
     },
     xAxis: {
       type: 'category',
-      data: types.map(t => typeLabels[t]),
+      data: types.map(t => ARTICLE_TYPE_LABELS[t]),
       axisLine: { lineStyle: { color: '#e5e7eb' } },
       axisTick: { lineStyle: { color: '#e5e7eb' } },
       axisLabel: { color: '#374151' }
@@ -631,21 +775,58 @@ function buildCategoriesChartConfig(data: MonthlyAnalyticsData): any {
     };
   }
 
-  // Take top 10 categories
-  const topCategories = categories.slice(0, 10);
+  const CHART_MAX_CATEGORIES = 9;
+  const TOOLTIP_MAX_DETAIL = 9;
+  const OTHER_CATEGORY_NAME = 'Прочее';
+
+  const sorted = [...categories].sort((a, b) => b.current - a.current);
+  const remainingCategories = sorted.slice(CHART_MAX_CATEGORIES);
+
+  const displayCategories: CategoryComparison[] = sorted.slice(0, CHART_MAX_CATEGORIES);
+  if (remainingCategories.length > 0) {
+    const { current: otherCurrentTotal, previous: otherPreviousTotal } = remainingCategories.reduce(
+      (acc, c) => ({ current: acc.current + c.current, previous: acc.previous + c.previous }),
+      { current: 0, previous: 0 }
+    );
+    displayCategories.push({
+      category_id: -1,
+      category_name: OTHER_CATEGORY_NAME,
+      category_type: sorted[0].category_type,
+      current: otherCurrentTotal,
+      previous: otherPreviousTotal,
+    });
+  }
+
+  const tooltipOthers = remainingCategories.slice(0, TOOLTIP_MAX_DETAIL);
+  const tooltipRest = remainingCategories.slice(TOOLTIP_MAX_DETAIL);
+  const tooltipRestTotal = tooltipRest.reduce((sum, c) => sum + c.current, 0);
+
+  const formatter = function(params: any[]) {
+    if (!params || params.length === 0) return '';
+    const isOthers = params[0]?.axisValue === OTHER_CATEGORY_NAME;
+    let result = `<b>${params[0]?.axisValue}</b><br/>`;
+    params.forEach((param: any) => {
+      result += `${param.marker} ${param.seriesName}: ${numFmt.format(param.value)} ₽<br/>`;
+    });
+
+    if (isOthers) {
+      result += '<div style="margin-top:6px;border-top:1px solid #e2e8f0;padding-top:4px"><small style="color:#64748b">Состав:</small><br/>';
+      tooltipOthers.forEach((c: CategoryComparison) => {
+        result += `<small>• ${c.category_name}: ${numFmt.format(c.current)} ₽</small><br/>`;
+      });
+      if (tooltipRest.length > 0) {
+        result += `<small>• ${OTHER_CATEGORY_NAME}: ${numFmt.format(tooltipRestTotal)} ₽</small><br/>`;
+      }
+      result += '</div>';
+    }
+    return result;
+  };
 
   return {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      formatter: function (params: any[]) {
-        let result = params[0].axisValue + '<br/>';
-        params.forEach(param => {
-          const value = new Intl.NumberFormat('ru-RU').format(param.value);
-          result += `${param.marker} ${param.seriesName}: ${value} ₽<br/>`;
-        });
-        return result;
-      }
+      formatter
     },
     legend: {
       data: [data.previous_month.month_name, data.current_month.month_name],
@@ -660,7 +841,7 @@ function buildCategoriesChartConfig(data: MonthlyAnalyticsData): any {
     },
     xAxis: {
       type: 'category',
-      data: topCategories.map(c => c.category_name),
+      data: displayCategories.map(c => c.category_name),
       axisLabel: {
         rotate: 30,
         interval: 0,
@@ -684,13 +865,13 @@ function buildCategoriesChartConfig(data: MonthlyAnalyticsData): any {
       {
         name: data.previous_month.month_name,
         type: 'bar',
-        data: topCategories.map(c => c.previous_month_total),
+        data: displayCategories.map(c => c.previous),
         itemStyle: { color: '#94a3b8', opacity: 0.5 }
       },
       {
         name: data.current_month.month_name,
         type: 'bar',
-        data: topCategories.map(c => c.current_month_total),
+        data: displayCategories.map(c => c.current),
         itemStyle: { color: '#3b82f6' }
       }
     ]
@@ -707,4 +888,69 @@ function updateCategoriesChart(data: MonthlyAnalyticsData): void {
   const option = buildCategoriesChartConfig(data);
   const categories = data.categories_comparison || [];
   analyticsCategoriesChart.setOption(option, categories.length === 0);
+}
+
+// ============================================================================
+// Analytics Filter Handlers (called from analytics_section.html onchange)
+// ============================================================================
+
+/**
+ * Sync analytics state to filters without updating date range.
+ * Avoids circular dependency by routing through window.PlanApp.
+ */
+async function syncToFiltersNoDateUpdate(): Promise<void> {
+  if (typeof window.PlanApp?.syncAnalyticsToFilters === 'function') {
+    await window.PlanApp.syncAnalyticsToFilters({ updateDateRange: false });
+  }
+}
+
+export async function onAnalyticsCFOChange(): Promise<void> {
+  const cfoCurrent = (document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null)?.value || undefined;
+  const params: { planning_month?: string; financial_center_id?: string } = {};
+  if (currentAnalyticsMonth) params.planning_month = currentAnalyticsMonth;
+  if (cfoCurrent) params.financial_center_id = cfoCurrent;
+
+  // Reload article types and articles for current month + selected FC
+  const filterOptions = await loadAnalyticsFilterOptions(Object.keys(params).length ? params : undefined);
+  if (filterOptions) {
+    populateArticleTypeFilter(filterOptions.article_types);
+    const typeSelect = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
+    if (typeSelect?.value) {
+      await loadAnalyticsArticleFilter(typeSelect.value);
+    } else {
+      await loadAnalyticsArticleFilter(null, filterOptions.articles);
+    }
+  }
+
+  await loadPlanAnalytics();
+  await syncToFiltersNoDateUpdate();
+}
+
+export async function onAnalyticsArticleTypeChange(): Promise<void> {
+  const typeSelect = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
+  const typeValue = typeSelect?.value || null;
+  if (typeValue) {
+    // Type selected → fetch full hierarchy from API for proper tree display
+    await loadAnalyticsArticleFilter(typeValue);
+  } else {
+    // Type cleared → show plan-filtered articles for current month + FC
+    const cfoCurrent = (document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null)?.value || undefined;
+    const params: { planning_month?: string; financial_center_id?: string } = {};
+    if (currentAnalyticsMonth) params.planning_month = currentAnalyticsMonth;
+    if (cfoCurrent) params.financial_center_id = cfoCurrent;
+    const filterOptions = await loadAnalyticsFilterOptions(Object.keys(params).length ? params : undefined);
+    await loadAnalyticsArticleFilter(null, filterOptions?.articles || null);
+  }
+  await loadCategoriesChartData();
+  await syncToFiltersNoDateUpdate();
+}
+
+export async function onAnalyticsArticleChange(): Promise<void> {
+  await loadCategoriesChartData();
+  await syncToFiltersNoDateUpdate();
+}
+
+export function collapseAnalytics(): void {
+  const toggle = document.getElementById('analytics-toggle') as HTMLInputElement | null;
+  if (toggle) toggle.checked = false;
 }

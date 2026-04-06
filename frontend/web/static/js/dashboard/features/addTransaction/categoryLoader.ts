@@ -42,9 +42,16 @@ export async function loadTransactionCategories(): Promise<void> {
       return;
     }
 
-    // Get current transaction type
+    // Get current transaction type: prefer CSS active button state (persists across form.reset()),
+    // fall back to radio value, then default to 'expense'
+    const activeBtn = document.querySelector('#modal_fact-tab-transaction .transaction-type-btn.btn-active') as HTMLElement | null;
     const typeInput = document.querySelector('#modal_fact-tab-transaction input[name="record_type"]:checked') as HTMLInputElement | null;
-    const transactionType = typeInput?.value || 'expense';
+    const transactionType = (activeBtn?.dataset.type as 'expense' | 'income') || typeInput?.value || 'expense';
+    // Sync radio and hidden fact_type to match CSS state (form.reset() resets these but not CSS)
+    const radioToSync = document.querySelector(`#modal_fact-tab-transaction input[name="record_type"][value="${transactionType}"]`) as HTMLInputElement | null;
+    if (radioToSync) radioToSync.checked = true;
+    const hiddenFactType = document.querySelector('#modal_fact-tab-transaction input[name="fact_type"]') as HTMLInputElement | null;
+    if (hiddenFactType) hiddenFactType.value = transactionType;
 
     const state = getState();
 
@@ -119,7 +126,7 @@ export async function loadFinancialCenters(targetSelectors?: string[]): Promise<
       // Get user ID for data layer queries
       const userId = await getCurrentUserId();
 
-      // Use DataLayer (PGlite-first with API fallback)
+      // Use DataLayer (Dexie-first with API fallback)
       centers = await dataLayer.getFinancialCenters(userId, true);
 
       if (centers.length === 0) {
@@ -192,6 +199,9 @@ export async function loadFinancialCenters(targetSelectors?: string[]): Promise<
 
   // Add change listeners to filter categories AND cost centers when account changes
   setupFinancialCenterListeners();
+
+  // Initial state: disable Category and Cost Location until account is selected
+  enableDisableCategoryAndCostCenter(null);
 }
 
 /**
@@ -213,7 +223,11 @@ function setupFinancialCenterListeners(): void {
 
       // CRITICAL: Stop event propagation to prevent global listeners from interfering
       e.stopPropagation();
-      e.stopImmediatePropagation();
+
+      // Enable or disable Category and Cost Location based on account selection
+      if (!fcId) {
+        enableDisableCategoryAndCostCenter(null, 'fact');
+      }
 
       const state = getState();
 
@@ -224,6 +238,11 @@ function setupFinancialCenterListeners(): void {
 
       // Filter cost centers by selected FC
       await filterCostCenterDropdown('#modal_fact-tab-transaction', fcId);
+
+      // Enable Category and Cost Location after filtering when account is selected
+      if (fcId) {
+        enableDisableCategoryAndCostCenter(fcId, 'fact');
+      }
 
       // Small delay to allow DOM to settle (mobile browser optimization)
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -252,7 +271,11 @@ function setupFinancialCenterListeners(): void {
       }
 
       e.stopPropagation();
-      e.stopImmediatePropagation();
+
+      // Enable or disable Category and Cost Location based on account selection
+      if (!fcId) {
+        enableDisableCategoryAndCostCenter(null, 'plan');
+      }
 
       const state = getState();
 
@@ -263,6 +286,11 @@ function setupFinancialCenterListeners(): void {
 
       // Filter cost centers by selected FC
       await filterCostCenterDropdown('#modal_plan-tab-transaction', fcId);
+
+      // Enable Category and Cost Location after filtering when account is selected
+      if (fcId) {
+        enableDisableCategoryAndCostCenter(fcId, 'plan');
+      }
 
       // Small delay to allow DOM to settle
       await new Promise(resolve => setTimeout(resolve, 50));
@@ -290,7 +318,7 @@ export async function loadCostCenters(): Promise<void> {
     // Get user ID for data layer queries
     const userId = await getCurrentUserId();
 
-    // Use DataLayer (PGlite-first with API fallback)
+    // Use DataLayer (Dexie-first with API fallback)
     const centers: CostCenter[] = await dataLayer.getCostCenters(userId, null, true);
 
     // Save to state for filtering
@@ -329,6 +357,72 @@ export async function loadCostCenters(): Promise<void> {
     // Don't show error toast since cost center is optional
     debugLog('Cost centers error is non-critical');
   }
+}
+
+/**
+ * Enable or disable Category and Cost Location selects based on account selection.
+ *
+ * Category (article_id) is wrapped by ChoicesCategoryTree — must use widget's
+ * .disable()/.enable() so Choices.js updates its visual state (is-disabled class).
+ * Cost center (cost_center_id) is a plain select — native setAttribute works.
+ *
+ * @param fcId - selected financial center ID (null means no account selected)
+ * @param modalType - 'fact' | 'plan' | null (null means apply to both)
+ */
+export function enableDisableCategoryAndCostCenter(fcId: number | null, modalType?: 'fact' | 'plan' | null): void {
+  const isEnabled = fcId !== null && fcId !== undefined;
+  const state = getState();
+
+  // --- Category (ChoicesCategoryTree widget) ---
+  if (!modalType || modalType === 'fact') {
+    const tree = state.transactionCategoryTreeSelect;
+    if (tree) {
+      if (isEnabled) {
+        tree.enable();
+      } else {
+        tree.clearSelection(); // clears Choices.js active items + element.value
+        tree.disable();
+      }
+    } else {
+      // Widget not yet initialised — fall back to native attribute
+      const el = document.querySelector('#modal_fact-tab-transaction select[name="article_id"]') as HTMLSelectElement | null;
+      if (el) {
+        if (isEnabled) { el.removeAttribute('disabled'); } else { el.setAttribute('disabled', 'disabled'); el.value = ''; }
+      }
+    }
+  }
+  if (!modalType || modalType === 'plan') {
+    const tree = state.planCategoryTreeSelect;
+    if (tree) {
+      if (isEnabled) {
+        tree.enable();
+      } else {
+        tree.clearSelection();
+        tree.disable();
+      }
+    } else {
+      const el = document.querySelector('#modal_plan-tab-transaction select[name="article_id"]') as HTMLSelectElement | null;
+      if (el) {
+        if (isEnabled) { el.removeAttribute('disabled'); } else { el.setAttribute('disabled', 'disabled'); el.value = ''; }
+      }
+    }
+  }
+
+  // --- Cost center (plain select, no Choices.js wrapper) ---
+  const costCenterSelectors: string[] = [];
+  if (!modalType || modalType === 'fact') costCenterSelectors.push('#modal_fact-tab-transaction select[name="cost_center_id"]');
+  if (!modalType || modalType === 'plan') costCenterSelectors.push('#modal_plan-tab-transaction select[name="cost_center_id"]');
+
+  costCenterSelectors.forEach(selector => {
+    const el = document.querySelector(selector) as HTMLSelectElement | null;
+    if (!el) return;
+    if (isEnabled) {
+      el.removeAttribute('disabled');
+    } else {
+      el.setAttribute('disabled', 'disabled');
+      el.value = '';
+    }
+  });
 }
 
 /**
@@ -379,7 +473,7 @@ export async function filterCostCenterDropdown(formSelector: string, financialCe
     // Get user ID for data layer queries
     const userId = await getCurrentUserId();
 
-    // Use DataLayer (PGlite-first with API fallback)
+    // Use DataLayer (Dexie-first with API fallback)
     const filteredCenters: CostCenter[] = await dataLayer.getCostCenters(userId, financialCenterId, true);
 
     filteredCenters.forEach(cc => {

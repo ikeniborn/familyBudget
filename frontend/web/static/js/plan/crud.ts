@@ -9,6 +9,7 @@
 
 import * as PlanHelpers from './helpers';
 import * as PlanFactsTable from './factsTable';
+import { remindersMap, selectedFactIds } from './factsTable';
 
 // Import BudgetShared from global
 declare const BudgetShared: {
@@ -18,28 +19,20 @@ declare const BudgetShared: {
     isValidDisplayFormat: (displayDate: string) => boolean;
   };
   CalendarWidget: any; // Constructor
-  ConfirmDialog: {
-    show: (options: {
-      title: string;
-      message: string;
-      confirmText?: string;
-      cancelText?: string;
-      confirmClass?: string;
-    }) => Promise<boolean>;
-  };
   ChoicesCategoryTree: any; // Constructor
 };
 
-// Global variables from plan.html
+// Global variables from plan.html (set via window in planModal/windowExports)
 declare let allCategories: any[];
-declare let editCategoryTreeSelect: any;
-declare let editDateCalendar: any;
-declare let createCategoryTreeSelect: any;
-declare const remindersMap: Map<number, any>;
 declare const ModalListenerManager: any;
 declare const showNotification: (message: string, type: string) => void;
-declare const selectedFactIds: Set<number>;
 declare const selectedRecurringPlanIds: Set<number>;
+
+// Module-local state (previously declared as globals, only used in this module)
+let editCategoryTreeSelect: any = null;
+let editDateCalendar: any = null;
+let createCategoryTreeSelect: any = null;
+// remindersMap and selectedFactIds are imported from factsTable (see import above)
 
 // Logger class from utils/logger.js (loaded globally via bundle)
 declare class Logger {
@@ -65,7 +58,6 @@ declare function resetRecurringSettings(modalId: string): void;
 declare function resetReminderFields(modalId: string): void;
 declare function setupCreatePlanPeriodButtons(): void;
 declare function setSubmitLoading(form: HTMLFormElement, isLoading: boolean): void;
-declare function loadFacts(): Promise<void>;
 declare function showToast(message: string, type: string): void;
 declare function loadRecurringPlans(): Promise<void>;
 declare function updateBatchDeleteRecurringPlansButtonState(): void;
@@ -332,7 +324,7 @@ export async function showEditModal(factId: number): Promise<void> {
 
   // Fill basic fields
   (document.getElementById('edit-id') as HTMLInputElement).value = String(fact.id);
-  (document.getElementById('edit-amount') as HTMLInputElement).value = String(parseFloat(String(fact.amount)));
+  (document.getElementById('edit-amount') as HTMLInputElement).value = String(Math.round(parseFloat(String(fact.amount))));
   (document.getElementById('edit-date') as HTMLInputElement).value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
   (document.getElementById('edit-description') as HTMLTextAreaElement).value = fact.description || '';
 
@@ -637,7 +629,7 @@ export async function showEditModal(factId: number): Promise<void> {
   if (reminder) {
     if (reminderCheckbox) reminderCheckbox.checked = true;
     // Populate separate date/hour/minute fields
-    populateEditReminderFields(reminder.reminder_datetime);
+    populateEditReminderFields(reminder.remind_at);
     if (reminderSettingsDiv) reminderSettingsDiv.classList.remove('hidden');
     // Initialize CalendarWidget for edit reminder date
     initEditReminderCalendarWidget();
@@ -697,6 +689,9 @@ export async function deleteFact(factId: number): Promise<void> {
     return;
   }
 
+  // Mark as deleting BEFORE async confirm dialog to prevent race condition on double-click
+  deletingFactIds.add(factId);
+
   // Find fact in factsData to check if it's recurring
   const factsData = PlanFactsTable.getFactsData();
   const fact = factsData.find(f => f.id === factId);
@@ -707,7 +702,8 @@ export async function deleteFact(factId: number): Promise<void> {
     const choice = await showRecurringDeleteDialog();
 
     if (!choice) {
-      // User cancelled
+      // User cancelled — release guard
+      deletingFactIds.delete(factId);
       return;
     }
 
@@ -720,15 +716,14 @@ export async function deleteFact(factId: number): Promise<void> {
     );
 
     if (!confirmed) {
+      // User cancelled — release guard
+      deletingFactIds.delete(factId);
       return;
     }
   }
 
   // Find button by data-fact-id attribute
   const button = document.querySelector(`button[data-fact-id="${factId}"]`) as HTMLButtonElement | null;
-
-  // Mark fact as being deleted
-  deletingFactIds.add(factId);
 
   // Disable button and show loading state
   if (button) {
@@ -843,20 +838,17 @@ function escapeHtml(unsafe: string): string {
 
 /**
  * Show confirmation dialog
- * Wrapper around BudgetShared.ConfirmDialog
+ * Wrapper around window.showConfirmDialog with native confirm fallback
  *
  * @param message - Confirmation message
  * @param title - Dialog title
  * @returns Promise that resolves to true if confirmed, false otherwise
  */
 async function showConfirmDialog(message: string, title: string): Promise<boolean> {
-  return await BudgetShared.ConfirmDialog.show({
-    title,
-    message,
-    confirmText: 'Удалить',
-    cancelText: 'Отмена',
-    confirmClass: 'btn-error'
-  });
+  if (typeof (window as any).showConfirmDialog === 'function') {
+    return await (window as any).showConfirmDialog(message, title);
+  }
+  return confirm(message);
 }
 
 /**
@@ -1366,6 +1358,24 @@ export async function createPlan(event: Event): Promise<void> {
       const financialCenterId = parseInt(formData.get('financial_center_id') as string);
       const costCenterId = formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id') as string) : null;
 
+      // Frontend validation
+      if (isNaN(articleId) || articleId <= 0) {
+        showToast('Выберите категорию', 'warning');
+        setSubmitLoading(form, false);
+        return;
+      }
+      if (isNaN(financialCenterId) || financialCenterId <= 0) {
+        showToast('Выберите счет', 'warning');
+        setSubmitLoading(form, false);
+        return;
+      }
+      const amount = parseFloat(formData.get('amount') as string);
+      if (isNaN(amount) || amount <= 0) {
+        showToast('Укажите корректную сумму', 'warning');
+        setSubmitLoading(form, false);
+        return;
+      }
+
       const articleSelect = document.querySelector(`#${modalId} select[name="article_id"]`) as HTMLSelectElement | null;
       const financialCenterSelect = document.querySelector(`#${modalId} select[name="financial_center_id"]`) as HTMLSelectElement | null;
       const costCenterSelect = document.querySelector(`#${modalId} select[name="cost_center_id"]`) as HTMLSelectElement | null;
@@ -1394,7 +1404,7 @@ export async function createPlan(event: Event): Promise<void> {
         article_id: articleId,
         financial_center_id: financialCenterId,
         cost_center_id: costCenterId,
-        amount: parseFloat(formData.get('amount') as string),
+        amount: amount,
         description: formData.get('description') || null,
         record_type: 'plan',
         frequency_type: recurringSettings.frequency_type,
@@ -1455,11 +1465,11 @@ export async function createPlan(event: Event): Promise<void> {
         const reminderSettings = document.getElementById('reminder-settings-modal_plan');
         if (reminderSettings) reminderSettings.classList.add('hidden');
         resetReminderFields(modalId);
-        await loadFacts();
+        await PlanFactsTable.loadFacts();
         setupCreatePlanPeriodButtons();
       } else {
         // Fallback to direct fetch if OfflineManager not available
-        const response = await fetch('/api/v1/recurring-plans', {
+        const response = await fetch('/api/v1/recurring-plans/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(recurringData)
@@ -1482,11 +1492,19 @@ export async function createPlan(event: Event): Promise<void> {
           const reminderSettings = document.getElementById('reminder-settings-modal_plan');
           if (reminderSettings) reminderSettings.classList.add('hidden');
           resetReminderFields(modalId);
-          await loadFacts();
+          await PlanFactsTable.loadFacts();
           setupCreatePlanPeriodButtons();
         } else {
           const error = await response.json();
-          showToast('Ошибка: ' + (error.detail || 'Не удалось создать регулярный платеж'), 'error');
+          let errorMsg = 'Не удалось создать регулярный платеж';
+          if (Array.isArray(error.detail)) {
+            errorMsg = error.detail.map((e: any) => e.msg || e.message || 'Ошибка').join('; ');
+          } else if (error.detail && typeof error.detail === 'object' && error.detail.message) {
+            errorMsg = error.detail.message;
+          } else if (typeof error.detail === 'string') {
+            errorMsg = error.detail;
+          }
+          showToast('Ошибка: ' + errorMsg, 'error');
         }
       }
       return;
@@ -1537,7 +1555,10 @@ export async function createPlan(event: Event): Promise<void> {
       const reminderSettings = document.getElementById('reminder-settings-modal_plan');
       if (reminderSettings) reminderSettings.classList.add('hidden');
       resetReminderFields('modal_plan');
-      await loadFacts(); // Перезагрузить список планов
+      if (result._offline) {
+        await PlanFactsTable.loadFacts(); // только для offline (нет WS-события)
+      }
+      // для online: WS-событие plan_created обновит таблицу инкрементально
 
       // Переинициализировать кнопки периода
       setupCreatePlanPeriodButtons();
@@ -1573,7 +1594,7 @@ export async function createPlan(event: Event): Promise<void> {
         const reminderSettings = document.getElementById('reminder-settings-modal_plan');
         if (reminderSettings) reminderSettings.classList.add('hidden');
         resetReminderFields('modal_plan');
-        await loadFacts(); // Перезагрузить список планов
+        // WS-событие plan_created обновит таблицу инкрементально
 
         // Переинициализировать кнопки периода
         setupCreatePlanPeriodButtons();
@@ -1766,7 +1787,7 @@ export async function updateFact(event: Event): Promise<void> {
     }
 
     closeEditModal();
-    await loadFacts();
+    await PlanFactsTable.loadFacts();
     showNotification(successMessage, 'success');
   } catch (error) {
     logCrud.error('Error updating fact:', error);
@@ -1837,7 +1858,7 @@ export async function batchDeleteFacts(): Promise<void> {
     }
 
     const result = await response.json();
-    await loadFacts();
+    await PlanFactsTable.loadFacts();
     showNotification(`✅ Удалено транзакций: ${result.deleted_count}`, 'success');
   } catch (error) {
     logCrud.error('Error batch deleting facts:', error);
@@ -1900,7 +1921,6 @@ export async function batchDeleteRecurringPlans(): Promise<void> {
   const btn = document.getElementById('batch-delete-recurring-plans-btn') as HTMLButtonElement | null;
   if (!btn) return;
 
-  const originalText = btn.textContent || '';
   btn.disabled = true;
   btn.classList.add('loading', 'loading-spinner');
   btn.textContent = `Удаление... (${count})`;
@@ -1929,7 +1949,7 @@ export async function batchDeleteRecurringPlans(): Promise<void> {
 
     // Reload data
     await loadRecurringPlans();
-    await loadFacts(); // Reload plan facts table
+    await PlanFactsTable.loadFacts(); // Reload plan facts table
 
     // Success notification (SINGLE)
     const message = result.failed && result.failed.length > 0
@@ -1948,8 +1968,7 @@ export async function batchDeleteRecurringPlans(): Promise<void> {
     showNotification(`❌ Ошибка массового удаления: ${(error as any)?.message}`, 'error');
   } finally {
     btn.classList.remove('loading', 'loading-spinner');
-    btn.textContent = originalText;
-    btn.disabled = false;
+    updateBatchDeleteRecurringPlansButtonState();
   }
 }
 

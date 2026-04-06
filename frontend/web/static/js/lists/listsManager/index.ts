@@ -139,7 +139,9 @@ export {
   handleItemCreated,
   handleItemUpdated,
   handleItemDeleted,
-  handleItemCompletedToggled
+  handleItemCompletedToggled,
+  handleShoppingListUpdated,
+  handleShoppingListDeleted
 } from './integration/wsEventHandlers';
 
 export { initializeImportManager } from './integration/importIntegration';
@@ -169,3 +171,10 @@ export type {
   HierarchyItem,
   ListsManagerProxy
 } from './types/hierarchy';
+
+// ============================================================================
+// Debug Utilities (Testing Support)
+// ============================================================================
+
+export { shoppingListDebug } from './testing/debugUtils';
+export type { } from './testing/debugUtils';

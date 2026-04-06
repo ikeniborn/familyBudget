@@ -7,7 +7,7 @@
  * @version 1.0.0
  *
  * Window exports:
- * - window.UIComponents.openDexieDiagnostic() - Open PGlite diagnostic modal
+ * - window.UIComponents.openDexieDiagnostic() - Open Dexie diagnostic modal
  * - window.UIComponents.DexieDiagnosticModal - DexieDiagnosticModal class
  * - window.UIComponents.* - All other exported components
  */

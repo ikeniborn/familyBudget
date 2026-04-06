@@ -142,8 +142,8 @@ async def list_recurring_plans(
 
     if cached:
         logger.info(
-            f"[RECURRING_PLAN_CACHE] List cache HIT: user_id={current_user.id}, "
-            f"filter_hash={filter_hash}"
+            "[RECURRING_PLAN_CACHE] List cache HIT: user_id=%s, filter_hash=%s",
+            current_user.id, filter_hash
         )
         return RecurringPlanListResponse(**cached)
 
@@ -169,7 +169,7 @@ async def list_recurring_plans(
 
     # Cache with TTL (2 min)
     await cache_service.set(cache_key, result, ttl=120)
-    logger.info(f"[RECURRING_PLAN_CACHE] List cached: ttl=120s, filter_hash={filter_hash}")
+    logger.info("[RECURRING_PLAN_CACHE] List cached: ttl=120s, filter_hash=%s", filter_hash)
 
     return RecurringPlanListResponse(**result)
 
@@ -201,7 +201,7 @@ async def get_recurring_plan_stats(
     cached = await cache_service.get(cache_key)
 
     if cached:
-        logger.info(f"[RECURRING_PLAN_CACHE] Stats cache HIT: user_id={current_user.id}")
+        logger.info("[RECURRING_PLAN_CACHE] Stats cache HIT: user_id=%s", current_user.id)
         return RecurringPlanStats(**cached)
 
     logger.info("[RECURRING_PLAN_CACHE] Stats cache MISS, fetching from DB")
@@ -260,17 +260,17 @@ async def create_recurring_plan(
         )
 
         logger.info(
-            f"[API] User {current_user.id} created recurring plan {plan.id} "
-            f"({data.frequency_type})"
+            "[API] User %s created recurring plan %s (%s)",
+            current_user.id, plan.id, data.frequency_type
         )
 
         # Invalidate cache after creation
         await cache_service.invalidate_recurring_plans(current_user.id)
-        logger.info(f"[RECURRING_PLAN_CACHE] Cache invalidated after CREATE: plan_id={plan.id}")
+        logger.info("[RECURRING_PLAN_CACHE] Cache invalidated after CREATE: plan_id=%s", plan.id)
 
         # WebSocket broadcast - instant update
         await ws.broadcast_recurring_plan_created(plan_details)
-        logger.info(f"[WS] Broadcasted recurring_plan_created: plan_id={plan.id}")
+        logger.info("[WS] Broadcasted recurring_plan_created: plan_id=%s", plan.id)
 
         return RecurringPlanResponse(**plan_details)
 
@@ -313,7 +313,7 @@ async def get_recurring_plan(
     cached = await cache_service.get(cache_key)
 
     if cached:
-        logger.info(f"[RECURRING_PLAN_CACHE] Detail cache HIT: plan_id={plan_id}")
+        logger.info("[RECURRING_PLAN_CACHE] Detail cache HIT: plan_id=%s", plan_id)
         return RecurringPlanResponse(**cached)
 
     logger.info("[RECURRING_PLAN_CACHE] Detail cache MISS, fetching from DB")
@@ -393,16 +393,16 @@ async def update_recurring_plan(
         )
 
         logger.info(
-            f"[API] User {current_user.id} updated recurring plan {plan_id}"
+            "[API] User %s updated recurring plan %s", current_user.id, plan_id
         )
 
         # Invalidate cache after update
         await cache_service.invalidate_recurring_plans(current_user.id)
-        logger.info(f"[RECURRING_PLAN_CACHE] Cache invalidated after UPDATE: plan_id={plan_id}")
+        logger.info("[RECURRING_PLAN_CACHE] Cache invalidated after UPDATE: plan_id=%s", plan_id)
 
         # WebSocket broadcast - instant update
         await ws.broadcast_recurring_plan_updated(plan_details)
-        logger.info(f"[WS] Broadcasted recurring_plan_updated: plan_id={plan_id}")
+        logger.info("[WS] Broadcasted recurring_plan_updated: plan_id=%s", plan_id)
 
         return RecurringPlanResponse(**plan_details)
 
@@ -466,16 +466,16 @@ async def deactivate_recurring_plan(
         )
 
         logger.info(
-            f"[API] User {current_user.id} deactivated recurring plan {plan_id}"
+            "[API] User %s deactivated recurring plan %s", current_user.id, plan_id
         )
 
         # Invalidate cache after deactivation
         await cache_service.invalidate_recurring_plans(current_user.id)
-        logger.info(f"[RECURRING_PLAN_CACHE] Cache invalidated after DELETE: plan_id={plan_id}")
+        logger.info("[RECURRING_PLAN_CACHE] Cache invalidated after DELETE: plan_id=%s", plan_id)
 
         # WebSocket broadcast - instant update
         await ws.broadcast_recurring_plan_deleted(plan_id)
-        logger.info(f"[WS] Broadcasted recurring_plan_deleted: plan_id={plan_id}")
+        logger.info("[WS] Broadcasted recurring_plan_deleted: plan_id=%s", plan_id)
 
     except ValueError as e:
         error_msg = str(e)
@@ -567,9 +567,8 @@ async def batch_delete_recurring_plans(
     # Deduplicate plan IDs
     unique_plan_ids = list(set(plan_ids))
     logger.info(
-        f"[BULK_DELETE] Starting batch delete: user_id={current_user.id}, "
-        f"requested={len(plan_ids)}, unique={len(unique_plan_ids)}, "
-        f"delete_future_facts={delete_future_facts}"
+        "[BULK_DELETE] Starting batch delete: user_id=%s, requested=%s, unique=%s, delete_future_facts=%s",
+        current_user.id, len(plan_ids), len(unique_plan_ids), delete_future_facts
     )
 
     deleted_count = 0
@@ -583,17 +582,18 @@ async def batch_delete_recurring_plans(
                 session, plan_id, current_user.id, delete_future_facts
             )
             deleted_count += 1
-            logger.info(f"[BULK_DELETE] Deactivated recurring plan: plan_id={plan_id}")
+            logger.info("[BULK_DELETE] Deactivated recurring plan: plan_id=%s", plan_id)
         except ValueError as e:
             # Expected errors: not found, doesn't belong to user
             error_msg = str(e)
-            logger.warning(f"[BULK_DELETE] Failed to delete plan_id={plan_id}: {error_msg}")
+            logger.warning("[BULK_DELETE] Failed to delete plan_id=%s: %s", plan_id, error_msg)
             failed.append({"plan_id": plan_id, "error": error_msg})
         except Exception:
             # Unexpected errors
             # Log full error для debugging (только в логах, не для клиента)
             logger.error(
-                f"[BULK_DELETE] Unexpected error for plan_id={plan_id}",
+                "[BULK_DELETE] Unexpected error for plan_id=%s",
+                plan_id,
                 exc_info=True  # OK для внутренних логов
             )
             # Generic message для клиента (БЕЗ технических деталей)
@@ -603,17 +603,18 @@ async def batch_delete_recurring_plans(
             })
 
     logger.info(
-        f"[BULK_DELETE] Batch delete completed: deleted={deleted_count}, failed={len(failed)}"
+        "[BULK_DELETE] Batch delete completed: deleted=%s, failed=%s",
+        deleted_count, len(failed)
     )
 
     # Single cache invalidation (after all deletions)
     await cache_service.invalidate_recurring_plans(current_user.id)
-    logger.info(f"[BULK_DELETE] Cache invalidated after deleting {deleted_count} plans")
+    logger.info("[BULK_DELETE] Cache invalidated after deleting %s plans", deleted_count)
 
     # Single WebSocket broadcast (SUMMARY EVENT)
     # Broadcasts to all connected clients for auto-reload
     await ws.broadcast_recurring_plans_batch_deleted(unique_plan_ids, deleted_count)
-    logger.info(f"[BULK_DELETE] Broadcasted batch delete event: count={deleted_count}")
+    logger.info("[BULK_DELETE] Broadcasted batch delete event: count=%s", deleted_count)
 
     # Build response message
     if failed:
@@ -670,16 +671,16 @@ async def activate_recurring_plan(
         )
 
         logger.info(
-            f"[API] User {current_user.id} activated recurring plan {plan_id}"
+            "[API] User %s activated recurring plan %s", current_user.id, plan_id
         )
 
         # Invalidate cache after activation
         await cache_service.invalidate_recurring_plans(current_user.id)
-        logger.info(f"[RECURRING_PLAN_CACHE] Cache invalidated after ACTIVATE: plan_id={plan_id}")
+        logger.info("[RECURRING_PLAN_CACHE] Cache invalidated after ACTIVATE: plan_id=%s", plan_id)
 
         # WebSocket broadcast - instant update
         await ws.broadcast_recurring_plan_updated(plan_details)
-        logger.info(f"[WS] Broadcasted recurring_plan_updated (ACTIVATE): plan_id={plan_id}")
+        logger.info("[WS] Broadcasted recurring_plan_updated (ACTIVATE): plan_id=%s", plan_id)
 
         return RecurringPlanResponse(**plan_details)
 

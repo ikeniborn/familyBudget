@@ -1,0 +1,86 @@
+{% raw %}
+<!-- P2P Sync: Status overlay (shown during active sync) -->
+<div id="p2p-status-overlay" class="hidden fixed inset-0 z-[9500] flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+  <div class="card bg-base-100 shadow-2xl w-full max-w-sm rounded-2xl">
+    <div class="card-body gap-4 py-6">
+
+      <!-- Status icon + message -->
+      <div class="flex flex-col items-center gap-3 text-center">
+        <!-- Connecting -->
+        <div id="p2p-status-connecting" class="flex flex-col items-center gap-2">
+          <span class="loading loading-ring loading-lg text-primary"></span>
+          <span class="text-sm font-medium">Устанавливаем соединение...</span>
+        </div>
+        <!-- Syncing -->
+        <div id="p2p-status-syncing" class="hidden flex flex-col items-center gap-2">
+          <div class="relative">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-primary animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+          </div>
+          <span class="text-sm font-medium">Обмен данными...</span>
+        </div>
+        <!-- Success -->
+        <div id="p2p-status-success" class="hidden flex flex-col items-center gap-2">
+          <div class="w-12 h-12 rounded-full bg-success/20 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <span class="text-sm font-semibold text-success">Синхронизация завершена!</span>
+        </div>
+        <!-- Error -->
+        <div id="p2p-status-error" class="hidden flex flex-col items-center gap-2">
+          <div class="w-12 h-12 rounded-full bg-error/20 flex items-center justify-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </div>
+          <span class="text-sm font-semibold text-error" id="p2p-error-message">Ошибка синхронизации</span>
+        </div>
+      </div>
+
+      <!-- Fact counts -->
+      <div id="p2p-sync-stats" class="hidden bg-base-200 rounded-xl px-4 py-3">
+        <div class="grid grid-cols-2 gap-2 text-center text-xs">
+          <div>
+            <div class="font-bold text-lg" id="p2p-stat-sent">0</div>
+            <div class="text-base-content/50">Отправлено</div>
+          </div>
+          <div>
+            <div class="font-bold text-lg" id="p2p-stat-received">0</div>
+            <div class="text-base-content/50">Получено</div>
+          </div>
+        </div>
+        <div class="mt-2 grid grid-cols-2 gap-2 text-center text-xs">
+          <div>
+            <div class="font-mono text-sm" id="p2p-stat-merged">0</div>
+            <div class="text-base-content/50">Добавлено</div>
+          </div>
+          <div>
+            <div class="font-mono text-sm" id="p2p-stat-duplicates">0</div>
+            <div class="text-base-content/50">Дубликатов</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div id="p2p-progress-section">
+        <progress id="p2p-progress-bar" class="progress progress-primary w-full" value="0" max="100"></progress>
+        <p class="text-xs text-center text-base-content/50 mt-1" id="p2p-progress-label">Подготовка...</p>
+      </div>
+
+      <!-- Close / Cancel button -->
+      <div class="flex gap-2">
+        <button id="p2p-status-cancel-btn" class="btn btn-ghost btn-sm flex-1" onclick="window.p2pUI?.cancel()">
+          Отмена
+        </button>
+        <button id="p2p-status-close-btn" class="btn btn-primary btn-sm flex-1 hidden" onclick="window.p2pUI?.closeStatus()">
+          Готово
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endraw %}

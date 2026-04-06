@@ -178,14 +178,14 @@ async def create_new_version(
     # This maintains parent-child relationships across SCD Type 2 versioning
     import logging
     logger = logging.getLogger(__name__)
-    logger.info(f"[SCD2] After commit: instance type={type(new_instance).__name__}, is Article? {isinstance(new_instance, Article)}")
+    logger.info("[SCD2] After commit: instance type=%s, is Article? %s", type(new_instance).__name__, isinstance(new_instance, Article))
 
     if isinstance(new_instance, Article):
         # Update parent_id for all direct children pointing to old version
         from sqlmodel import update
 
         # Debug log
-        logger.info(f"[SCD2] Processing article version: old_id={old_instance_id}, new_id={new_instance.id}")
+        logger.info("[SCD2] Processing article version: old_id=%s, new_id=%s", old_instance_id, new_instance.id)
 
         update_stmt = (
             update(Article)
@@ -203,7 +203,7 @@ async def create_new_version(
 
         # Log result
         children_updated = result.rowcount
-        logger.info(f"[SCD2] Redirected {children_updated} children from article {old_instance_id} to {new_instance.id}")
+        logger.info("[SCD2] Redirected %s children from article %s to %s", children_updated, old_instance_id, new_instance.id)
 
     return new_instance
 

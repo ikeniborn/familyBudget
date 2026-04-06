@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Healthcheck script for bot distroless Docker container.
 Uses only stdlib - no external dependencies.
@@ -7,6 +6,9 @@ Simple healthcheck: verifies that bot.main module can be imported.
 If Python process can run this script and import bot.main, bot is healthy.
 
 Exit code 0 = healthy, exit code 1 = unhealthy.
+
+NOTE: Distroless images don't support shebang (#!) - script is called via explicit
+python3 invocation in Dockerfile HEALTHCHECK CMD.
 """
 
 import sys

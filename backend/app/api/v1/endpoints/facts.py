@@ -12,6 +12,7 @@ Features:
     - Aggregation endpoint for summaries
 """
 
+import html as _html
 import logging
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -20,6 +21,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy import func
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -66,6 +68,108 @@ FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/facts", tags=["Facts"])
+
+
+async def _get_fact_date(session: AsyncSession, fact_id: int) -> date | None:
+    """Get fact_date by fact_id for partition pruning.
+
+    The t_f_budget_fact table has 372+ monthly partitions.
+    Without fact_date in WHERE, PostgreSQL plans against ALL partitions
+    (Planning Time ~2.6s). With fact_date, partition pruning reduces it to ~35ms.
+    """
+    result = await session.execute(
+        select(BudgetFact.fact_date).where(BudgetFact.id == fact_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _load_recurring_plan_data(
+    session: AsyncSession, recurring_plan_id: int | None, fact_id: int
+) -> dict | None:
+    """Load recurring plan details with enriched data. Returns None if not linked or not found."""
+    if not recurring_plan_id:
+        return None
+
+    try:
+        plan_stmt = (
+            select(RecurringPlan, Article, FinancialCenter, CostCenter)
+            .select_from(RecurringPlan)
+            .join(Article, RecurringPlan.article_id == Article.id)
+            .outerjoin(FinancialCenter, RecurringPlan.financial_center_id == FinancialCenter.id)
+            .outerjoin(CostCenter, RecurringPlan.cost_center_id == CostCenter.id)
+            .where(RecurringPlan.id == recurring_plan_id)
+        )
+        plan_result = await session.execute(plan_stmt)
+        plan_row = plan_result.one_or_none()
+
+        if not plan_row:
+            logger.warning(
+                "[GET /facts/%s] Orphaned recurring_plan_id=%s (plan not found)", fact_id, recurring_plan_id
+            )
+            return None
+
+        plan, plan_article, plan_fc, plan_cc = plan_row
+        # Import inside function to avoid circular dependency with recurring_plan_service
+        from backend.app.services.recurring_plan_service import get_frequency_display
+        frequency_display = get_frequency_display(plan.frequency_type, plan.frequency_value)
+
+        return {
+            "id": plan.id, "user_id": plan.user_id,
+            "article_id": plan.article_id,
+            "article_name": plan_article.name if plan_article else None,
+            "article_type": plan_article.type if plan_article else None,
+            "financial_center_id": plan.financial_center_id,
+            "financial_center_name": plan_fc.name if plan_fc else None,
+            "cost_center_id": plan.cost_center_id,
+            "cost_center_name": plan_cc.name if plan_cc else None,
+            "frequency_type": plan.frequency_type, "frequency_value": plan.frequency_value,
+            "frequency_display": frequency_display,
+            "start_date": plan.start_date, "end_date": plan.end_date,
+            "occurrences_count": plan.occurrences_count,
+            "occurrences_generated": plan.occurrences_generated,
+            "amount": plan.amount, "description": plan.description,
+            "record_type": plan.record_type, "is_active": plan.is_active,
+            "next_generation_date": plan.next_generation_date,
+            "last_generated_date": plan.last_generated_date,
+            "enable_reminder": plan.enable_reminder,
+            "reminder_hour": plan.reminder_hour,
+            "reminder_minute": plan.reminder_minute,
+            "created_at": plan.created_at, "updated_at": plan.updated_at,
+        }
+    except (SQLAlchemyError, ValueError, AttributeError) as e:
+        logger.error("[GET /facts/%s] Failed to load recurring plan for plan_id=%s: %s", fact_id, recurring_plan_id, e)
+        return None
+
+
+def _build_fact_response(
+    fact: BudgetFact,
+    article: Article,
+    financial_center: FinancialCenter | None,
+    cost_center: CostCenter | None,
+    user: User | None,
+    recurring_plan_data: dict | None,
+) -> dict:
+    """Build enriched fact response dict from query row components."""
+    user_name = None
+    if user:
+        user_name = (
+            user.first_name or user.username or user.last_name
+            or (f"User {user.telegram_id}" if user.telegram_id else None)
+            or f"Пользователь #{user.id}"
+        )
+
+    return {
+        "id": fact.id, "user_id": fact.user_id, "user_name": user_name,
+        "article_id": fact.article_id, "article_type": article.type, "article_name": article.name,
+        "fact_date": fact.fact_date, "amount": fact.amount, "description": fact.description,
+        "financial_center_id": fact.financial_center_id,
+        "financial_center_name": financial_center.name if financial_center else None,
+        "cost_center_id": fact.cost_center_id,
+        "cost_center_name": cost_center.name if cost_center else None,
+        "record_type": fact.record_type, "is_offline_sync": fact.is_offline_sync,
+        "recurring_plan_id": fact.recurring_plan_id, "recurring_plan": recurring_plan_data,
+        "created_at": fact.created_at, "updated_at": fact.updated_at,
+    }
 
 
 @router.post(
@@ -395,7 +499,7 @@ async def create_fact(
         else:
             await ws.broadcast_fact_created(response_data)
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for fact {fact.id}: {e}")
+        logger.warning("WebSocket broadcast failed for fact %s: %s", fact.id, e)
         # Don't fail the request if broadcast fails
 
     # AWAIT cache invalidation to ensure fresh data on subsequent requests
@@ -577,7 +681,7 @@ async def list_facts(
                     f"Using fallback: '{user_name}'"
                 )
         else:
-            logger.error(f"Fact {fact.id} has no associated user (user_id={fact.user_id})")
+            logger.error("Fact %s has no associated user (user_id=%s)", fact.id, fact.user_id)
 
         fact_dict = {
             "id": fact.id,
@@ -685,6 +789,17 @@ async def get_recent_facts(
         result = await session.execute(statement)
         rows = result.all()
 
+        # Load scheduled reminders in batch (one query for all facts)
+        fact_ids = [fact.id for fact, *_ in rows]
+        reminders: dict[int, bool] = {}
+        if fact_ids:
+            reminders_stmt = select(ScheduledReminder.fact_id).where(
+                ScheduledReminder.fact_id.in_(fact_ids),
+                ScheduledReminder.status == "pending",
+            )
+            reminders_result = await session.execute(reminders_stmt)
+            reminders = {fid: True for fid in reminders_result.scalars().all()}
+
         # Enrich facts with article and center data
         enriched_facts = []
         for fact, article, financial_center, cost_center, user in rows:
@@ -717,7 +832,7 @@ async def get_recent_facts(
                 "is_offline_sync": fact.is_offline_sync,
                 "recurring_plan_id": fact.recurring_plan_id,
                 "recurring_plan": None,  # Not loaded for performance (list endpoint)
-                "has_reminder": False,  # Not loaded for performance (list endpoint)
+                "has_reminder": reminders.get(fact.id, False),
                 "created_at": fact.created_at,
                 "updated_at": fact.updated_at,
             }
@@ -728,8 +843,8 @@ async def get_recent_facts(
 
         return enriched_facts
 
-    except Exception as e:
-        logger.error(f"Error loading recent facts: {str(e)}", exc_info=True)
+    except (SQLAlchemyError, ValueError, AttributeError) as e:
+        logger.error("Error loading recent facts: %s", e, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to load recent facts"
@@ -1002,7 +1117,7 @@ async def get_recent_facts_html(
         return result_html
 
     except Exception as e:
-        logger.error(f"Error loading recent records: {str(e)}", exc_info=True)
+        logger.error("Error loading recent records: %s", e, exc_info=True)
         return """
         <div class="alert alert-error">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
@@ -1070,10 +1185,10 @@ async def get_facts_summary(
         for fact in facts:
             article = articles.get(fact.article_id)
             if article:
-                if article.type == "income":
+                if article.type in ("income", "credit"):
                     total_income += fact.amount
                     count_income += 1
-                elif article.type == "expense":
+                elif article.type in ("expense", "debit"):
                     total_expense += fact.amount
                     count_expense += 1
 
@@ -1189,6 +1304,162 @@ async def get_facts_count(
     return {"total": total}
 
 
+@router.get("/{fact_id}/row-html", response_class=HTMLResponse)
+async def get_fact_row_html(
+    fact_id: int,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    record_type: Annotated[str, Query(pattern="^(fact|plan)$")] = "fact",
+) -> str:
+    """
+    Return HTML for a single fact/plan row (desktop tr + mobile li).
+
+    Used by incremental table updates after CRUD operations and WebSocket events
+    to refresh only the affected row without reloading the entire table.
+
+    **Parameters:**
+    - fact_id: ID of the fact/plan record
+    - record_type: 'fact' or 'plan' (affects badge styling)
+
+    **Returns:**
+    - HTML fragment: desktop <tr> + mobile <div> wrapped in a container
+    - 404 if fact not found
+    """
+    statement = (
+        select(BudgetFact, Article, FinancialCenter, CostCenter, User, ScheduledReminder)
+        .join(Article, BudgetFact.article_id == Article.id)
+        .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
+        .outerjoin(CostCenter, BudgetFact.cost_center_id == CostCenter.id)
+        .outerjoin(User, BudgetFact.user_id == User.id)
+        .outerjoin(
+            ScheduledReminder,
+            (ScheduledReminder.fact_id == BudgetFact.id)
+            & ScheduledReminder.status.in_(["pending", "sent"]),
+        )
+        .where(BudgetFact.id == fact_id)
+    )
+    result = await session.execute(statement)
+    row = result.one_or_none()
+
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found"
+        )
+
+    fact, article, financial_center, cost_center, user, reminder = row
+
+    def _format_amount(amount: Decimal, art_type: str) -> str:
+        value = int(float(amount))
+        formatted = f"{abs(value):,}".replace(",", " ")
+        if art_type in ("expense", "debit"):
+            return f"-{formatted}"
+        elif art_type in ("income", "credit"):
+            return f"+{formatted}"
+        return formatted
+
+    # Determine CSS class for amount/article
+    type_class_map = {
+        "expense": "text-error",
+        "income": "text-success",
+        "debit": "text-info",
+        "credit": "text-warning",
+    }
+    article_color_class = type_class_map.get(article.type, "")
+
+    fc_name = _html.escape(financial_center.name if financial_center else "—")
+    cc_name = _html.escape(cost_center.name if cost_center else "—")
+    article_name = _html.escape(article.name)
+    description = _html.escape(fact.description or "—")
+    description_truncated = (description[:30] + "...") if len(description) > 30 else description
+
+    user_name = "—"
+    if user:
+        user_name = _html.escape(
+            user.first_name or user.username or user.last_name
+            or (f"User {user.telegram_id}" if user.telegram_id else None)
+            or f"#{user.id}"
+        )
+
+    formatted_date = fact.fact_date.strftime("%d.%m.%Y")
+    short_date = fact.fact_date.strftime("%d.%m")
+    formatted_amount = _format_amount(fact.amount, article.type)
+
+    # Reminder icon
+    reminder_icon = '<span class="text-info" title="Напоминание установлено">🔔</span>' if reminder is not None else ""
+
+    # Recurring icon
+    recurring_icon = (
+        '<span class="text-secondary" title="Регламентный платеж">🔄</span>'
+        if fact.recurring_plan_id else ""
+    )
+
+    # Offline icon
+    offline_icon = '<span class="text-xs" title="Создано offline">☁️</span>' if fact.is_offline_sync else ""
+
+    # Data attribute and onclick handlers differ by record_type:
+    # - fact: data-id + window.FactsManager namespace (facts page)
+    # - plan: data-plan-id + global functions (plan page)
+    if record_type == "fact":
+        data_attr = f'data-id="{fact.id}"'
+        edit_onclick = f"window.FactsManager?.showEditModal?.({fact.id})"
+        delete_onclick = f"event.stopPropagation(); window.FactsManager?.deleteFact?.({fact.id})"
+        mobile_onclick = f"window.FactsManager?.showEditModal?.({fact.id})"
+        badge_html = f'<span class="badge badge-success badge-xs shrink-0">Факт</span>'
+        checkbox_onchange = "window.updateBatchDeleteButton?.()"
+    else:
+        data_attr = f'data-plan-id="{fact.id}"'
+        edit_onclick = f"showEditModal({fact.id})"
+        delete_onclick = f"event.stopPropagation(); deleteFact({fact.id})"
+        mobile_onclick = f"showEditModal({fact.id})"
+        badge_html = '<span class="badge badge-info badge-xs shrink-0">План</span>'
+        checkbox_onchange = "window.PlanApp.FactsTable.updateBatchDeleteButton()"
+
+    # Desktop table row — matches factsTable.ts renderFactsTable() structure
+    desktop_row = f"""
+<tr {data_attr}>
+  <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="{fact.id}" onchange="{checkbox_onchange}"></td>
+  <td><code class="badge badge-ghost">{fact.id}</code></td>
+  <td>{formatted_date}</td>
+  <td class="max-w-xs truncate" title="{fc_name}">{fc_name}</td>
+  <td class="max-w-xs truncate" title="{cc_name}">{cc_name}</td>
+  <td><span class="{article_color_class}">{article_name}</span></td>
+  <td class="{article_color_class} font-bold">{formatted_amount}</td>
+  <td class="max-w-xs truncate" title="{description}">{description_truncated}</td>
+  <td>{user_name}</td>
+  <td class="text-center">{reminder_icon}</td>
+  <td class="text-center">{recurring_icon}</td>
+  <td class="text-center">{offline_icon}</td>
+  <td>
+    <div class="flex gap-1">
+      <button class="btn btn-xs btn-primary gap-1" onclick="{edit_onclick}">✏️</button>
+      <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" data-fact-id="{fact.id}" onclick="{delete_onclick}" title="Удалить">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+    </div>
+  </td>
+</tr>"""
+
+    # Mobile list item — matches factsTable.ts renderFactsTable() structure
+    mobile_icons = " ".join(filter(None, [recurring_icon, reminder_icon, offline_icon]))
+    mobile_row = f"""
+<div class="transaction-item py-2" {data_attr} onclick="{mobile_onclick}">
+  <div class="flex items-center gap-2">
+    {badge_html}
+    <span class="flex-1 font-medium truncate">{article_name}</span>
+    <span class="{article_color_class} font-bold whitespace-nowrap">{formatted_amount}</span>
+    {mobile_icons}
+  </div>
+  <div class="text-xs text-base-content/60 mt-1 truncate">
+    {short_date} • {fc_name} • {description}
+  </div>
+</div>"""
+
+    return f'<template data-plan-row="{fact.id}">{desktop_row}|||{mobile_row}</template>'
+
+
 @router.get(
     "/{fact_id}",
     response_model=FactResponse,
@@ -1211,14 +1482,22 @@ async def get_fact(
     - 403 Forbidden: Fact belongs to another user
     - 404 Not Found: Fact not found
     """
-    # Load fact with JOINs for enriched response (like list_facts)
+    # Two-phase query for partition pruning (372 partitions → Planning Time 2.6s → 35ms)
+    fact_date = await _get_fact_date(session, fact_id)
+    if fact_date is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found"
+        )
+
+    # Full query with JOINs + fact_date filter for partition pruning
     statement = (
         select(BudgetFact, Article, FinancialCenter, CostCenter, User)
         .join(Article, BudgetFact.article_id == Article.id)
         .outerjoin(FinancialCenter, BudgetFact.financial_center_id == FinancialCenter.id)
         .outerjoin(CostCenter, BudgetFact.cost_center_id == CostCenter.id)
         .outerjoin(User, BudgetFact.user_id == User.id)
-        .where(BudgetFact.id == fact_id)
+        .where(BudgetFact.id == fact_id, BudgetFact.fact_date == fact_date)
     )
     result = await session.execute(statement)
     row = result.one_or_none()
@@ -1231,107 +1510,9 @@ async def get_fact(
 
     fact, article, financial_center, cost_center, user = row
 
-    # Shared family budget - NO ownership check
-    # All authenticated users can access any transaction
+    recurring_plan_data = await _load_recurring_plan_data(session, fact.recurring_plan_id, fact_id)
 
-    # Build enriched response (same as list_facts)
-    user_name = None
-    if user:
-        user_name = (
-            user.first_name or
-            user.username or
-            user.last_name or
-            (f"User {user.telegram_id}" if user.telegram_id else None) or
-            f"Пользователь #{user.id}"
-        )
-
-    # Load recurring plan details if linked
-    recurring_plan_data = None
-    if fact.recurring_plan_id:
-        try:
-            # Load recurring plan with enriched details
-            plan_stmt = (
-                select(RecurringPlan, Article, FinancialCenter, CostCenter)
-                .select_from(RecurringPlan)
-                .join(Article, RecurringPlan.article_id == Article.id)
-                .outerjoin(FinancialCenter, RecurringPlan.financial_center_id == FinancialCenter.id)
-                .outerjoin(CostCenter, RecurringPlan.cost_center_id == CostCenter.id)
-                .where(RecurringPlan.id == fact.recurring_plan_id)
-            )
-            plan_result = await session.execute(plan_stmt)
-            plan_row = plan_result.one_or_none()
-
-            if plan_row:
-                plan, plan_article, plan_fc, plan_cc = plan_row
-
-                # Build RecurringPlanResponse with enriched data
-                from backend.app.services.recurring_plan_service import RecurringPlanService
-                service = RecurringPlanService()
-                frequency_display = service._get_frequency_display(plan)
-
-                recurring_plan_data = {
-                    "id": plan.id,
-                    "user_id": plan.user_id,
-                    "article_id": plan.article_id,
-                    "article_name": plan_article.name if plan_article else None,
-                    "article_type": plan_article.type if plan_article else None,
-                    "financial_center_id": plan.financial_center_id,
-                    "financial_center_name": plan_fc.name if plan_fc else None,
-                    "cost_center_id": plan.cost_center_id,
-                    "cost_center_name": plan_cc.name if plan_cc else None,
-                    "frequency_type": plan.frequency_type,
-                    "frequency_value": plan.frequency_value,
-                    "frequency_display": frequency_display,
-                    "start_date": plan.start_date,
-                    "end_date": plan.end_date,
-                    "occurrences_count": plan.occurrences_count,
-                    "occurrences_generated": plan.occurrences_generated,
-                    "amount": plan.amount,
-                    "description": plan.description,
-                    "record_type": plan.record_type,
-                    "is_active": plan.is_active,
-                    "next_generation_date": plan.next_generation_date,
-                    "last_generated_date": plan.last_generated_date,
-                    "created_at": plan.created_at,
-                    "updated_at": plan.updated_at,
-                }
-            else:
-                # Data integrity warning: orphaned reference
-                logger.warning(
-                    f"[GET /facts/{fact_id}] Orphaned recurring_plan_id={fact.recurring_plan_id} "
-                    f"(plan not found in database)"
-                )
-                recurring_plan_data = None
-
-        except Exception as e:
-            # Non-critical error - log and continue
-            logger.error(
-                f"[GET /facts/{fact_id}] Failed to load recurring plan "
-                f"for plan_id={fact.recurring_plan_id}: {e}"
-            )
-            recurring_plan_data = None
-
-    return {
-        "id": fact.id,
-        "user_id": fact.user_id,
-        "user_name": user_name,
-        "article_id": fact.article_id,
-        "article_type": article.type,
-        "article_name": article.name,
-        "fact_date": fact.fact_date,
-        "amount": fact.amount,
-        "description": fact.description,
-        "financial_center_id": fact.financial_center_id,
-        "financial_center_name": financial_center.name if financial_center else None,
-        "cost_center_id": fact.cost_center_id,
-        "cost_center_name": cost_center.name if cost_center else None,
-        "record_type": fact.record_type,
-        "is_offline_sync": fact.is_offline_sync,
-        "recurring_plan_id": fact.recurring_plan_id,
-        "recurring_plan": recurring_plan_data,
-        "created_at": fact.created_at,
-        "updated_at": fact.updated_at,
-    }
+    return _build_fact_response(fact, article, financial_center, cost_center, user, recurring_plan_data)
 
 
 @router.put(
@@ -1374,8 +1555,17 @@ async def update_fact(
             detail="At least one field must be provided for update"
         )
 
-    # Load fact
-    statement = select(BudgetFact).where(BudgetFact.id == fact_id)
+    # Two-phase query for partition pruning (372 partitions)
+    fact_date_val = await _get_fact_date(session, fact_id)
+    if fact_date_val is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found"
+        )
+
+    statement = select(BudgetFact).where(
+        BudgetFact.id == fact_id, BudgetFact.fact_date == fact_date_val
+    )
     result = await session.execute(statement)
     fact = result.scalar_one_or_none()
 
@@ -1481,7 +1671,7 @@ async def update_fact(
         else:
             await ws.broadcast_fact_updated(response_data)
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for updated fact {fact.id}: {e}")
+        logger.warning("WebSocket broadcast failed for updated fact %s: %s", fact.id, e)
         # Don't fail the request if broadcast fails
 
     # AWAIT cache invalidation to ensure fresh data on subsequent requests
@@ -1519,8 +1709,17 @@ async def delete_fact(
 
     from backend.app.models.budget_fact_history import BudgetFactHistory
 
-    # Load fact
-    statement = select(BudgetFact).where(BudgetFact.id == fact_id)
+    # Two-phase query for partition pruning (372 partitions)
+    fact_date_val = await _get_fact_date(session, fact_id)
+    if fact_date_val is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Fact with id={fact_id} not found"
+        )
+
+    statement = select(BudgetFact).where(
+        BudgetFact.id == fact_id, BudgetFact.fact_date == fact_date_val
+    )
     result = await session.execute(statement)
     fact = result.scalar_one_or_none()
 
@@ -1577,7 +1776,7 @@ async def delete_fact(
         else:
             await ws.broadcast_fact_deleted(fact_id)
     except Exception as e:
-        logger.warning(f"WebSocket broadcast failed for deleted fact {fact_id}: {e}")
+        logger.warning("WebSocket broadcast failed for deleted fact %s: %s", fact_id, e)
         # Don't fail the request if broadcast fails
 
     # AWAIT cache invalidation to ensure fresh data on subsequent requests
@@ -1678,7 +1877,7 @@ async def batch_delete_facts(
     await session.commit()
 
     deleted_count = len(facts_to_delete)
-    logger.info(f"[BULK_DELETE] Batch deleted {deleted_count} facts by user {current_user.id}")
+    logger.info("[BULK_DELETE] Batch deleted %s facts by user %s", deleted_count, current_user.id)
 
     # 5. WebSocket broadcast: SINGLE summary event (NEW PATTERN)
     # Replaces individual fact_deleted/plan_deleted events to eliminate toast spam
@@ -1690,9 +1889,9 @@ async def batch_delete_facts(
         record_type = record_types.pop() if len(record_types) == 1 else None
 
         await ws.broadcast_facts_batch_deleted(fact_ids_list, deleted_count, record_type)
-        logger.info(f"[BULK_DELETE] Broadcasted summary event: type={record_type}, count={deleted_count}")
+        logger.info("[BULK_DELETE] Broadcasted summary event: type=%s, count=%s", record_type, deleted_count)
     except Exception as e:
-        logger.warning(f"[BULK_DELETE] WebSocket broadcast failed: {e}")
+        logger.warning("[BULK_DELETE] WebSocket broadcast failed: %s", e)
         # Don't fail the request if broadcast fails
 
     # AWAIT cache invalidation to ensure fresh data on subsequent requests

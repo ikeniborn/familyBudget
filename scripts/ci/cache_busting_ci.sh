@@ -58,6 +58,9 @@ files=(
     "frontend/web/templates/scripts/service-worker-registration.html"
     # Service Worker (minified - used in runtime)
     "frontend/web/static/sw.min.js"
+    # P2P JS modules (contain versioned sub-imports)
+    "frontend/web/static/js/ui/P2PUIController.js"
+    "frontend/web/static/js/offline/p2p/P2PSignaling.js"
 )
 
 updated_count=0

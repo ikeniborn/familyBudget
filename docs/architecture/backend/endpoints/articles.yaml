@@ -123,12 +123,12 @@ routes:
         detail: "Article not found"
 
   # ---------------------------------------------------------------------------
-  # UPDATE (ALL USERS)
+  # UPDATE (ADMIN ONLY)
   # ---------------------------------------------------------------------------
   - path: "/api/v1/articles/{article_id}"
     method: PUT
-    auth: user
-    description: "Update article"
+    auth: admin
+    description: "Update article (admin only)"
     path_params:
       id: "integer"
     request:

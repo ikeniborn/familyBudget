@@ -109,17 +109,44 @@
         }
     }
 
+    // Russian month names for dynamic tooltip
+    const RUSSIAN_MONTHS = [
+        'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+        'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+    ];
+
+    /**
+     * Update dexie indicator tooltip with dynamic offline date range
+     * Reads sync period from localStorage (same keys as DexieManager.ts)
+     * Format: "Офлайн: 7 мес. (Ноябрь 2025 — Май 2026)"
+     */
+    function updateDexieTooltip() {
+        const wrapper = document.getElementById('dexie-indicator-wrapper');
+        if (!wrapper) return;
+        wrapper.setAttribute('data-tip', 'Локальная БД · нажмите для диагностики');
+    }
+
     /**
      * Initialize indicator based on localStorage.dexieActive
+     * DEFAULT: enabled (matches TypeScript logic in frontend/shared/db/dexie/index.ts)
+     * NOTE: base.html sets default to 'true' on first visit
      */
     async function initDexieIndicator() {
         try {
+            // Fallback: Set default if not initialized (edge case if this runs before base.html)
+            if (localStorage.getItem('dexieActive') === null) {
+                localStorage.setItem('dexieActive', 'true');
+                console.info('[DEXIE_INDICATOR] dexieActive flag initialized to true (fallback)');
+            }
+
             const isDexieEnabled = localStorage.getItem('dexieActive') === 'true';
 
             if (isDexieEnabled) {
                 showDexieIndicator();
                 // Default to active state (Dexie operations module will update state as needed)
                 updateDexieIndicator('active');
+                // Update tooltip with dynamic offline date range
+                updateDexieTooltip();
             } else {
                 hideDexieIndicator();
             }
@@ -147,6 +174,8 @@
     function onDexieSyncComplete() {
         console.debug('[DEXIE_INDICATOR] Sync completed');
         updateDexieIndicator('active');
+        // Refresh tooltip in case sync period settings changed
+        updateDexieTooltip();
     }
 
     /**
@@ -202,55 +231,29 @@
     // ============================================================================
 
     /**
-     * Setup triple-click handler to open Dexie diagnostic modal
-     * Matches WebSocket Status Indicator pattern (budgetWSClient.js:2438-2453)
+     * Setup single-click handler to open Dexie diagnostic modal
      */
-    (function setupTripleClickDiagnostics() {
-        // Constants for triple-click detection
-        const CLICK_RESET_TIMEOUT_MS = 600;  // Time window for triple-click detection
-        const TRIPLE_CLICK_COUNT = 3;
-
-        const icon = document.getElementById('dexie-icon-active');
-        if (!icon) {
-            console.warn('[DEXIE_INDICATOR] dexie-icon-active not found for triple-click');
+    (function setupClickDiagnostics() {
+        const wrapper = document.getElementById('dexie-indicator-wrapper');
+        if (!wrapper) {
+            console.warn('[DEXIE_INDICATOR] dexie-indicator-wrapper not found for click handler');
             return;
         }
 
-        let clickCount = 0;
-        let clickTimer = null;
-
-        icon.addEventListener('click', function(e) {
+        wrapper.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
 
-            clickCount++;
-            console.debug('[DEXIE_INDICATOR] Click', clickCount);
+            console.debug('[DEXIE_INDICATOR] Click detected, opening diagnostics...');
 
-            if (clickCount === 1) {
-                // Start timer (reset after CLICK_RESET_TIMEOUT_MS)
-                clickTimer = setTimeout(function() {
-                    clickCount = 0;
-                }, CLICK_RESET_TIMEOUT_MS);
-            } else if (clickCount === TRIPLE_CLICK_COUNT) {
-                // Triple-click detected!
-                if (clickTimer) {
-                    clearTimeout(clickTimer);
-                }
-                clickCount = 0;
-
-                console.debug('[DEXIE_INDICATOR] Triple-click detected, opening diagnostics...');
-
-                // Open diagnostic modal (from window exports)
-                if (typeof window.openDexieDiagnostic === 'function') {
-                    window.openDexieDiagnostic();
-                } else {
-                    console.error('[DEXIE_INDICATOR] openDexieDiagnostic not available on window');
-                    alert('Diagnostic modal not available. Check console for errors.');
-                }
+            if (typeof window.openDexieDiagnostic === 'function') {
+                window.openDexieDiagnostic();
+            } else {
+                console.error('[DEXIE_INDICATOR] openDexieDiagnostic not available on window');
             }
         });
 
-        console.debug('[DEXIE_INDICATOR] Triple-click diagnostics handler registered');
+        console.debug('[DEXIE_INDICATOR] Click diagnostics handler registered');
     })();
 
     console.debug('[DEXIE_INDICATOR] Module loaded');

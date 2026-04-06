@@ -17,14 +17,23 @@ Key Functions:
     - create_initial_history(): Create initial history record for new article
 """
 
+import logging
 from datetime import date, datetime, timezone
 from typing import Any
 
-from sqlmodel import select
+from fastapi import HTTPException, status
+from sqlalchemy import delete, func
+from sqlalchemy.sql import Select
+from sqlmodel import or_, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.models.article import Article
+from backend.app.models.article import Article, ArticleUsageStats
+from backend.app.models.article_financial_center import ArticleFinancialCenter
 from backend.app.models.article_history import ArticleHistory
+from backend.app.models.user import User
+from backend.app.schemas.article import ArticleResponse
+
+logger = logging.getLogger(__name__)
 
 # Far future datetime constant for SCD Type 2 valid_to field
 # Uses timezone-aware UTC to prevent asyncpg year overflow issues
@@ -281,3 +290,195 @@ async def create_initial_history(
     await session.refresh(history)
 
     return history
+
+
+# ── Article query / update helpers ──────────────────────────────────────────
+
+
+async def handle_is_active_change(
+    session: AsyncSession,
+    article_id: int,
+    is_active: bool,
+    changed_by_user_id: int | None,
+) -> None:
+    """Process recursive archive/restore when is_active changes."""
+    from backend.app.services import archive_recursive, restore_recursive
+    if is_active is False:
+        logger.info("[ARTICLE UPDATE] Archiving article %s and all descendants", article_id)
+        archived_count = await archive_recursive(session, article_id, changed_by_user_id=changed_by_user_id)
+        logger.info("[ARTICLE UPDATE] Archived %s articles", archived_count)
+    else:
+        logger.info("[ARTICLE UPDATE] Restoring article %s and all descendants", article_id)
+        restored_count = await restore_recursive(session, article_id, changed_by_user_id=changed_by_user_id)
+        logger.info("[ARTICLE UPDATE] Restored %s articles", restored_count)
+
+
+async def update_financial_center_links(
+    session: AsyncSession,
+    article_id: int,
+    financial_center_ids: list[int],
+) -> None:
+    """Replace M2M financial center links for an article."""
+    logger.info("[UPDATE_ARTICLE] Updating financial center links for article_id=%s", article_id)
+
+    delete_stmt = delete(ArticleFinancialCenter).where(
+        ArticleFinancialCenter.article_id == article_id
+    )
+    await session.execute(delete_stmt)
+    logger.info("[UPDATE_ARTICLE] Deleted existing FC links")
+
+    if financial_center_ids:
+        for fc_id in financial_center_ids:
+            link = ArticleFinancialCenter(
+                article_id=article_id,
+                financial_center_id=fc_id
+            )
+            session.add(link)
+        logger.info("[UPDATE_ARTICLE] Created %s new FC links", len(financial_center_ids))
+    else:
+        logger.info("[UPDATE_ARTICLE] Cleared all FC links (available for all FCs)")
+
+    await session.commit()
+
+
+def apply_article_filters(
+    statement: Select,
+    type_filter: str | None,
+    parent_id: int | None,
+    include_inactive: bool,
+    financial_center_id: int | None,
+) -> Select:
+    """Apply shared filter conditions to a query (main or count)."""
+    if type_filter:
+        statement = statement.where(Article.type == type_filter)
+
+    if parent_id is not None:
+        statement = statement.where(Article.parent_id == parent_id)
+
+    if not include_inactive:
+        statement = statement.where(Article.is_active == True)  # noqa: E712
+
+    if financial_center_id is not None:
+        articles_with_fc_restrictions = select(
+            ArticleFinancialCenter.article_id
+        ).distinct()
+        articles_linked_to_fc = select(
+            ArticleFinancialCenter.article_id
+        ).where(
+            ArticleFinancialCenter.financial_center_id == financial_center_id
+        )
+        statement = statement.where(
+            or_(
+                Article.id.not_in(articles_with_fc_restrictions),
+                Article.id.in_(articles_linked_to_fc)
+            )
+        )
+
+    return statement
+
+
+async def execute_article_list_query(
+    session: AsyncSession,
+    type_filter: str | None,
+    parent_id: int | None,
+    include_inactive: bool,
+    financial_center_id: int | None,
+    sort_by: str,
+    limit: int,
+    offset: int,
+) -> tuple[list, int]:
+    """Build, filter, sort and execute article list query. Returns (rows, total)."""
+    statement = select(
+        Article,
+        func.coalesce(ArticleUsageStats.usage_count, 0).label("usage_count")
+    ).outerjoin(ArticleUsageStats, Article.id == ArticleUsageStats.article_id)
+
+    statement = apply_article_filters(statement, type_filter, parent_id, include_inactive, financial_center_id)
+
+    if sort_by == "usage_count":
+        statement = statement.order_by(func.coalesce(ArticleUsageStats.usage_count, 0).desc(), Article.name.asc())
+    else:
+        statement = statement.order_by(Article.name.asc())
+
+    count_stmt = apply_article_filters(
+        select(func.count(Article.id)), type_filter, parent_id, include_inactive, financial_center_id
+    )
+    total_result = await session.execute(count_stmt)
+    total = total_result.scalar_one()
+
+    result = await session.execute(statement.limit(limit).offset(offset))
+    return result.all(), total
+
+
+async def build_article_responses(
+    session: AsyncSession, rows: list
+) -> list[ArticleResponse]:
+    """Build ArticleResponse list with usage_count and is_leaf from query rows."""
+    parent_ids_query = select(Article.parent_id).where(
+        Article.parent_id.isnot(None)
+    ).distinct()
+    parent_ids_result = await session.execute(parent_ids_query)
+    parent_ids = {row[0] for row in parent_ids_result.all()}
+
+    articles = []
+    for row in rows:
+        article = row[0]
+        usage_count = row[1]
+        article_dict = {
+            **article.model_dump(),
+            "usage_count": usage_count,
+            "is_leaf": article.id not in parent_ids,
+        }
+        articles.append(ArticleResponse.model_validate(article_dict))
+    return articles
+
+
+async def validate_parent_id(session: AsyncSession, parent_id: int, article_id: int) -> None:
+    """Validate parent_id: must exist and not be self."""
+    parent_stmt = select(Article).where(Article.id == parent_id)
+    parent_result = await session.execute(parent_stmt)
+    if not parent_result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Parent article with id={parent_id} not found"
+        )
+    if parent_id == article_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Article cannot be its own parent"
+        )
+
+
+async def prepare_article_update(
+    session: AsyncSession, article_id: int, article_data: Any, current_user: User
+) -> tuple[Article, dict, list[int] | None]:
+    """Validate admin, parse update_data, load article, validate parent_id."""
+    if not current_user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only administrators can update articles")
+
+    update_data = article_data.model_dump(exclude_unset=True)
+    financial_center_ids = update_data.pop('financial_center_ids', None)
+
+    if not update_data and financial_center_ids is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="At least one field must be provided for update")
+
+    statement = select(Article).where(Article.id == article_id)
+    result = await session.execute(statement)
+    old_article = result.scalar_one_or_none()
+
+    if not old_article:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Article with id={article_id} not found")
+
+    if "parent_id" in update_data and update_data["parent_id"]:
+        await validate_parent_id(session, update_data["parent_id"], article_id)
+
+    return old_article, update_data, financial_center_ids
+
+
+def extract_is_active_change(update_data: dict, changed_fields: list[str]) -> bool | None:
+    """Extract and remove is_active from update_data if changed. Returns new is_active value or None."""
+    if "is_active" not in update_data or "is_active" not in changed_fields:
+        return None
+    is_active_change = update_data.pop("is_active")
+    changed_fields[:] = [f for f in changed_fields if f != "is_active"]
+    return is_active_change

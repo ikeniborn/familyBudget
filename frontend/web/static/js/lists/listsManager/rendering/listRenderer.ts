@@ -11,7 +11,7 @@
 import { getState, updateState } from '../core/ListsState';
 import { loadShoppingLists, loadShoppingListItems } from '../core/stateManager';
 import { renderCurrentView } from './tableBuilder';
-import { updateHideCompletedButton } from '../features/searchFilter';
+import { updateHideCompletedButton, updateFABButtons } from '../features/searchFilter';
 
 // ============================================================================
 // Type Definitions
@@ -543,6 +543,7 @@ export async function renderDetailView(listId: number): Promise<void> {
 
   // Update FAB visibility after rendering
   updateFABVisibility();
+  updateFABButtons();  // re-evaluate with populated items: updateHideCompletedButton() ran earlier with empty state
 
   // Initialize Choices.js for store and product group selectors in modal
   // NOTE: These should be moved to modalManager.ts in Phase 3.3
@@ -558,4 +559,49 @@ export async function renderDetailView(listId: number): Promise<void> {
 
   // Note: Real-time updates provided by global budgetWSClient
   // Filtering by shopping_list_id is done in addItemToUI, updateItemInUI, etc.
+}
+
+// ============================================================================
+// WebSocket Dashboard Refresh
+// ============================================================================
+
+/**
+ * Refresh dashboard when WebSocket event received
+ * Called by WebSocket handlers when shopping list created/updated/deleted
+ *
+ * @param eventType - Type of event ('created' | 'updated' | 'deleted')
+ * @param eventData - Event data (optional, contains list name for toast)
+ */
+export async function refreshDashboard(
+  eventType: 'created' | 'updated' | 'deleted',
+  eventData?: any
+): Promise<void> {
+  // Only refresh if on landing view (skip if in detail view)
+  const landingView = document.getElementById('landing-view');
+  if (!landingView || landingView.classList.contains('hidden')) {
+    console.debug('[RENDERER] Skip refresh - not on landing view');
+    return;
+  }
+
+  debugLog(`[RENDERER] Refreshing dashboard for ${eventType} event`, eventData);
+
+  // Reload lists from server (invalidates cache)
+  await loadShoppingLists();
+
+  // Re-render cards
+  renderShoppingListCards();
+
+  // Show toast notification
+  const messages = {
+    created: `Новый список создан: ${eventData?.name || 'без названия'}`,
+    updated: `Список обновлён: ${eventData?.name || 'без названия'}`,
+    deleted: 'Список удалён'
+  };
+  showToast(messages[eventType], 'info');
+}
+
+// Export via window для WebSocket handlers
+if (typeof window !== 'undefined') {
+  (window as any).listsManager = (window as any).listsManager || {};
+  (window as any).listsManager.refreshDashboard = refreshDashboard;
 }

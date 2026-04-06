@@ -56,14 +56,16 @@ let totalFacts = 0;
 let factsData: BudgetFact[] = [];
 
 /**
- * Set of selected fact IDs for batch operations
+ * Set of selected fact IDs for batch operations.
+ * Exported for use by crud.ts (shared live binding via Rollup).
  */
-let selectedFactIds: Set<number> = new Set();
+export let selectedFactIds: Set<number> = new Set();
 
 /**
- * Map of fact ID → reminder for reminder status display
+ * Map of fact ID → reminder for reminder status display.
+ * Exported for use by crud.ts (shared live binding via Rollup).
  */
-const remindersMap: Map<number, Reminder> = new Map();
+export const remindersMap: Map<number, Reminder> = new Map();
 
 /**
  * Get current page number
@@ -79,6 +81,37 @@ export function getCurrentPage(): number {
  */
 export function setCurrentPage(page: number): void {
   currentPage = page;
+}
+
+/**
+ * Get total facts count
+ */
+export function getTotalFacts(): number {
+  return totalFacts;
+}
+
+/**
+ * Set total facts count
+ * @param n - New total count
+ */
+export function setTotalFacts(n: number): void {
+  totalFacts = n;
+}
+
+/**
+ * Adjust the #stat-total counter by delta (+1 for create, -1 for delete).
+ * Updates both the DOM element and the in-memory totalFacts state.
+ * Used for optimistic counter updates on WebSocket events.
+ *
+ * @param delta - Amount to adjust by (+1 or -1)
+ */
+export function adjustStatTotal(delta: number): void {
+  const next = Math.max(0, totalFacts + delta);
+  const el = document.getElementById('stat-total');
+  if (el) {
+    el.textContent = String(next);
+  }
+  totalFacts = next;
 }
 
 /**
@@ -314,8 +347,9 @@ function renderFactsTable(facts: BudgetFact[]): void {
             <th>💼 МЗ</th>
             <th>📁 Категория</th>
             <th>💵 Сумма</th>
-            <th>📝 Описание</th>
+            <th>📝 Комментарий</th>
             <th>👤 Пользователь</th>
+            <th>🕐 Обновлено</th>
             <th class="text-center" title="Напоминание">🔔</th>
             <th class="text-center" title="Регламентный платеж">🔄</th>
             <th class="text-center" title="Создано offline">☁️</th>
@@ -346,14 +380,15 @@ function renderFactsTable(facts: BudgetFact[]): void {
     tableHtml += `
       <tr data-plan-id="${fact.id}">
         <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="window.PlanApp.FactsTable.updateBatchDeleteButton()"></td>
-        <td><code class="badge badge-ghost">${fact.id}</code></td>
+        <td class="text-base-content/50 text-xs">${fact.id}</td>
         <td>${formattedDate}</td>
         <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
         <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
-        <td><span class="${articleColorClass}">${articleName}</span></td>
+        <td>${articleName}</td>
         <td class="${articleColorClass} font-bold">${TableFormatters.formatAmount(fact.amount, fact.article_type)}</td>
         <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
         <td>${userName}</td>
+        <td class="text-xs text-base-content/60">${TableFormatters.formatUpdatedAt(fact.updated_at)}</td>
         <td class="text-center">${remindersMap.has(fact.id) ? '<span class="text-info" title="Напоминание установлено">🔔</span>' : ''}</td>
         <td class="text-center">${fact.recurring_plan_id ? '<span class="text-secondary" title="Регламентный платеж">🔄</span>' : ''}</td>
         <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
@@ -503,6 +538,152 @@ function updatePagination(): void {
   } else {
     controls.style.display = 'none';
   }
+}
+
+// ============================================================================
+// Incremental Row Updates
+// ============================================================================
+
+/**
+ * Parse an HTML string into a DOM element using a template element.
+ */
+function parseHtml(html: string): Element | null {
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html.trim();
+  return tpl.content.firstElementChild ?? null;
+}
+
+/**
+ * Check if we are on page 1 (0-indexed) with no user-defined extra filters.
+ * "Extra filters" means any filter beyond the default date range.
+ */
+function isPage1NoExtraFilters(): boolean {
+  if (currentPage !== 0) {
+    return false;
+  }
+  const f = PlanFilters.getFilters();
+  if (
+    f.user_id ||
+    f.article_id ||
+    f.article_type ||
+    f.financial_center_id ||
+    f.cost_center_id ||
+    f.search ||
+    f.has_recurring_plan ||
+    f.has_reminder
+  ) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Fetch row HTML from backend for a single plan record.
+ * Returns parsed { desktopRow, mobileRow } or null on failure.
+ */
+async function fetchPlanRowHtml(
+  planId: number
+): Promise<{ desktopRow: string; mobileRow: string } | null> {
+  try {
+    const resp = await fetch(`/api/v1/facts/${planId}/row-html?record_type=plan`, {
+      credentials: 'include'
+    });
+    if (!resp.ok) {
+      return null;
+    }
+    const html = await resp.text();
+    // Backend returns: <template data-plan-row="ID">desktop_tr|||mobile_div</template>
+    const match = html.match(/<template[^>]*>([\s\S]*?)\|\|\|([\s\S]*?)<\/template>/);
+    if (!match) {
+      return null;
+    }
+    return { desktopRow: match[1].trim(), mobileRow: match[2].trim() };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch a plan row from the backend and inject it into the table.
+ * - operation 'create': prepend to beginning of table
+ * - operation 'update': find existing row by data-plan-id and replace it
+ *
+ * Returns true if the injection succeeded, false if a full loadFacts() is needed.
+ */
+export async function fetchAndInjectPlanRow(
+  planId: number,
+  operation: 'create' | 'update'
+): Promise<boolean> {
+  if (!isPage1NoExtraFilters()) {
+    return false;
+  }
+
+  const rows = await fetchPlanRowHtml(planId);
+  if (!rows) {
+    return false;
+  }
+
+  const { desktopRow, mobileRow } = rows;
+  const desktopTbody = document.querySelector<HTMLElement>('.facts-desktop-table tbody');
+  const mobileList = document.querySelector<HTMLElement>('.facts-mobile-list');
+
+  if (operation === 'create') {
+    if (desktopTbody) {
+      const trEl = parseHtml(desktopRow);
+      if (trEl) desktopTbody.prepend(trEl);
+
+      // Trim excess rows beyond pageSize
+      const allRows = desktopTbody.querySelectorAll('tr');
+      for (let i = allRows.length - 1; i >= pageSize; i--) {
+        allRows[i].remove();
+      }
+    }
+    if (mobileList) {
+      const divEl = parseHtml(mobileRow);
+      if (divEl) mobileList.prepend(divEl);
+
+      // Trim excess items beyond pageSize
+      const allItems = mobileList.querySelectorAll('.transaction-item');
+      for (let i = allItems.length - 1; i >= pageSize; i--) {
+        allItems[i].remove();
+      }
+    }
+    return true;
+  }
+
+  if (operation === 'update') {
+    const existingTr = document.querySelector<HTMLElement>(`tr[data-plan-id="${planId}"]`);
+    if (existingTr) {
+      const trEl = parseHtml(desktopRow);
+      if (trEl) existingTr.replaceWith(trEl);
+    }
+    const existingDiv = document.querySelector<HTMLElement>(`div[data-plan-id="${planId}"]`);
+    if (existingDiv) {
+      const divEl = parseHtml(mobileRow);
+      if (divEl) existingDiv.replaceWith(divEl);
+    }
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Remove a plan row from the table with a fade animation.
+ * Used for single-fact deletes to avoid a full table reload.
+ */
+export function removePlanRow(planId: number): void {
+  const fadeAndRemove = (el: HTMLElement): void => {
+    el.style.transition = 'opacity 0.3s ease';
+    el.style.opacity = '0';
+    setTimeout(() => el.remove(), 300);
+  };
+
+  const trEl = document.querySelector<HTMLElement>(`tr[data-plan-id="${planId}"]`);
+  const divEl = document.querySelector<HTMLElement>(`div[data-plan-id="${planId}"]`);
+
+  if (trEl) fadeAndRemove(trEl);
+  if (divEl) fadeAndRemove(divEl);
 }
 
 /**

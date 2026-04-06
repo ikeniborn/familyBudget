@@ -191,7 +191,7 @@ async def get_shopping_reference_data(
     **Authentication:** Required (any authenticated user)
     **Shared:** All users get the same reference data
     """
-    logger.info(f"[SYNC] User {current_user.id} requesting shopping reference data")
+    logger.info("[SYNC] User %s requesting shopping reference data", current_user.id)
 
     # Fetch all stores
     stores_query = select(Store).where(Store.is_active).order_by(Store.name)
@@ -212,8 +212,8 @@ async def get_shopping_reference_data(
     hierarchy = hierarchy_result.scalars().all()
 
     logger.info(
-        f"[SYNC] Returning {len(stores)} stores, {len(product_groups)} product groups, "
-        f"{len(hierarchy)} hierarchy records"
+        "[SYNC] Returning %s stores, %s product groups, %s hierarchy records",
+        len(stores), len(product_groups), len(hierarchy)
     )
 
     return ShoppingReferenceResponse(
@@ -319,7 +319,7 @@ async def get_shopping_lists_delta(
 
     **Important:** Always use `server_time` from response as `since` for next sync.
     """
-    logger.info(f"[SYNC] User {current_user.id} requesting delta sync since {since}")
+    logger.info("[SYNC] User %s requesting delta sync since %s", current_user.id, since)
 
     current_time = datetime.now(timezone.utc)
 
@@ -345,10 +345,10 @@ async def get_shopping_lists_delta(
     deleted_item_ids = list(deleted_items_result.scalars().all())
 
     logger.info(
-        f"[SYNC] Delta results: "
-        f"created_lists={len(created_lists)}, updated_lists={len(updated_lists)}, "
-        f"created_items={len(created_items)}, updated_items={len(updated_items)}, "
-        f"deleted_items={len(deleted_item_ids)}"
+        "[SYNC] Delta results: created_lists=%s, updated_lists=%s, "
+        "created_items=%s, updated_items=%s, deleted_items=%s",
+        len(created_lists), len(updated_lists),
+        len(created_items), len(updated_items), len(deleted_item_ids)
     )
 
     return ShoppingListsDeltaResponse(

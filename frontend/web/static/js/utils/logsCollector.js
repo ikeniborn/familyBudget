@@ -28,6 +28,7 @@ class LogsCollector {
         this.userId = null;  // Set from JWT or user data
         this.sessionId = this._generateSessionId();
         this.isRunning = false;
+        this._offlineStatusChangeHandler = null;  // Stored for cleanup in stop()
 
         // Try to get user ID from page
         this._initUserId();
@@ -127,6 +128,12 @@ class LogsCollector {
             return;
         }
 
+        // Skip send when offline or auto-offline-mode is active
+        const isOffline = !navigator.onLine || localStorage.getItem('budget_auto_offline_mode') === 'true';
+        if (isOffline) {
+            return;
+        }
+
         const logsToSend = logs || this.buffer.slice();  // Use provided logs or copy buffer
 
         if (logsToSend.length === 0) {
@@ -156,7 +163,7 @@ class LogsCollector {
                 return;
             }
 
-            const result = await response.json();
+            await response.json();  // Consume response body
 
             // Clear sent logs from buffer (only if we sent the entire buffer)
             if (logs === null) {
@@ -179,10 +186,18 @@ class LogsCollector {
 
         this.isRunning = true;
 
-        // Send batch every 30 seconds
+        // Send batch every 30 seconds (sendBatch handles offline guard internally)
         this.intervalId = setInterval(() => {
             this.sendBatch();
         }, this.batchInterval);
+
+        // Flush buffered logs immediately when connectivity is restored
+        this._offlineStatusChangeHandler = (e) => {
+            if (e.detail && e.detail.online && this.isRunning && this.buffer.length > 0) {
+                this.sendBatch();
+            }
+        };
+        window.addEventListener('offline-status-change', this._offlineStatusChangeHandler);
 
         // Send batch on page unload (best effort)
         window.addEventListener('beforeunload', () => {
@@ -195,7 +210,9 @@ class LogsCollector {
                 });
 
                 // sendBeacon is more reliable than fetch during unload
-                navigator.sendBeacon('/api/v1/admin/logs/browser', data);
+                // Wrap in Blob with JSON content-type (plain string sends as text/plain → 422)
+                const blob = new Blob([data], { type: 'application/json' });
+                navigator.sendBeacon('/api/v1/admin/logs/browser', blob);
             }
         });
 
@@ -221,6 +238,11 @@ class LogsCollector {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
+        }
+
+        if (this._offlineStatusChangeHandler) {
+            window.removeEventListener('offline-status-change', this._offlineStatusChangeHandler);
+            this._offlineStatusChangeHandler = null;
         }
 
         // Final batch send

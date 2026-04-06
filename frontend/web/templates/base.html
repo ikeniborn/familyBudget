@@ -95,27 +95,8 @@
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png">
     <link rel="apple-touch-icon" sizes="180x180" href="/static/icons/apple-touch-icon.png">
 
-    <!-- iOS Splash Screens (comprehensive device coverage for iOS 16+) -->
-    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-750x1334.png"
-          media="(device-width: 375px) and (device-height: 667px) and (-webkit-device-pixel-ratio: 2)">
-    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-828x1792.png"
-          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 2)">
-    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1080x2340.png"
-          media="(device-width: 360px) and (device-height: 780px) and (-webkit-device-pixel-ratio: 3)">
-    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1125x2436.png"
-          media="(device-width: 375px) and (device-height: 812px) and (-webkit-device-pixel-ratio: 3)">
-    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1170x2532.png"
-          media="(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3)">
-    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1179x2556.png"
-          media="(device-width: 393px) and (device-height: 852px) and (-webkit-device-pixel-ratio: 3)">
-    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1242x2208.png"
-          media="(device-width: 414px) and (device-height: 736px) and (-webkit-device-pixel-ratio: 3)">
-    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1242x2688.png"
-          media="(device-width: 414px) and (device-height: 896px) and (-webkit-device-pixel-ratio: 3)">
-    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1284x2778.png"
-          media="(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3)">
-    <link rel="apple-touch-startup-image" href="/static/icons/splash/splash-1290x2796.png"
-          media="(device-width: 430px) and (device-height: 932px) and (-webkit-device-pixel-ratio: 3)">
+    <!-- iOS Splash Screens: removed — images not generated in build pipeline.
+         Splash is handled via inline PWA splash element in base.html body. -->
 
     <!-- Tailwind CSS + DaisyUI -->
     <link rel="stylesheet" href="/static/css/tailwind-daisyui.min.css?v=PLACEHOLDER">
@@ -125,13 +106,16 @@
     <link rel="stylesheet" href="/static/css/daisyui-overrides.min.css?v=PLACEHOLDER">
 
     <!-- Z-Index Variables - centralized z-index management (v11.0+) -->
-    <link rel="stylesheet" href="/static/css/z-index-variables.css?v=PLACEHOLDER">
+    <link rel="stylesheet" href="/static/css/z-index-variables.min.css?v=PLACEHOLDER">
 
     <!-- Custom Styles (FAB Toolbar, Safe-Area, etc.) -->
     <link rel="stylesheet" href="/static/css/custom.min.css?v=PLACEHOLDER">
 
     <!-- Loading Dots Animation (Navigation Progress) -->
     <link rel="stylesheet" href="/static/css/loading-dots.min.css?v=PLACEHOLDER">
+
+    <!-- P2P Sync UI styles (modal, QR scanner, status overlay) -->
+    <link rel="stylesheet" href="/static/css/p2p.min.css?v=PLACEHOLDER">
 
     <!-- Inline Custom Styles -->
     <style>
@@ -430,6 +414,21 @@
                 localStorage.removeItem('budget_manual_offline_mode');
             } catch(e) {}
         })();
+
+        window.addEventListener('offline', function() {
+            document.documentElement.classList.add('offline-mode');
+        });
+        window.addEventListener('online', function() {
+            // Only remove offline-mode from native event if auto-offline-mode is not active.
+            // offline-status-change is the authoritative source when auto-offline-mode is enabled.
+            if (localStorage.getItem('budget_auto_offline_mode') !== 'true') {
+                document.documentElement.classList.remove('offline-mode');
+            }
+        });
+        window.addEventListener('offline-status-change', function(e) {
+            var isOnline = e.detail && e.detail.online;
+            document.documentElement.classList.toggle('offline-mode', !isOnline);
+        });
     </script>
 
     <!-- Feature Flags Configuration (Web Workers, Debug Mode, WebSocket) -->
@@ -457,6 +456,11 @@
 
     <!-- Dexie Bundle (for offline mode) - IIFE with lazy loading via dynamic import() -->
     <script src="/shared/db/dexie.min.js?v=PLACEHOLDER"></script>
+
+    <!-- Dexie Diagnostic (global for all authenticated pages) (v11.6.0+) -->
+    {% if user %}
+    <script src="/static/js/diagnostics/dexie-diagnostic.min.js?v=PLACEHOLDER"></script>
+    {% endif %}
 
     <!-- Debug Logger (conditional logging for development) -->
     <script src="/shared/static/js/debugLog.min.js?v=PLACEHOLDER"></script>
@@ -531,6 +535,20 @@
                 </div>
             </div>
 
+            <!-- P2P Sync Button (mobile/tablet only, shown when WebRTC available) -->
+            <div id="p2p-sync-btn-wrapper"
+                 class="tooltip tooltip-bottom hidden lg:!hidden"
+                 data-tip="P2P синхронизация (без интернета)">
+                <button id="p2p-sync-btn"
+                        class="btn btn-ghost btn-circle btn-sm sm:btn-md"
+                        onclick="window.p2pUI?.open()"
+                        aria-label="P2P синхронизация">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
+                    </svg>
+                </button>
+            </div>
+
             <!-- Pending Sync Badge (shown when offline items exist) -->
             <div id="navbar-sync-badge-wrapper" class="tooltip tooltip-bottom hidden" data-tip="Ожидают синхронизации">
                 <button id="navbar-sync-btn"
@@ -562,8 +580,8 @@
 
             <!-- Dexie Status Indicator (Database Icon + Status Dot) -->
             <div id="dexie-indicator-wrapper"
-                 class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center hidden"
-                 data-tip="Локальная БД (Dexie)">
+                 class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center hidden cursor-pointer"
+                 data-tip="Локальная БД · нажмите для диагностики">
                 <div class="relative flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-base-200 transition-colors">
                     <!-- Active State: Green Database Icon -->
                     <div id="dexie-icon-active" class="flex items-center gap-1.5">
@@ -651,8 +669,8 @@
             </div>
 
             <!-- Budget WebSocket Status Indicator (real-time sync status) -->
-            <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center" data-tip="Real-time синхронизация">
-                <span class="badge badge-neutral badge-sm sm:badge-md" id="budget-sse-status-indicator" title="Статус синхронизации">
+            <div id="budget-sse-status-wrapper" class="tooltip tooltip-bottom h-8 sm:h-10 flex items-center cursor-pointer" data-tip="Онлайн синхронизация · нажмите для диагностики">
+                <span class="badge badge-neutral badge-sm sm:badge-md" id="budget-sse-status-indicator" title="Статус онлайн синхронизации">
                     <span class="loading loading-ring loading-xs sm:loading-sm"></span>
                 </span>
             </div>
@@ -776,15 +794,12 @@
         </aside>
     </footer>
 
-    <!-- Debug logging utility (must load BEFORE budgetShared) -->
     {% if user %}
-    <script src="/shared/static/js/debugLog.js?v=PLACEHOLDER"></script>
-
     <!-- BudgetShared Bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
     <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
 
-    <!-- ✅ FIX 4: Shared reminder utilities -->
-    <script src="/shared/static/js/reminders.js?v=PLACEHOLDER"></script>
+    <!-- Shared reminder utilities -->
+    <script src="/shared/static/js/reminders.min.js?v=PLACEHOLDER"></script>
 
     <!-- User data for LogsCollector -->
     <script>
@@ -850,21 +865,52 @@
 
         // Dexie Background Initialization (offline-first mode)
         document.addEventListener('DOMContentLoaded', function() {
-            // Check if Dexie enabled and not already initialized
+            // Initialize dexieActive flag if not set (first visit)
+            // DEFAULT: enabled (matches TypeScript logic in frontend/shared/db/dexie/index.ts)
+            if (localStorage.getItem('dexieActive') === null) {
+                localStorage.setItem('dexieActive', 'true');
+                console.info('[APP] dexieActive flag initialized to true (first visit)');
+            }
+
             const dexieActive = localStorage.getItem('dexieActive') === 'true';
+
+            // Check if this page load follows a SW update that cleared FamilyBudgetDB
+            // Flag set in service-worker-registration.html handleUpdateNow() Step 4
+            const isPostSWUpdate = localStorage.getItem('sw_post_update_sync') === 'true';
+            if (isPostSWUpdate) {
+                localStorage.removeItem('sw_post_update_sync');
+                console.info('[APP] Post-SW-update detected: will re-sync reference data after Dexie init');
+            }
 
             if (dexieActive && typeof window.Dexie !== 'undefined') {
                 console.info('[APP] Starting Dexie background initialization...');
 
                 // Start background init (non-blocking, won't block UI)
-                window.Dexie.initializeDatabaseInBackground().catch(error => {
+                window.Dexie.initializeDatabaseInBackground().then(async () => {
+                    // After SW update: DB was cleared, must re-sync reference data
+                    if (isPostSWUpdate) {
+                        console.info('[APP] Post-SW-update: triggering reference data re-sync...');
+                        try {
+                            const dexie = await window.Dexie.getDexieManager();
+                            const userId = window.userData?.id || window.user?.id;
+                            if (userId) {
+                                await dexie.syncReferenceData();
+                                console.info('[APP] ✅ Post-SW-update reference data sync complete');
+                            } else {
+                                console.warn('[APP] Post-SW-update sync skipped: userId not available');
+                            }
+                        } catch (syncError) {
+                            console.warn('[APP] Post-SW-update sync failed (non-critical):', syncError);
+                        }
+                    }
+                }).catch(error => {
                     console.warn('[APP] Background Dexie init failed (non-critical):', error);
                     // User continues working via API - no action needed
                 });
-            } else if (dexieActive) {
-                console.warn('[APP] Dexie enabled but window.Dexie not loaded');
+            } else if (!dexieActive) {
+                console.info('[APP] Dexie disabled (dexieActive=false), skipping background init');
             } else {
-                console.info('[APP] Dexie disabled, skipping background init');
+                console.warn('[APP] Dexie enabled but window.Dexie not loaded');
             }
         });
 
@@ -1097,6 +1143,26 @@
     {% include 'scripts/dexie-indicator-manager.html' %}
     {% include 'scripts/push-bell-manager.html' %}
     {% include 'scripts/navbar-sync-badge.html' %}
+    {% include 'p2p/p2p-status.html' %}
+
+    <!-- WS Indicator: single click opens diagnostics -->
+    <script>
+    (function setupWSClickDiagnostics() {
+        const wrapper = document.getElementById('budget-sse-status-wrapper');
+        if (!wrapper) return;
+
+        wrapper.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            console.debug('[WS_INDICATOR] click detected, opening WS diagnostics...');
+            if (window.budgetWSClient && typeof window.budgetWSClient.showDiagnostics === 'function') {
+                window.budgetWSClient.showDiagnostics();
+            } else {
+                console.error('[WS_INDICATOR] window.budgetWSClient.showDiagnostics not available');
+            }
+        });
+    })();
+    </script>
     {% endif %}
 
     {% if user %}
@@ -1498,5 +1564,21 @@
 
     <!-- WebAuthn Onboarding -->
     <script src="{{ url_for('static', path='/js/webauthn-onboarding.min.js') }}?v=PLACEHOLDER"></script>
+
+    <!-- P2P Sync: show button if WebRTC available -->
+    <script type="module">
+        import { p2pUIController } from '/static/js/ui/P2PUIController.js?v=PLACEHOLDER';
+        // Show P2P button if RTCPeerConnection is supported and HTTPS
+        const isHttps = location.protocol === 'https:' || location.hostname === 'localhost';
+        if (typeof RTCPeerConnection !== 'undefined' && isHttps) {
+            const wrapper = document.getElementById('p2p-sync-btn-wrapper');
+            if (wrapper) wrapper.classList.remove('hidden');
+        }
+        // Also show on p2p-capability-change event from networkDetector
+        window.addEventListener('p2p-capability-change', (e) => {
+            const wrapper = document.getElementById('p2p-sync-btn-wrapper');
+            if (wrapper && e.detail?.capable) wrapper.classList.remove('hidden');
+        });
+    </script>
 </body>
 </html>

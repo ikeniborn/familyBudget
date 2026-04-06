@@ -111,7 +111,9 @@ export function createInitialState(): FactsManagerState {
             allCategories: [],
             createCategoryTreeSelect: null,
             editCategoryTreeSelect: null,
-            editDateCalendar: null
+            editDateCalendar: null,
+            createTransferFromTree: null,
+            createTransferToTree: null
         },
 
         // Fact hints state

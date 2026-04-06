@@ -1,0 +1,749 @@
+<!doctype html>
+<html class="no-js" lang="en" data-content_root="../../">
+  <head><meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="color-scheme" content="light dark"><meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="index" title="Index" href="../../genindex.html"><link rel="search" title="Search" href="../../search.html">
+
+    <!-- Generated with Sphinx 9.1.0 and Furo 2025.12.19 -->
+        <title>Admin Email/Password Setup Guide - familyBudget Documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=d111a655" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo.css?v=7bdb33bb" />
+    <link rel="stylesheet" type="text/css" href="../../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sphinx-design.min.css?v=95c83b7e" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/furo-extensions.css?v=8dab3a3b" />
+    
+    
+
+
+<style>
+  body {
+    --color-code-background: #f2f2f2;
+  --color-code-foreground: #1e1e1e;
+  
+  }
+  @media not print {
+    body[data-theme="dark"] {
+      --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+    }
+    @media (prefers-color-scheme: dark) {
+      body:not([data-theme="light"]) {
+        --color-code-background: #202020;
+  --color-code-foreground: #d0d0d0;
+  
+      }
+    }
+  }
+</style></head>
+  <body>
+    
+    <script>
+      document.body.dataset.theme = localStorage.getItem("theme") || "auto";
+    </script>
+    
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display: none;">
+  <symbol id="svg-toc" viewBox="0 0 24 24">
+    <title>Contents</title>
+    <svg stroke="currentColor" fill="currentColor" stroke-width="0" viewBox="0 0 1024 1024">
+      <path d="M408 442h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8zm-8 204c0 4.4 3.6 8 8 8h480c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8H408c-4.4 0-8 3.6-8 8v56zm504-486H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zm0 632H120c-4.4 0-8 3.6-8 8v56c0 4.4 3.6 8 8 8h784c4.4 0 8-3.6 8-8v-56c0-4.4-3.6-8-8-8zM115.4 518.9L271.7 642c5.8 4.6 14.4.5 14.4-6.9V388.9c0-7.4-8.5-11.5-14.4-6.9L115.4 505.1a8.74 8.74 0 0 0 0 13.8z"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-menu" viewBox="0 0 24 24">
+    <title>Menu</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-menu">
+      <line x1="3" y1="12" x2="21" y2="12"></line>
+      <line x1="3" y1="6" x2="21" y2="6"></line>
+      <line x1="3" y1="18" x2="21" y2="18"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-arrow-right" viewBox="0 0 24 24">
+    <title>Expand</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather-chevron-right">
+      <polyline points="9 18 15 12 9 6"></polyline>
+    </svg>
+  </symbol>
+  <symbol id="svg-sun" viewBox="0 0 24 24">
+    <title>Light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="feather-sun">
+      <circle cx="12" cy="12" r="5"></circle>
+      <line x1="12" y1="1" x2="12" y2="3"></line>
+      <line x1="12" y1="21" x2="12" y2="23"></line>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+      <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+      <line x1="1" y1="12" x2="3" y2="12"></line>
+      <line x1="21" y1="12" x2="23" y2="12"></line>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+      <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon" viewBox="0 0 24 24">
+    <title>Dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-moon">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" />
+    </svg>
+  </symbol>
+  <symbol id="svg-sun-with-moon" viewBox="0 0 24 24">
+    <title>Auto light/dark, in light mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path style="opacity: 50%" d="M 5.411 14.504 C 5.471 14.504 5.532 14.504 5.591 14.504 C 3.639 16.319 4.383 19.569 6.931 20.352 C 7.693 20.586 8.512 20.551 9.25 20.252 C 8.023 23.207 4.056 23.725 2.11 21.184 C 0.166 18.642 1.702 14.949 4.874 14.536 C 5.051 14.512 5.231 14.5 5.411 14.5 L 5.411 14.504 Z"/>
+      <line x1="14.5" y1="3.25" x2="14.5" y2="1.25"/>
+      <line x1="14.5" y1="15.85" x2="14.5" y2="17.85"/>
+      <line x1="10.044" y1="5.094" x2="8.63" y2="3.68"/>
+      <line x1="19" y1="14.05" x2="20.414" y2="15.464"/>
+      <line x1="8.2" y1="9.55" x2="6.2" y2="9.55"/>
+      <line x1="20.8" y1="9.55" x2="22.8" y2="9.55"/>
+      <line x1="10.044" y1="14.006" x2="8.63" y2="15.42"/>
+      <line x1="19" y1="5.05" x2="20.414" y2="3.636"/>
+      <circle cx="14.5" cy="9.55" r="3.6"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-moon-with-sun" viewBox="0 0 24 24">
+    <title>Auto light/dark, in dark mode</title>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round"
+      class="icon-custom-derived-from-feather-sun-and-tabler-moon">
+      <path d="M 8.282 7.007 C 8.385 7.007 8.494 7.007 8.595 7.007 C 5.18 10.184 6.481 15.869 10.942 17.24 C 12.275 17.648 13.706 17.589 15 17.066 C 12.851 22.236 5.91 23.143 2.505 18.696 C -0.897 14.249 1.791 7.786 7.342 7.063 C 7.652 7.021 7.965 7 8.282 7 L 8.282 7.007 Z"/>
+      <line style="opacity: 50%" x1="18" y1="3.705" x2="18" y2="2.5"/>
+      <line style="opacity: 50%" x1="18" y1="11.295" x2="18" y2="12.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="4.816" x2="14.464" y2="3.964"/>
+      <line style="opacity: 50%" x1="20.711" y1="10.212" x2="21.563" y2="11.063"/>
+      <line style="opacity: 50%" x1="14.205" y1="7.5" x2="13.001" y2="7.5"/>
+      <line style="opacity: 50%" x1="21.795" y1="7.5" x2="23" y2="7.5"/>
+      <line style="opacity: 50%" x1="15.316" y1="10.184" x2="14.464" y2="11.036"/>
+      <line style="opacity: 50%" x1="20.711" y1="4.789" x2="21.563" y2="3.937"/>
+      <circle style="opacity: 50%" cx="18" cy="7.5" r="2.169"/>
+    </svg>
+  </symbol>
+  <symbol id="svg-pencil" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-pencil-code">
+      <path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4" />
+      <path d="M13.5 6.5l4 4" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+  <symbol id="svg-eye" viewBox="0 0 24 24">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="icon-tabler-eye-code">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+      <path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" />
+      <path
+        d="M11.11 17.958c-3.209 -.307 -5.91 -2.293 -8.11 -5.958c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6c-.21 .352 -.427 .688 -.647 1.008" />
+      <path d="M20 21l2 -2l-2 -2" />
+      <path d="M17 17l-2 2l2 2" />
+    </svg>
+  </symbol>
+</svg>
+
+<input type="checkbox" class="sidebar-toggle" name="__navigation" id="__navigation" aria-label="Toggle site navigation sidebar">
+<input type="checkbox" class="sidebar-toggle" name="__toc" id="__toc" aria-label="Toggle table of contents sidebar">
+<label class="overlay sidebar-overlay" for="__navigation"></label>
+<label class="overlay toc-overlay" for="__toc"></label>
+
+<a class="skip-to-content muted-link" href="#furo-main-content">Skip to content</a>
+
+
+
+<div class="page">
+  <header class="mobile-header">
+    <div class="header-left">
+      <label class="nav-overlay-icon" for="__navigation">
+        <span class="icon"><svg><use href="#svg-menu"></use></svg></span>
+      </label>
+    </div>
+    <div class="header-center">
+      <a href="../../sphinx/index.html"><div class="brand">familyBudget Documentation</div></a>
+    </div>
+    <div class="header-right">
+      <div class="theme-toggle-container theme-toggle-header">
+        <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+          <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+          <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+          <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+          <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+        </button>
+      </div>
+      <label class="toc-overlay-icon toc-header-icon" for="__toc">
+        <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+      </label>
+    </div>
+  </header>
+  <aside class="sidebar-drawer">
+    <div class="sidebar-container">
+      
+      <div class="sidebar-sticky"><a class="sidebar-brand" href="../../sphinx/index.html">
+  
+  <span class="sidebar-brand-text">familyBudget Documentation</span>
+  
+</a><form class="sidebar-search-container" method="get" action="../../search.html" role="search">
+  <input class="sidebar-search" placeholder="Search" name="q" aria-label="Search">
+  <input type="hidden" name="check_keywords" value="yes">
+  <input type="hidden" name="area" value="default">
+</form>
+<div id="searchbox"></div><div class="sidebar-scroll"><div class="sidebar-tree">
+  
+</div>
+</div>
+
+      </div>
+      
+    </div>
+  </aside>
+  <div class="main">
+    <div class="content">
+      <div class="article-container">
+        <a href="#" class="back-to-top muted-link">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8v12z"></path>
+          </svg>
+          <span>Back to top</span>
+        </a>
+        <div class="content-icon-container">
+          <div class="view-this-page">
+  <a class="muted-link" href="../../_sources/architecture/features/admin-setup.md.txt" title="View this page">
+    <svg><use href="#svg-eye"></use></svg>
+    <span class="visually-hidden">View this page</span>
+  </a>
+</div>
+<div class="theme-toggle-container theme-toggle-content">
+            <button class="theme-toggle" aria-label="Toggle Light / Dark / Auto color theme">
+              <svg class="theme-icon-when-auto-light"><use href="#svg-sun-with-moon"></use></svg>
+              <svg class="theme-icon-when-auto-dark"><use href="#svg-moon-with-sun"></use></svg>
+              <svg class="theme-icon-when-dark"><use href="#svg-moon"></use></svg>
+              <svg class="theme-icon-when-light"><use href="#svg-sun"></use></svg>
+            </button>
+          </div>
+          <label class="toc-overlay-icon toc-content-icon" for="__toc">
+            <span class="icon"><svg><use href="#svg-toc"></use></svg></span>
+          </label>
+        </div>
+        <article role="main" id="furo-main-content">
+          <section id="admin-email-password-setup-guide">
+<h1>Admin Email/Password Setup Guide<a class="headerlink" href="#admin-email-password-setup-guide" title="Link to this heading">¶</a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">¶</a></h2>
+<p>This guide walks through configuring admin email/password authentication for emergency access to Family Budget without 2FA requirement.</p>
+<p><strong>⚠️ Security Note:</strong> This feature allows admin to bypass 2FA. Regular users are NOT affected and still require 2FA for email/password login.</p>
+</section>
+<hr class="docutils" />
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Link to this heading">¶</a></h2>
+<p>Before starting, ensure you have:</p>
+<ul class="simple">
+<li><p>[ ] Root access to the server</p></li>
+<li><p>[ ] Family Budget repository cloned (<code class="docutils literal notranslate"><span class="pre">~/familyBudget</span></code>)</p></li>
+<li><p>[ ] <code class="docutils literal notranslate"><span class="pre">setup.sh</span></code> not yet run (or willing to reconfigure)</p></li>
+<li><p>[ ] Valid email address for admin account</p></li>
+<li><p>[ ] Understanding of security implications</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="step-1-run-interactive-setup">
+<h2>Step 1: Run Interactive Setup<a class="headerlink" href="#step-1-run-interactive-setup" title="Link to this heading">¶</a></h2>
+<p>Navigate to repository and run setup script:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/familyBudget
+sudo<span class="w"> </span>./setup.sh
+</pre></div>
+</div>
+<p>The script will guide you through configuration, including standard sections for PostgreSQL, Telegram bot, etc.</p>
+</section>
+<hr class="docutils" />
+<section id="step-2-configure-admin-email-interactive-prompt">
+<h2>Step 2: Configure Admin Email (Interactive Prompt)<a class="headerlink" href="#step-2-configure-admin-email-interactive-prompt" title="Link to this heading">¶</a></h2>
+<p>When you reach the <strong>Admin Email Authentication</strong> section:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>▶ Admin Email Authentication (Optional - Emergency Access)
+[INFO] Admin can login via email/password WITHOUT 2FA (security exception)
+[INFO] Regular users ALWAYS require 2FA for email/password login
+[INFO] Leave blank to use Telegram authentication only
+
+Configure admin email login? [y/N]:
+</pre></div>
+</div>
+<p><strong>Answer:</strong> <code class="docutils literal notranslate"><span class="pre">y</span></code> (yes)</p>
+</section>
+<hr class="docutils" />
+<section id="step-3-enter-admin-email">
+<h2>Step 3: Enter Admin Email<a class="headerlink" href="#step-3-enter-admin-email" title="Link to this heading">¶</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Admin</span> <span class="n">email</span> <span class="p">(</span><span class="n">optional</span><span class="p">):</span>
+</pre></div>
+</div>
+<p><strong>Enter:</strong> Your admin email address (e.g., <code class="docutils literal notranslate"><span class="pre">admin&#64;example.com</span></code>)</p>
+<p><strong>Validation:</strong></p>
+<ul class="simple">
+<li><p>Must be valid email format</p></li>
+<li><p>Will be converted to lowercase</p></li>
+<li><p>Can be same as or different from your personal email</p></li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Admin</span> <span class="n">email</span> <span class="p">(</span><span class="n">optional</span><span class="p">):</span> <span class="n">admin</span><span class="nd">@example</span><span class="o">.</span><span class="n">com</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="step-4-review-password-requirements">
+<h2>Step 4: Review Password Requirements<a class="headerlink" href="#step-4-review-password-requirements" title="Link to this heading">¶</a></h2>
+<p>The script will display OWASP 2023 password requirements:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Password requirements (OWASP 2023):
+  ✓ Minimum 12 characters
+  ✓ At least one uppercase letter (A-Z)
+  ✓ At least one lowercase letter (a-z)
+  ✓ At least one digit (0-9)
+  ✓ At least one special character (!@#$%^&amp;*...)
+</pre></div>
+</div>
+<p><strong>Note:</strong> These are the minimum requirements. Setup.sh auto-generates <strong>24-character</strong> passwords for enhanced security.</p>
+</section>
+<hr class="docutils" />
+<section id="step-5-accept-or-enter-password">
+<h2>Step 5: Accept or Enter Password<a class="headerlink" href="#step-5-accept-or-enter-password" title="Link to this heading">¶</a></h2>
+<p>The script auto-generates a secure 24-character password:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[SUCCESS] Auto-generated secure password: Xy5!a7bF3cG9hJ2kP8qR4tU6
+[INFO] Accept this or enter your own (hidden input)
+
+Admin password (or press Enter for auto-generated):
+</pre></div>
+</div>
+<p><strong>Options:</strong></p>
+<p><strong>Option A: Accept auto-generated (RECOMMENDED)</strong></p>
+<ul class="simple">
+<li><p>Press <code class="docutils literal notranslate"><span class="pre">Enter</span></code> to accept</p></li>
+<li><p>Password is OWASP 2023 compliant (24 characters)</p></li>
+<li><p>Strong, random, unique</p></li>
+</ul>
+<p><strong>Option B: Enter custom password</strong></p>
+<ul class="simple">
+<li><p>Type your own password (hidden input)</p></li>
+<li><p>Must meet OWASP 2023 requirements (minimum 12 characters)</p></li>
+<li><p>Will be validated before saving</p></li>
+</ul>
+<p><strong>Example (accepting auto-generated):</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Admin</span> <span class="n">password</span> <span class="p">(</span><span class="ow">or</span> <span class="n">press</span> <span class="n">Enter</span> <span class="k">for</span> <span class="n">auto</span><span class="o">-</span><span class="n">generated</span><span class="p">):</span> <span class="p">[</span><span class="n">Enter</span><span class="p">]</span>
+
+<span class="p">[</span><span class="n">SUCCESS</span><span class="p">]</span> <span class="n">Admin</span> <span class="n">email</span> <span class="n">authentication</span> <span class="n">configured</span>
+<span class="p">[</span><span class="n">INFO</span><span class="p">]</span> <span class="n">Admin</span><span class="p">:</span> <span class="n">admin</span><span class="nd">@example</span><span class="o">.</span><span class="n">com</span>
+<span class="p">[</span><span class="n">WARNING</span><span class="p">]</span> <span class="n">SECURITY</span><span class="p">:</span> <span class="n">Password</span> <span class="ow">is</span> <span class="k">for</span> <span class="n">INITIAL</span> <span class="n">login</span> <span class="n">only</span>
+<span class="p">[</span><span class="n">WARNING</span><span class="p">]</span> <span class="n">Change</span> <span class="n">password</span> <span class="n">after</span> <span class="n">first</span> <span class="n">login</span> <span class="p">(</span><span class="n">optional</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="step-6-save-password-securely">
+<h2>Step 6: Save Password Securely<a class="headerlink" href="#step-6-save-password-securely" title="Link to this heading">¶</a></h2>
+<p><strong>CRITICAL:</strong> Copy the auto-generated password immediately!</p>
+<p><strong>Recommended storage methods:</strong></p>
+<ol class="arabic simple">
+<li><p>Password manager (1Password, Bitwarden, KeePassXC)</p></li>
+<li><p>Encrypted notes app (Standard Notes, Joplin)</p></li>
+<li><p>Secure offline storage (encrypted USB drive)</p></li>
+</ol>
+<p><strong>Never store in:</strong></p>
+<ul class="simple">
+<li><p>❌ Plain text files</p></li>
+<li><p>❌ Shared documents</p></li>
+<li><p>❌ Unencrypted cloud storage</p></li>
+<li><p>❌ Email or messaging apps</p></li>
+</ul>
+</section>
+<hr class="docutils" />
+<section id="step-7-complete-setup">
+<h2>Step 7: Complete Setup<a class="headerlink" href="#step-7-complete-setup" title="Link to this heading">¶</a></h2>
+<p>Continue with remaining <code class="docutils literal notranslate"><span class="pre">setup.sh</span></code> prompts:</p>
+<ul class="simple">
+<li><p>Application settings (environment, domain, port)</p></li>
+<li><p>SSL configuration (if using nginx profile)</p></li>
+<li><p>S3 backup (optional)</p></li>
+<li><p>Redis configuration</p></li>
+</ul>
+<p>Setup will save all configuration to <code class="docutils literal notranslate"><span class="pre">/opt/budget/.env</span></code>.</p>
+</section>
+<hr class="docutils" />
+<section id="step-8-deploy-application">
+<h2>Step 8: Deploy Application<a class="headerlink" href="#step-8-deploy-application" title="Link to this heading">¶</a></h2>
+<p>Deploy the application to create admin user:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/familyBudget
+sudo<span class="w"> </span>./deploy.sh
+</pre></div>
+</div>
+<p><strong>Watch for admin user creation output:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>━━━ Creating Admin User ━━━
+[INFO] Checking if admin email/password configured...
+[INFO] [ADMIN_USER] Creating admin user: admin@example.com
+[INFO] [ADMIN_USER] Password validation passed (OWASP 2023 compliant)
+[INFO] [ADMIN_USER] ✓ Admin user created successfully
+[INFO] [ADMIN_USER] User ID: 1
+[INFO] [ADMIN_USER] Email: admin@example.com
+[INFO] [ADMIN_USER] is_admin: True
+[INFO] [ADMIN_USER] is_active: True
+[INFO] [ADMIN_USER] two_factor_enabled: False (admin bypasses 2FA)
+[SUCCESS] Admin user creation completed
+[INFO] Admin can now login via:
+[INFO]   - Telegram OAuth (ADMIN_TELEGRAM_ID)
+[INFO]   - Email + Password (ADMIN_EMAIL) - bypasses 2FA
+</pre></div>
+</div>
+<p><strong>If admin creation skipped:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">WARNING</span><span class="p">]</span> <span class="n">Admin</span> <span class="n">user</span> <span class="n">creation</span> <span class="n">skipped</span> <span class="ow">or</span> <span class="n">failed</span>
+<span class="p">[</span><span class="n">INFO</span><span class="p">]</span> <span class="n">This</span> <span class="ow">is</span> <span class="ow">not</span> <span class="n">critical</span> <span class="o">-</span> <span class="n">admin</span> <span class="n">can</span> <span class="n">still</span> <span class="n">use</span> <span class="n">Telegram</span> <span class="n">authentication</span>
+<span class="p">[</span><span class="n">INFO</span><span class="p">]</span> <span class="n">Check</span> <span class="n">logs</span> <span class="n">above</span> <span class="k">for</span> <span class="n">details</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="step-9-first-login-email-password">
+<h2>Step 9: First Login (Email + Password)<a class="headerlink" href="#step-9-first-login-email-password" title="Link to this heading">¶</a></h2>
+<p>Navigate to login page:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">https</span><span class="p">:</span><span class="o">//</span><span class="n">your</span><span class="o">-</span><span class="n">domain</span><span class="o">.</span><span class="n">com</span><span class="o">/</span><span class="n">auth</span><span class="o">/</span><span class="n">login</span><span class="o">-</span><span class="n">email</span>
+</pre></div>
+</div>
+<p>Or for local testing:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">http</span><span class="p">:</span><span class="o">//</span><span class="n">localhost</span><span class="p">:</span><span class="mi">8000</span><span class="o">/</span><span class="n">auth</span><span class="o">/</span><span class="n">login</span><span class="o">-</span><span class="n">email</span>
+</pre></div>
+</div>
+<p><strong>Login credentials:</strong></p>
+<ul class="simple">
+<li><p>Email: <code class="docutils literal notranslate"><span class="pre">admin&#64;example.com</span></code></p></li>
+<li><p>Password: <code class="docutils literal notranslate"><span class="pre">Xy5!a7bF3cG9hJ2kP8qR4tU6</span></code> (your auto-generated password)</p></li>
+</ul>
+<p><strong>Expected behavior:</strong></p>
+<ol class="arabic simple">
+<li><p>Enter email and password</p></li>
+<li><p>Click “Войти” (Login)</p></li>
+<li><p><strong>No 2FA prompt</strong> (admin bypass)</p></li>
+<li><p>Redirected to dashboard immediately</p></li>
+</ol>
+<p><strong>Browser console (DevTools → Console):</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">[</span><span class="n">AUTH_EMAIL</span><span class="p">]</span> <span class="n">Login</span> <span class="n">attempt</span><span class="p">:</span> <span class="n">admin</span><span class="nd">@example</span><span class="o">.</span><span class="n">com</span>
+<span class="p">[</span><span class="n">AUTH_EMAIL</span><span class="p">]</span> <span class="n">Admin</span> <span class="n">bypass</span> <span class="n">detected</span> <span class="o">-</span> <span class="n">JWT</span> <span class="n">tokens</span> <span class="n">received</span>
+<span class="p">[</span><span class="n">AUTH_EMAIL</span><span class="p">]</span> <span class="n">Redirecting</span> <span class="n">to</span> <span class="n">dashboard</span> <span class="p">(</span><span class="mi">2</span><span class="n">FA</span> <span class="n">skipped</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="step-10-verify-admin-access">
+<h2>Step 10: Verify Admin Access<a class="headerlink" href="#step-10-verify-admin-access" title="Link to this heading">¶</a></h2>
+<p>After successful login, verify admin privileges:</p>
+<p><strong>Dashboard indicators:</strong></p>
+<ul class="simple">
+<li><p>[ ] Admin menu visible (if implemented)</p></li>
+<li><p>[ ] Access to <code class="docutils literal notranslate"><span class="pre">/admin</span></code> routes</p></li>
+<li><p>[ ] User profile shows <code class="docutils literal notranslate"><span class="pre">is_admin:</span> <span class="pre">true</span></code></p></li>
+</ul>
+<p><strong>Database verification:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>postgres<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>familybudget<span class="w"> </span>-d<span class="w"> </span>familybudget<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">&quot;SELECT id, email, is_admin, is_active, two_factor_enabled FROM t_d_user WHERE email=&#39;admin@example.com&#39;;&quot;</span>
+</pre></div>
+</div>
+<p><strong>Expected output:</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span> <span class="nb">id</span> <span class="o">|</span>       <span class="n">email</span>        <span class="o">|</span> <span class="n">is_admin</span> <span class="o">|</span> <span class="n">is_active</span> <span class="o">|</span> <span class="n">two_factor_enabled</span>
+<span class="o">----+--------------------+----------+-----------+--------------------</span>
+  <span class="mi">1</span> <span class="o">|</span> <span class="n">admin</span><span class="nd">@example</span><span class="o">.</span><span class="n">com</span>  <span class="o">|</span> <span class="n">t</span>        <span class="o">|</span> <span class="n">t</span>         <span class="o">|</span> <span class="n">f</span>
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="optional-change-password">
+<h2>Optional: Change Password<a class="headerlink" href="#optional-change-password" title="Link to this heading">¶</a></h2>
+<p>Although not required, you may change the auto-generated password:</p>
+<section id="via-web-ui-recommended">
+<h3>Via Web UI (Recommended)<a class="headerlink" href="#via-web-ui-recommended" title="Link to this heading">¶</a></h3>
+<ol class="arabic simple">
+<li><p>Login as admin</p></li>
+<li><p>Navigate to <strong>Security Settings</strong> (<code class="docutils literal notranslate"><span class="pre">/security</span></code>)</p></li>
+<li><p>Click <strong>Change Password</strong></p></li>
+<li><p>Enter:</p>
+<ul class="simple">
+<li><p>Current password (auto-generated)</p></li>
+<li><p>New password (must meet OWASP 2023 requirements)</p></li>
+<li><p>Confirm new password</p></li>
+</ul>
+</li>
+<li><p>Click <strong>Update Password</strong></p></li>
+</ol>
+</section>
+<section id="via-database-advanced">
+<h3>Via Database (Advanced)<a class="headerlink" href="#via-database-advanced" title="Link to this heading">¶</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Generate new password hash</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>backend<span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<span class="s2">from backend.app.services.password_service import hash_password</span>
+<span class="s2">print(hash_password(&#39;YourNewPassword123!&#39;))</span>
+<span class="s2">&quot;</span>
+
+<span class="c1"># Update database</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>postgres<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>familybudget<span class="w"> </span>-d<span class="w"> </span>familybudget<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">&quot;UPDATE t_d_user SET password_hash=&#39;</span><span class="nv">$argon2id</span>$<span class="s2">...&#39; WHERE email=&#39;admin@example.com&#39;;&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="troubleshooting">
+<h2>Troubleshooting<a class="headerlink" href="#troubleshooting" title="Link to this heading">¶</a></h2>
+<section id="issue-admin-email-prompt-not-showing-during-setup-sh">
+<h3>Issue: Admin email prompt not showing during setup.sh<a class="headerlink" href="#issue-admin-email-prompt-not-showing-during-setup-sh" title="Link to this heading">¶</a></h3>
+<p><strong>Cause:</strong> Using old version of <code class="docutils literal notranslate"><span class="pre">setup.sh</span></code></p>
+<p><strong>Solution:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>~/familyBudget
+git<span class="w"> </span>pull<span class="w"> </span>origin<span class="w"> </span>main
+sudo<span class="w"> </span>./setup.sh<span class="w">  </span><span class="c1"># Re-run setup</span>
+</pre></div>
+</div>
+</section>
+<section id="issue-admin-user-not-created-during-deploy-sh">
+<h3>Issue: Admin user not created during deploy.sh<a class="headerlink" href="#issue-admin-user-not-created-during-deploy-sh" title="Link to this heading">¶</a></h3>
+<p><strong>Cause:</strong> <code class="docutils literal notranslate"><span class="pre">ADMIN_EMAIL</span></code> or <code class="docutils literal notranslate"><span class="pre">ADMIN_PASSWORD</span></code> not set in <code class="docutils literal notranslate"><span class="pre">.env</span></code></p>
+<p><strong>Solution:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check .env file</span>
+cat<span class="w"> </span>/opt/budget/.env<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>ADMIN_EMAIL
+cat<span class="w"> </span>/opt/budget/.env<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>ADMIN_PASSWORD
+
+<span class="c1"># Manual admin creation</span>
+<span class="nb">cd</span><span class="w"> </span>/opt/budget
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>backend<span class="w"> </span>python<span class="w"> </span>scripts/create_admin_user.py
+</pre></div>
+</div>
+</section>
+<section id="issue-admin-login-still-requires-2fa">
+<h3>Issue: Admin login still requires 2FA<a class="headerlink" href="#issue-admin-login-still-requires-2fa" title="Link to this heading">¶</a></h3>
+<p><strong>Cause:</strong> <code class="docutils literal notranslate"><span class="pre">two_factor_enabled=true</span></code> in database</p>
+<p><strong>Solution:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Check database</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>postgres<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>familybudget<span class="w"> </span>-d<span class="w"> </span>familybudget<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">&quot;SELECT two_factor_enabled FROM t_d_user WHERE email=&#39;admin@example.com&#39;;&quot;</span>
+
+<span class="c1"># Fix if needed</span>
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>postgres<span class="w"> </span>psql<span class="w"> </span>-U<span class="w"> </span>familybudget<span class="w"> </span>-d<span class="w"> </span>familybudget<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">&quot;UPDATE t_d_user SET two_factor_enabled=false WHERE email=&#39;admin@example.com&#39;;&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="issue-password-validation-fails">
+<h3>Issue: Password validation fails<a class="headerlink" href="#issue-password-validation-fails" title="Link to this heading">¶</a></h3>
+<p><strong>Cause:</strong> Custom password doesn’t meet OWASP 2023 requirements</p>
+<p><strong>Solution:</strong>
+Use auto-generated password OR ensure custom password has:</p>
+<ul class="simple">
+<li><p>Minimum 12 characters</p></li>
+<li><p>At least one uppercase letter (A-Z)</p></li>
+<li><p>At least one lowercase letter (a-z)</p></li>
+<li><p>At least one digit (0-9)</p></li>
+<li><p>At least one special character (!&#64;#$%^&amp;*…)</p></li>
+<li><p>Not in common passwords list</p></li>
+</ul>
+<p><strong>Test password strength:</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>backend<span class="w"> </span>python3<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+<span class="s2">from backend.app.services.password_service import validate_password_strength</span>
+<span class="s2">is_valid, error = validate_password_strength(&#39;YourPassword123!&#39;)</span>
+<span class="s2">print(f&#39;Valid: {is_valid}&#39;)</span>
+<span class="s2">if not is_valid:</span>
+<span class="s2">    print(f&#39;Error: {error}&#39;)</span>
+<span class="s2">&quot;</span>
+</pre></div>
+</div>
+</section>
+<section id="issue-forgot-admin-password">
+<h3>Issue: Forgot admin password<a class="headerlink" href="#issue-forgot-admin-password" title="Link to this heading">¶</a></h3>
+<p><strong>Solution 1: Check .env file</strong> (if not changed)</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cat<span class="w"> </span>/opt/budget/.env<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>ADMIN_PASSWORD
+</pre></div>
+</div>
+<p><strong>Solution 2: Generate new password and update</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># Generate new password</span>
+<span class="nb">cd</span><span class="w"> </span>~/familyBudget
+<span class="nb">source</span><span class="w"> </span>scripts/lib/utils.sh
+generate_admin_password
+
+<span class="c1"># Update .env</span>
+sudo<span class="w"> </span>nano<span class="w"> </span>/opt/budget/.env
+<span class="c1"># Change ADMIN_PASSWORD= line</span>
+
+<span class="c1"># Re-run admin creation script</span>
+<span class="nb">cd</span><span class="w"> </span>/opt/budget
+docker<span class="w"> </span>compose<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-T<span class="w"> </span>backend<span class="w"> </span>python<span class="w"> </span>scripts/create_admin_user.py
+</pre></div>
+</div>
+</section>
+<section id="issue-admin-login-logs-show-errors">
+<h3>Issue: Admin login logs show errors<a class="headerlink" href="#issue-admin-login-logs-show-errors" title="Link to this heading">¶</a></h3>
+<p><strong>Solution:</strong> Check backend logs</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>backend<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;\[AUTH_EMAIL\]&quot;</span>
+docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>backend<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;\[ADMIN_USER\]&quot;</span>
+</pre></div>
+</div>
+<p>Common errors:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">Invalid</span> <span class="pre">email</span> <span class="pre">or</span> <span class="pre">password</span></code> → Check credentials</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Account</span> <span class="pre">pending</span> <span class="pre">activation</span></code> → User <code class="docutils literal notranslate"><span class="pre">is_active=false</span></code> in DB</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Password</span> <span class="pre">validation</span> <span class="pre">failed</span></code> → Password doesn’t meet requirements</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="security-best-practices">
+<h2>Security Best Practices<a class="headerlink" href="#security-best-practices" title="Link to this heading">¶</a></h2>
+<section id="do">
+<h3>DO ✅<a class="headerlink" href="#do" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Use auto-generated 24-character password</p></li>
+<li><p>Store password in password manager</p></li>
+<li><p>Enable Telegram OAuth as primary method</p></li>
+<li><p>Monitor authentication logs regularly</p></li>
+<li><p>Restrict admin email login to trusted networks (future)</p></li>
+<li><p>Consider voluntary 2FA for admin (bypass remains as fallback)</p></li>
+</ul>
+</section>
+<section id="don-t">
+<h3>DON’T ❌<a class="headerlink" href="#don-t" title="Link to this heading">¶</a></h3>
+<ul class="simple">
+<li><p>Share admin password with team members</p></li>
+<li><p>Store password in plain text</p></li>
+<li><p>Use weak or common passwords</p></li>
+<li><p>Disable logging for admin logins</p></li>
+<li><p>Forget to save auto-generated password</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="next-steps">
+<h2>Next Steps<a class="headerlink" href="#next-steps" title="Link to this heading">¶</a></h2>
+<p>After successful admin setup:</p>
+<ol class="arabic">
+<li><p><strong>Test Telegram OAuth</strong> (if configured)</p>
+<ul class="simple">
+<li><p>Navigate to <code class="docutils literal notranslate"><span class="pre">/auth/telegram-login</span></code></p></li>
+<li><p>Click “Login with Telegram”</p></li>
+<li><p>Verify both auth methods work</p></li>
+</ul>
+</li>
+<li><p><strong>Review authentication logs</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>compose<span class="w"> </span>logs<span class="w"> </span>backend<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;\[AUTH_EMAIL\]&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-20
+</pre></div>
+</div>
+</li>
+<li><p><strong>Read comprehensive authentication docs</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../core/authentication.html"><span class="std std-doc">authentication.md</span></a> - Complete architecture</p></li>
+<li><p><a class="reference internal" href="#../../CLAUDE.md"><span class="xref myst">CLAUDE.md</span></a> - Developer guide</p></li>
+</ul>
+</li>
+<li><p><strong>Configure monitoring</strong> (optional)</p>
+<ul class="simple">
+<li><p>Set up email alerts for admin logins</p></li>
+<li><p>Monitor failed login attempts</p></li>
+<li><p>Track IP addresses for admin access</p></li>
+</ul>
+</li>
+</ol>
+</section>
+<hr class="docutils" />
+<section id="related-documentation">
+<h2>Related Documentation<a class="headerlink" href="#related-documentation" title="Link to this heading">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="../core/authentication.html"><span class="std std-doc">Authentication Architecture</span></a> - Complete authentication system</p></li>
+<li><p><a class="reference internal" href="#../../CLAUDE.md"><span class="xref myst">CLAUDE.md</span></a> - Developer documentation</p></li>
+<li><p><a class="reference internal" href="#../../START.md"><span class="xref myst">START.md</span></a> - Installation guide</p></li>
+</ul>
+</section>
+</section>
+
+        </article>
+      </div>
+      <footer>
+        
+        <div class="related-pages">
+          
+          
+        </div>
+        <div class="bottom-of-page">
+          <div class="left-details">
+            <div class="copyright">
+                Copyright &#169; 
+            </div>
+            Made with <a href="https://www.sphinx-doc.org/">Sphinx</a> and <a class="muted-link" href="https://pradyunsg.me">@pradyunsg</a>'s
+            
+            <a href="https://github.com/pradyunsg/furo">Furo</a>
+            
+          </div>
+          <div class="right-details">
+            
+          </div>
+        </div>
+        
+      </footer>
+    </div>
+    <aside class="toc-drawer">
+      
+      
+      <div class="toc-sticky toc-scroll">
+        <div class="toc-title-container">
+          <span class="toc-title">
+            On this page
+          </span>
+        </div>
+        <div class="toc-tree-container">
+          <div class="toc-tree">
+            <ul>
+<li><a class="reference internal" href="#">Admin Email/Password Setup Guide</a><ul>
+<li><a class="reference internal" href="#overview">Overview</a></li>
+<li><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li><a class="reference internal" href="#step-1-run-interactive-setup">Step 1: Run Interactive Setup</a></li>
+<li><a class="reference internal" href="#step-2-configure-admin-email-interactive-prompt">Step 2: Configure Admin Email (Interactive Prompt)</a></li>
+<li><a class="reference internal" href="#step-3-enter-admin-email">Step 3: Enter Admin Email</a></li>
+<li><a class="reference internal" href="#step-4-review-password-requirements">Step 4: Review Password Requirements</a></li>
+<li><a class="reference internal" href="#step-5-accept-or-enter-password">Step 5: Accept or Enter Password</a></li>
+<li><a class="reference internal" href="#step-6-save-password-securely">Step 6: Save Password Securely</a></li>
+<li><a class="reference internal" href="#step-7-complete-setup">Step 7: Complete Setup</a></li>
+<li><a class="reference internal" href="#step-8-deploy-application">Step 8: Deploy Application</a></li>
+<li><a class="reference internal" href="#step-9-first-login-email-password">Step 9: First Login (Email + Password)</a></li>
+<li><a class="reference internal" href="#step-10-verify-admin-access">Step 10: Verify Admin Access</a></li>
+<li><a class="reference internal" href="#optional-change-password">Optional: Change Password</a><ul>
+<li><a class="reference internal" href="#via-web-ui-recommended">Via Web UI (Recommended)</a></li>
+<li><a class="reference internal" href="#via-database-advanced">Via Database (Advanced)</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#troubleshooting">Troubleshooting</a><ul>
+<li><a class="reference internal" href="#issue-admin-email-prompt-not-showing-during-setup-sh">Issue: Admin email prompt not showing during setup.sh</a></li>
+<li><a class="reference internal" href="#issue-admin-user-not-created-during-deploy-sh">Issue: Admin user not created during deploy.sh</a></li>
+<li><a class="reference internal" href="#issue-admin-login-still-requires-2fa">Issue: Admin login still requires 2FA</a></li>
+<li><a class="reference internal" href="#issue-password-validation-fails">Issue: Password validation fails</a></li>
+<li><a class="reference internal" href="#issue-forgot-admin-password">Issue: Forgot admin password</a></li>
+<li><a class="reference internal" href="#issue-admin-login-logs-show-errors">Issue: Admin login logs show errors</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#security-best-practices">Security Best Practices</a><ul>
+<li><a class="reference internal" href="#do">DO ✅</a></li>
+<li><a class="reference internal" href="#don-t">DON’T ❌</a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#next-steps">Next Steps</a></li>
+<li><a class="reference internal" href="#related-documentation">Related Documentation</a></li>
+</ul>
+</li>
+</ul>
+
+          </div>
+        </div>
+      </div>
+      
+      
+    </aside>
+  </div>
+</div><script src="../../_static/documentation_options.js?v=8a448e45"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/furo.js?v=46bd48cc"></script>
+    <script src="../../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../../_static/copybutton.js?v=f281be69"></script>
+    <script src="../../_static/design-tabs.js?v=f930bc37"></script>
+    </body>
+</html>

@@ -70,6 +70,70 @@ routes:
       template: "partials/account_balances.html"
     htmx:
       $ref: "../web/htmx-triggers.yaml#/index_page/account_balances"
+    security:
+      xss_prevention: "html.escape() applied to financial_center name in generated HTML cards"
+
+  # ---------------------------------------------------------------------------
+  # PLAN VS FACT
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/plan-fact"
+    method: GET
+    auth: user
+    description: "Plan vs fact comparison for bar chart with plan distribution"
+    query_params:
+      period: "month | quarter | year (optional, calendar periods from 1st day to today)"
+      date_from: "YYYY-MM-DD (optional, overrides period)"
+      date_to: "YYYY-MM-DD (optional, overrides period)"
+      article_type: "income | expense | debit | credit | all (default: expense)"
+      chart_mode: "normal | cumulative (default: cumulative)"
+      cfo_id: "integer (optional) - Filter by Financial Center ID"
+      article_ids: "integer[] (optional) - Filter by category IDs (multiple)"
+    response:
+      status: 200
+      body:
+        labels: "array of period labels"
+        plan: "array of decimals - distributed plan amounts (cumulative if chart_mode=cumulative)"
+        fact: "array of decimals - fact amounts (cumulative if chart_mode=cumulative)"
+        plan_period: "array of decimals - original period plan amounts (for tooltips)"
+        fact_period: "array of decimals - original period fact amounts (for tooltips)"
+        period: "string - period type used"
+        article_type: "string"
+        chart_mode: "string"
+    notes: |
+      Plan distribution algorithm:
+      - period=month: plan amount / days_in_period (daily average)
+      - period=quarter or year: plan amount / months_in_period (monthly average)
+      Avoids showing plan only on the fixation date (usually 1st of month).
+      Auto-grouping for custom date ranges: ≤31d→daily, 32-91d→weekly, >91d→monthly.
+
+  # ---------------------------------------------------------------------------
+  # HEATMAP
+  # ---------------------------------------------------------------------------
+  - path: "/api/v1/analytics/heatmap"
+    method: GET
+    auth: user
+    description: "Spending pattern heatmap with dynamic aggregation"
+    query_params:
+      period: "month | quarter | year (optional)"
+      date_from: "YYYY-MM-DD (optional, overrides period)"
+      date_to: "YYYY-MM-DD (optional, overrides period)"
+      article_type: "income | expense | debit | credit | all (default: expense)"
+      transaction_filter: "debit | credit | all (optional, takes priority over article_type)"
+      record_type: "fact | plan (default: fact)"
+      cfo_id: "integer (optional) - Filter by Financial Center ID"
+      article_ids: "integer[] (optional) - Filter by category IDs (multiple)"
+    response:
+      status: 200
+      body:
+        data: "heatmap matrix data"
+        labels_x: "array - column labels (time axis)"
+        labels_y: "array - row labels (category or day axis)"
+        aggregation: "string - aggregation type used (day | week | month)"
+    notes: |
+      Dynamic aggregation based on date range:
+      - ≤7 days: aggregate by days (horizontal)
+      - 7-30 days: aggregate by weeks (days × weeks)
+      - >30 days: aggregate by months (weeks × months)
 
   # ---------------------------------------------------------------------------
   # CATEGORY BREAKDOWN

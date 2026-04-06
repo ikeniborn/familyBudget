@@ -12,11 +12,11 @@ Features:
     - Hierarchy support (parent_id, closure table)
 """
 
+import logging
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func
-from sqlmodel import or_, select
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import (
@@ -24,7 +24,7 @@ from backend.app.core.dependencies import (
     get_session,
     get_user_id_for_create,
 )
-from backend.app.models.article import Article, ArticleUsageStats
+from backend.app.models.article import Article
 from backend.app.schemas import get_common_responses
 from backend.app.schemas.article import (
     ArticleCreate,
@@ -37,13 +37,21 @@ from backend.app.services import (
     get_ancestors,
     get_subtree,
     has_changes,
-    restore_recursive,
 )
 from backend.app.services.article_service import (
+    build_article_responses,
     create_initial_history,
+    execute_article_list_query,
+    extract_is_active_change,
+    handle_is_active_change,
+    prepare_article_update,
     update_article_profile,
+    update_financial_center_links,
 )
 from backend.app.services.cache_service import cache_service
+from backend.app.utils.code_generator import generate_code
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/articles", tags=["Articles"])
 
@@ -91,10 +99,15 @@ async def create_article(
                 detail=f"Parent article with id={article_data.parent_id} not found"
             )
 
+    # Generate code for article (natural key, auto-generated, immutable after creation)
+    generated_code = await generate_code(session, Article)
+
     # Create new article (SCD Type 1 - no versioning fields)
+    # financial_center_ids is handled separately (M2M relation, not a model field)
     article = Article(
-        **article_data.model_dump(),
+        **article_data.model_dump(exclude={"financial_center_ids"}),
         user_id=get_user_id_for_create(current_user),
+        code=generated_code,
     )
 
     session.add(article)
@@ -129,174 +142,19 @@ async def list_articles(
                     "Returns articles with NO FC restrictions OR linked to this specific FC."
     )] = None,
 ) -> ArticleListResponse:
-    """
-    List articles with optional filtering and sorting.
+    """List articles with filtering (type, parent_id, is_active, financial_center_id), sorting (usage_count/name) and pagination."""
+    if type_filter and type_filter not in ["income", "expense", "debit", "credit"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="type must be 'income', 'expense', 'debit', or 'credit'"
+        )
 
-    **Shared References Architecture:**
-    - All users see all articles (shared model)
-    - No user isolation filtering
-
-    **Filters:**
-    - type: Filter by article type ('income', 'expense', 'debit', 'credit')
-    - parent_id: Filter by parent article (NULL for root articles)
-    - include_inactive: Include archived categories (default: False)
-        - False: Only active categories (visible in dropdowns)
-        - True: Include archived categories (for admin UI)
-    - financial_center_id: Filter articles by financial center (whitelist pattern)
-        - If provided: Returns articles with NO FC restrictions OR linked to this FC
-        - If not provided: Returns all articles (no FC filtering)
-
-    **Sorting:**
-    - sort_by: Sort order ('usage_count' or 'name', default: 'usage_count')
-        - usage_count: Most used categories first (DESC), then by name (ASC)
-        - name: Alphabetical order (ASC)
-
-    **Pagination:**
-    - limit: Maximum number of results (1-1000, default: 100)
-    - offset: Number of results to skip (default: 0)
-
-    **Returns:**
-    - 200 OK: List of articles with pagination info and usage statistics
-    """
-    from backend.app.models.article_financial_center import ArticleFinancialCenter
-
-    # Base query with LEFT JOIN to ArticleUsageStats
-    # Returns: Row(Article, usage_count)
-    statement = select(
-        Article,
-        func.coalesce(ArticleUsageStats.usage_count, 0).label("usage_count")
-    ).outerjoin(
-        ArticleUsageStats,
-        Article.id == ArticleUsageStats.article_id
+    rows, total = await execute_article_list_query(
+        session, type_filter, parent_id, include_inactive, financial_center_id, sort_by, limit, offset
     )
+    articles_with_usage = await build_article_responses(session, rows)
 
-    # Apply filters
-    if type_filter:
-        if type_filter not in ["income", "expense", "debit", "credit"]:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="type must be 'income', 'expense', 'debit', or 'credit'"
-            )
-        statement = statement.where(Article.type == type_filter)
-
-    if parent_id is not None:
-        statement = statement.where(Article.parent_id == parent_id)
-
-    # Filter by active status (archived categories functionality)
-    if not include_inactive:
-        statement = statement.where(Article.is_active == True)  # noqa: E712
-
-    # Filter by financial_center_id (whitelist pattern)
-    # Articles with NO entries in t_article_financial_center = available for ALL FCs
-    # Articles WITH entries = available ONLY for linked FCs
-    if financial_center_id is not None:
-        # Subquery: article IDs that have ANY FC restriction
-        articles_with_fc_restrictions = select(
-            ArticleFinancialCenter.article_id
-        ).distinct()
-
-        # Subquery: article IDs linked to the specified FC
-        articles_linked_to_fc = select(
-            ArticleFinancialCenter.article_id
-        ).where(
-            ArticleFinancialCenter.financial_center_id == financial_center_id
-        )
-
-        # Filter: article has NO restrictions OR is linked to this FC
-        statement = statement.where(
-            or_(
-                Article.id.not_in(articles_with_fc_restrictions),
-                Article.id.in_(articles_linked_to_fc)
-            )
-        )
-
-    # NO user isolation - all users see all articles (shared references)
-
-    # Apply sorting
-    if sort_by == "usage_count":
-        # Sort by usage_count DESC (most used first), then by name ASC
-        statement = statement.order_by(
-            func.coalesce(ArticleUsageStats.usage_count, 0).desc(),
-            Article.name.asc()
-        )
-    else:  # sort_by == "name"
-        # Sort alphabetically
-        statement = statement.order_by(Article.name.asc())
-
-    # Count total (before pagination)
-    # Build separate count query to avoid cartesian product warning
-    # Reuse same WHERE conditions but without JOIN and ORDER BY
-    count_stmt = select(func.count(Article.id))
-
-    # Apply same filters as main query
-    if type_filter:
-        count_stmt = count_stmt.where(Article.type == type_filter)
-
-    if parent_id is not None:
-        count_stmt = count_stmt.where(Article.parent_id == parent_id)
-
-    if not include_inactive:
-        count_stmt = count_stmt.where(Article.is_active == True)  # noqa: E712
-
-    # Apply financial_center_id filter to count query as well
-    if financial_center_id is not None:
-        articles_with_fc_restrictions = select(
-            ArticleFinancialCenter.article_id
-        ).distinct()
-
-        articles_linked_to_fc = select(
-            ArticleFinancialCenter.article_id
-        ).where(
-            ArticleFinancialCenter.financial_center_id == financial_center_id
-        )
-
-        count_stmt = count_stmt.where(
-            or_(
-                Article.id.not_in(articles_with_fc_restrictions),
-                Article.id.in_(articles_linked_to_fc)
-            )
-        )
-
-    total_result = await session.execute(count_stmt)
-    total = total_result.scalar_one()
-
-    # Apply pagination
-    statement = statement.limit(limit).offset(offset)
-
-    # Execute query
-    result = await session.execute(statement)
-    rows = result.all()  # Returns list of Row(Article, usage_count)
-
-    # Get all article IDs that are used as parent_id (for is_leaf calculation)
-    # An article is a leaf if it has NO children (i.e., not used as parent_id)
-    parent_ids_query = select(Article.parent_id).where(
-        Article.parent_id.isnot(None)
-    ).distinct()
-    parent_ids_result = await session.execute(parent_ids_query)
-    parent_ids = {row[0] for row in parent_ids_result.all()}
-
-    # Build ArticleResponse with usage_count and is_leaf
-    from backend.app.schemas.article import ArticleResponse
-    articles_with_usage = []
-    for row in rows:
-        article = row[0]  # Article object
-        usage_count = row[1]  # int (from COALESCE)
-
-        # Create ArticleResponse from Article and add usage_count + is_leaf
-        article_dict = {
-            **article.model_dump(),
-            "usage_count": usage_count,
-            "is_leaf": article.id not in parent_ids,  # Calculate from DB, not filtered list
-        }
-        article_response = ArticleResponse.model_validate(article_dict)
-        articles_with_usage.append(article_response)
-
-    return ArticleListResponse(
-        articles=articles_with_usage,
-        total=total,
-        limit=limit,
-        offset=offset,
-    )
+    return ArticleListResponse(articles=articles_with_usage, total=total, limit=limit, offset=offset)
 
 
 @router.get(
@@ -383,6 +241,7 @@ async def get_article(
     return article
 
 
+
 @router.put(
     "/{article_id}",
     response_model=ArticleResponse,
@@ -394,147 +253,39 @@ async def update_article(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
 ) -> Article:
-    """
-    Update an article (in-place update with history tracking).
+    """Update an article in-place (SCD Type 1) with history tracking and recursive archive/restore."""
+    logger.info("[UPDATE_ARTICLE] ENTRY: article_id=%s", article_id)
 
-    **SCD Type 1 + History Behavior:**
-    - Updates article IN-PLACE (id remains stable)
-    - Creates ArticleHistory snapshot (SCD Type 2 for audit)
-    - FK in fact tables remain unchanged
-
-    **Archived Categories (is_active field):**
-    - is_active changes are processed SEPARATELY from regular updates
-    - Changing is_active triggers RECURSIVE archive/restore:
-        - is_active=False: Archives article and ALL descendants
-        - is_active=True: Restores article and ALL descendants
-    - Does NOT create history record if ONLY is_active changes
-    - If is_active + other fields change: both operations execute
-
-    **Shared References Architecture:**
-    - All authenticated users can update articles
-    - All articles are shared across all users
-
-    **Validation:**
-    - At least one field must be provided
-    - Parent article must exist if parent_id changed
-    - Cannot create cycles in hierarchy
-
-    **Returns:**
-    - 200 OK: Article updated (in-place update with history)
-    - 404 Not Found: Article not found
-    - 400 Bad Request: No fields provided for update
-    """
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"[UPDATE_ARTICLE] ENTRY: article_id={article_id}")
-
-    # Validate: At least one field provided
-    update_data = article_data.model_dump(exclude_unset=True)
-    if not update_data:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="At least one field must be provided for update"
-        )
-
-    # Load article
-    statement = select(Article).where(
-        Article.id == article_id
+    old_article, update_data, financial_center_ids = await prepare_article_update(
+        session, article_id, article_data, current_user
     )
-    result = await session.execute(statement)
-    old_article = result.scalar_one_or_none()
 
-    if not old_article:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Article with id={article_id} not found"
-        )
-
-    # Validate parent_id if changed
-    if "parent_id" in update_data and update_data["parent_id"]:
-        parent_stmt = select(Article).where(
-            Article.id == update_data["parent_id"]
-        )
-        parent_result = await session.execute(parent_stmt)
-        parent = parent_result.scalar_one_or_none()
-
-        if not parent:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Parent article with id={update_data['parent_id']} not found"
-            )
-
-        # Prevent setting self as parent
-        if update_data["parent_id"] == article_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Article cannot be its own parent"
-            )
-
-    # Check if any fields actually changed
     changed, changed_fields = has_changes(old_article, update_data)
+    logger.info("[ARTICLE UPDATE] article_id=%s, changed=%s, changed_fields=%s", article_id, changed, changed_fields)
 
-    import logging
-    logger = logging.getLogger(__name__)
-    logger.info(f"[ARTICLE UPDATE] article_id={article_id}, changed={changed}, changed_fields={changed_fields}, update_data={update_data}")
-
-    if not changed:
-        # No changes, return existing article
-        logger.info("[ARTICLE UPDATE] No changes detected, returning old article")
+    if not changed and financial_center_ids is None:
         return old_article
 
-    # Handle is_active changes separately (archiving/restoring)
-    # is_active changes should NOT trigger SCD Type 2 versioning
-    # Instead, they trigger recursive archive/restore operations
-    is_active_change = None
-    if "is_active" in update_data and "is_active" in changed_fields:
-        new_is_active = update_data["is_active"]
-        is_active_change = new_is_active  # Store for later processing
+    is_active_change = extract_is_active_change(update_data, changed_fields)
 
-        # Remove is_active from update_data - will be handled separately
-        del update_data["is_active"]
-        changed_fields = [f for f in changed_fields if f != "is_active"]
-
-        logger.info(f"[ARTICLE UPDATE] Detected is_active change: {old_article.is_active} -> {new_is_active}")
-
-    # Check if there are any remaining fields to update (after removing is_active)
-    has_other_changes = len(update_data) > 0
-
-    # Process is_active change (recursive archive/restore)
     if is_active_change is not None:
-        if is_active_change is False:
-            # Archive article and all descendants
-            logger.info(f"[ARTICLE UPDATE] Archiving article {article_id} and all descendants")
-            archived_count = await archive_recursive(session, article_id, changed_by_user_id=current_user.id)
-            logger.info(f"[ARTICLE UPDATE] Archived {archived_count} articles")
-        else:
-            # Restore article and all descendants
-            logger.info(f"[ARTICLE UPDATE] Restoring article {article_id} and all descendants")
-            restored_count = await restore_recursive(session, article_id, changed_by_user_id=current_user.id)
-            logger.info(f"[ARTICLE UPDATE] Restored {restored_count} articles")
-
-        # Refresh old_article to get updated is_active status
+        await handle_is_active_change(session, article_id, is_active_change, current_user.id)
         await session.refresh(old_article)
 
-    # If there are other fields to update, use SCD Type 1 + create history
-    if has_other_changes:
-        logger.info(f"[ARTICLE UPDATE] Calling update_article_profile for article_id={article_id}")
-        updated_article = await update_article_profile(
-            session=session,
-            article=old_article,
-            updates=update_data,
-            changed_by_user_id=current_user.id,
-            change_type="UPDATE",
+    if update_data:
+        result_article = await update_article_profile(
+            session=session, article=old_article, updates=update_data,
+            changed_by_user_id=current_user.id, change_type="UPDATE",
         )
-        logger.info(f"[ARTICLE UPDATE] Updated article (SCD1+History): id={article_id}")
-        # Invalidate articles cache
-        await cache_service.invalidate_articles()
-        return updated_article
     else:
-        # Only is_active was changed, return updated article (no history record needed - already done by archive/restore)
-        logger.info("[ARTICLE UPDATE] Only is_active changed, returning updated article")
-        # Invalidate articles cache (is_active change affects listing)
-        await cache_service.invalidate_articles()
-        return old_article
+        result_article = old_article
+
+    if financial_center_ids is not None:
+        await update_financial_center_links(session, article_id, financial_center_ids)
+        await session.refresh(result_article)
+
+    await cache_service.invalidate_articles()
+    return result_article
 
 
 @router.delete(

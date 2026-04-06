@@ -207,12 +207,12 @@ class CacheService:
             async with get_redis() as redis:
                 value = await redis.get(cache_key)
                 if value:
-                    logger.debug(f"Cache HIT: {cache_key}")
+                    logger.debug("Cache HIT: %s", cache_key)
                     return json_loads(value)
-                logger.debug(f"Cache MISS: {cache_key}")
+                logger.debug("Cache MISS: %s", cache_key)
                 return None
         except Exception as e:
-            logger.warning(f"Cache get error for {cache_key}: {e}")
+            logger.warning("Cache get error for %s: %s", cache_key, e)
             return None
 
     async def set(
@@ -244,10 +244,10 @@ class CacheService:
 
             async with get_redis() as redis:
                 await redis.set(cache_key, serialized, ex=ttl_seconds)
-                logger.debug(f"Cache SET: {cache_key} (TTL: {ttl_seconds}s)")
+                logger.debug("Cache SET: %s (TTL: %ss)", cache_key, ttl_seconds)
                 return True
         except Exception as e:
-            logger.warning(f"Cache set error for {cache_key}: {e}")
+            logger.warning("Cache set error for %s: %s", cache_key, e)
             return False
 
     async def get_or_set(
@@ -300,10 +300,10 @@ class CacheService:
         try:
             async with get_redis() as redis:
                 result = await redis.delete(cache_key)
-                logger.debug(f"Cache DELETE: {cache_key} (deleted: {result})")
+                logger.debug("Cache DELETE: %s (deleted: %s)", cache_key, result)
                 return result > 0
         except Exception as e:
-            logger.warning(f"Cache delete error for {cache_key}: {e}")
+            logger.warning("Cache delete error for %s: %s", cache_key, e)
             return False
 
     async def invalidate_pattern(self, pattern: str) -> int:
@@ -335,21 +335,22 @@ class CacheService:
                     keys.append(key)
                     if len(keys) >= 1000:  # Safety limit to prevent slow scans
                         logger.warning(
-                            f"Cache invalidate: hit 1000 key limit for {pattern}, "
-                            "some keys may not be invalidated"
+                            "Cache invalidate: hit 1000 key limit for %s, "
+                            "some keys may not be invalidated",
+                            pattern,
                         )
                         break
 
                 if not keys:
-                    logger.debug(f"Cache invalidate: no keys match {pattern}")
+                    logger.debug("Cache invalidate: no keys match %s", pattern)
                     return 0
 
                 # Delete all matching keys
                 deleted = await redis.delete(*keys)
-                logger.debug(f"Cache invalidate: deleted {deleted} keys matching {pattern}")
+                logger.debug("Cache invalidate: deleted %s keys matching %s", deleted, pattern)
                 return deleted
         except Exception as e:
-            logger.warning(f"Cache invalidate error for {pattern}: {e}")
+            logger.warning("Cache invalidate error for %s: %s", pattern, e)
             return 0
 
     async def invalidate_articles(self) -> int:
@@ -384,7 +385,7 @@ class CacheService:
             pattern = "recurring_plans:*"
 
         count = await self.invalidate_pattern(pattern)
-        logger.info(f"[RECURRING_PLAN_CACHE] Invalidated {count} keys: pattern={pattern}")
+        logger.info("[RECURRING_PLAN_CACHE] Invalidated %s keys: pattern=%s", count, pattern)
         return count
 
     async def invalidate_dashboard(self) -> int:
@@ -444,5 +445,5 @@ async def invalidate_on_change(entity_type: str) -> int:
     elif entity_type == "facts":
         return await cache_service.invalidate_dashboard()
     else:
-        logger.warning(f"Unknown entity type for cache invalidation: {entity_type}")
+        logger.warning("Unknown entity type for cache invalidation: %s", entity_type)
         return 0

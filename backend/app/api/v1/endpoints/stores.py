@@ -120,8 +120,8 @@ async def create_store(
     Store is created with current_user.id as creator_id (audit trail).
     """
     # Debug logging for validation troubleshooting
-    logger.debug(f"create_store called by user {current_user.id}")
-    logger.debug(f"store_data received: {store_data.model_dump()}")
+    logger.debug("create_store called by user %s", current_user.id)
+    logger.debug("store_data received: %s", store_data.model_dump())
 
     # Generate code for store
     from backend.app.utils.code_generator import generate_code
@@ -144,7 +144,7 @@ async def create_store(
     # Create initial history record (SCD Type 2 for history)
     await create_initial_history(session=session, store=store, change_type="CREATE")
 
-    logger.info(f"Created store {store.id} ({store.name}) by admin {current_user.id}")
+    logger.info("Created store %s (%s) by admin %s", store.id, store.name, current_user.id)
 
     return StoreResponse.model_validate(store)
 
@@ -234,8 +234,8 @@ async def update_store(
     )
 
     logger.info(
-        f"Updated store {store_id} ({store.name}) "
-        f"fields: {changed_fields} by admin {current_user.id}"
+        "Updated store %s (%s) fields: %s by admin %s",
+        store_id, store.name, changed_fields, current_user.id
     )
 
     return StoreResponse.model_validate(updated_store)
@@ -283,7 +283,7 @@ async def archive_store(
     await session.commit()
     await session.refresh(store)
 
-    logger.info(f"Archived store {store_id} ({store.name}) by admin {current_user.id}")
+    logger.info("Archived store %s (%s) by admin %s", store_id, store.name, current_user.id)
 
     return StoreResponse.model_validate(store)
 
@@ -329,7 +329,7 @@ async def restore_store(
     await session.commit()
     await session.refresh(store)
 
-    logger.info(f"Restored store {store_id} ({store.name}) by admin {current_user.id}")
+    logger.info("Restored store %s (%s) by admin %s", store_id, store.name, current_user.id)
 
     return StoreResponse.model_validate(store)
 
@@ -425,9 +425,8 @@ async def delete_store(
     await session.commit()
 
     logger.info(
-        f"Physically deleted store {store_id} "
-        f"({store.name}) with {items_count} related shopping list items "
-        f"by admin {current_user.id}"
+        "Physically deleted store %s (%s) with %s related shopping list items by admin %s",
+        store_id, store.name, items_count, current_user.id
     )
 
     return {
