@@ -128,17 +128,35 @@ async function fetchRowHtml(factId: number): Promise<string | null> {
 }
 
 /**
- * Parse HTML fragment into desktop <tr> and mobile <div> elements
+ * Parse HTML fragment into desktop <tr> and mobile <div> elements.
+ * Handles the <template data-plan-row="...">desktop|||mobile</template> wrapping
+ * returned by the /row-html endpoint (template content lives in a DocumentFragment,
+ * not queryable from the main document tree).
  *
  * @param html - Raw HTML string from /row-html endpoint
  * @returns Object with tr and mobileCard elements, or null if parsing fails
  */
-function parseRowHtml(html: string): { tr: HTMLTableRowElement; mobileCard: HTMLDivElement } | null {
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = html;
+export function parseRowHtml(html: string): { tr: HTMLTableRowElement; mobileCard: HTMLDivElement } | null {
+    const parser = new DOMParser();
 
-    const tr = wrapper.querySelector('tr[data-id]') as HTMLTableRowElement | null;
-    const mobileCard = wrapper.querySelector('div[data-id]') as HTMLDivElement | null;
+    const templateDoc = parser.parseFromString(html, 'text/html');
+    const templateEl = templateDoc.querySelector('template[data-plan-row]');
+
+    let tr: HTMLTableRowElement | null = null;
+    let mobileCard: HTMLDivElement | null = null;
+
+    if (templateEl) {
+        const parts = templateEl.innerHTML.split('|||');
+        const desktopDoc = parser.parseFromString(`<table><tbody>${parts[0] || ''}</tbody></table>`, 'text/html');
+        const mobileDoc = parser.parseFromString(parts[1] || '', 'text/html');
+        tr = desktopDoc.querySelector('tr[data-id]') as HTMLTableRowElement | null;
+        mobileCard = mobileDoc.querySelector('div[data-id]') as HTMLDivElement | null;
+    } else {
+        // Fallback: direct parsing (legacy or changed endpoint format)
+        const doc = parser.parseFromString(`<table><tbody>${html}</tbody></table>`, 'text/html');
+        tr = doc.querySelector('tr[data-id]') as HTMLTableRowElement | null;
+        mobileCard = doc.querySelector('div[data-id]') as HTMLDivElement | null;
+    }
 
     if (!tr || !mobileCard) {
         return null;

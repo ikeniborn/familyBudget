@@ -545,14 +545,18 @@ async function saveFactModalFacts(button: HTMLElement): Promise<void> {
     setButtonLoading(button, true);
 
     // Validate active tab only — inactive tab fields are hidden and must not block submission
+    // Disable ALL fields in inactive tab (not just required) to prevent "not focusable" errors
+    // from hidden fields when checkValidity() / reportValidity() tries to focus them
     const inactiveTabName = activeTab === 'transfer' ? 'transaction' : 'transfer';
     const inactiveContainer = form.querySelector<HTMLElement>(`[data-tab="${inactiveTabName}"]`);
-    const inactiveRequired = inactiveContainer
-        ? Array.from(inactiveContainer.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('[required]'))
+    const inactiveFields = inactiveContainer
+        ? Array.from(inactiveContainer.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>('input, select, textarea'))
         : [];
-    inactiveRequired.forEach(f => { f.required = false; });
+    const previousRequiredState = inactiveFields.map(f => f.required);
+    const previousDisabledState = inactiveFields.map(f => f.disabled);
+    inactiveFields.forEach(f => { f.required = false; f.disabled = true; });
     const isValid = form.checkValidity();
-    inactiveRequired.forEach(f => { f.required = true; });
+    inactiveFields.forEach((f, i) => { f.required = previousRequiredState[i]; f.disabled = previousDisabledState[i]; });
 
     if (!isValid) {
         setButtonLoading(button, false);
