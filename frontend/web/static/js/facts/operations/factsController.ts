@@ -9,6 +9,7 @@
 import { loadFactsWithCount } from '../integration/factsAPI';
 import { setTotalFacts, getTotalFacts, getCurrentPage, getPageSize, setCurrentPage, getFilters } from '../core/stateManager';
 import { buildFilterQuery } from './filterOperations';
+import { parseRowHtml } from '../integration/wsEventHandlers';
 import type { CreateFactData, UpdateFactData, FactRow } from '../types/models';
 import { escapeHtml, sanitizeErrorMessage } from '../../shared/htmlSanitizer';
 import { TableFormatters } from '../../shared/tableUtils';
@@ -166,32 +167,31 @@ export async function fetchAndInjectRow(factId: number, operation: 'create' | 'u
         }
 
         const html = await response.text();
-
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(`<table><tbody>${html}</tbody></table>`, 'text/html');
-        const newTr = doc.querySelector('tr[data-id]');
-        const newMobileDiv = doc.querySelector('div.transaction-item[data-id]');
+        const parsed = parseRowHtml(html);
 
         if (operation === 'create') {
+            if (!parsed) return false;
             const tbody = document.querySelector('.facts-desktop-table tbody');
-            if (tbody && newTr) {
-                tbody.insertBefore(newTr, tbody.firstChild);
+            if (tbody) {
+                tbody.insertBefore(parsed.tr, tbody.firstChild);
             }
             const mobileList = document.querySelector('.facts-mobile-list');
-            if (mobileList && newMobileDiv) {
-                mobileList.insertBefore(newMobileDiv, mobileList.firstChild);
+            if (mobileList) {
+                mobileList.insertBefore(parsed.mobileCard, mobileList.firstChild);
             }
+            // Return true only if we actually injected into a container
             return !!(tbody || mobileList);
         }
 
         if (operation === 'update') {
+            if (!parsed) return false;
             const existingTr = document.querySelector(`tr[data-id="${factId}"]`);
-            if (existingTr && newTr) {
-                existingTr.replaceWith(newTr);
+            if (existingTr) {
+                existingTr.replaceWith(parsed.tr);
             }
             const existingMobile = document.querySelector(`div.transaction-item[data-id="${factId}"]`);
-            if (existingMobile && newMobileDiv) {
-                existingMobile.replaceWith(newMobileDiv);
+            if (existingMobile) {
+                existingMobile.replaceWith(parsed.mobileCard);
             }
             return !!(existingTr || existingMobile);
         }

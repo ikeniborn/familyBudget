@@ -488,6 +488,7 @@ function populateCreateModalArticles(articles: any[]): void {
             option.textContent = article.name;
             transferFromArticleSelect.appendChild(option);
         });
+        transferFromArticleSelect.disabled = false;
     }
 
     const transferToArticleSelect = document.querySelector('#modal_fact-tab-transfer select[name="to_article_id"]') as HTMLSelectElement;
@@ -501,6 +502,7 @@ function populateCreateModalArticles(articles: any[]): void {
             option.textContent = article.name;
             transferToArticleSelect.appendChild(option);
         });
+        transferToArticleSelect.disabled = false;
     }
 }
 
