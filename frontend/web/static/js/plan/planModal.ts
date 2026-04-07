@@ -370,7 +370,7 @@ function renderRecurringPlansTable(plans: any[]): void {
     const amount = plan.amount
       ? parseFloat(plan.amount).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
       : '—';
-    const nextDate = plan.next_execution_date || '—';
+    const nextDate = plan.next_generation_date || '—';
     const frequencyText = getFrequencyDisplayText(plan.frequency_type, plan.frequency_value);
     const durationText = getDurationDisplayText(plan);
 

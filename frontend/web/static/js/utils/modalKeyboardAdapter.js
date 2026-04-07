@@ -27,6 +27,9 @@ class ModalKeyboardAdapter {
         // Timers
         this._resizeTimer = null;
 
+        // Flag to suppress viewport scroll handler during programmatic modal-box scroll
+        this._isProgrammaticScroll = false;
+
         // Auto-initialize
         this._init();
     }
@@ -106,6 +109,8 @@ class ModalKeyboardAdapter {
     }
 
     _onViewportScroll() {
+        // Skip during programmatic modal-box scroll to prevent modal from closing
+        if (this._isProgrammaticScroll) return;
         // VisualViewport scrolls when keyboard opens on some devices
         // Update CSS variables to maintain correct positioning
         if (this._isKeyboardOpen) {
@@ -334,7 +339,9 @@ class ModalKeyboardAdapter {
             // Input is below visible area
             if (inputRect.bottom > modalRect.bottom) {
                 const scrollOffset = inputRect.bottom - modalRect.bottom + 20; // 20px padding
+                this._isProgrammaticScroll = true;
                 modalBox.scrollTop += scrollOffset;
+                setTimeout(() => { this._isProgrammaticScroll = false; }, 150);
 
                 logModalKB.debug('📜 Scrolled input into view (downward)', { scrollOffset });
             }
@@ -342,7 +349,9 @@ class ModalKeyboardAdapter {
             // Input is above visible area
             if (inputRect.top < modalRect.top) {
                 const scrollOffset = modalRect.top - inputRect.top + 20;
+                this._isProgrammaticScroll = true;
                 modalBox.scrollTop -= scrollOffset;
+                setTimeout(() => { this._isProgrammaticScroll = false; }, 150);
 
                 logModalKB.debug('📜 Scrolled input into view (upward)', { scrollOffset });
             }

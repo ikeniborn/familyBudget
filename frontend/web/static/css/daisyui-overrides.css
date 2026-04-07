@@ -701,13 +701,24 @@ dialog.modal::backdrop {
  * it from blocking clicks on content behind the modal on mobile (375px).
  * Fix: raise backdrop to z-index: 0 when modal is open so it intercepts
  * pointer events, and keep modal-box at z-index: 1 above it.
+ *
+ * The form itself uses pointer-events: none so modal-box buttons (e.g. "Позже")
+ * are never blocked by the backdrop form on narrow viewports.
+ * The backdrop close button still captures click-outside via pointer-events: auto.
  */
 
-/* When modal is open, backdrop must block clicks on content behind */
+/* Backdrop form: transparent to pointer events, close button still works */
 .modal[open] .modal-backdrop,
 .modal.modal-open .modal-backdrop {
-    pointer-events: auto;
+    pointer-events: none;
     z-index: 0;
+}
+
+/* Close button inside backdrop captures click-outside events */
+.modal[open] .modal-backdrop > button,
+.modal.modal-open .modal-backdrop > button {
+    pointer-events: auto;
+    cursor: default;
 }
 
 /* Ensure modal-box stays above backdrop within stacking context */

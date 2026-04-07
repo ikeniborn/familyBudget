@@ -10,6 +10,7 @@
 import * as PlanHelpers from './helpers';
 import * as PlanFactsTable from './factsTable';
 import { remindersMap, selectedFactIds } from './factsTable';
+import * as FilterAnalyticsSync from './filterAnalyticsSync';
 
 // Import BudgetShared from global
 declare const BudgetShared: {
@@ -758,6 +759,7 @@ export async function deleteFact(factId: number): Promise<void> {
       // Reload and show success
       deletingFactIds.delete(factId);
       await PlanFactsTable.loadFacts();
+      FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
       PlanHelpers.showToast(`Удалено ${factIdsToDelete.length} регламентных записей`, 'success');
     } else {
       // Delete single fact
@@ -773,6 +775,7 @@ export async function deleteFact(factId: number): Promise<void> {
       // Reload BEFORE showing toast (non-blocking)
       deletingFactIds.delete(factId);
       await PlanFactsTable.loadFacts();
+      FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
 
       // Non-blocking toast notification
       PlanHelpers.showToast('Факт успешно удален', 'success');
@@ -784,6 +787,7 @@ export async function deleteFact(factId: number): Promise<void> {
     // Reload even on error to sync UI
     deletingFactIds.delete(factId);
     await PlanFactsTable.loadFacts();
+    FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
 
     // Non-blocking toast notification
     PlanHelpers.showToast('Ошибка: ' + errorMessage, 'error');

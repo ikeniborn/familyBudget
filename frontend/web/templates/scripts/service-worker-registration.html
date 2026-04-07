@@ -444,7 +444,9 @@
             }
 
             // Display new version (always shown)
-            const newText = newVersion || '(неизвестно)';
+            // Fallback to <meta name="app-version"> when SW MessageChannel times out
+            const metaVersion = document.querySelector('meta[name="app-version"]')?.content;
+            const newText = newVersion || metaVersion || '(неизвестно)';
             newElem.textContent = newText;
 
             // Show current version and arrow only when version is known and different
