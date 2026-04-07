@@ -851,6 +851,26 @@ class ChoicesCategoryTree {
     }
 
     /**
+     * Enable the Choices.js select (delegates to this.choices.enable()).
+     * Mirrors the Choices.js API so callers don't need to access this.choices directly.
+     */
+    enable() {
+        if (this.choices) {
+            this.choices.enable();
+        }
+    }
+
+    /**
+     * Disable the Choices.js select (delegates to this.choices.disable()).
+     * Mirrors the Choices.js API so callers don't need to access this.choices directly.
+     */
+    disable() {
+        if (this.choices) {
+            this.choices.disable();
+        }
+    }
+
+    /**
      * Destroy component and cleanup.
      */
     destroy() {

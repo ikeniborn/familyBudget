@@ -98,6 +98,7 @@ export interface BudgetFact {
   user_name: string;
   record_type: 'plan' | 'fact' | string;
   recurring_plan_id: number | null;
+  has_reminder?: boolean;
   is_offline_sync?: boolean;
   is_template?: boolean;
   created_at?: string;

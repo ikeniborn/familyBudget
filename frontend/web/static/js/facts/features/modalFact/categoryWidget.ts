@@ -255,6 +255,11 @@ function setupTransferFCListeners(): void {
                     fromTree.enable();
                     const fromArticle = document.querySelector<HTMLSelectElement>(FROM_ARTICLE_SELECTOR);
                     if (fromArticle) fromArticle.removeAttribute('disabled');
+                    // Sync Choices.js visual state with existing DOM value (e.g. when editing transfer)
+                    const existingId = fromArticle?.value ? parseInt(fromArticle.value) : null;
+                    if (existingId) {
+                        fromTree.setSelectedCategory(existingId);
+                    }
                 }
             }
         });
@@ -275,6 +280,11 @@ function setupTransferFCListeners(): void {
                     toTree.enable();
                     const toArticle = document.querySelector<HTMLSelectElement>(TO_ARTICLE_SELECTOR);
                     if (toArticle) toArticle.removeAttribute('disabled');
+                    // Sync Choices.js visual state with existing DOM value (e.g. when editing transfer)
+                    const existingId = toArticle?.value ? parseInt(toArticle.value) : null;
+                    if (existingId) {
+                        toTree.setSelectedCategory(existingId);
+                    }
                 }
             }
         });
