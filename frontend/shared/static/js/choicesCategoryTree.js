@@ -851,9 +851,6 @@ class ChoicesCategoryTree {
     }
 
     /**
-     * Destroy component and cleanup.
-     */
-    /**
      * Enable the Choices.js select (delegates to this.choices.enable()).
      * Mirrors the Choices.js API so callers don't need to access this.choices directly.
      */
@@ -873,6 +870,9 @@ class ChoicesCategoryTree {
         }
     }
 
+    /**
+     * Destroy component and cleanup.
+     */
     destroy() {
         if (this.choices) {
             this.choices.destroy();
