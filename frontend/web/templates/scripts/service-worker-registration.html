@@ -338,7 +338,7 @@
 
         /**
          * Handle "Later" action
-         * Closes modal and keeps update indicator visible
+         * Closes modal and clears update flags so the icon doesn't reappear until a real new update arrives
          */
         function handleUpdateLater() {
 
@@ -346,6 +346,8 @@
             if (modal) {
                 modal.close();
             }
+            localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+            localStorage.removeItem(SW_NEW_VERSION_KEY);
 
         }
 
@@ -371,8 +373,9 @@
             const currentText = currentVersion || '(неизвестно)';
             currentElem.textContent = currentText;
 
-            // Display new version with fallback
-            const newText = newVersion || '(неизвестно)';
+            // Display new version: prefer meta tag (always available from server), fall back to localStorage
+            const metaVersion = document.querySelector('meta[name="app-version"]')?.content;
+            const newText = metaVersion || newVersion || '(неизвестно)';
             newElem.textContent = newText;
 
             // Log version transition for debugging
