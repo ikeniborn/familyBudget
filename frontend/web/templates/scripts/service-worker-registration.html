@@ -413,7 +413,7 @@
 
         /**
          * Handle "Later" action
-         * Closes modal and keeps update indicator visible
+         * Closes modal and clears update flags so the icon doesn't reappear until a real new update arrives
          */
         function handleUpdateLater() {
 
@@ -421,6 +421,8 @@
             if (modal) {
                 modal.close();
             }
+            localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+            localStorage.removeItem(SW_NEW_VERSION_KEY);
 
         }
 
@@ -443,10 +445,13 @@
                 return;
             }
 
-            // Display new version (always shown)
-            // Fallback to <meta name="app-version"> when SW MessageChannel times out
+            // Display current version with fallback
+            const currentText = currentVersion || '(неизвестно)';
+            currentElem.textContent = currentText;
+
+            // Display new version: prefer meta tag (always available from server), fall back to localStorage
             const metaVersion = document.querySelector('meta[name="app-version"]')?.content;
-            const newText = newVersion || metaVersion || '(неизвестно)';
+            const newText = metaVersion || newVersion || '(неизвестно)';
             newElem.textContent = newText;
 
             // Show current version and arrow only when version is known and different
