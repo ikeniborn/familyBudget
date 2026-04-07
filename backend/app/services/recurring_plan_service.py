@@ -718,6 +718,10 @@ class RecurringPlanService:
                 logger.info(
                     f"[RECURRING] Plan {plan.id}: Reached horizon after {generated_count} facts (unbounded plan)"
                 )
+                # Must set next_generation_date here: the break below skips the
+                # normal assignment at line ~773, leaving it None and causing
+                # the UI to show "—" for indefinite plans.
+                plan.next_generation_date = current_date
                 break
 
             # Check if fact already exists for this date
