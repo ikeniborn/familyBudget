@@ -1050,23 +1050,12 @@
             // Toggle on button click
             menuBtn.addEventListener('click', toggleMenu);
 
-            // Close when clicking outside
+            // Close when clicking outside (only close menu, don't block modal or Choices clicks)
             document.addEventListener('click', (e) => {
-                // Ignore clicks inside modals
                 const isInsideModal = e.target.closest('.modal-box, [role="dialog"]');
-                if (isInsideModal) {
-                    console.log('[GLOBAL_CLICK] Ignoring click inside modal');
-                    return;
-                }
-
-                // Ignore clicks inside Choices dropdowns
                 const isInsideChoices = e.target.closest('.choices__list--dropdown, .choices__inner, .choices');
-                if (isInsideChoices) {
-                    console.log('[GLOBAL_CLICK] Ignoring click inside Choices dropdown');
-                    return;
-                }
 
-                if (isOpen && !menuDropdown.contains(e.target)) {
+                if (!isInsideModal && !isInsideChoices && isOpen && !menuDropdown.contains(e.target)) {
                     closeMenu();
                 }
             });
