@@ -230,20 +230,28 @@ function removeRowFromTable(factId: number): boolean {
 // CRUD Operations
 // ============================================================================
 
+const deletingFactIds = new Set<number>();
+
 /**
  * Delete single fact with confirmation
  */
 export async function deleteFact(factId: number): Promise<void> {
-    const confirmed = await showConfirmDialog(
-        'Вы уверены, что хотите удалить этот факт?',
-        'Подтверждение удаления'
-    );
-
-    if (!confirmed) {
+    if (deletingFactIds.has(factId)) {
+        logger.warn('[FACTS] Delete already in progress for fact:', factId);
         return;
     }
+    deletingFactIds.add(factId);
 
     try {
+        const confirmed = await showConfirmDialog(
+            'Вы уверены, что хотите удалить этот факт?',
+            'Подтверждение удаления'
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
         // Import dynamically to avoid circular dependency
         const { deleteFact: deleteFn } = await import('../integration/factsAPI');
 
@@ -260,6 +268,8 @@ export async function deleteFact(factId: number): Promise<void> {
         logger.error(' Error deleting fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка удаления: ${errorMessage}`, 'error');
+    } finally {
+        deletingFactIds.delete(factId);
     }
 }
 
