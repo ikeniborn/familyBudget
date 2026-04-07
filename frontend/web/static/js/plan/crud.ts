@@ -9,7 +9,7 @@
 
 import * as PlanHelpers from './helpers';
 import * as PlanFactsTable from './factsTable';
-import { remindersMap, selectedFactIds } from './factsTable';
+import { remindersMap, selectedFactIds, adjustStatTotal } from './factsTable';
 
 // Import BudgetShared from global
 declare const BudgetShared: {
@@ -769,6 +769,9 @@ export async function deleteFact(factId: number): Promise<void> {
         const error = await response.json();
         throw new Error(error.detail || `HTTP error! status: ${response.status}`);
       }
+
+      // Optimistically decrement counter before reload confirms the real count
+      adjustStatTotal(-1);
 
       // Reload BEFORE showing toast (non-blocking)
       deletingFactIds.delete(factId);

@@ -10,6 +10,7 @@
  */
 
 import * as PlanFactsTable from './factsTable';
+import { adjustStatTotal } from './factsTable';
 
 // ============================================================================
 // Debouncing
@@ -38,7 +39,10 @@ async function handlePlanCreated(data: { id?: number }): Promise<void> {
     return;
   }
   const injected = await PlanFactsTable.fetchAndInjectPlanRow(planId, 'create');
-  if (!injected) {
+  if (injected) {
+    // Optimistically increment counter after successful row injection
+    adjustStatTotal(+1);
+  } else {
     debouncedReloadFacts();
   }
 }
@@ -62,6 +66,8 @@ function handlePlanDeleted(data: { id?: number }): void {
     return;
   }
   PlanFactsTable.removePlanRow(planId);
+  // Optimistically decrement counter after row removal
+  adjustStatTotal(-1);
 }
 
 function handleRecurringPlanChanged(_data: unknown): void {
