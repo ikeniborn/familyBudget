@@ -106,11 +106,10 @@
 #}
 {% macro delete_button_mobile(onclick_handler, title='Удалить', extra_classes='') %}
 <button type="button"
-        class="btn btn-sm sm:btn-md btn-error btn-square md:hidden block {{ extra_classes }}"
+        class="btn btn-sm sm:btn-md btn-error btn-square md:hidden inline-flex items-center justify-center {{ extra_classes }}"
         onclick="{{ onclick_handler }}"
         title="{{ title }}"
-        aria-label="{{ title }}"
-        style="display: block !important;">
+        aria-label="{{ title }}">
     {{ delete_icon_svg('h-5 w-5') }}
 </button>
 {% endmacro %}
