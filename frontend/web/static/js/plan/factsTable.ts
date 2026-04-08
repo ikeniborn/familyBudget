@@ -654,11 +654,11 @@ export function removePlanRow(planId: number): void {
   const trEl = document.querySelector<HTMLElement>(`tr[data-plan-id="${planId}"]`);
   const divEl = document.querySelector<HTMLElement>(`div[data-plan-id="${planId}"]`);
 
-  if (trEl || divEl) {
-    totalFacts = Math.max(0, totalFacts - 1);
-    updateStats();
-    updatePagination();
-  }
+  // Always decrement the counter: the record was deleted from DB regardless of
+  // whether it is visible on the current page (matches facts-page pattern).
+  totalFacts = Math.max(0, totalFacts - 1);
+  updateStats();
+  updatePagination();
 
   if (trEl) fadeAndRemove(trEl);
   if (divEl) fadeAndRemove(divEl);
