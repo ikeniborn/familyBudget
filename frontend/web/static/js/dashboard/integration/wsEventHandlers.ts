@@ -184,6 +184,17 @@ function registerPlanHandlers(hasIncrementalUpdates: boolean): void {
       refreshQuickStats();
     }
   });
+
+  window.budgetWSClient.on('recurring_plan_created', (data: FactEventData) => {
+    debugLog('[WS] Recurring plan created:', data.id);
+    if (hasIncrementalUpdates && window.IncrementalUpdates) {
+      window.IncrementalUpdates.onPlanCreated(data);
+    } else {
+      refreshQuickStats();
+      refreshAccountBalances();
+    }
+    debouncedLoadRecurringPlans();
+  });
 }
 
 // ============================================================================

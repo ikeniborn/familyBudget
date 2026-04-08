@@ -21,12 +21,10 @@
 {% macro push_permission_banner() %}
     <!-- Push Notification Permission Banner (for iOS/Android) -->
     <!-- Positioned below navbar with 10px margin, horizontally centered -->
-    <!-- Z-index: 50 (same as navbar, stacks correctly via DOM order) -->
+    <!-- Z-index: 40 (same as navbar, stacks correctly via DOM order) -->
     <!-- Safe-area: Accounts for iOS Dynamic Island/notch and side padding -->
-    <div id="push-permission-banner" class="fixed left-1/2 -translate-x-1/2 w-auto max-w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-50 hidden"
-         style="top: calc(64px + 10px + env(safe-area-inset-top, 0px));
-                margin-left: max(16px, env(safe-area-inset-left, 0px));
-                margin-right: max(16px, env(safe-area-inset-right, 0px));">
+    <div id="push-permission-banner" class="fixed left-1/2 -translate-x-1/2 w-[calc(100vw-2rem)] max-w-96 bg-base-100 border border-primary rounded-lg shadow-lg p-4 z-40 hidden"
+         style="top: calc(64px + 10px + env(safe-area-inset-top, 0px));">
         <div class="flex items-start gap-3">
             <span class="text-2xl">🔔</span>
             <div class="flex-1">
