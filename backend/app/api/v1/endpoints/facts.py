@@ -1050,7 +1050,7 @@ async def get_recent_facts_html(
 
             # Desktop table row with edit and delete buttons (at the end, after ☁️)
             edit_button = f'''<button class="btn btn-xs btn-primary gap-1" onclick="openEditFromDashboard({fact.id})">✏️</button>'''
-            delete_button = f'''<button class="btn btn-xs btn-error gap-1" onclick="deleteFactFromDashboard({fact.id}, {1 if fact.recurring_plan_id else 0})">🗑️</button>'''
+            delete_button = f'''<button class="btn btn-xs btn-error gap-1" onclick="event.stopPropagation(); deleteFactFromDashboard({fact.id}, {1 if fact.recurring_plan_id else 0})">🗑️</button>'''
             table_html += f"""
                     <tr>
                         <td>{record_type_badge_sm}</td>
