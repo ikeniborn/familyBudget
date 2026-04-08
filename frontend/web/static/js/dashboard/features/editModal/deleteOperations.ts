@@ -21,7 +21,7 @@ let recurringDeleteResolveCallback: ((value: string | null) => void) | null = nu
  */
 export function showRecurringDeleteDialog(): Promise<string | null> {
   return new Promise((resolve) => {
-    const dialog = document.getElementById('recurring-delete-dialog') as HTMLDialogElement | null;
+    const dialog = document.getElementById('recurring-delete-modal') as HTMLDialogElement | null;
     if (!dialog) {
       resolve(null);
       return;
@@ -36,7 +36,7 @@ export function showRecurringDeleteDialog(): Promise<string | null> {
  * Handle recurring delete dialog choice.
  */
 export function handleRecurringDeleteChoice(choice: string | null): void {
-  const dialog = document.getElementById('recurring-delete-dialog') as HTMLDialogElement | null;
+  const dialog = document.getElementById('recurring-delete-modal') as HTMLDialogElement | null;
   dialog?.close();
 
   if (recurringDeleteResolveCallback) {
