@@ -472,7 +472,8 @@
          * @param {Object} data - Transfer data
          */
         onTransferCreated(data) {
-            // Transfers affect two accounts
+            // Transfers affect two accounts and quick stats totals
+            this.fallbackRefreshDebounced('quick-stats');
             this.fallbackRefreshDebounced('account-balances');
             this.fallbackRefreshDebounced('recent-transactions');
         },
@@ -482,6 +483,7 @@
          * @param {Object} data - Transfer data
          */
         onTransferDeleted(data) {
+            this.fallbackRefreshDebounced('quick-stats');
             this.fallbackRefreshDebounced('account-balances');
             this.fallbackRefreshDebounced('recent-transactions');
         },
