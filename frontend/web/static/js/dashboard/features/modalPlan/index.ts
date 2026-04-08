@@ -251,6 +251,20 @@ async function loadTransferTabData(): Promise<void> {
 }
 
 /**
+ * Auto-select the only available category in a ChoicesCategoryTree.
+ * For transfer forms where debit/credit typically have a single article.
+ */
+function autoSelectSingleCategory(tree: any): void {
+  if (!tree?.choices?._store?.choices) return;
+  const available = tree.choices._store.choices.filter(
+    (c: any) => c.value !== '' && !c.placeholder
+  );
+  if (available.length === 1) {
+    tree.choices.setChoiceByValue(available[0].value);
+  }
+}
+
+/**
  * Setup FC change listeners for transfer tab hints
  */
 function setupTransferFCListeners(): void {
@@ -268,6 +282,7 @@ function setupTransferFCListeners(): void {
           fromTree.disable();
         } else {
           fromTree.enable();
+          autoSelectSingleCategory(fromTree);
         }
       }
       loadPlanTransferHints('from');
@@ -286,6 +301,7 @@ function setupTransferFCListeners(): void {
           toTree.disable();
         } else {
           toTree.enable();
+          autoSelectSingleCategory(toTree);
         }
       }
       loadPlanTransferHints('to');

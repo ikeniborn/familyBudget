@@ -449,10 +449,12 @@
             const currentText = currentVersion || '(неизвестно)';
             currentElem.textContent = currentText;
 
-            // Display new version: prefer meta tag (always available from server), fall back to localStorage
+            // Display new version: prefer localStorage (actual new SW version), fall back to meta tag
             const metaVersion = document.querySelector('meta[name="app-version"]')?.content;
-            const newText = metaVersion || newVersion || '(неизвестно)';
-            newElem.textContent = newText;
+            const newText = newVersion || metaVersion || '';
+            if (newText) {
+                newElem.textContent = newText;
+            }
 
             // Show current version and arrow only when version is known and different
             const hasTransition = currentVersion && currentVersion !== newVersion;

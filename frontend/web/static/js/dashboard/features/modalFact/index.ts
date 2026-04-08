@@ -155,6 +155,17 @@ function setupTransactionFCListener(): void {
     fcSelect.dataset.transactionHintsListenerAttached = 'true';
     debugLog('[ModalFact] Transaction FC hints listener attached');
   }
+
+  const categorySelect = document.querySelector<HTMLSelectElement>(
+    '#modal_fact-tab-transaction select[name="article_id"]'
+  );
+  if (categorySelect && !categorySelect.dataset.transactionHintsListenerAttached) {
+    categorySelect.addEventListener('change', () => {
+      loadFactTransactionHints();
+    });
+    categorySelect.dataset.transactionHintsListenerAttached = 'true';
+    debugLog('[ModalFact] Transaction category hints listener attached');
+  }
 }
 
 /**
