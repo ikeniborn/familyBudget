@@ -216,8 +216,8 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
     }
 
     if (data.deleted.length > 0) {
-      // Convert server IDs to temp_ids (TODO: server should send temp_ids instead)
-      await dexie.bulkSoftDeleteFacts(data.deleted.map(String));
+      // Hard-delete records that were deleted on the server
+      await dexie.bulkHardDeleteFacts(data.deleted);
     }
 
     // Update sync metadata with new timestamp

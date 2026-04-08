@@ -537,6 +537,18 @@ export class DexieManager {
     });
   }
 
+  /**
+   * Bulk hard delete facts by temp_id (removes records from IndexedDB entirely)
+   * Used for server-initiated deletes during delta sync
+   */
+  async bulkHardDeleteFacts(temp_ids: number[]): Promise<void> {
+    logger.info('[DexieManager] bulkHardDeleteFacts', { count: temp_ids.length });
+    await this.getDB().budgetFacts
+      .where('temp_id').anyOf(temp_ids)
+      .delete();
+    logger.info('[DexieManager] ✅ Bulk hard delete complete', { count: temp_ids.length });
+  }
+
   // ============================================================
   // SYNC OPERATIONS
   // ============================================================
