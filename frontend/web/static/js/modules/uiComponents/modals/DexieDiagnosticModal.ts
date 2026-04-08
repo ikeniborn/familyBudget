@@ -281,6 +281,14 @@ export class DexieDiagnosticModal extends BaseModal {
         await this.handleRetryFactsSync();
       });
     }
+
+    // Attach event listener for Sync Reference Data button (categories = 0)
+    const syncRefBtn = this.diagnosticContainer.querySelector('#sync-reference-data-btn');
+    if (syncRefBtn) {
+      syncRefBtn.addEventListener('click', async () => {
+        await this.handleSyncReferenceData();
+      });
+    }
   }
 
   /**
@@ -330,6 +338,92 @@ export class DexieDiagnosticModal extends BaseModal {
   }
 
   /**
+   * Handle Sync Reference Data button click (categories = 0).
+   * Calls window.syncReferenceData() to reload articles/categories.
+   */
+  private async handleSyncReferenceData(): Promise<void> {
+    try {
+      logger.info('[DIAGNOSTIC] Syncing reference data...');
+      const syncFn = (window as any).syncReferenceData;
+      if (typeof syncFn === 'function') {
+        await syncFn();
+      } else {
+        const dexieManager = await resolveDexieManager();
+        if (typeof (dexieManager as any).syncReferenceData === 'function') {
+          await (dexieManager as any).syncReferenceData();
+        } else {
+          throw new Error('syncReferenceData not available');
+        }
+      }
+      logger.info('[DIAGNOSTIC] Reference data sync completed');
+      await this.loadDiagnosticData();
+    } catch (error) {
+      logger.error('[DIAGNOSTIC] Reference data sync failed:', error);
+      if (this.diagnosticContainer) {
+        const errorAlert = document.createElement('div');
+        errorAlert.className = 'alert alert-error mb-3';
+        errorAlert.innerHTML = `
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>Sync reference data failed: ${error instanceof Error ? error.message : 'Unknown error'}</span>
+        `;
+        this.diagnosticContainer.prepend(errorAlert);
+      }
+    }
+  }
+
+  /**
+   * Render WebSocket connection status section
+   */
+  private renderWSStatus(): string {
+    try {
+      const wsClient = (window as any).budgetWSClient;
+      if (!wsClient) {
+        return `
+          <div class="overflow-x-auto mb-3">
+            <table class="table table-xs table-zebra w-full">
+              <thead><tr><th class="text-xs">WebSocket</th><th class="text-xs">Value</th></tr></thead>
+              <tbody class="text-xs">
+                <tr><td>Status</td><td class="text-warning">Not initialized</td></tr>
+              </tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      const isConnected = wsClient.isConnected === true;
+      const statusText = isConnected ? 'Connected' : 'Disconnected';
+      const statusClass = isConnected ? 'text-success' : 'text-error';
+
+      const extraRows: string[] = [];
+      if (typeof wsClient.useLongPolling !== 'undefined') {
+        extraRows.push(`<tr><td>Mode</td><td>${wsClient.useLongPolling ? 'Long Polling' : 'WebSocket'}</td></tr>`);
+      }
+      if (typeof wsClient.isLeader !== 'undefined') {
+        extraRows.push(`<tr><td>Tab Role</td><td>${wsClient.isLeader ? 'Leader' : 'Follower'}</td></tr>`);
+      }
+      if (typeof wsClient.rttRollingAverage !== 'undefined' && wsClient.rttRollingAverage > 0) {
+        extraRows.push(`<tr><td>RTT Avg</td><td>${wsClient.rttRollingAverage.toFixed(0)} ms</td></tr>`);
+      }
+
+      return `
+        <div class="overflow-x-auto mb-3">
+          <table class="table table-xs table-zebra w-full">
+            <thead><tr><th class="text-xs">WebSocket</th><th class="text-xs">Value</th></tr></thead>
+            <tbody class="text-xs">
+              <tr><td>Status</td><td class="${statusClass}">${statusText}</td></tr>
+              ${extraRows.join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    } catch {
+      return '';
+    }
+  }
+
+  /**
    * Handle Retry Sync Plans button click
    *
    * Triggers manual sync of recurring plans and reloads diagnostic data
@@ -375,6 +469,14 @@ export class DexieDiagnosticModal extends BaseModal {
         this.diagnosticContainer.prepend(errorAlert);
       }
     }
+  }
+
+  /**
+   * Check if categories (articles) sync warning should be shown.
+   * Warning is shown when articles count is 0 (reference data not synced).
+   */
+  private shouldShowCategoriesSyncWarning(data: DiagnosticData): boolean {
+    return data.tableStats.articles === 0;
   }
 
   /**
@@ -473,6 +575,25 @@ export class DexieDiagnosticModal extends BaseModal {
         </table>
       </div>
 
+      ${this.shouldShowCategoriesSyncWarning(data) ? `
+        <!-- Categories Sync Warning (articles = 0) -->
+        <div class="alert alert-warning mb-3 text-xs">
+          <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <div>
+            <p class="font-semibold">Categories not synced</p>
+            <p class="text-xs opacity-80">Articles count is 0. Budget categories are required for offline use. Click to sync reference data now.</p>
+            <button id="sync-reference-data-btn" class="btn btn-xs btn-warning mt-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Sync Reference Data
+            </button>
+          </div>
+        </div>
+      ` : ''}
+
       ${this.shouldShowFactsSyncWarning(data) ? `
         <!-- Facts Sync Warning -->
         <div class="alert alert-warning mb-3 text-xs">
@@ -523,6 +644,8 @@ export class DexieDiagnosticModal extends BaseModal {
       </div>
 
       ${this.renderAPIReductionBreakdown()}
+
+      ${this.renderWSStatus()}
 
       ${this.renderPruningMetrics(data)}
 
@@ -659,10 +782,15 @@ export class DexieDiagnosticModal extends BaseModal {
     try {
       const stats = performanceMonitor.getDetailedStats();
 
-      // Only show if there are tracked calls
+      // When no data tracked at all, skip entirely
       if (stats.api.count === 0 && stats.dexie.count === 0) {
         return '';
       }
+
+      // Show "Not tracked" instead of "0.0%" when Dexie calls not yet recorded
+      const reductionDisplay = stats.dexie.count === 0
+        ? 'Not tracked yet'
+        : `${stats.reductionPercent.toFixed(1)}% (target ≥80%)`;
 
       return `
         <!-- API Reduction Summary (Compact Table) -->
@@ -670,7 +798,7 @@ export class DexieDiagnosticModal extends BaseModal {
           <table class="table table-xs table-zebra w-full">
             <thead><tr><th class="text-xs">API Metric</th><th class="text-xs">Value</th></tr></thead>
             <tbody class="text-xs">
-              <tr><td>Reduction</td><td>${stats.reductionPercent.toFixed(1)}% (target ≥80%)</td></tr>
+              <tr><td>Reduction</td><td>${reductionDisplay}</td></tr>
               <tr><td>API Calls Saved</td><td>${stats.apiCallsReduced.toLocaleString()}</td></tr>
               <tr><td>Bandwidth Saved</td><td>${stats.totalBandwidthSaved.toFixed(1)} KB</td></tr>
               <tr><td>Speedup</td><td>${stats.speedupFactor.toFixed(1)}×</td></tr>
