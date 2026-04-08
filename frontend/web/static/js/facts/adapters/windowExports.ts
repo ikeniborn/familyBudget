@@ -31,6 +31,7 @@ import { initTransferCategoryTrees } from '../features/modalFact/categoryWidget'
 import { setButtonLoading } from '../../dashboard/shared/utils/buttonState';
 import { parseIntOrNull } from '../../dashboard/shared/utils/apiHelpers';
 import { getFilters, getPagination, getSelectedIds } from '../core/stateManager';
+import { closeDesktopFabMenu, toggleDesktopFabMenu } from '../../components/desktopFab';
 
 // Window interface declarations are in:
 // - facts/types/globals.d.ts (facts-specific functions)
@@ -72,6 +73,10 @@ export function setupWindowExports(): void {
 
     // FAB toolbar compatibility (v10.1.11)
     window.openModalFact = openAddTransactionModal;
+
+    // Desktop FAB menu controls (fab_toolbar.html calls these from onclick handlers)
+    (window as any).closeDesktopFabMenu = closeDesktopFabMenu;
+    (window as any).toggleDesktopFabMenu = toggleDesktopFabMenu;
 
     // FactsManager namespace: used by onclick handlers in rendered table rows
     // BUG2 fix: showEditModal and deleteFact were missing, causing broken edit/delete buttons

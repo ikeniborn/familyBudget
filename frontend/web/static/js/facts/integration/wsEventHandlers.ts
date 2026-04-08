@@ -11,6 +11,7 @@
 import { loadFacts, fetchAndInjectRow } from '../operations/factsController';
 import { buildFilterQuery } from '../operations/filterOperations';
 import { getCurrentPage, getTotalFacts, setTotalFacts } from '../core/stateManager';
+import { updatePaginationUI } from '../operations/paginationOperations';
 import type { BudgetFact } from '../types/models';
 
 // ============================================================================
@@ -300,6 +301,7 @@ async function handleFactCreated(data: Partial<BudgetFact>): Promise<void> {
 
     prependRowToTable(parsed.tr, parsed.mobileCard);
     adjustStatTotal(+1);
+    updatePaginationUI();
 }
 
 /**
@@ -347,6 +349,7 @@ function handleFactDeleted(data: { id: number }): void {
     }
     animateAndRemoveRow(data.id);
     adjustStatTotal(-1);
+    updatePaginationUI();
 }
 
 /**
