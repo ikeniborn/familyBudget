@@ -36,12 +36,15 @@ export function createTabManager(config: TabManagerConfig): TabManager {
   };
 
   let currentTab: 'transaction' | 'transfer' = 'transaction';
+  let switching = false; // Guard to prevent recursive calls when using input.click()
 
   /**
    * Switch active tab
    * Saves current tab data to cache before switching
    */
   function switchTab(newTab: 'transaction' | 'transfer'): void {
+    if (switching) return;
+    switching = true;
     const transactionTab = document.getElementById(`${modalId}-tab-transaction`);
     const transferTab = document.getElementById(`${modalId}-tab-transfer`);
 
@@ -71,10 +74,12 @@ export function createTabManager(config: TabManagerConfig): TabManager {
       el.removeAttribute('data-was-required');
     });
 
-    // Update radio buttons
+    // Update radio buttons — use input.click() so DaisyUI :checked CSS and change listeners fire
     const tabInputs = document.querySelectorAll<HTMLInputElement>(`[name="${modalId}_tabs"]`);
     tabInputs.forEach(input => {
-      input.checked = input.dataset.tab === newTab;
+      if (input.dataset.tab === newTab && !input.checked) {
+        input.click(); // Triggers :checked CSS update + change event (guard prevents recursion)
+      }
     });
 
     // Update hidden field
@@ -85,6 +90,7 @@ export function createTabManager(config: TabManagerConfig): TabManager {
     restoreTabData(newTab);
 
     currentTab = newTab;
+    switching = false;
   }
 
   /**
