@@ -7,6 +7,7 @@ import asyncio
 import calendar as cal_module
 import logging
 from datetime import date, datetime, timedelta
+from decimal import ROUND_HALF_UP, Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -389,7 +390,7 @@ async def get_quick_stats(
     ).group_by(Article.type)
 
     today_result = await session.execute(today_query)
-    today_data = {row.type: float(row.total) for row in today_result.all()}
+    today_data = {row.type: Decimal(str(row.total)) for row in today_result.all()}
 
     # This month's stats
     # Shared family budget - NO user_id filter
@@ -403,25 +404,28 @@ async def get_quick_stats(
     ).group_by(Article.type)
 
     month_result = await session.execute(month_query)
-    month_data = {row.type: float(row.total) for row in month_result.all()}
+    month_data = {row.type: Decimal(str(row.total)) for row in month_result.all()}
+
+    _zero = Decimal("0")
 
     # Include credit (пополнение) as income, debit (списание) as expense
-    today_income = today_data.get("income", 0.0) + today_data.get("credit", 0.0)
-    today_expense = today_data.get("expense", 0.0) + today_data.get("debit", 0.0)
+    today_income = today_data.get("income", _zero) + today_data.get("credit", _zero)
+    today_expense = today_data.get("expense", _zero) + today_data.get("debit", _zero)
 
-    month_income = month_data.get("income", 0.0) + month_data.get("credit", 0.0)
-    month_expense = month_data.get("expense", 0.0) + month_data.get("debit", 0.0)
+    month_income = month_data.get("income", _zero) + month_data.get("credit", _zero)
+    month_expense = month_data.get("expense", _zero) + month_data.get("debit", _zero)
 
+    _q = Decimal("0.01")
     return {
         "today": {
-            "income": today_income,
-            "expense": today_expense,
-            "balance": today_income - today_expense
+            "income": float(today_income.quantize(_q, rounding=ROUND_HALF_UP)),
+            "expense": float(today_expense.quantize(_q, rounding=ROUND_HALF_UP)),
+            "balance": float((today_income - today_expense).quantize(_q, rounding=ROUND_HALF_UP))
         },
         "month": {
-            "income": month_income,
-            "expense": month_expense,
-            "balance": month_income - month_expense
+            "income": float(month_income.quantize(_q, rounding=ROUND_HALF_UP)),
+            "expense": float(month_expense.quantize(_q, rounding=ROUND_HALF_UP)),
+            "balance": float((month_income - month_expense).quantize(_q, rounding=ROUND_HALF_UP))
         }
     }
 
