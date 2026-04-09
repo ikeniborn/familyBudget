@@ -209,6 +209,7 @@ function registerTransferHandlers(hasIncrementalUpdates: boolean): void {
     if (hasIncrementalUpdates && window.IncrementalUpdates) {
       window.IncrementalUpdates.onTransferCreated(data);
     } else {
+      refreshQuickStats();
       refreshRecentTransactions();
       refreshAccountBalances();
     }
@@ -219,6 +220,7 @@ function registerTransferHandlers(hasIncrementalUpdates: boolean): void {
     if (hasIncrementalUpdates && window.IncrementalUpdates) {
       window.IncrementalUpdates.onTransferDeleted(data);
     } else {
+      refreshQuickStats();
       refreshRecentTransactions();
       refreshAccountBalances();
     }
