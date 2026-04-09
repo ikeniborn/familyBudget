@@ -1732,7 +1732,17 @@ async def delete_fact(
     # Shared family budget - NO ownership check
     # All authenticated users can delete any transaction
 
-    # 1. Create DELETE history record (audit trail)
+    # Check if this fact is part of a transfer (has paired fact)
+    paired_fact = None
+    if fact.transfer_id is not None:
+        paired_stmt = select(BudgetFact).where(
+            BudgetFact.transfer_id == fact.transfer_id,
+            BudgetFact.id != fact_id,
+        )
+        paired_result = await session.execute(paired_stmt)
+        paired_fact = paired_result.scalar_one_or_none()
+
+    # 1. Create DELETE history record(s) (audit trail)
     now = datetime.utcnow()
     delete_history = BudgetFactHistory(
         fact_id=fact.id,
@@ -1756,22 +1766,57 @@ async def delete_fact(
     )
     session.add(delete_history)
 
+    if paired_fact is not None:
+        paired_history = BudgetFactHistory(
+            fact_id=paired_fact.id,
+            user_id=paired_fact.user_id,
+            article_id=paired_fact.article_id,
+            financial_center_id=paired_fact.financial_center_id,
+            cost_center_id=paired_fact.cost_center_id,
+            fact_date=paired_fact.fact_date,
+            amount=paired_fact.amount,
+            description=paired_fact.description,
+            record_type=paired_fact.record_type,
+            transfer_id=paired_fact.transfer_id,
+            is_offline_sync=paired_fact.is_offline_sync,
+            valid_from=now,
+            valid_to=FAR_FUTURE_DATETIME,
+            is_current=False,
+            change_type="DELETE",
+            changed_fields=None,
+            changed_by_user_id=current_user.id,
+            cascade_delete_source=str(fact_id)  # Deleted as cascade from paired fact
+        )
+        session.add(paired_history)
+
     # Save record_type before deletion for broadcast
     fact_record_type = fact.record_type
+    fact_transfer_id = fact.transfer_id
 
-    # 2. Delete fact
+    # 2. Delete fact (and paired fact if transfer)
     await session.delete(fact)
+    if paired_fact is not None:
+        await session.delete(paired_fact)
     await session.commit()
 
-    logger.info(
-        f"Deleted fact {fact_id} (amount={fact.amount}, date={fact.fact_date}) "
-        f"by user {current_user.id}"
-    )
+    if paired_fact is not None:
+        logger.info(
+            f"Deleted transfer fact {fact_id} and paired fact {paired_fact.id} "
+            f"(transfer_id={fact_transfer_id}) by user {current_user.id}"
+        )
+    else:
+        logger.info(
+            f"Deleted fact {fact_id} (amount={fact.amount}, date={fact.fact_date}) "
+            f"by user {current_user.id}"
+        )
 
     # WebSocket Broadcast: Notify connected clients about deleted fact
     try:
         ws = _get_budget_ws_broadcast()
-        if fact_record_type == "plan":
+        if fact_transfer_id is not None:
+            # Broadcast as transfer_deleted so both UI legs are cleaned up
+            await ws.broadcast_transfer_deleted(fact_transfer_id)
+        elif fact_record_type == "plan":
             await ws.broadcast_plan_deleted(fact_id)
         else:
             await ws.broadcast_fact_deleted(fact_id)
