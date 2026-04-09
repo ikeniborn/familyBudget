@@ -572,12 +572,14 @@
 
             const savedVersion = localStorage.getItem(SW_VERSION_KEY);
 
-            // First install detection: If no saved version, this is first time
-            if (!savedVersion) {
+            // First install detection: If no saved version (or stale "null" from failed getSWVersion), this is first time
+            if (!savedVersion || savedVersion === 'null') {
 
                 try {
                     const newVersion = await getSWVersion(controller);
-                    localStorage.setItem(SW_VERSION_KEY, newVersion);
+                    if (newVersion && newVersion !== 'null') {
+                        localStorage.setItem(SW_VERSION_KEY, newVersion);
+                    }
                 } catch (error) {
                     console.error('[SW_UPDATE] ERROR getting initial version:', error);
                 }
@@ -591,6 +593,11 @@
                 newVersion = await getSWVersion(controller);
             } catch (error) {
                 console.error('[SW_UPDATE] ERROR getting new version:', error);
+                return;
+            }
+
+            // Guard: if getSWVersion returned null (timing issue), skip to avoid false update notification
+            if (!newVersion || newVersion === 'null') {
                 return;
             }
 
