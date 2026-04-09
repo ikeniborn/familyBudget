@@ -233,6 +233,21 @@ export async function initTransferCategoryTrees(): Promise<void> {
 }
 
 /**
+ * Auto-select first available leaf option in a category select element.
+ * Used for new transfers when no article is pre-selected after FC change.
+ * Only auto-selects when there is exactly one option to avoid silent wrong choice.
+ */
+function autoSelectFirstArticle(
+    tree: any,
+    articleSelect: HTMLSelectElement
+): void {
+    const options = Array.from(articleSelect.options).filter(o => o.value !== '');
+    if (options.length === 1) {
+        tree.setSelectedCategory(parseInt(options[0].value));
+    }
+}
+
+/**
  * Setup FC change listeners for transfer tab.
  * Enables/disables category trees when a financial center is selected.
  * Mirrors dashboard/features/modalFact/index.ts#setupTransferFCListeners().
@@ -259,6 +274,9 @@ function setupTransferFCListeners(): void {
                     const existingId = fromArticle?.value ? parseInt(fromArticle.value) : null;
                     if (existingId) {
                         fromTree.setSelectedCategory(existingId);
+                    } else if (fromArticle) {
+                        // New transfer: auto-select when only one category is available
+                        autoSelectFirstArticle(fromTree, fromArticle);
                     }
                 }
             }
@@ -284,6 +302,9 @@ function setupTransferFCListeners(): void {
                     const existingId = toArticle?.value ? parseInt(toArticle.value) : null;
                     if (existingId) {
                         toTree.setSelectedCategory(existingId);
+                    } else if (toArticle) {
+                        // New transfer: auto-select when only one category is available
+                        autoSelectFirstArticle(toTree, toArticle);
                     }
                 }
             }
