@@ -596,6 +596,10 @@
 
             // Compare versions
             if (newVersion === savedVersion) {
+                // Clean up stale flags from a previous update cycle that may not
+                // have been cleared (e.g. browser cache cleared without localStorage reset)
+                localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+                localStorage.removeItem(SW_NEW_VERSION_KEY);
                 return;
             }
 
@@ -655,6 +659,15 @@
                             const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
                             if (currentVersion) {
                                 localStorage.setItem(SW_VERSION_KEY, currentVersion);
+                                // Clean up stale update flags if the "new" version equals current
+                                // (happens when browser cache is cleared but localStorage is not)
+                                const storedNewVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+                                if (storedNewVersion && storedNewVersion === currentVersion) {
+                                    localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+                                    localStorage.removeItem(SW_NEW_VERSION_KEY);
+                                    const icon = document.getElementById('sw-update-icon');
+                                    if (icon) icon.classList.add('hidden');
+                                }
                             } else {
                                 console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
                             }
