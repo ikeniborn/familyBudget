@@ -7,9 +7,9 @@ Create Date: 2026-04-08 12:00:00.000000
 Adds a partial unique index on t_d_article to prevent duplicate active
 categories with the same (parent_id, name, type) combination.
 
-Using a partial index (WHERE is_current = TRUE) so that deleted/historical
-records (is_current = FALSE) are excluded from the uniqueness check and
-historical categories with the same name can coexist.
+Using a partial index (WHERE is_active = TRUE) so that archived/inactive
+records (is_active = FALSE) are excluded from the uniqueness check and
+archived categories with the same name can coexist.
 
 LOWER(name) ensures case-insensitive uniqueness (e.g. "Food" and "food"
 are treated as duplicates).
@@ -31,7 +31,7 @@ def upgrade() -> None:
         """
         CREATE UNIQUE INDEX IF NOT EXISTS idx_article_parent_name_type_current
         ON t_d_article (COALESCE(parent_id, -1), LOWER(name), type)
-        WHERE is_current = TRUE
+        WHERE is_active = TRUE
         """
     )
 

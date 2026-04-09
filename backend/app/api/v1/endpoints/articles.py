@@ -104,7 +104,7 @@ async def create_article(
     dup_stmt = select(Article).where(
         sa_func.lower(Article.name) == sa_func.lower(article_data.name),
         Article.type == article_data.type,
-        Article.is_current == True,  # noqa: E712
+        Article.is_active == True,  # noqa: E712
         Article.parent_id == article_data.parent_id,
     )
     dup_result = await session.execute(dup_stmt)
@@ -287,7 +287,7 @@ async def update_article(
         dup_stmt = select(Article).where(
             sa_func.lower(Article.name) == sa_func.lower(new_name),
             Article.type == new_type,
-            Article.is_current == True,  # noqa: E712
+            Article.is_active == True,  # noqa: E712
             Article.parent_id == new_parent_id,
             Article.id != article_id,
         )
