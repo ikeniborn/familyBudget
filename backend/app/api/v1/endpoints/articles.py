@@ -99,6 +99,24 @@ async def create_article(
                 detail=f"Parent article with id={article_data.parent_id} not found"
             )
 
+    # Validate: No duplicate active article with same (parent_id, name, type)
+    from sqlalchemy import func as sa_func
+    dup_stmt = select(Article).where(
+        sa_func.lower(Article.name) == sa_func.lower(article_data.name),
+        Article.type == article_data.type,
+        Article.is_current == True,  # noqa: E712
+        Article.parent_id == article_data.parent_id,
+    )
+    dup_result = await session.execute(dup_stmt)
+    if dup_result.scalar_one_or_none() is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"Article with name='{article_data.name}' and type='{article_data.type}' "
+                "already exists under the same parent"
+            )
+        )
+
     # Generate code for article (natural key, auto-generated, immutable after creation)
     generated_code = await generate_code(session, Article)
 
@@ -259,6 +277,29 @@ async def update_article(
     old_article, update_data, financial_center_ids = await prepare_article_update(
         session, article_id, article_data, current_user
     )
+
+    # Validate: No duplicate active article with same (parent_id, name, type) on rename
+    new_name = update_data.get("name")
+    new_type = update_data.get("type", old_article.type)
+    new_parent_id = update_data.get("parent_id", old_article.parent_id)
+    if new_name and (new_name != old_article.name or new_type != old_article.type or new_parent_id != old_article.parent_id):
+        from sqlalchemy import func as sa_func
+        dup_stmt = select(Article).where(
+            sa_func.lower(Article.name) == sa_func.lower(new_name),
+            Article.type == new_type,
+            Article.is_current == True,  # noqa: E712
+            Article.parent_id == new_parent_id,
+            Article.id != article_id,
+        )
+        dup_result = await session.execute(dup_stmt)
+        if dup_result.scalar_one_or_none() is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    f"Article with name='{new_name}' and type='{new_type}' "
+                    "already exists under the same parent"
+                )
+            )
 
     changed, changed_fields = has_changes(old_article, update_data)
     logger.info("[ARTICLE UPDATE] article_id=%s, changed=%s, changed_fields=%s", article_id, changed, changed_fields)
