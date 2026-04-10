@@ -11,7 +11,7 @@
 import { getState, updateState } from '../core/ListsState';
 import { loadShoppingLists, loadShoppingListItems } from '../core/stateManager';
 import { renderCurrentView } from './tableBuilder';
-import { updateHideCompletedButton } from '../features/searchFilter';
+import { updateHideCompletedButton, clearSearch } from '../features/searchFilter';
 
 // ============================================================================
 // Type Definitions
@@ -205,6 +205,9 @@ export function switchView(viewName: 'table' | 'hierarchy', savePreference: bool
     if (hierarchyControls) hierarchyControls.classList.add('hidden');
   }
 
+  // Clear search when switching views for UX consistency
+  clearSearch();
+
   // Render current view content
   renderCurrentView();
 
@@ -395,6 +398,11 @@ export function renderShoppingListCards(): void {
 export async function renderLandingView(): Promise<void> {
   debugLog('[ListsManager] Showing landing view');
 
+  // Restore URL when returning to landing view
+  if (window.location.pathname !== '/lists') {
+    history.pushState({ view: 'landing' }, '', '/lists');
+  }
+
   // Reset state
   updateState({
     currentListId: null,
@@ -415,7 +423,10 @@ export async function renderLandingView(): Promise<void> {
   document.getElementById('landing-view')?.classList.remove('hidden');
   document.getElementById('detail-view')?.classList.add('hidden');
 
-  // Load shopping lists
+  // Immediate render from current state (shows WS-updated data before API completes)
+  renderShoppingListCards();
+
+  // Load fresh data from server
   await loadShoppingLists();
   renderShoppingListCards();
 
@@ -432,6 +443,9 @@ export async function renderLandingView(): Promise<void> {
  */
 export async function renderDetailView(listId: number): Promise<void> {
   debugLog('[ListsManager] Showing detail view for list:', listId);
+
+  // Update URL for deep linking and browser back button
+  history.pushState({ view: 'detail', listId }, '', `/lists/${listId}`);
 
   const state = getState();
 
