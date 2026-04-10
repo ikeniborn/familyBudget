@@ -37,6 +37,7 @@
         const SW_UPDATE_AVAILABLE_KEY = 'pwa_update_available';
         const SW_NEW_VERSION_KEY = 'pwa_new_version';
         const SW_SKIP_REGISTRATION_KEY = 'sw_skip_registration';
+        const SW_SNOOZED_VERSION_KEY = 'pwa_snoozed_version';
 
         // Track if icon already shown this session
         let updateIconShown = false;
@@ -211,6 +212,9 @@
          */
         async function handleUpdateNow() {
             const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+
+            // Clear snooze so the next update after this one will be shown
+            localStorage.removeItem(SW_SNOOZED_VERSION_KEY);
 
             console.log('[SW_UPDATE] ========================================');
             console.log('[SW_UPDATE] Starting cleanup process, target:', newVersion);
@@ -413,13 +417,18 @@
 
         /**
          * Handle "Later" action
-         * Closes modal and clears update flags so the icon doesn't reappear until a real new update arrives
+         * Closes modal and saves snooze version so the same version doesn't reappear until a newer update arrives
          */
         function handleUpdateLater() {
 
             const modal = document.getElementById('sw-update-modal');
             if (modal) {
                 modal.close();
+            }
+            // Save the snoozed version before clearing flags
+            const snoozedVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+            if (snoozedVersion) {
+                localStorage.setItem(SW_SNOOZED_VERSION_KEY, snoozedVersion);
             }
             localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
             localStorage.removeItem(SW_NEW_VERSION_KEY);
@@ -484,6 +493,12 @@
             const updateAvailable = localStorage.getItem(SW_UPDATE_AVAILABLE_KEY);
 
             if (updateAvailable === 'true') {
+                const pendingVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+                const snoozedVersion = localStorage.getItem(SW_SNOOZED_VERSION_KEY);
+                if (snoozedVersion && pendingVersion && snoozedVersion === pendingVersion) {
+                    // User already dismissed this version — don't show again
+                    return;
+                }
                 showUpdateIcon();
             }
         }
@@ -611,6 +626,13 @@
             }
 
             // UPDATE DETECTED!
+
+            // Check if user already snoozed this specific version
+            const snoozedVersion = localStorage.getItem(SW_SNOOZED_VERSION_KEY);
+            if (snoozedVersion && snoozedVersion === newVersion) {
+                // User clicked "Later" for this version — don't show notification again
+                return;
+            }
 
             // Store update state for persistence
             localStorage.setItem(SW_UPDATE_AVAILABLE_KEY, 'true');
