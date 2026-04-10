@@ -131,6 +131,11 @@ async function getWSToken(): Promise<string | null> {
         return null;
       }
       setError(`Token HTTP ${response.status}`);
+      // 5xx or other server errors: mark as disconnected so the indicator reflects the failure
+      updateState({
+        isConnected: false,
+        reconnectAttempts: getState().reconnectAttempts + 1,
+      });
       return null;
     }
 

@@ -30,21 +30,9 @@ export function startLongPolling(): void {
 
   updateState({
     pollingActive: true,
-    isConnected: true,
+    // isConnected stays as-is until the first successful poll confirms reachability
     lastEventTimestamp: Date.now() / 1000,
   });
-
-  // Update UI
-  const event = new CustomEvent('ws:status-changed', {
-    detail: { isConnected: true },
-  });
-  window.dispatchEvent(event);
-
-  // Notify handlers
-  const connectEvent = new CustomEvent('ws:connected', {
-    detail: { mode: 'polling' },
-  });
-  window.dispatchEvent(connectEvent);
 
   pollLoop();
 }
@@ -90,11 +78,31 @@ async function pollLoop(): Promise<void> {
         window.dispatchEvent(errorEvent);
         return;
       }
+      // 5xx or other server errors: mark as disconnected so the indicator shows error state
+      updateState({ isConnected: false });
+      const statusEvent = new CustomEvent('ws:status-changed', {
+        detail: { isConnected: false },
+      });
+      window.dispatchEvent(statusEvent);
       throw new Error(`HTTP ${response.status}`);
     }
 
     const data: PollResponse = await response.json();
+    const currentState = getState();
     updateState({ lastServerPing: Date.now() });
+
+    // First successful poll: mark as connected and notify handlers
+    if (!currentState.isConnected) {
+      updateState({ isConnected: true });
+      const connectedStatusEvent = new CustomEvent('ws:status-changed', {
+        detail: { isConnected: true },
+      });
+      window.dispatchEvent(connectedStatusEvent);
+      const connectEvent = new CustomEvent('ws:connected', {
+        detail: { mode: 'polling' },
+      });
+      window.dispatchEvent(connectEvent);
+    }
 
     // Process events
     if (data.events && data.events.length > 0) {
