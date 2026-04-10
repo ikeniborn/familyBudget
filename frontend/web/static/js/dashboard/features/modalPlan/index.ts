@@ -86,44 +86,23 @@ function hideSkeleton(): void {
 async function loadTransactionTabData(): Promise<void> {
   const state = getState();
 
-  // Check cache validity
-  const needsRefresh =
-    !isCacheValid(state.dropdownCache.categories) ||
-    !isCacheValid(state.dropdownCache.financialCenters) ||
-    !isCacheValid(state.dropdownCache.costCenters);
-
-  if (needsRefresh) {
-    debugLog('[ModalPlan] Loading transaction data...');
-
-    // Import existing functions from addTransaction module (reuse)
-    const { loadFinancialCenters, loadCostCenters } = await import(
-      '../addTransaction/categoryLoader'
-    );
-
-    // Load financial centers FIRST (now with built-in retry logic)
-    await loadFinancialCenters([
-      '#modal_plan-tab-transaction select[name="financial_center_id"]'
-    ]);
-
-    // Validation removed - retry logic in loadFinancialCenters handles failures
-
-    // Load cost centers
-    await loadCostCenters();
-
-    debugLog('[ModalPlan] Transaction data loaded');
-  } else {
-    debugLog('[ModalPlan] Using cached transaction data');
-  }
-
-  // Initialize CategoryTreeSelect for modal_plan transaction tab
+  // Initialize CategoryTreeSelect FIRST so that enableDisableCategoryAndCostCenter()
+  // (called inside loadFinancialCenters) uses the widget API instead of falling back
+  // to native setAttribute('disabled') on the underlying <select>.
+  // When the tree is null on re-open, the fallback sets disabled on the raw <select>,
+  // which is then inherited by the newly created ChoicesCategoryTree → is-disabled bug.
   if (!state.planCategoryTreeSelect) {
-    // CRITICAL FIX: Verify DOM element exists BEFORE creating ChoicesCategoryTree
+    // Verify DOM element exists BEFORE creating ChoicesCategoryTree
     const articleSelect = document.querySelector('#modal_plan-tab-transaction select[name="article_id"]') as HTMLSelectElement | null;
 
     if (!articleSelect) {
       debugLog('[ModalPlan] Article select not found - DOM not ready yet');
       throw new Error('Article select element not available');
     }
+
+    // Ensure no stale disabled attribute from a previous close cycle so the new
+    // Choices instance starts in a clean, enabled state.
+    articleSelect.removeAttribute('disabled');
 
     // Get current plan type: prefer CSS active button state (persists across form.reset()),
     // fall back to radio value, then default to 'expense'
@@ -151,7 +130,7 @@ async function loadTransactionTabData(): Promise<void> {
         }
       );
 
-      // Save instance to state
+      // Save instance to state so enableDisableCategoryAndCostCenter uses the widget API
       updateState({
         planCategoryTreeSelect: planCategoryTree
       });
@@ -164,6 +143,36 @@ async function loadTransactionTabData(): Promise<void> {
       debugLog('[ModalPlan] BudgetShared.ChoicesCategoryTree not available');
       throw new Error('BudgetShared.ChoicesCategoryTree not loaded');
     }
+  }
+
+  // Check cache validity
+  const needsRefresh =
+    !isCacheValid(state.dropdownCache.categories) ||
+    !isCacheValid(state.dropdownCache.financialCenters) ||
+    !isCacheValid(state.dropdownCache.costCenters);
+
+  if (needsRefresh) {
+    debugLog('[ModalPlan] Loading transaction data...');
+
+    // Import existing functions from addTransaction module (reuse)
+    const { loadFinancialCenters, loadCostCenters } = await import(
+      '../addTransaction/categoryLoader'
+    );
+
+    // Load financial centers — calls enableDisableCategoryAndCostCenter(null) at the end,
+    // which now correctly uses the widget's .disable() instead of native setAttribute.
+    await loadFinancialCenters([
+      '#modal_plan-tab-transaction select[name="financial_center_id"]'
+    ]);
+
+    // Validation removed - retry logic in loadFinancialCenters handles failures
+
+    // Load cost centers
+    await loadCostCenters();
+
+    debugLog('[ModalPlan] Transaction data loaded');
+  } else {
+    debugLog('[ModalPlan] Using cached transaction data');
   }
 }
 
