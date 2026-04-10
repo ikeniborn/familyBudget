@@ -180,7 +180,16 @@ export async function fetchAndInjectRow(factId: number, operation: 'create' | 'u
                 mobileList.insertBefore(parsed.mobileCard, mobileList.firstChild);
             }
             // Return true only if we actually injected into a container
-            return !!(tbody || mobileList);
+            const injected = !!(tbody || mobileList);
+            if (injected) {
+                const newTotal = getTotalFacts() + 1;
+                setTotalFacts(newTotal);
+                const rowCount = tbody ? tbody.querySelectorAll('tr').length : 0;
+                const pageStart = 1; // canInjectRow() guarantees page 0
+                const pageEnd = Math.min(rowCount, newTotal);
+                updateStats(newTotal, pageStart, pageEnd);
+            }
+            return injected;
         }
 
         if (operation === 'update') {
