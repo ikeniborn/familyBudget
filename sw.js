@@ -458,6 +458,23 @@ self.addEventListener('fetch', (event) => {
       caches.match(request, { ignoreSearch: true })
         .then((cachedResponse) => {
           if (cachedResponse) {
+            // Version mismatch check: if ?v= param differs between cached and requested URL,
+            // bypass cache to prevent serving stale bundles during SW transition period.
+            // Files without ?v= (e.g. icons, fonts) are served from cache as usual.
+            const cachedVersion = new URL(cachedResponse.url).searchParams.get('v');
+            const requestVersion = url.searchParams.get('v');
+            if (cachedVersion && requestVersion && cachedVersion !== requestVersion) {
+              if (DEBUG) console.log('[SW] Version mismatch, fetching fresh:', url.pathname, cachedVersion, '->', requestVersion);
+              return fetch(request).then((response) => {
+                if (response.ok) {
+                  const clonedResponse = response.clone();
+                  caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(request, clonedResponse);
+                  });
+                }
+                return response;
+              });
+            }
             if (DEBUG) console.log('[SW] Serving from cache:', url.pathname);
             return cachedResponse;
           }
