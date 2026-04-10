@@ -684,22 +684,21 @@
                     // Save current SW version on load; skip if update pending (avoids X → X display)
                     if (navigator.serviceWorker.controller) {
                         const updatePending = localStorage.getItem(SW_UPDATE_AVAILABLE_KEY) === 'true';
-                        if (!updatePending) {
-                            const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
-                            if (currentVersion) {
+                        const currentVersion = await getSWVersion(navigator.serviceWorker.controller);
+                        if (currentVersion) {
+                            if (!updatePending) {
                                 localStorage.setItem(SW_VERSION_KEY, currentVersion);
-                                // Clean up stale update flags if the "new" version equals current
-                                // (happens when browser cache is cleared but localStorage is not)
-                                const storedNewVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
-                                if (storedNewVersion && storedNewVersion === currentVersion) {
-                                    localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
-                                    localStorage.removeItem(SW_NEW_VERSION_KEY);
-                                    const icon = document.getElementById('sw-update-icon');
-                                    if (icon) icon.classList.add('hidden');
-                                }
-                            } else {
-                                console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
                             }
+                            // Always clean stale flags if the "new" version is already installed
+                            const storedNewVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+                            if (storedNewVersion && storedNewVersion === currentVersion) {
+                                localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+                                localStorage.removeItem(SW_NEW_VERSION_KEY);
+                                const icon = document.getElementById('sw-update-icon');
+                                if (icon) icon.classList.add('hidden');
+                            }
+                        } else {
+                            console.warn('[PWA] ⚠️ Failed to get current CACHE_VERSION');
                         }
                     }
 
