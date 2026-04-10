@@ -449,17 +449,82 @@ jobs:
           cache-to: type=gha,mode=min
 
       # ========================================================================
-      # Cleanup old untagged cache images (older than 7 days)
+      # Update IMAGE_VERSIONS.json with newly built image tags
+      # ========================================================================
+      - name: Install jq for IMAGE_VERSIONS.json update
+        if: |
+          steps.changes.outputs.backend == 'true' ||
+          steps.changes.outputs.bot == 'true' ||
+          steps.changes.outputs.nginx == 'true' ||
+          steps.changes.outputs.redis == 'true' ||
+          steps.changes.outputs.postgresql == 'true'
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Update backend version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.backend == 'true'
+        run: bash scripts/ci/update_image_version.sh backend "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update bot version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.bot == 'true'
+        run: bash scripts/ci/update_image_version.sh bot "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update nginx version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.nginx == 'true'
+        run: bash scripts/ci/update_image_version.sh nginx "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update redis version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.redis == 'true'
+        run: bash scripts/ci/update_image_version.sh redis "${{ steps.version.outputs.VERSION }}"
+
+      - name: Update postgresql version in IMAGE_VERSIONS.json
+        if: steps.changes.outputs.postgresql == 'true'
+        run: bash scripts/ci/update_image_version.sh postgresql "${{ steps.version.outputs.VERSION }}"
+
+      # ========================================================================
+      # Commit IMAGE_VERSIONS.json
+      # ========================================================================
+      - name: Commit IMAGE_VERSIONS.json
+        if: |
+          steps.changes.outputs.backend == 'true' ||
+          steps.changes.outputs.bot == 'true' ||
+          steps.changes.outputs.nginx == 'true' ||
+          steps.changes.outputs.redis == 'true' ||
+          steps.changes.outputs.postgresql == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Check if IMAGE_VERSIONS.json changed
+          if [[ -n $(git status --porcelain IMAGE_VERSIONS.json) ]]; then
+            echo "IMAGE_VERSIONS.json has been updated:"
+            git diff IMAGE_VERSIONS.json
+            git add IMAGE_VERSIONS.json
+            git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
+
+            # Pull and rebase to handle concurrent pushes
+            git pull --rebase origin test
+            git push
+            echo "✅ IMAGE_VERSIONS.json committed and pushed"
+          else
+            echo "ℹ️ No changes to IMAGE_VERSIONS.json"
+          fi
+
+      # ========================================================================
+      # Cleanup old untagged cache images (older than 14 days)
+      # IMPORTANT: Runs AFTER Commit IMAGE_VERSIONS.json so protected tags are
+      # fully up-to-date (includes newly built service versions)
       # ========================================================================
       - name: Cleanup old untagged images
         continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "🧹 Cleaning up old untagged Docker cache images (older than 7 days)..."
+          echo "🧹 Cleaning up old untagged Docker cache images (older than 14 days)..."
 
-          # Calculate cutoff date (7 days ago in ISO 8601 format)
-          CUTOFF_DATE=$(date -u -d '7 days ago' +'%Y-%m-%dT%H:%M:%SZ')
+          # Calculate cutoff date (14 days ago in ISO 8601 format)
+          # 14 days prevents edge case where cleanup runs exactly 7 days after a slow-changing
+          # service (e.g. postgresql) was last built, causing GHCR inconsistency on manifest inspect
+          CUTOFF_DATE=$(date -u -d '14 days ago' +'%Y-%m-%dT%H:%M:%SZ')
           echo "Cutoff date: $CUTOFF_DATE"
 
           # List of all package names
@@ -478,7 +543,12 @@ jobs:
             echo "📦 Processing package: $PACKAGE"
 
             # Collect protected tags from IMAGE_VERSIONS.json (never delete these)
+            # Also protect the current build VERSION to guard against newly pushed images
             PROTECTED_TAGS=$(jq -r '.[].version' IMAGE_VERSIONS.json 2>/dev/null | sort -u)
+            CURRENT_VERSION=$(cat VERSION 2>/dev/null || echo "")
+            if [[ -n "$CURRENT_VERSION" ]]; then
+              PROTECTED_TAGS=$(printf "%s\n%s" "$PROTECTED_TAGS" "$CURRENT_VERSION" | sort -u)
+            fi
             echo "   Protected tags: $(echo $PROTECTED_TAGS | tr '\n' ' ')"
 
             # Get total version count for this package (to protect the last one)
@@ -575,67 +645,6 @@ jobs:
 
           echo ""
           echo "✅ Cleanup completed: $TOTAL_DELETED old untagged images deleted"
-
-      # ========================================================================
-      # Update IMAGE_VERSIONS.json with newly built image tags
-      # ========================================================================
-      - name: Install jq for IMAGE_VERSIONS.json update
-        if: |
-          steps.changes.outputs.backend == 'true' ||
-          steps.changes.outputs.bot == 'true' ||
-          steps.changes.outputs.nginx == 'true' ||
-          steps.changes.outputs.redis == 'true' ||
-          steps.changes.outputs.postgresql == 'true'
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Update backend version in IMAGE_VERSIONS.json
-        if: steps.changes.outputs.backend == 'true'
-        run: bash scripts/ci/update_image_version.sh backend "${{ steps.version.outputs.VERSION }}"
-
-      - name: Update bot version in IMAGE_VERSIONS.json
-        if: steps.changes.outputs.bot == 'true'
-        run: bash scripts/ci/update_image_version.sh bot "${{ steps.version.outputs.VERSION }}"
-
-      - name: Update nginx version in IMAGE_VERSIONS.json
-        if: steps.changes.outputs.nginx == 'true'
-        run: bash scripts/ci/update_image_version.sh nginx "${{ steps.version.outputs.VERSION }}"
-
-      - name: Update redis version in IMAGE_VERSIONS.json
-        if: steps.changes.outputs.redis == 'true'
-        run: bash scripts/ci/update_image_version.sh redis "${{ steps.version.outputs.VERSION }}"
-
-      - name: Update postgresql version in IMAGE_VERSIONS.json
-        if: steps.changes.outputs.postgresql == 'true'
-        run: bash scripts/ci/update_image_version.sh postgresql "${{ steps.version.outputs.VERSION }}"
-
-      # ========================================================================
-      # Commit IMAGE_VERSIONS.json
-      # ========================================================================
-      - name: Commit IMAGE_VERSIONS.json
-        if: |
-          steps.changes.outputs.backend == 'true' ||
-          steps.changes.outputs.bot == 'true' ||
-          steps.changes.outputs.nginx == 'true' ||
-          steps.changes.outputs.redis == 'true' ||
-          steps.changes.outputs.postgresql == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Check if IMAGE_VERSIONS.json changed
-          if [[ -n $(git status --porcelain IMAGE_VERSIONS.json) ]]; then
-            echo "IMAGE_VERSIONS.json has been updated:"
-            git diff IMAGE_VERSIONS.json
-            git add IMAGE_VERSIONS.json
-            git commit -m "chore(ci): auto-update IMAGE_VERSIONS.json [skip ci]"
-
-            # Pull and rebase to handle concurrent pushes
-            git pull --rebase origin test
-            git push
-            echo "✅ IMAGE_VERSIONS.json committed and pushed"
-          else
-            echo "ℹ️ No changes to IMAGE_VERSIONS.json"
-          fi
 
 
   # ============================================================================
