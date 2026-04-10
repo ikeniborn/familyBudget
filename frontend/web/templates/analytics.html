@@ -24,7 +24,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="space-y-6 pt-4">
+<div class="space-y-6 pt-4 pb-28 md:pb-24 lg:pb-4">
     <!-- Page Header -->
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">📊 Панель аналитики</h1>
@@ -231,6 +231,9 @@ let currentTrendsMode = localStorage.getItem('budgetTrendsMode') || 'cumulative'
 // Waterfall chart mode filter (with_balance vs without_balance)
 // Load from localStorage or default to 'with_balance'
 let currentWaterfallMode = localStorage.getItem('budgetWaterfallMode') || 'with_balance';
+
+// Trends days filter (30, 90, 365, etc.)
+let currentTrendsDays = localStorage.getItem('budgetTrendsDays') || '30';
 
 // Custom date range state
 let customRangeActive = false;
@@ -1607,6 +1610,7 @@ function updateWaterfallChart(data) {
         },
         yAxis: {
             type: 'value',
+            scale: true,
             name: 'Сумма (₽)',
             axisLabel: {
                 formatter: function(value) {
@@ -1870,8 +1874,16 @@ function updateHeatmapChart(data) {
         });
     });
 
-    // Find max value for visualMap
-    const maxValue = allValues.length > 0 ? Math.max(...allValues) : 1000;
+    // Find max value for visualMap using 95th percentile to avoid outlier distortion
+    let maxValue;
+    if (allValues.length === 0) {
+        maxValue = 1000;
+    } else if (allValues.length === 1) {
+        maxValue = allValues[0];
+    } else {
+        const sortedVals = [...allValues].sort((a, b) => a - b);
+        maxValue = sortedVals[Math.floor(sortedVals.length * 0.95)] || sortedVals[sortedVals.length - 1];
+    }
 
     // Dynamic chart height based on aggregation type and number of rows
     const chartDom = document.getElementById('chart-heatmap');
