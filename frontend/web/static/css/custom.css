@@ -562,6 +562,13 @@ body.modal-open .fab-common-wrapper {
     border: none !important;
 }
 
+/* Prevent DaisyUI tooltip ::after pseudo-elements from causing horizontal page overflow.
+   Tooltips in .navbar-end extend beyond their visual bounds; clipping the header row
+   at the source is safer than relying solely on html { overflow-x: hidden }. */
+.navbar {
+    overflow-x: clip; /* clip vs hidden: doesn't affect sticky/fixed positioning */
+}
+
 /* Center dropdowns above buttons to prevent overflow on narrow screens (mobile) */
 .mobile-nav-wrapper .dropdown {
     position: relative;
