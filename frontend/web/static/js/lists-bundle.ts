@@ -243,6 +243,15 @@ const windowExports = {
   openDexieDiagnostic
 };
 
+// Handle browser back/forward navigation
+window.addEventListener('popstate', (event: PopStateEvent) => {
+  if (event.state?.view === 'detail' && event.state?.listId) {
+    (window as any).showDetailView(event.state.listId);
+  } else {
+    (window as any).showLandingView();
+  }
+});
+
 // Экспорт в window (Object.assign - надёжнее работает после минификации)
 try {
   if (typeof window !== 'undefined') {
