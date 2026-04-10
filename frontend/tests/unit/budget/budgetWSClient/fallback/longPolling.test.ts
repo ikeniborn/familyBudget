@@ -62,12 +62,21 @@ describe('Long Polling Fallback Module', () => {
 
       const state = WSState.getState();
       expect(state.pollingActive).toBe(true);
-      expect(state.isConnected).toBe(true);
+      // isConnected is set after first successful poll, not immediately on start
+      expect(state.isConnected).toBe(false);
       expect(state.lastEventTimestamp).toBeGreaterThan(0);
     });
 
-    it('should dispatch status-changed event', () => {
+    it('should dispatch status-changed event after first successful poll', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ events: [], server_time: Date.now() / 1000 }),
+      });
+
       startLongPolling();
+
+      // Allow async pollLoop to execute
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(global.dispatchEvent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -77,8 +86,16 @@ describe('Long Polling Fallback Module', () => {
       );
     });
 
-    it('should dispatch connected event with mode=polling', () => {
+    it('should dispatch connected event with mode=polling after first successful poll', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ events: [], server_time: Date.now() / 1000 }),
+      });
+
       startLongPolling();
+
+      // Allow async pollLoop to execute
+      await new Promise(resolve => setTimeout(resolve, 0));
 
       expect(global.dispatchEvent).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -211,11 +228,12 @@ describe('Long Polling Fallback Module', () => {
         startLongPolling();
       }).not.toThrow();
 
-      // Should only dispatch events once (first call sets state, subsequent calls skip)
+      // Events are dispatched asynchronously after first successful poll,
+      // so no synchronous dispatches here
       const statusChangedCalls = (global.dispatchEvent as any).mock.calls.filter(
         (call: any) => call[0]?.type === 'ws:status-changed'
       );
-      expect(statusChangedCalls.length).toBe(1);
+      expect(statusChangedCalls.length).toBe(0);
     });
 
     it('should handle offline manager changes', () => {
