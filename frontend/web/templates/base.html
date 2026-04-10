@@ -12,6 +12,11 @@
 
     <!-- CRITICAL CSS: Splash Screen - load BEFORE external CSS for instant display -->
     <style>
+        /* Prevent horizontal overflow caused by DaisyUI tooltip pseudo-elements in navbar */
+        html {
+            overflow-x: hidden;
+        }
+
         /* Body background = splash background (eliminates white screen during CSS load) */
         body {
             margin: 0;
