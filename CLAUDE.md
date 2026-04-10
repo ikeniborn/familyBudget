@@ -2,10 +2,13 @@
 
 This file provides guidance to Claude Code when working with code in this repository.
 
-**NEVER**: 
-- Edit CLAUDE.md. Only user can add or delete this file.
-- Delete volume docker. Only after approve user.
-- Никогда не запускай сборку на сервере. Все изменения доставляются на сервер через cicd после обновления VERSION. Автоматически подымается версия на один шаг в рамках патча major.minor.patch (0.0.1>0.0.2)
+## Constraints
+
+**NEVER do the following:**
+
+- **Edit CLAUDE.md** — this file is the single source of truth for agent instructions; modifying it bypasses user control over system behavior. Only the user can add or delete this file.
+- **Delete Docker volumes** — this is an irreversible operation that causes permanent data loss for users. Only after explicit user approval.
+- **Run builds on the server** — all changes are delivered via CI/CD after updating `VERSION`. Version is auto-incremented by one patch step: `major.minor.patch` (e.g. `0.0.1` → `0.0.2`).
 
 ## Project Overview
 
@@ -54,7 +57,7 @@ tests/
 
 ## Core Rules
 
-**1. Multi-Perspective Analysis**
+### 1. Multi-Perspective Analysis
 
 При решении любой задачи рассматривай проблему с точки зрения:
 - **Системный архитектор**: Инфраструктурные решения, масштабируемость, отказоустойчивость
@@ -63,14 +66,15 @@ tests/
 - **Security специалист**: Потенциальные уязвимости, защита данных, соответствие best practices
 - **Технический писатель**: Актуальность и корректность документации, синхронизация с кодом
 
-**2. Validation Loop**
+### 2. Validation Loop
 
-После разработки решения:
-- Проводить повторную проверку архитектурных решений
-- Верифицировать соответствие требованиям из всех перспектив
-- Задавать уточняющие вопросы на этапе анализа и планирования
+После реализации решения выполни следующие конкретные шаги:
+1. Перечитай все изменённые файлы и убедись, что логика корректна
+2. Проверь, что существующие тесты не сломаны (запусти релевантные тесты)
+3. Верифицируй соответствие по каждой из 5 перспектив, перечисленных выше
+4. Задавай уточняющие вопросы **до начала реализации**, а не в процессе
 
-**3. Architecture-First Workflow**
+### 3. Architecture-First Workflow
 
 При каждой задаче доработки или правки:
 1. **До начала работы**: использовать индекс `docs/llms.txt` и `docs/llms-full.txt` для быстрого поиска по архитектуре и документации Sphinx. Прочитать связанные разделы для понимания контекста
@@ -86,9 +90,9 @@ tests/
 | **Production** | https://fb.ikeniborn.ru/ | Live users |
 | **Development** | https://fbd.ikeniborn.ru/ | Feature testing |
 
-- For analysis logs connect to test server via "ssh budget-test".
-- Work directory "/opt/budget"
-- Git directory "~/familyBudget"
+- For analysis logs connect to test server via `ssh budget-test`.
+- Work directory: `/opt/budget`
+- Git directory: `/home/ikeniborn/Documents/Project/familyBudget`
 
 ## Versioning & Deploy
 
@@ -97,9 +101,10 @@ tests/
 - CI/CD (`build-and-push.yml`) собирает Docker images и обновляет `IMAGE_VERSIONS.json`
 - Деплой на сервер: `ssh budget-test` → `cd /opt/budget` → `./deploy.sh`
 
-## Git requests
-- Only create requests to test branch from dev/* branches
-- Never use branch prod for source for development, copy, create for agent.
+## Git Workflow
+
+- Only create pull requests to `test` branch from `dev/*` branches
+- **Never use `prod` as source branch** for development, copying, or agent work — `prod` contains only release-ready code; branching from it bypasses test-stage validation and breaks the `dev/* → test → prod` pipeline.
 
 ## Commands
 
@@ -123,10 +128,10 @@ npm run test:e2e:headed                # Playwright E2E (с браузером)
 npm run lint                           # ESLint
 ```
 
-## UXUI
+## UI/UX Guidelines
 
-- Все решения по веб функциональности должны тестироваться для мобильных, планшетов, десктопов
-- Веб должен поддерживать PWA и браузерную версию для Yandex Browser, Chrome, Safary 14+
+- Test every web feature on mobile (375px), tablet (768px), and desktop (1280px) breakpoints before marking as done
+- Веб должен поддерживать PWA и браузерную версию для Yandex Browser, Chrome, Safari 14+
 
 ## Gotchas
 
@@ -135,4 +140,3 @@ npm run lint                           # ESLint
 - **JS bundles** подключаются с `?v=PLACEHOLDER` — CI заменяет на реальную версию для cache busting
 - **Конфиги не в корне**: `tsconfig.json` в корне, но `tailwind.config.js`, `vitest.config.ts`, `playwright.config.ts` — в `config/`
 - **Window exports**: публичные функции для `onclick` экспортируются через `adapters/windowExports.ts` (не inline JS)
-
