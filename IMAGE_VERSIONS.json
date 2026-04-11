@@ -1,8 +1,8 @@
 {
   "backend": {
-    "version": "0.6.119",
-    "hash": "249744ae",
-    "lastModified": "2026-04-11T12:43:10Z",
+    "version": "0.6.120",
+    "hash": "b784c52c",
+    "lastModified": "2026-04-11T20:48:34Z",
     "paths": [
       "backend/",
       "frontend/",
@@ -19,17 +19,17 @@
     ]
   },
   "nginx": {
-    "version": "0.6.98",
-    "hash": "413175d8",
-    "lastModified": "2026-04-03T16:47:21Z",
+    "version": "0.6.120",
+    "hash": "b784c52c",
+    "lastModified": "2026-04-11T20:48:34Z",
     "paths": [
       "nginx/"
     ]
   },
   "redis": {
-    "version": "0.6.98",
-    "hash": "4eb5ebb0",
-    "lastModified": "2026-04-03T16:47:21Z",
+    "version": "0.6.120",
+    "hash": "b784c52c",
+    "lastModified": "2026-04-11T20:48:34Z",
     "paths": [
       "redis/"
     ]
