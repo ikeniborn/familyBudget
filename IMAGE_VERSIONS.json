@@ -1,8 +1,8 @@
 {
   "backend": {
-    "version": "0.6.118",
-    "hash": "6089eb73",
-    "lastModified": "2026-04-10T17:22:54Z",
+    "version": "0.6.119",
+    "hash": "249744ae",
+    "lastModified": "2026-04-11T12:43:10Z",
     "paths": [
       "backend/",
       "frontend/",
@@ -35,9 +35,9 @@
     ]
   },
   "postgresql": {
-    "version": "0.6.97",
-    "hash": "4eb5ebb0",
-    "lastModified": "2026-04-03T16:21:16Z",
+    "version": "0.6.119",
+    "hash": "cd70c6ec",
+    "lastModified": "2026-04-11T12:43:10Z",
     "paths": [
       "postgres/"
     ]
