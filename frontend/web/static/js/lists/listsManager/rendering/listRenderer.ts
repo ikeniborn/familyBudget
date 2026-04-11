@@ -444,10 +444,17 @@ export async function renderLandingView(): Promise<void> {
 export async function renderDetailView(listId: number): Promise<void> {
   debugLog('[ListsManager] Showing detail view for list:', listId);
 
+  // Validate list exists BEFORE setting state (prevents stale currentListId on 404)
+  const state = getState();
+  const list = state.shoppingLists.find(l => l.id === listId);
+  if (!list) {
+    showToast('Список не найден', 'error');
+    await renderLandingView();
+    return;
+  }
+
   // Update URL for deep linking and browser back button
   history.pushState({ view: 'detail', listId }, '', `/lists/${listId}`);
-
-  const state = getState();
 
   // IMPORTANT: Full state reset BEFORE loading new list
   // This prevents showing old list data while new list loads
@@ -503,13 +510,6 @@ export async function renderDetailView(listId: number): Promise<void> {
   // Each list should start with fresh tree state
   if (state.hierarchyView) {
     state.hierarchyView.expandedNodes.clear();
-  }
-
-  // Find the list
-  const list = state.shoppingLists.find(l => l.id === listId);
-  if (!list) {
-    showToast('Список не найден', 'error');
-    return;
   }
 
   // Update breadcrumb

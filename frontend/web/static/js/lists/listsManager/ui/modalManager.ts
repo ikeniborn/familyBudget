@@ -218,6 +218,13 @@ export function openAddItemModal(): void {
   const modalTitle = document.getElementById('item-modal-title');
   if (modalTitle) modalTitle.textContent = '📝 Добавить товар';
 
+  // Explicitly reset hidden selects before Choices.js reinit
+  // form.reset() doesn't clear Choices.js internal state
+  const storeSelect = document.getElementById('item-store') as HTMLSelectElement | null;
+  if (storeSelect) storeSelect.value = '';
+  const groupSelect = document.getElementById('item-product-group') as HTMLSelectElement | null;
+  if (groupSelect) groupSelect.value = '';
+
   // Reinitialize Choices.js with latest data (fixes issue after CSV import)
   // This ensures newly created stores/groups are visible
   initStoreChoices();
@@ -577,6 +584,9 @@ export async function confirmDeleteList(): Promise<void> {
 
     debugLog('[DeleteList] List deleted successfully:', listId);
 
+    // Clear currentListId immediately to prevent race with WS events
+    updateState({ currentListId: null });
+
     // Force Dexie cache invalidation + fresh API load
     if (deletedListTempId) {
       // DEBUG: Skip Dexie operations if disabled for testing
@@ -714,6 +724,7 @@ export function initStoreChoices(): void {
   const stores = state.stores || [];
   selectElement.innerHTML = '<option value="">Выберите магазин</option>' +
     stores.map(store => `<option value="${store.id}">${store.name}</option>`).join('');
+  selectElement.value = '';
 
   // Initialize Choices.js
   try {
@@ -763,6 +774,7 @@ export function initProductGroupChoices(): void {
   const groups = state.productGroups || [];
   selectElement.innerHTML = '<option value="">Выберите группу</option>' +
     buildProductGroupOptions(groups);
+  selectElement.value = '';
 
   // Initialize Choices.js
   try {
