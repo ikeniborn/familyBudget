@@ -248,6 +248,16 @@ jobs:
           echo "IMAGE_VERSION=$IMAGE_VERSION" >> $GITHUB_ENV
           echo "Using image version: $IMAGE_VERSION"
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Check image changes
         id: changes
         env:
@@ -260,19 +270,13 @@ jobs:
             if bash scripts/ci/check_image_changes.sh "$service" | grep -q "build"; then
               return 0
             fi
-            # Fallback: verify image tag exists in registry via GitHub API
-            # Guards against accidental deletion of images that haven't changed
+            # Fallback: verify image actually exists in registry using docker buildx
+            # Uses the same mechanism as deploy.sh (manifest inspect) for consistency
             local version
             version=$(jq -r ".${service}.version // empty" IMAGE_VERSIONS.json 2>/dev/null)
             if [[ -n "$version" ]]; then
-              local found
-              found=$(gh api \
-                --paginate \
-                -H "Accept: application/vnd.github+json" \
-                "/users/${{ github.repository_owner }}/packages/container/familybudget-${service}/versions?per_page=100" \
-                --jq "[.[] | select(.metadata.container.tags | contains([\"${version}\"]))] | length" \
-                2>/dev/null | awk '{s+=$1} END {print s+0}' || echo "0")
-              if [[ -z "$found" || "$found" -eq 0 ]]; then
+              local image="ghcr.io/${{ github.repository_owner }}/familybudget-${service}:${version}"
+              if ! docker buildx imagetools inspect "$image" > /dev/null 2>&1; then
                 echo "⚠️ ${service}:${version} not found in registry — forcing rebuild" >&2
                 return 0
               fi
@@ -355,16 +359,6 @@ jobs:
             org.opencontainers.image.vendor=Family Budget Team
             org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
             org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       # Cache busting already done in service-build job (line 113-145)
       # Templates are validated there, no need to repeat

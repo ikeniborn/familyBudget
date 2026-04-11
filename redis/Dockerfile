@@ -1,5 +1,7 @@
 FROM redis:7-alpine
 
+# Force rebuild: image deleted from GHCR (0.6.98 missing)
+
 # Создаем директорию для AOF persistence
 RUN mkdir -p /data && chown -R redis:redis /data
 

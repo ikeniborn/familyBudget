@@ -1,5 +1,7 @@
 FROM nginx:alpine
 
+# Force rebuild: image deleted from GHCR (0.6.98 missing)
+
 # Копируем nginx конфигурацию
 # Context: ./nginx (paths relative to nginx/ directory)
 COPY nginx.conf /etc/nginx/nginx.conf
