@@ -459,6 +459,36 @@ async def shopping_lists_page(
     )
 
 
+@web_router.get("/lists/{list_id:int}", response_class=HTMLResponse)
+async def shopping_list_detail_page(
+    request: Request,
+    list_id: int,
+    current_user: CurrentUser
+):
+    """
+    Shopping list deep-link route.
+
+    Renders the same lists.html template as /lists, but passes
+    initial_list_id so the frontend can open the detail view directly
+    on load instead of starting in landing view (BUG-5).
+
+    The actual permission check happens server-side via the API call
+    that the frontend makes after boot — this route only confirms the
+    user is authenticated and emits the page shell.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "lists.html",
+        {
+            "request": request,
+            "user": current_user,
+            "page_title": "Списки покупок",
+            "initial_list_id": list_id,
+        }
+    )
+
+
 # =============================================================================
 # Authentication Web Pages (Public and Authenticated)
 # =============================================================================

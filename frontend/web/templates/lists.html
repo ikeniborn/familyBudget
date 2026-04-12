@@ -8,6 +8,11 @@
 {% from "components/lists/modal_fab_confirm.html" import fab_confirm_modal %}
 
 {% block extra_head %}
+{# Deep-link target: when /lists/<id> route is hit, the backend passes
+   initial_list_id and the lists bundle reads this meta on boot to open
+   the detail view for that list directly (BUG-5). #}
+<meta name="initial-list-id" content="{{ initial_list_id|default('') }}">
+
 <!-- Choices.js for product group hierarchical selector -->
 <link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=PLACEHOLDER">
 <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">

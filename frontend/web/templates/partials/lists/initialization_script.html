@@ -100,6 +100,24 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Render landing view with lists
         window.showLandingView();
 
+        // BUG-5: deep-link support — when the backend served /lists/<id>,
+        // it injected an `initial-list-id` meta tag. After lists load, jump
+        // straight into detail view for that list (validates client-side
+        // that the id exists in the loaded set; otherwise stay on landing).
+        const initialListMeta = document.querySelector('meta[name="initial-list-id"]');
+        const initialListIdRaw = initialListMeta ? initialListMeta.getAttribute('content') : '';
+        if (initialListIdRaw && /^\d+$/.test(initialListIdRaw)) {
+            const initialListId = parseInt(initialListIdRaw, 10);
+            const showDetail = window.listsManager?.showDetailView || window.showDetailView;
+            if (typeof showDetail === 'function') {
+                try {
+                    await showDetail(initialListId);
+                } catch (err) {
+                    console.warn('[LISTS_INIT] Deep-link to list failed', { initialListId, err });
+                }
+            }
+        }
+
         performance.mark('lists-init-end');
         performance.measure('lists-initialization', 'lists-init-start', 'lists-init-end');
 
