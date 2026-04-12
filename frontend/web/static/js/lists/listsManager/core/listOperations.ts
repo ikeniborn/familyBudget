@@ -333,6 +333,18 @@ export async function toggleItemCompleted(itemId: number, isCompleted: boolean):
   // Optimistic DOM update (instant visual feedback)
   updateItemCompletedDom(itemId, isCompleted);
 
+  // Optimistically reflect state in the in-memory items list so an immediate
+  // re-render with hideCompleted on actually drops the row (otherwise the
+  // optimistic class toggle leaves the row visible with opacity-60 until the
+  // network round-trip finishes — see BUG-3).
+  const optimisticItem = state.currentItems.find(i => i.id === itemId);
+  if (optimisticItem) {
+    optimisticItem.is_completed = isCompleted;
+  }
+  if (getState().hideCompleted) {
+    renderCurrentView();
+  }
+
   try {
     // Dexie-first strategy
     if (isDexieActive() && dexie.isReady() && item.temp_id) {
@@ -373,6 +385,15 @@ export async function toggleItemCompleted(itemId: number, isCompleted: boolean):
 
     // Revert DOM update on error
     updateItemCompletedDom(itemId, !isCompleted);
+    // Also revert optimistic in-memory state and re-render so a hidden row
+    // re-appears if the toggle ultimately failed (BUG-3 revert path).
+    const revertItem = getState().currentItems.find(i => i.id === itemId);
+    if (revertItem) {
+      revertItem.is_completed = !isCompleted;
+    }
+    if (getState().hideCompleted) {
+      renderCurrentView();
+    }
     showToast('Ошибка обновления статуса', 'error');
   }
 }
