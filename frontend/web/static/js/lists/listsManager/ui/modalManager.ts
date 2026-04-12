@@ -12,7 +12,7 @@ import { getState, updateState, type ShoppingList } from '../core/ListsState';
 import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { loadShoppingLists } from '../core/stateManager';
-import { setupProductAutocomplete } from '../features/autocomplete';
+import { setupProductAutocomplete, hideProductSuggestions } from '../features/autocomplete';
 import { getDexieManager, isDexieActive, db as dexieDb } from '@db/dexie';
 import { getNetworkDelay, isDexieDisabledForTesting, isVerboseLoggingEnabled } from '../testing/debugUtils';
 
@@ -218,10 +218,30 @@ export function openAddItemModal(): void {
   const modalTitle = document.getElementById('item-modal-title');
   if (modalTitle) modalTitle.textContent = '📝 Добавить товар';
 
+  // form.reset() restores DEFAULT option but doesn't blank a select that has
+  // no empty default. Force the underlying selects (and any cached text inputs)
+  // to empty BEFORE Choices.js rebuilds, so the new instance starts clean.
+  const storeSelect = document.getElementById('item-store') as HTMLSelectElement | null;
+  if (storeSelect) storeSelect.value = '';
+  const groupSelect = document.getElementById('item-product-group') as HTMLSelectElement | null;
+  if (groupSelect) groupSelect.value = '';
+  const productNameInput = document.getElementById('item-product-name') as HTMLInputElement | null;
+  if (productNameInput) productNameInput.value = '';
+  const commentInput = document.getElementById('item-comment') as HTMLInputElement | null;
+  if (commentInput) commentInput.value = '';
+  const quantityInputClear = document.getElementById('item-quantity') as HTMLInputElement | null;
+  if (quantityInputClear) quantityInputClear.value = '';
+
   // Reinitialize Choices.js with latest data (fixes issue after CSV import)
   // This ensures newly created stores/groups are visible
   initStoreChoices();
   initProductGroupChoices();
+
+  // Belt-and-braces clear: after Choices.js rebuilds, force its internal
+  // selection back to empty so prior store/group choices don't reappear.
+  const stateAfterInit = getState();
+  stateAfterInit.choicesInstances?.store?.setChoiceByValue('');
+  stateAfterInit.choicesInstances?.productGroup?.setChoiceByValue('');
 
   // Reset quantity input step to default (integer)
   const quantityInput = document.getElementById('item-quantity') as HTMLInputElement | null;
@@ -311,6 +331,10 @@ export function openEditItemModal(itemId: number): void {
 export function closeItemModal(): void {
   // Reset dropdown z-index state to ensure clean state on modal close
   dropdownZIndexManager.reset();
+
+  // Clear product-suggestions dropdown so the empty .suggestion-item portal
+  // doesn't intercept clicks on table rows after the modal closes (BUG-6).
+  hideProductSuggestions();
 
   // STEP 1: Cleanup swipe state BEFORE closing modal
   // This prevents items from staying shifted left after swipe-to-edit
