@@ -18,8 +18,25 @@ import { HierarchyView } from './HierarchyView';
 declare const debugLog: (...args: any[]) => void;
 
 /**
- * Count total nodes in hierarchy (stores + product groups)
- * Used by updateHierarchyToggleButton to determine toggle state
+ * Count nested product group nodes recursively.
+ * Mirrors the structure used by HierarchyView.expandProductGroupTree so the
+ * total matches what expandAll() actually adds to expandedNodes.
+ */
+function countProductGroupNodes(
+  pgTree: Record<number, any> | undefined | null
+): number {
+  if (!pgTree) return 0;
+  let count = 0;
+  Object.values(pgTree).forEach((pg: any) => {
+    count++;
+    count += countProductGroupNodes(pg?.children);
+  });
+  return count;
+}
+
+/**
+ * Count total nodes in hierarchy (stores + every nested product group).
+ * Used by updateHierarchyToggleButton to determine toggle state.
  */
 function getTotalNodeCount(): number {
   const state = getState();
@@ -35,9 +52,11 @@ function getTotalNodeCount(): number {
   let total = 0;
   Object.values(hierarchy).forEach((store: any) => {
     total++; // Store node
-    if (store.groups) {
-      total += Object.keys(store.groups).length; // Product group nodes
-    }
+    // HierarchyView.buildHierarchy stores nested groups under productGroupTree
+    // (the previous implementation read store.groups, which never existed —
+    // expandAll() registered far more nodes than this counter knew about and
+    // updateHierarchyToggleButton() never landed in the "all expanded" branch).
+    total += countProductGroupNodes(store.productGroupTree);
   });
 
   return total;
