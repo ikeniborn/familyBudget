@@ -157,22 +157,16 @@ const windowExports = {
       const btn = document.getElementById('hierarchy-toggle-btn');
       if (!btn) return;
 
+      // expandAll()/collapseAll() each call render() → updateHierarchyToggleButton(),
+      // which is the single source of truth for btn.dataset.action and the icon/text.
+      // Don't write to those here — the previous implementation raced with the
+      // counter and the manual writes left the button in a stale state on the
+      // very next click (BUG-4).
       const action = btn.dataset.action || 'expand';
-
       if (action === 'expand') {
         window.hierarchyView.expandAll();
-        btn.dataset.action = 'collapse';
-        const icon = document.getElementById('hierarchy-toggle-icon');
-        const text = document.getElementById('hierarchy-toggle-text');
-        if (icon) icon.textContent = '⬆️';
-        if (text) text.textContent = 'Свернуть';
       } else {
         window.hierarchyView.collapseAll();
-        btn.dataset.action = 'expand';
-        const icon = document.getElementById('hierarchy-toggle-icon');
-        const text = document.getElementById('hierarchy-toggle-text');
-        if (icon) icon.textContent = '⬇️';
-        if (text) text.textContent = 'Развернуть';
       }
     }
   },
