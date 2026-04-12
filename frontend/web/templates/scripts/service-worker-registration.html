@@ -499,6 +499,19 @@
                     // User already dismissed this version — don't show again
                     return;
                 }
+
+                // Stale-flag guard: if pending version equals the version currently
+                // shipped by the server (meta tag injected from VERSION file), the
+                // update has already been installed — clear the flags and bail.
+                const currentMetaVersion = document.querySelector('meta[name="app-version"]')?.content;
+                if (pendingVersion && currentMetaVersion && pendingVersion === currentMetaVersion) {
+                    localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+                    localStorage.removeItem(SW_NEW_VERSION_KEY);
+                    // Sync the running-version key so subsequent loads start clean
+                    localStorage.setItem(SW_VERSION_KEY, currentMetaVersion);
+                    return;
+                }
+
                 showUpdateIcon();
             }
         }
