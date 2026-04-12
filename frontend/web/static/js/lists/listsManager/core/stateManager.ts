@@ -200,8 +200,26 @@ export async function initializeListsManager(): Promise<void> {
         debugLog('[ListsManager] Network restored, refreshing data...');
         await loadShoppingLists();
         const currentState = getState();
-        if (currentState.currentListId) {
-          await loadShoppingListItems(currentState.currentListId);
+        const currentListId = currentState.currentListId;
+        if (currentListId) {
+          // BUG-7: if the currently-open list was deleted while we were
+          // offline, currentListId still points at it on reconnect, and we
+          // would fire a 404 against /api/v1/shopping-lists/<id>. Verify
+          // the list still exists in the freshly-loaded set; if not, drop
+          // the stale id and bounce back to the landing view.
+          const stillExists = currentState.shoppingLists.some(
+            (list) => list.id === currentListId
+          );
+          if (!stillExists) {
+            debugLog('[ListsManager] Current list no longer exists, returning to landing', {
+              currentListId,
+            });
+            updateState({ currentListId: null, currentItems: [] });
+            const { renderLandingView } = await import('../rendering/listRenderer');
+            renderLandingView();
+            return;
+          }
+          await loadShoppingListItems(currentListId);
         }
       }
     });
