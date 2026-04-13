@@ -69,7 +69,7 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
           date: data.fact_date,
           amount: data.amount,
           record_type: 'fact',
-          comment: (data.description as string | null) ?? null,
+          comment: data.description as string | null,
           transfer_group_id: null,
           is_transfer: false,
           sync_hash: null

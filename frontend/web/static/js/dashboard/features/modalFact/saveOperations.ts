@@ -38,7 +38,6 @@ export async function saveFactModal(button: HTMLElement): Promise<void> {
   // Set button loading state
   setButtonLoading(button, true);
 
-  // v10.1.52: Disable required validation on inactive tab
   disableInactiveTabValidation(MODAL_ID, activeTab);
 
   // Validate form (only active tab fields)
@@ -79,7 +78,6 @@ export async function saveFactModal(button: HTMLElement): Promise<void> {
     }
   } finally {
     setButtonLoading(button, false);
-    // v10.1.52: Restore required validation after save
     restoreRequiredValidation(MODAL_ID);
   }
 }
