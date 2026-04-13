@@ -520,9 +520,17 @@
                    padding-left: var(--safe-area-inset-left);
                    padding-right: var(--safe-area-inset-right);
                    min-height: calc(4rem + var(--safe-area-inset-top));">
-        <div class="navbar-start">
-            <a href="/" class="btn btn-ghost text-lg sm:text-xl font-bold text-primary px-2 sm:px-4" aria-label="Семейный бюджет home">
-                💰 <span class="sm:hidden">СБ</span><span class="hidden sm:inline">Семейный бюджет</span>
+        <div class="navbar-start min-w-0">
+            <a href="/" class="btn btn-ghost text-lg sm:text-xl font-bold text-primary px-2 sm:px-4 min-w-0 max-w-full" aria-label="Семейный бюджет home">
+                <span class="shrink-0">💰</span>
+                <span class="sm:hidden">СБ</span>
+                {# Between sm (640px) and lg (1024px) there's no menu, so full text fits.
+                   Between lg (1024px) and 2xl (1536px) the menu is visible and collides with the
+                   logo at ~1280px (BUG #7), so show short "СБ".
+                   At 2xl+ (1536px) there is enough room for the full brand name. #}
+                <span class="hidden sm:inline lg:hidden">Семейный бюджет</span>
+                <span class="hidden lg:inline 2xl:hidden">СБ</span>
+                <span class="hidden 2xl:inline truncate">Семейный бюджет</span>
             </a>
         </div>
 
@@ -893,21 +901,22 @@
 
                 // Start background init (non-blocking, won't block UI)
                 window.Dexie.initializeDatabaseInBackground().then(async () => {
-                    // After SW update: DB was cleared, must re-sync reference data
-                    if (isPostSWUpdate) {
-                        console.info('[APP] Post-SW-update: triggering reference data re-sync...');
-                        try {
-                            const dexie = await window.Dexie.getDexieManager();
-                            const userId = window.userData?.id || window.user?.id;
-                            if (userId) {
-                                await dexie.syncReferenceData();
-                                console.info('[APP] ✅ Post-SW-update reference data sync complete');
-                            } else {
-                                console.warn('[APP] Post-SW-update sync skipped: userId not available');
-                            }
-                        } catch (syncError) {
-                            console.warn('[APP] Post-SW-update sync failed (non-critical):', syncError);
+                    const dexie = await window.Dexie.getDexieManager();
+
+                    // Auto-sync reference data on first login (empty DB) or after SW update
+                    try {
+                        const db = window.Dexie.getDatabase();
+                        const articlesCount = db ? await db.articles.count() : 0;
+                        const needsSync = isPostSWUpdate || articlesCount === 0;
+
+                        if (needsSync) {
+                            const reason = isPostSWUpdate ? 'post-SW-update' : 'empty-db';
+                            console.info(`[APP] Auto-syncing reference data (${reason})...`);
+                            await dexie.syncReferenceData();
+                            console.info('[APP] ✅ Reference data sync complete');
                         }
+                    } catch (syncError) {
+                        console.warn('[APP] Reference data auto-sync failed (non-critical):', syncError);
                     }
                 }).catch(error => {
                     console.warn('[APP] Background Dexie init failed (non-critical):', error);

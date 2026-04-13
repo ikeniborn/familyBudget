@@ -7,6 +7,8 @@
 
 import { refreshUIAfterPlanSave } from '../../shared/utils/uiRefresh';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
+import { createFact, generateUUID, isDexieActive } from '@db/dexie';
+import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 /**
  * Save plan transfer
@@ -35,9 +37,62 @@ export async function savePlanTransfer(form: HTMLFormElement): Promise<void> {
     description: descriptionInput?.value || null
   };
 
-  // POST /api/v1/transfers
-  await postAPI('/api/v1/transfers', data, 'SavePlanModal');
+  try {
+    // POST /api/v1/transfers
+    await postAPI('/api/v1/transfers', data, 'SavePlanModal');
 
-  // Update UI
-  await refreshUIAfterPlanSave();
+    // Update UI
+    await refreshUIAfterPlanSave();
+  } catch (error) {
+    // Offline fallback: create both plan sides as pending facts in Dexie
+    const isOffline = !navigator.onLine
+      || (error instanceof TypeError && /fetch/i.test(error.message));
+
+    if (isOffline && isDexieActive()) {
+      try {
+        const userId = await getCurrentUserId();
+        const transferGroupId = generateUUID();
+
+        // Debit side (expense plan): money leaving from_financial_center
+        await createFact({
+          user_id: userId,
+          article_id: data.from_article_id ?? 0,
+          financial_center_id: data.from_financial_center_id,
+          cost_center_id: null,
+          date: data.transfer_date,
+          amount: -Math.abs(data.amount),
+          record_type: 'plan',
+          comment: data.description ?? null,
+          transfer_group_id: transferGroupId,
+          is_transfer: true,
+          sync_hash: null
+        });
+
+        // Credit side (income plan): money arriving at to_financial_center
+        await createFact({
+          user_id: userId,
+          article_id: data.to_article_id ?? 0,
+          financial_center_id: data.to_financial_center_id,
+          cost_center_id: null,
+          date: data.transfer_date,
+          amount: Math.abs(data.amount),
+          record_type: 'plan',
+          comment: data.description ?? null,
+          transfer_group_id: transferGroupId,
+          is_transfer: true,
+          sync_hash: null
+        });
+
+        if (typeof (window as any).showToast === 'function') {
+          (window as any).showToast('Перевод-план сохранён offline — отправится при подключении', 'info');
+        }
+        await refreshUIAfterPlanSave();
+        return;
+      } catch (offlineError) {
+        console.error('[SavePlanModal] Failed to save plan transfer offline:', offlineError);
+      }
+    }
+
+    throw error;
+  }
 }

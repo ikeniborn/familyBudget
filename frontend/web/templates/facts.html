@@ -25,12 +25,12 @@
     <!-- Filters Section -->
     <div class="collapse collapse-arrow bg-base-100 shadow-lg">
         <input type="checkbox" id="filters-toggle" class="peer" />
-        <label for="filters-toggle" class="collapse-title text-xl font-medium flex justify-between items-center cursor-pointer">
-            <span>
+        <label for="filters-toggle" class="collapse-title text-xl font-medium flex flex-wrap justify-between items-center gap-y-1 cursor-pointer">
+            <span class="flex items-center min-w-0">
                 🔍 Фильтры
                 <span id="filter-indicator" class="badge badge-primary badge-sm ml-2 hidden">активны</span>
             </span>
-            <button class="btn btn-sm btn-ghost" data-action="reset-filters">Сбросить</button>
+            <button class="btn btn-sm btn-ghost shrink-0" data-action="reset-filters">Сбросить</button>
         </label>
         <div class="collapse-content">
             <div class="pt-4">

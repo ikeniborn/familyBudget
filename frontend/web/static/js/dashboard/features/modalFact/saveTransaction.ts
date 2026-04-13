@@ -6,7 +6,8 @@
 
 import { refreshUIAfterFactSave } from '../../shared/utils/uiRefresh';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
-import { getDexieManager, isDexieActive, mapAPIFactToLocal, toCents, db } from '@db/dexie';
+import { getDexieManager, isDexieActive, mapAPIFactToLocal, toCents, db, createFact } from '@db/dexie';
+import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 /**
  * Save fact transaction
@@ -53,7 +54,36 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
     // Update UI
     await refreshUIAfterFactSave();
   } catch (error) {
-    console.error('[SaveFactModal] Failed to save transaction:', error);
+    // Offline fallback: enqueue in Dexie pendingOperations instead of losing data
+    const isOffline = !navigator.onLine
+      || (error instanceof TypeError && /fetch/i.test(error.message));
+
+    if (isOffline && isDexieActive()) {
+      try {
+        const userId = await getCurrentUserId();
+        await createFact({
+          user_id: userId,
+          article_id: data.article_id,
+          financial_center_id: data.financial_center_id,
+          cost_center_id: data.cost_center_id ?? null,
+          date: data.fact_date,
+          amount: data.amount,
+          record_type: 'fact',
+          comment: (data.description as string | null) ?? null,
+          transfer_group_id: null,
+          is_transfer: false,
+          sync_hash: null
+        });
+        if (typeof (window as any).showToast === 'function') {
+          (window as any).showToast('Сохранено offline — отправится при подключении', 'info');
+        }
+        await refreshUIAfterFactSave();
+        return;
+      } catch (offlineError) {
+        console.error('[SaveFactModal] Failed to save offline:', offlineError);
+      }
+    }
+
     throw error; // Re-throw for upper layer handling
   }
 }

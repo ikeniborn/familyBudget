@@ -1906,6 +1906,12 @@ class ChoicesCategoryTree {
                 this.categories = fallback.data;
                 return;
             }
+            // Dexie fallback: load categories from local IndexedDB
+            const dexieCategories = await this._loadCategoriesFromDexie(cacheKey);
+            if (dexieCategories !== null) {
+                this.categories = dexieCategories;
+                return;
+            }
             this.categories = [];
             return;
         }
@@ -1955,7 +1961,7 @@ class ChoicesCategoryTree {
             });
 
             return categories;
-        }).catch(error => {
+        }).catch(async error => {
             // Handle network errors (offline mode)
             console.warn('[ChoicesCategoryTree] Network error loading categories (offline?):', error.message);
 
@@ -1979,6 +1985,12 @@ class ChoicesCategoryTree {
                 }
             }
 
+            // Dexie fallback: load categories from local IndexedDB
+            const dexieCategories = await this._loadCategoriesFromDexie(cacheKey);
+            if (dexieCategories !== null) {
+                return dexieCategories;
+            }
+
             // No cache available - return empty array to avoid breaking UI
             console.warn('[ChoicesCategoryTree] No cached categories available for offline mode');
             return [];
@@ -1991,6 +2003,45 @@ class ChoicesCategoryTree {
         ChoicesCategoryTree._pendingRequests.set(cacheKey, requestPromise);
 
         this.categories = await requestPromise;
+    }
+
+    /**
+     * Load categories from Dexie IndexedDB as offline fallback.
+     * Returns mapped categories array if Dexie is available and has data, or null.
+     * @param cacheKey - Cache key to store result in _cache
+     */
+    private async _loadCategoriesFromDexie(cacheKey: string): Promise<any[] | null> {
+        try {
+            const dexieDb = typeof (window as any).Dexie?.getDatabase === 'function'
+                ? (window as any).Dexie.getDatabase()
+                : null;
+            if (!dexieDb) return null;
+
+            let articles: any[] = await dexieDb.articles
+                .where('type').equals(this.options.type)
+                .toArray();
+
+            if (!this.options.showInactive) {
+                articles = articles.filter((a: any) => a.is_active);
+            }
+
+            if (articles.length === 0) return null;
+
+            // Compute is_leaf: an article is a leaf if no other article has it as parent_id
+            const parentIds = new Set(articles.map((a: any) => a.parent_id).filter(Boolean));
+            const mapped = articles.map((a: any) => ({
+                ...a,
+                is_leaf: !parentIds.has(a.id)
+            }));
+
+            ChoicesCategoryTree._cache.set(cacheKey, { data: mapped, timestamp: Date.now() });
+            if (typeof (window as any).debugLog === "function") {
+                (window as any).debugLog(`[ChoicesCategoryTree] Loaded ${mapped.length} categories from Dexie (offline fallback)`);
+            }
+            return mapped;
+        } catch {
+            return null;
+        }
     }
 
     /**

@@ -251,7 +251,7 @@ export async function queryFacts(filters?: FactFilters): Promise<LocalBudgetFact
 /**
  * Add pending operation to queue
  */
-async function addPendingOperation(operation: Omit<LocalPendingOperation, 'id'>): Promise<void> {
+export async function addPendingOperation(operation: Omit<LocalPendingOperation, 'id'>): Promise<void> {
   try {
     await db.pendingOperations.add(operation as LocalPendingOperation);
     logger.debug('[Dexie] Pending operation added', {

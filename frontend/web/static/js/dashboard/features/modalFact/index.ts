@@ -12,6 +12,7 @@ import { setupTransactionTypeToggle } from './typeToggle';
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
 import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
 import { setupTransferFCExclusion, createToClearCallback, cleanupExclusionFlag } from '../../shared/utils/transferFCExclusion';
+import { disableInactiveTabValidation } from '../../shared/utils/tabValidation';
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
@@ -613,8 +614,9 @@ export async function openModalFact(): Promise<void> {
     // Setup transaction type toggle listeners
     setupTransactionTypeToggle();
 
-    // Reset to transaction tab (default)
+    // Reset to transaction tab (default) and strip required from inactive transfer tab
     switchTab('transaction');
+    disableInactiveTabValidation('modal_fact', 'transaction');
 
     // Auto-fill today's date in both tabs
     // Use window functions (already exported by dateHelpers module)

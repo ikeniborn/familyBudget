@@ -13,7 +13,7 @@
         - user: User object (required)
         - request: Request object for active link detection (required)
 #}
-<div id="navbar-center-menu" class="navbar-center hidden lg:flex">
+<div id="navbar-center-menu" class="navbar-center hidden lg:flex shrink-0">
     <ul class="menu menu-horizontal px-1" role="menubar">
         {% if user %}
         <li><a href="/" data-nav-item class="{% if request.url.path == '/' %}active{% endif %}" aria-current="{% if request.url.path == '/' %}page{% endif %}">🏠 Главная</a></li>

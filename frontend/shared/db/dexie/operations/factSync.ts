@@ -77,6 +77,24 @@ async function uploadOperation(op: LocalPendingOperation): Promise<void> {
     temp_id: op.temp_id
   });
 
+  // Recurring plans use a different endpoint and raw payload (not mapLocalFactToAPI)
+  if (op.entity_type === 'recurring_plan' && op.operation === 'create') {
+    const response = await fetchWithTimeout('/api/v1/recurring-plans/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(op.payload),
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      throw new Error(`Server error: ${response.status}`);
+    }
+    // Remove from pending queue — server will populate db.recurringPlans on next sync
+    if (op.temp_id) {
+      await db.pendingOperations.where('temp_id').equals(op.temp_id).delete();
+    }
+    return;
+  }
+
   let endpoint: string;
   let method: string;
 

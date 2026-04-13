@@ -14,6 +14,7 @@ import { setupPlanPeriodButtons, setupTransferPeriodButtons } from '../addPlan/p
 import { setupModalKeyboardShortcuts } from '../../shared/utils/keyboardShortcuts';
 import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
 import { setupTransferFCExclusion, createToClearCallback, cleanupExclusionFlag } from '../../shared/utils/transferFCExclusion';
+import { disableInactiveTabValidation } from '../../shared/utils/tabValidation';
 import type { Category } from '../../types/dashboard';
 
 declare const debugLog: (...args: any[]) => void;
@@ -520,8 +521,9 @@ export async function openModalPlan(): Promise<void> {
     setupPlanPeriodButtons();
     setupTransferPeriodButtons();
 
-    // Reset to transaction tab (default)
+    // Reset to transaction tab (default) and strip required from inactive transfer tab
     switchTab('transaction');
+    disableInactiveTabValidation('modal_plan', 'transaction');
 
     // Auto-fill current month in both tabs
     // Use window functions (already exported by dateHelpers module)

@@ -9,34 +9,14 @@ import { closeModalFact } from './index';
 import { getCurrentTab } from './tabManager';
 import { saveFactTransaction } from './saveTransaction';
 import { setButtonLoading } from '../../shared/utils/buttonState';
+import {
+  disableInactiveTabValidation,
+  restoreRequiredValidation,
+} from '../../shared/utils/tabValidation';
 
 declare const debugLog: (...args: any[]) => void;
 
-/**
- * Disable required validation on inactive tab (v10.1.52)
- * Prevents "not focusable" errors for hidden required fields
- */
-function disableInactiveTabValidation(activeTab: 'transaction' | 'transfer'): void {
-  const inactiveTab = activeTab === 'transaction' ? 'transfer' : 'transaction';
-  const inactiveTabSelector = `#modal_fact-tab-${inactiveTab}`;
-  const inactiveFields = document.querySelectorAll(`${inactiveTabSelector} [required]`);
-
-  inactiveFields.forEach((field) => {
-    field.removeAttribute('required');
-    field.setAttribute('data-was-required', 'true'); // Mark for restore
-  });
-}
-
-/**
- * Restore required validation on all tabs (v10.1.52)
- */
-function restoreRequiredValidation(): void {
-  const fieldsToRestore = document.querySelectorAll('[data-was-required="true"]');
-  fieldsToRestore.forEach((field) => {
-    field.setAttribute('required', '');
-    field.removeAttribute('data-was-required');
-  });
-}
+const MODAL_ID = 'modal_fact';
 
 /**
  * Save fact modal (router function)
@@ -59,13 +39,13 @@ export async function saveFactModal(button: HTMLElement): Promise<void> {
   setButtonLoading(button, true);
 
   // v10.1.52: Disable required validation on inactive tab
-  disableInactiveTabValidation(activeTab);
+  disableInactiveTabValidation(MODAL_ID, activeTab);
 
   // Validate form (only active tab fields)
   if (!form.checkValidity()) {
     setButtonLoading(button, false);
     form.reportValidity();
-    restoreRequiredValidation(); // Restore before return
+    restoreRequiredValidation(MODAL_ID); // Restore before return
 
     // UX: Show toast notification for validation errors
     if (typeof (window as any).showToast === 'function') {
@@ -100,6 +80,6 @@ export async function saveFactModal(button: HTMLElement): Promise<void> {
   } finally {
     setButtonLoading(button, false);
     // v10.1.52: Restore required validation after save
-    restoreRequiredValidation();
+    restoreRequiredValidation(MODAL_ID);
   }
 }
