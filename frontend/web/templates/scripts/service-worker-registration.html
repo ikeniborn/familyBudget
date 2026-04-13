@@ -52,6 +52,18 @@
                 return;
             }
 
+            // Final defensive guard: never show icon when pending version equals the shipped version.
+            // Protects against stale localStorage flags leaking through earlier guards.
+            const pendingVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+            const metaVersion = document.querySelector('meta[name="app-version"]')?.content;
+            if (pendingVersion && metaVersion && pendingVersion === metaVersion) {
+                localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+                localStorage.removeItem(SW_NEW_VERSION_KEY);
+                localStorage.setItem(SW_VERSION_KEY, metaVersion);
+                console.log('[SW_UPDATE] Final guard: pending version equals shipped version, skipping icon');
+                return;
+            }
+
             const wrapper = document.getElementById('update-available-wrapper');
 
             if (!wrapper) {
