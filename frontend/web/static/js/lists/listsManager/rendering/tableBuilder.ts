@@ -37,15 +37,13 @@ function escapeHtml(unsafe: string | null | undefined): string {
 }
 
 /**
- * Format quantity with unit
+ * Format quantity (without unit — unit is rendered in a separate column)
  */
-function formatQuantity(quantity: number | null, unit: string | null): string {
+function formatQuantity(quantity: number | null): string {
   if (quantity === null) return '—';
 
   // Always round to nearest integer
-  const rounded = Math.round(quantity);
-
-  return unit ? `${rounded} ${unit}` : rounded.toString();
+  return Math.round(quantity).toString();
 }
 
 /**
@@ -266,7 +264,7 @@ export function renderItemsTable(): void {
             ${escapeHtml(productName)}
           </span>
         </td>
-        <td data-label="Кол-во" class="text-right">${item.quantity !== null ? formatQuantity(item.quantity, item.unit) : '—'}</td>
+        <td data-label="Кол-во" class="text-right">${formatQuantity(item.quantity)}</td>
         <td data-label="Ед.">${item.unit ? escapeHtml(item.unit) : '—'}</td>
         <td data-label="Комментарий" class="truncate-1-line">${comment ? escapeHtml(comment) : '—'}</td>
         <td data-label="Действия" class="text-center" onclick="event.stopPropagation()">
