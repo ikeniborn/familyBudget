@@ -328,7 +328,8 @@ export class DexieManager {
       date: fact.date,
       record_type: fact.record_type,
       user_id: fact.user_id,
-      article_id: fact.article_id
+      article_id: fact.article_id,
+      is_transfer: fact.is_transfer,
     });
 
     const temp_id = generateNumericTempId();
