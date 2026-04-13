@@ -39,9 +39,10 @@ export function validateFact(fact: {
   record_type: string;
   user_id: number;
   article_id: number;
+  is_transfer?: boolean;
 }): void {
-  // Validate amount (positive number)
-  if (!validateAmount(fact.amount)) {
+  // Validate amount: positive for regular facts, negative allowed for transfer debit records
+  if (!validateAmount(fact.amount) && !(fact.is_transfer && fact.amount < 0)) {
     throw new Error(`Invalid amount: ${fact.amount}. Must be a positive number`);
   }
 
