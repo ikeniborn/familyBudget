@@ -205,6 +205,25 @@ function setupPendingRecordsListeners(): void {
   window.addEventListener('online', () => loadPendingRecordsImpl());
   window.addEventListener('offline', () => loadPendingRecordsImpl());
 
+  // Auto-sync pending operations when connection is restored
+  window.addEventListener('network-status-change', async (event: Event) => {
+    const customEvent = event as CustomEvent<{ status: string; previousStatus: string }>;
+    if (customEvent.detail?.status === 'online' && customEvent.detail?.previousStatus !== 'online') {
+      if (!window.offlineManager) return;
+      try {
+        const { items } = await window.offlineManager.getAllUnsyncedItems();
+        if (items.length > 0) {
+          debugLog('[Dashboard] Connection restored — auto-syncing', items.length, 'pending items');
+          retryFailedItemsImpl().catch(err => {
+            debugLog('[Dashboard] Auto-sync on reconnect failed:', err);
+          });
+        }
+      } catch (err) {
+        debugLog('[Dashboard] Auto-sync check failed:', err);
+      }
+    }
+  });
+
   // Listen for offline-sync-complete event
   window.addEventListener('offline-sync-complete', async (event: Event) => {
     const customEvent = event as CustomEvent<{ synced?: number; status?: string }>;
