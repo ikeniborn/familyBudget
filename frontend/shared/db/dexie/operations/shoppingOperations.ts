@@ -58,7 +58,11 @@ export async function queryShoppingLists(
   // Apply filters
   if (filters) {
     results = results.filter(list => {
-      if (filters.is_active !== undefined && list.is_active !== filters.is_active) return false;
+      if (filters.is_active !== undefined) {
+        // Legacy records (Dexie schema v1/v2) lack is_active — default to active
+        const listActive = list.is_active ?? true;
+        if (listActive !== filters.is_active) return false;
+      }
       if (filters.sync_status && list.sync_status !== filters.sync_status) return false;
       return true;
     });
@@ -194,7 +198,11 @@ export async function queryStores(
   // Apply filters
   if (filters) {
     results = results.filter(store => {
-      if (filters.is_active !== undefined && store.is_active !== filters.is_active) return false;
+      if (filters.is_active !== undefined) {
+        // Legacy records (Dexie schema v1/v2) lack is_active — default to active
+        const storeActive = store.is_active ?? true;
+        if (storeActive !== filters.is_active) return false;
+      }
       return true;
     });
   }
@@ -216,7 +224,11 @@ export async function queryProductGroups(
   if (filters) {
     results = results.filter(group => {
       if (filters.parent_id !== undefined && group.parent_id !== filters.parent_id) return false;
-      if (filters.is_active !== undefined && group.is_active !== filters.is_active) return false;
+      if (filters.is_active !== undefined) {
+        // Legacy records (Dexie schema v1/v2) lack is_active — default to active
+        const groupActive = group.is_active ?? true;
+        if (groupActive !== filters.is_active) return false;
+      }
       return true;
     });
   }
