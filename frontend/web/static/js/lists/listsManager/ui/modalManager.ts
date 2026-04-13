@@ -207,10 +207,33 @@ export async function handleCreateList(event: Event): Promise<void> {
 // ============================================================================
 
 /**
+ * Attach a native `close` event listener to #item-modal exactly once.
+ *
+ * This guarantees the autocomplete dropdown and z-index state are cleaned up
+ * on ALL close paths — Esc key, native backdrop button, or any direct
+ * `dialog.close()` call — not just the explicit `closeItemModal()` helper.
+ *
+ * Without this, the Portal-mounted #product-suggestions-dropdown would stay
+ * visible after Esc/backdrop close and intercept clicks across the page.
+ */
+function ensureItemModalCloseCleanup(): void {
+  const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
+  if (modal && !(modal as any).__closeCleanupAttached) {
+    modal.addEventListener('close', () => {
+      // Cleanup on ALL close paths (Esc / backdrop / native dialog.close())
+      dropdownZIndexManager.reset();
+      hideProductSuggestions();
+    });
+    (modal as any).__closeCleanupAttached = true;
+  }
+}
+
+/**
  * Open add item modal
  */
 export function openAddItemModal(): void {
   const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
+  ensureItemModalCloseCleanup();
   const form = document.getElementById('item-form') as HTMLFormElement | null;
   if (form) form.reset();
   const itemIdInput = document.getElementById('item-id') as HTMLInputElement | null;
@@ -280,6 +303,7 @@ export function openEditItemModal(itemId: number): void {
   }
 
   const modal = document.getElementById('item-modal') as HTMLDialogElement | null;
+  ensureItemModalCloseCleanup();
   const itemIdInput = document.getElementById('item-id') as HTMLInputElement | null;
   const productNameInput = document.getElementById('item-product-name') as HTMLInputElement | null;
   const quantityInput = document.getElementById('item-quantity') as HTMLInputElement | null;
