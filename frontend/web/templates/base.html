@@ -1155,15 +1155,21 @@
         const wrapper = document.getElementById('budget-sse-status-wrapper');
         if (!wrapper) return;
 
+        // BUG #2 FIX: Debounce 300ms to prevent accidental opens when the indicator
+        // is clicked unintentionally (e.g. fast taps near other header controls).
+        let _wsDiagDebounce = null;
         wrapper.addEventListener('click', function(e) {
             e.preventDefault();
             e.stopPropagation();
-            console.debug('[WS_INDICATOR] click detected, opening WS diagnostics...');
-            if (window.budgetWSClient && typeof window.budgetWSClient.showDiagnostics === 'function') {
-                window.budgetWSClient.showDiagnostics();
-            } else {
-                console.error('[WS_INDICATOR] window.budgetWSClient.showDiagnostics not available');
-            }
+            clearTimeout(_wsDiagDebounce);
+            _wsDiagDebounce = setTimeout(function() {
+                console.debug('[WS_INDICATOR] click detected, opening WS diagnostics...');
+                if (window.budgetWSClient && typeof window.budgetWSClient.showDiagnostics === 'function') {
+                    window.budgetWSClient.showDiagnostics();
+                } else {
+                    console.error('[WS_INDICATOR] window.budgetWSClient.showDiagnostics not available');
+                }
+            }, 300);
         });
     })();
     </script>
@@ -1478,8 +1484,10 @@
                 });
             }
 
-            // Show banner after delay
-            setTimeout(showBanner, BANNER_SHOW_DELAY);
+            // BUG #3 FIX: Do NOT auto-show banner on page load — only show when user
+            // explicitly opens it (e.g. clicks the bell button). The BANNER_SHOW_DELAY
+            // auto-trigger caused the push permission UI to appear on first load without
+            // any user intent, which is considered intrusive and violates best practices.
         })();
 
         /**

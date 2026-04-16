@@ -52,11 +52,19 @@
                 return;
             }
 
+            const pendingVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+
+            // BUG #1 FIX: If no pending version is recorded, the update flag is stale — clear and bail.
+            if (!pendingVersion) {
+                localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+                console.log('[SW_UPDATE] showUpdateIcon: no pending version recorded, skipping icon');
+                return;
+            }
+
             // Final defensive guard: never show icon when pending version equals the shipped version.
             // Protects against stale localStorage flags leaking through earlier guards.
-            const pendingVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
             const metaVersion = document.querySelector('meta[name="app-version"]')?.content;
-            if (pendingVersion && metaVersion && pendingVersion === metaVersion) {
+            if (metaVersion && pendingVersion === metaVersion) {
                 localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
                 localStorage.removeItem(SW_NEW_VERSION_KEY);
                 localStorage.setItem(SW_VERSION_KEY, metaVersion);
@@ -506,8 +514,18 @@
 
             if (updateAvailable === 'true') {
                 const pendingVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
+
+                // BUG #1 FIX: If SW_UPDATE_AVAILABLE_KEY is 'true' but SW_NEW_VERSION_KEY
+                // is not set (null), the flag is stale (set by an older code path that didn't
+                // write the version, or localStorage was partially cleared). Clear it and bail.
+                if (!pendingVersion) {
+                    localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+                    console.log('[SW_UPDATE] checkForPendingUpdate: stale flag (no version recorded), cleared');
+                    return;
+                }
+
                 const snoozedVersion = localStorage.getItem(SW_SNOOZED_VERSION_KEY);
-                if (snoozedVersion && pendingVersion && snoozedVersion === pendingVersion) {
+                if (snoozedVersion && snoozedVersion === pendingVersion) {
                     // User already dismissed this version — don't show again
                     return;
                 }
@@ -516,7 +534,7 @@
                 // shipped by the server (meta tag injected from VERSION file), the
                 // update has already been installed — clear the flags and bail.
                 const currentMetaVersion = document.querySelector('meta[name="app-version"]')?.content;
-                if (pendingVersion && currentMetaVersion && pendingVersion === currentMetaVersion) {
+                if (currentMetaVersion && pendingVersion === currentMetaVersion) {
                     localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
                     localStorage.removeItem(SW_NEW_VERSION_KEY);
                     // Sync the running-version key so subsequent loads start clean

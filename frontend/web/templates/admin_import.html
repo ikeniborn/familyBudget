@@ -601,9 +601,10 @@ body.resizing-columns * {
     <div class="card bg-base-100 shadow-lg lg:w-[95vw] lg:max-w-none lg:-mx-[calc((95vw-100%)/2)]" id="step-4-enrichment" style="display: none;">
         <div class="card-body">
             <!-- Header with stats -->
-            <div class="flex justify-between items-center mb-4">
+            <!-- BUG #9 FIX: flex-wrap + gap-2 prevent overflow on tablet; overflow-x-auto on stats block -->
+            <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
                 <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📋 Шаг 4: Обогащение данных</h2>
-                <div id="staging-stats" class="stats shadow">
+                <div id="staging-stats" class="stats shadow overflow-x-auto">
                     <div class="stat py-2 px-4">
                         <div class="stat-title text-xs">Всего</div>
                         <div class="stat-value text-2xl" id="stat-total">0</div>
@@ -629,7 +630,8 @@ body.resizing-columns * {
                 <div class="filter-sidebar collapsed rounded-lg" id="filter-sidebar">
                     <!-- Collapsible Header -->
                     <div class="filter-sidebar-header" onclick="toggleFilterSidebar()">
-                        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2">🔍 Фильтры</h3>
+                        <!-- BUG #9 FIX: added filter-title class so the text hides when sidebar is collapsed -->
+                        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2 filter-title">🔍 Фильтры</h3>
                         <span class="filter-toggle-icon text-lg">◀</span>
                     </div>
 
@@ -1697,11 +1699,13 @@ async function showPostUploadActions() {
         useExistingBtn.style.display = 'inline-flex';
         showNotification('Файл загружен. Найден существующий маппинг.', 'success');
     } else {
-        // No mapping - show only create mapping button
-        createMappingBtn.style.display = 'inline-flex';
+        // BUG #8 FIX: No mapping found — go directly to Step 3 (mapping form)
+        // instead of showing an intermediate screen with just a "Создать маппинг" button.
+        createMappingBtn.style.display = 'none';
         updateMappingBtn.style.display = 'none';
         useExistingBtn.style.display = 'none';
-        showNotification('Файл загружен. Создайте маппинг колонок.', 'success');
+        showNotification('Файл загружен. Настройте маппинг колонок.', 'success');
+        await createMapping();
     }
 }
 
@@ -2359,6 +2363,16 @@ async function loadStagingTable() {
 
 function renderStagingTable() {
     const tbody = document.getElementById('staging-table-body');
+
+    // BUG #5 FIX: Destroy all existing Choices.js instances before clearing DOM.
+    // Without this, picker.destroy() in initCellCategoryPicker() fails with
+    // "Cannot read properties of undefined (reading 'element')" because the
+    // elements were already removed by innerHTML = ''.
+    cellCategoryPickers.forEach((picker) => {
+        try { picker.destroy(); } catch (e) { /* element already detached */ }
+    });
+    cellCategoryPickers.clear();
+
     tbody.innerHTML = '';
 
     // Use filteredRecords if filters are active, otherwise show all
@@ -2946,6 +2960,18 @@ async function executeImport() {
     const selectedIds = getSelectedIds();
     if (selectedIds.length === 0) {
         showNotification('Выберите записи для импорта', 'error');
+        return;
+    }
+
+    // BUG #7 FIX: Validate all selected records have a category before sending.
+    // The "Готово к импорту" counter may show records as ready even when article_id
+    // was only set locally (bulk apply BUG #6) but not persisted to backend.
+    const missingCategory = selectedIds.filter(id => {
+        const rec = stagingRecords.find(r => r.id === id);
+        return !rec?.article_id;
+    });
+    if (missingCategory.length > 0) {
+        showNotification(`${missingCategory.length} из выбранных записей без категории — задайте категорию и повторите`, 'error');
         return;
     }
 
@@ -4413,9 +4439,9 @@ function initCellCategoryPicker(recordId) {
     const selectEl = document.getElementById(`article-select-${recordId}`);
     if (!selectEl) return;
 
-    // Destroy existing instance if any
+    // Destroy existing instance if any (wrap in try/catch — element may already be detached)
     if (cellCategoryPickers.has(recordId)) {
-        cellCategoryPickers.get(recordId).destroy();
+        try { cellCategoryPickers.get(recordId).destroy(); } catch (e) { /* already detached */ }
         cellCategoryPickers.delete(recordId);
     }
 
@@ -4467,12 +4493,18 @@ function updateCellCategoryType(recordId, newType) {
 }
 
 /**
- * Initialize ChoicesCategoryTree for bulk filtered panel
+ * Initialize ChoicesCategoryTree for bulk filtered panel.
+ * BUG #6 FIX: Added forceReinit guard — prevents the second call from
+ * loadStagingTable() destroying the already-initialized instance from
+ * loadStagingTableByBank(), which caused the selected category to be lost.
  */
-function initBulkFilteredCategoryTree() {
+function initBulkFilteredCategoryTree(forceReinit = false) {
+    // Skip re-init if already initialized and not forced
+    if (bulkFilteredCategoryTree && !forceReinit) return;
+
     // Destroy previous instance if exists
     if (bulkFilteredCategoryTree) {
-        bulkFilteredCategoryTree.destroy();
+        try { bulkFilteredCategoryTree.destroy(); } catch (e) { /* ignore */ }
         bulkFilteredCategoryTree = null;
     }
 
@@ -4511,14 +4543,18 @@ function updateBulkFilteredArticles() {
 }
 
 /**
- * Get selected article ID from bulk filtered ChoicesCategoryTree
+ * Get selected article ID from bulk filtered ChoicesCategoryTree.
+ * BUG #6 FIX: Added DOM fallback — if the Choices instance is unavailable or
+ * returns null (e.g. after double-init race condition), reads the raw select value.
  */
 function getBulkFilteredArticleId() {
     if (bulkFilteredCategoryTree) {
         const category = bulkFilteredCategoryTree.getSelectedCategory();
-        return category ? category.id : null;
+        if (category) return category.id;
     }
-    return null;
+    // Fallback: read value directly from the underlying select element
+    const val = document.getElementById('bulk-filtered-article')?.value;
+    return val && val !== '' ? val : null;
 }
 </script>
 {% endblock %}
