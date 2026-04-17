@@ -135,6 +135,10 @@ async def create_article(
     # Create initial history record (SCD Type 2 for history)
     await create_initial_history(session=session, article=article, change_type="CREATE")
 
+    # Handle financial center links (M2M relation, not a model field)
+    if article_data.financial_center_ids:
+        await update_financial_center_links(session, article.id, article_data.financial_center_ids)
+
     # Invalidate articles cache
     await cache_service.invalidate_articles()
 
