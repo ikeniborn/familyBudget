@@ -126,11 +126,11 @@
             </div>
             <div class="form-control">
                 <label class="label">
-                    <span class="label-text">💰 Тип*</span>
+                    <span class="label-text">🏷️ Тип*</span>
                 </label>
                 <select id="edit-type" name="type" required class="select select-bordered">
                     <option value="expense">💸 Расход</option>
-                    <option value="income">💵 Доход</option>
+                    <option value="income">💰 Доход</option>
                     <option value="debit">📤 Списание</option>
                     <option value="credit">📥 Пополнение</option>
                 </select>
@@ -558,13 +558,14 @@ function showCreateModal() {
     const initialType = currentType !== 'all' ? currentType : 'expense';
     document.getElementById('create-type').value = initialType;
     populateParentSelect('create-parent', initialType);
+    // Reset FC selection when opening
+    populateFinancialCenterSelect('create-financial-centers', []);
 }
 
 // Close create modal
 function closeCreateModal() {
     document.getElementById('create-modal').close();
     document.getElementById('create-form').reset();
-    // Clear financial center selection
     populateFinancialCenterSelect('create-financial-centers', []);
 }
 
