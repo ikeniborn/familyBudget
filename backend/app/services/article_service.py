@@ -413,12 +413,23 @@ async def execute_article_list_query(
 async def build_article_responses(
     session: AsyncSession, rows: list
 ) -> list[ArticleResponse]:
-    """Build ArticleResponse list with usage_count and is_leaf from query rows."""
+    """Build ArticleResponse list with usage_count, is_leaf and financial_center_ids from query rows."""
     parent_ids_query = select(Article.parent_id).where(
         Article.parent_id.isnot(None)
     ).distinct()
     parent_ids_result = await session.execute(parent_ids_query)
     parent_ids = {row[0] for row in parent_ids_result.all()}
+
+    # Load FC links for all articles in one query
+    article_ids = [row[0].id for row in rows]
+    fc_links: dict[int, list[int]] = {aid: [] for aid in article_ids}
+    if article_ids:
+        fc_query = select(ArticleFinancialCenter).where(
+            ArticleFinancialCenter.article_id.in_(article_ids)
+        )
+        fc_result = await session.execute(fc_query)
+        for link in fc_result.scalars().all():
+            fc_links[link.article_id].append(link.financial_center_id)
 
     articles = []
     for row in rows:
@@ -428,6 +439,7 @@ async def build_article_responses(
             **article.model_dump(),
             "usage_count": usage_count,
             "is_leaf": article.id not in parent_ids,
+            "financial_center_ids": fc_links.get(article.id, []),
         }
         articles.append(ArticleResponse.model_validate(article_dict))
     return articles
