@@ -58,7 +58,7 @@ async def create_article(
     article_data: ArticleCreate,
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
-) -> Article:
+) -> ArticleResponse:
     """
     Create a new article (budget category).
 
@@ -92,8 +92,9 @@ async def create_article(
             )
 
     # Create new article (SCD Type 1 - no versioning fields)
+    # Exclude financial_center_ids: it's not a column on Article, handled separately
     article = Article(
-        **article_data.model_dump(),
+        **article_data.model_dump(exclude={"financial_center_ids"}),
         user_id=get_user_id_for_create(current_user),
     )
 
@@ -104,10 +105,39 @@ async def create_article(
     # Create initial history record (SCD Type 2 for history)
     await create_initial_history(session=session, article=article, change_type="CREATE")
 
+    # Handle financial center links
+    financial_center_ids: list[int] = []
+    if article_data.financial_center_ids:
+        from backend.app.models.article_financial_center import ArticleFinancialCenter
+        from backend.app.models.financial_center import FinancialCenter
+
+        for fc_id in article_data.financial_center_ids:
+            fc_query = select(FinancialCenter).where(FinancialCenter.id == fc_id)
+            fc_result = await session.execute(fc_query)
+            fc = fc_result.scalar_one_or_none()
+            if not fc:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Financial center with id={fc_id} not found"
+                )
+            link = ArticleFinancialCenter(
+                article_id=article.id,
+                financial_center_id=fc_id,
+            )
+            session.add(link)
+
+        await session.commit()
+        financial_center_ids = article_data.financial_center_ids
+
     # Invalidate articles cache
     await cache_service.invalidate_articles()
 
-    return article
+    # Build response with FC IDs (Article ORM object lacks financial_center_ids column)
+    return ArticleResponse(
+        **article.model_dump(),
+        financial_center_ids=financial_center_ids,
+        is_leaf=True,  # Newly created articles always have no children
+    )
 
 
 @router.get(
