@@ -15,12 +15,13 @@ import {
     getCreateTransferToTree,
     setCreateTransferToTree,
     getEditCategoryTreeSelect,
-    setEditCategoryTreeSelect
+    setEditCategoryTreeSelect,
+    getCachedCostCenters
 } from '../../core/stateManager';
 import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
 import { setupTransferFCExclusion, cleanupExclusionFlag } from '../../../dashboard/shared/utils/transferFCExclusion';
-import { getCachedCostCenters } from '../../core/stateManager';
 import { filterCostCentersByFC } from '../../integration/dropdownAPI';
+import type { CostCenter } from '../../types/models';
 
 declare const debugLog: (...args: any[]) => void;
 
@@ -139,7 +140,7 @@ function syncFactTypeHidden(type: string): void {
  * Preserves the first "-- Не выбрано --" placeholder option and restores a
  * previous value when it is still available in the new list.
  */
-function populateCostCenterSelect(ccSelect: HTMLSelectElement, centers: Array<{ id: number; name: string }>): void {
+function populateCostCenterSelect(ccSelect: HTMLSelectElement, centers: CostCenter[]): void {
     const previousValue = ccSelect.value;
 
     // Clear all options except the first placeholder ("-- Не выбрано --")
