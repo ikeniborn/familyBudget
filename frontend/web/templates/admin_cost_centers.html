@@ -72,7 +72,8 @@
                                autocomplete="off"
                                oninput="renderFCDropdown('create', this.value)"
                                onfocus="showFCDropdown('create')"
-                               onblur="hideFCDropdown('create')" />
+                               onblur="hideFCDropdown('create')"
+                               onkeydown="if(event.key==='Escape'){event.stopPropagation();hideFCDropdown('create');}" />
                         <div id="create-fc-dropdown"
                              class="hidden absolute z-20 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-[150px] overflow-y-auto">
                         </div>
@@ -125,7 +126,8 @@
                                autocomplete="off"
                                oninput="renderFCDropdown('edit', this.value)"
                                onfocus="showFCDropdown('edit')"
-                               onblur="hideFCDropdown('edit')" />
+                               onblur="hideFCDropdown('edit')"
+                               onkeydown="if(event.key==='Escape'){event.stopPropagation();hideFCDropdown('edit');}" />
                         <div id="edit-fc-dropdown"
                              class="hidden absolute z-20 w-full mt-1 bg-base-100 border border-base-300 rounded-lg shadow-lg max-h-[150px] overflow-y-auto">
                         </div>
@@ -725,6 +727,11 @@ async function archiveCenter(centerId) {
 
 // Restore cost location
 async function restoreCenter(centerId) {
+    const confirmed = await showConfirmDialog(
+        '♻️ Вы уверены, что хотите восстановить это МЗ из архива?',
+        '♻️ Восстановление МЗ'
+    );
+    if (!confirmed) return;
     try {
         const response = await fetch(`/api/v1/cost-centers/${centerId}/restore`, {
             method: 'PUT',

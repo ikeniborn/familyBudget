@@ -670,11 +670,13 @@
             }
 
             // Compare versions
-            if (newVersion === savedVersion) {
+            const currentMetaVersion = document.querySelector('meta[name="app-version"]')?.content;
+            if (newVersion === savedVersion || (currentMetaVersion && newVersion === currentMetaVersion)) {
                 // Clean up stale flags from a previous update cycle that may not
                 // have been cleared (e.g. browser cache cleared without localStorage reset)
                 localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
                 localStorage.removeItem(SW_NEW_VERSION_KEY);
+                if (!savedVersion && currentMetaVersion) localStorage.setItem(SW_VERSION_KEY, currentMetaVersion);
                 return;
             }
 
