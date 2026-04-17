@@ -38,6 +38,8 @@
         const SW_NEW_VERSION_KEY = 'pwa_new_version';
         const SW_SKIP_REGISTRATION_KEY = 'sw_skip_registration';
         const SW_SNOOZED_VERSION_KEY = 'pwa_snoozed_version';
+        // Sentinel written by CI/CD before substitution; if still present at runtime the build token was never replaced.
+        const SW_UNBUILT_VERSION = 'PLACEHOLDER';
 
         // Track if icon already shown this session
         let updateIconShown = false;
@@ -531,14 +533,16 @@
                 }
 
                 // Stale-flag guard: if pending version equals the version currently
-                // shipped by the server (meta tag injected from VERSION file), the
-                // update has already been installed — clear the flags and bail.
+                // shipped by the server (meta tag injected from VERSION file), or is
+                // 'PLACEHOLDER' (CI/CD token that was never substituted), the stored
+                // state is stale — clear the flags and bail.
                 const currentMetaVersion = document.querySelector('meta[name="app-version"]')?.content;
-                if (currentMetaVersion && pendingVersion === currentMetaVersion) {
+                if (pendingVersion === SW_UNBUILT_VERSION ||
+                    (currentMetaVersion && pendingVersion === currentMetaVersion)) {
                     localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
                     localStorage.removeItem(SW_NEW_VERSION_KEY);
                     // Sync the running-version key so subsequent loads start clean
-                    localStorage.setItem(SW_VERSION_KEY, currentMetaVersion);
+                    if (currentMetaVersion) localStorage.setItem(SW_VERSION_KEY, currentMetaVersion);
                     return;
                 }
 
@@ -659,6 +663,12 @@
                 return;
             }
 
+            // Guard: if SW reports 'PLACEHOLDER' the CI/CD token was not substituted
+            // (e.g. dev environment serving unbuilt sw.js). Skip to avoid false update notification.
+            if (newVersion === SW_UNBUILT_VERSION) {
+                return;
+            }
+
             // Compare versions
             if (newVersion === savedVersion) {
                 // Clean up stale flags from a previous update cycle that may not
@@ -732,9 +742,15 @@
                             if (!updatePending) {
                                 localStorage.setItem(SW_VERSION_KEY, currentVersion);
                             }
-                            // Always clean stale flags if the "new" version is already installed
+                            // Clear stale update flags if the stored "new" version is already installed
+                            // (running SW, unbuilt PLACEHOLDER token, or matching meta tag version).
                             const storedNewVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
-                            if (storedNewVersion && storedNewVersion === currentVersion) {
+                            const metaVersion = document.querySelector('meta[name="app-version"]')?.content;
+                            if (storedNewVersion && (
+                                storedNewVersion === currentVersion ||
+                                storedNewVersion === SW_UNBUILT_VERSION ||
+                                (metaVersion && storedNewVersion === metaVersion)
+                            )) {
                                 localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
                                 localStorage.removeItem(SW_NEW_VERSION_KEY);
                                 const icon = document.getElementById('sw-update-icon');
