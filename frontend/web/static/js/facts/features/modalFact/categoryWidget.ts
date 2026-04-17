@@ -19,6 +19,10 @@ import {
 } from '../../core/stateManager';
 import { setupMobileModalPositioning } from '../../../utils/mobileModalPositioning';
 import { setupTransferFCExclusion, cleanupExclusionFlag } from '../../../dashboard/shared/utils/transferFCExclusion';
+import { getCachedCostCenters } from '../../core/stateManager';
+import { filterCostCentersByFC } from '../../integration/dropdownAPI';
+
+declare const debugLog: (...args: any[]) => void;
 
 const TRANSACTION_ARTICLE_SELECTOR = '#modal_fact-tab-transaction select[name="article_id"]';
 const TRANSACTION_FC_SELECTOR      = '#modal_fact-tab-transaction select[name="financial_center_id"]';
@@ -131,8 +135,35 @@ function syncFactTypeHidden(type: string): void {
 }
 
 /**
+ * Populate cost center select with the given list.
+ * Preserves the first "-- Не выбрано --" placeholder option and restores a
+ * previous value when it is still available in the new list.
+ */
+function populateCostCenterSelect(ccSelect: HTMLSelectElement, centers: Array<{ id: number; name: string }>): void {
+    const previousValue = ccSelect.value;
+
+    // Clear all options except the first placeholder ("-- Не выбрано --")
+    while (ccSelect.options.length > 1) {
+        ccSelect.remove(1);
+    }
+
+    centers.forEach(cc => {
+        const option = document.createElement('option');
+        option.value = String(cc.id);
+        option.textContent = cc.name;
+        ccSelect.appendChild(option);
+    });
+
+    // Restore previous selection if it is still in the filtered list
+    if (previousValue && centers.some(cc => String(cc.id) === previousValue)) {
+        ccSelect.value = previousValue;
+    }
+}
+
+/**
  * Setup FC change listener for transaction tab.
- * Enables/disables category tree and cost center when a financial center is selected.
+ * Enables/disables category tree and filters cost centers when a financial center is selected.
+ * Uses cached cost centers (loaded at startup) for synchronous, zero-latency filtering.
  * Mirrors dashboard/features/addTransaction/categoryLoader.ts#setupFinancialCenterListeners().
  */
 function setupTransactionFCListener(): void {
@@ -152,18 +183,26 @@ function setupTransactionFCListener(): void {
                     tree.updateFinancialCenter(fcId);
                 }
             }
-            // Enable cost center select
-            if (ccSelect) ccSelect.removeAttribute('disabled');
+            // Enable cost center select and filter options by selected FC
+            if (ccSelect) {
+                ccSelect.removeAttribute('disabled');
+                const filtered = filterCostCentersByFC(getCachedCostCenters(), fcId);
+                populateCostCenterSelect(ccSelect, filtered);
+                debugLog('[setupTransactionFCListener] Cost centers filtered for fcId:', fcId, 'count:', filtered.length);
+            }
         } else {
             // Disable category tree
             if (tree) {
                 tree.clearSelection();
                 tree.disable();
             }
-            // Disable cost center select
+            // Disable cost center select and clear its options
             if (ccSelect) {
                 ccSelect.value = '';
                 ccSelect.setAttribute('disabled', 'disabled');
+                while (ccSelect.options.length > 1) {
+                    ccSelect.remove(1);
+                }
             }
         }
     });
