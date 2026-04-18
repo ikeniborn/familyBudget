@@ -131,14 +131,42 @@ CVE-2025-8194
 CVE-2026-1299
 
 # ============================================================================
-# Review Schedule (Updated 2026-03-11)
+# New Vulnerabilities (Added 2026-04-18)
+# ============================================================================
+
+# CVE-2025-69720: ncurses buffer overflow → arbitrary code execution (HIGH)
+# Status: affected in Debian 12 (bookworm) - no fix available
+# Impact: Buffer overflow in ncurses terminal library → arbitrary code execution
+# Package: libncursesw6, libtinfo6 v6.4-4
+# Mitigation: Accept risk - ncurses is a transitive dependency; application is a
+#   web API with no terminal interaction; attack surface limited to local access
+# Risk assessment: LOW (terminal library, no user-facing exposure in web API)
+# Next review: 2026-07-18 (quarterly)
+CVE-2025-69720
+
+# CVE-2026-6100: Python use-after-free in decompression → code execution / info disclosure (HIGH)
+# Status: affected in Debian 12 (bookworm) - no fix available in 3.11.2-6+deb12u6
+# Impact: Arbitrary code execution or information disclosure via use-after-free in decompression
+# Package: libpython3.11-minimal, libpython3.11-stdlib, python3.11-minimal v3.11.2-6+deb12u6
+# Mitigation: Accept risk temporarily - awaiting Debian security update (DSA)
+#   - File upload restricted to .xlsx, .csv, .json (controlled decompression surface)
+#   - FastAPI input validation + size limits (50 MB max)
+#   - No untrusted decompression paths from external users
+# Risk assessment: MEDIUM (Python runtime, but controlled input paths)
+# Next review: 2026-05-18 (monthly - HIGH priority)
+CVE-2026-6100
+
+# ============================================================================
+# Review Schedule (Updated 2026-04-18)
 # ============================================================================
 # Weekly reviews: CVE-2025-13836, CVE-2026-24515, CVE-2026-1299 (HIGH/CRITICAL risk)
-# Monthly reviews: CVE-2025-7458, CVE-2026-0861, CVE-2026-24882, CVE-2026-25210 (libexpat)
+# Monthly reviews: CVE-2025-7458, CVE-2026-0861, CVE-2026-24882, CVE-2026-25210 (libexpat),
+#   CVE-2026-6100 (python decompression use-after-free)
 # Quarterly reviews:
 #   - CVE-2024-23342 (ecdsa), CVE-2023-45853 (zlib), CVE-2023-2953 (ldap)
 #   - CVE-2025-15366 (IMAP), CVE-2025-15367 (POP3), CVE-2025-8194 (tarfile)
 #   - CVE-2025-69534 (python-markdown DoS, not installed)
+#   - CVE-2025-69720 (ncurses buffer overflow)
 #
 # Action items:
 # 1. Check Debian security tracker weekly for HIGH/CRITICAL CVE patches:
