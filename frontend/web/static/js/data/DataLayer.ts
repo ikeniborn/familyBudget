@@ -1214,7 +1214,7 @@ export class DataLayer {
             }
           } catch (cacheError: unknown) {
             const errorMessage = cacheError instanceof Error ? cacheError.message : String(cacheError);
-            console.warn('[DATA_LAYER] Failed to cache facts in Dexie', errorMessage, cacheError);
+            console.debug('[DATA_LAYER] Failed to cache facts in Dexie', errorMessage, cacheError);
             // Non-critical error, continue with API result
           }
         }
