@@ -49,7 +49,10 @@
                 <label class="label">
                     <span class="label-text">📝 Название*</span>
                 </label>
-                <input type="text" id="create-name" name="name" required maxlength="255" placeholder="Например: Walmart" class="input input-bordered" />
+                <input type="text" id="create-name" name="name" required maxlength="255"
+                       placeholder="Например: Walmart" class="input input-bordered"
+                       oninvalid="this.setCustomValidity('Пожалуйста, заполните название магазина')"
+                       oninput="this.setCustomValidity('')" />
             </div>
             <div class="form-control">
                 <label class="label">
@@ -84,7 +87,10 @@
                 <label class="label">
                     <span class="label-text">📝 Название*</span>
                 </label>
-                <input type="text" id="edit-name" name="name" required maxlength="255" class="input input-bordered" />
+                <input type="text" id="edit-name" name="name" required maxlength="255"
+                       class="input input-bordered"
+                       oninvalid="this.setCustomValidity('Пожалуйста, заполните название магазина')"
+                       oninput="this.setCustomValidity('')" />
             </div>
             <div class="form-control">
                 <label class="label">
