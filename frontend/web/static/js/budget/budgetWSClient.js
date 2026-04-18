@@ -1698,24 +1698,18 @@ class BudgetWSClient {
         // Layer 3: Stop periodic health check
         this._stopHealthCheck();
 
-        // Notify server via sendBeacon
+        // Notify server on disconnect (fetch with keepalive — sendBeacon cannot send credentials)
         if (this.connectionId) {
             const payload = JSON.stringify({ connection_id: this.connectionId });
             debugLog('[BudgetWS] Sending disconnect beacon for:', this.connectionId);
 
-            if (navigator.sendBeacon) {
-                // Use Blob to set correct Content-Type for JSON body
-                const blob = new Blob([payload], { type: 'application/json' });
-                navigator.sendBeacon('/api/v1/budget/ws/disconnect', blob);
-            } else {
-                fetch('/api/v1/budget/ws/disconnect', {
-                    method: 'POST',
-                    body: payload,
-                    headers: { 'Content-Type': 'application/json' },
-                    keepalive: true,
-                    credentials: 'include'
-                }).catch(() => {});
-            }
+            fetch('/api/v1/budget/ws/disconnect', {
+                method: 'POST',
+                body: payload,
+                headers: { 'Content-Type': 'application/json' },
+                keepalive: true,
+                credentials: 'include'
+            }).catch(() => {});
             this.connectionId = null;
         }
 

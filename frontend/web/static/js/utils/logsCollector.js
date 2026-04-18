@@ -148,11 +148,13 @@ class LogsCollector {
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('[LOGS_COLLECTOR] Failed to send logs:', {
-                    status: response.status,
-                    error: errorData
-                });
+                if (response.status === 401) {
+                    // Session expired/cleared — stop sending until re-auth
+                    this.userId = null;
+                    console.debug('[LOGS_COLLECTOR] Session expired, stopping log collection');
+                    return;
+                }
+                console.warn('[LOGS_COLLECTOR] Failed to send logs:', response.status);
                 return;
             }
 
@@ -164,7 +166,7 @@ class LogsCollector {
             }
 
         } catch (error) {
-            console.error('[LOGS_COLLECTOR] Error sending batch:', error);
+            console.debug('[LOGS_COLLECTOR] Error sending batch:', error);
         }
     }
 
