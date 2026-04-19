@@ -545,6 +545,23 @@ jobs:
             fi
             echo "   Protected tags: $(echo $PROTECTED_TAGS | tr '\n' ' ')"
 
+            # Collect protected sub-manifest digests: multi-platform images store per-platform
+            # manifests as untagged versions referenced by the tagged parent manifest list.
+            # Deleting these untagged children breaks the parent tag. Protect them explicitly.
+            PROTECTED_DIGESTS=""
+            while IFS= read -r TAG; do
+              [[ -z "$TAG" ]] && continue
+              IMAGE="ghcr.io/${{ github.repository_owner }}/familybudget-${PACKAGE}:${TAG}"
+              CHILD_DIGESTS=$(docker manifest inspect "$IMAGE" 2>/dev/null \
+                | jq -r '.manifests[]?.digest // empty' 2>/dev/null || echo "")
+              if [[ -n "$CHILD_DIGESTS" ]]; then
+                PROTECTED_DIGESTS=$(printf "%s\n%s" "$PROTECTED_DIGESTS" "$CHILD_DIGESTS" \
+                  | grep -v '^$' | sort -u)
+              fi
+            done <<< "$PROTECTED_TAGS"
+            PROTECTED_DIGEST_COUNT=$(echo "$PROTECTED_DIGESTS" | grep -c 'sha256:' 2>/dev/null || echo "0")
+            echo "   Protected sub-manifest digests: $PROTECTED_DIGEST_COUNT"
+
             # Get total version count for this package (to protect the last one)
             TOTAL_VERSIONS=$(gh api \
               --paginate \
@@ -619,6 +636,16 @@ jobs:
               TAG_COUNT=$(echo "$VERSION_DATA" | jq '.metadata.container.tags | length' 2>/dev/null || echo "1")
               if [[ "$TAG_COUNT" -gt 0 ]]; then
                 echo "   🛡️ Skipping version $VERSION_ID — still has $TAG_COUNT tag(s) (race condition guard)"
+                continue
+              fi
+
+              # Skip if this untagged version is a sub-manifest of a protected tagged image.
+              # Multi-platform images reference per-platform manifests by digest; deleting
+              # them breaks the parent manifest list even though the parent tag still exists.
+              VERSION_DIGEST=$(echo "$VERSION_DATA" | jq -r '.name // empty' 2>/dev/null || echo "")
+              if [[ -n "$VERSION_DIGEST" ]] && [[ -n "$PROTECTED_DIGESTS" ]] \
+                 && echo "$PROTECTED_DIGESTS" | grep -qx "$VERSION_DIGEST"; then
+                echo "   🛡️ Skipping version $VERSION_ID — sub-manifest of protected tag (${VERSION_DIGEST:0:19}...)"
                 continue
               fi
 
