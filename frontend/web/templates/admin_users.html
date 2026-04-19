@@ -558,8 +558,8 @@ function renderUsersTable(users) {
                         <th class="hidden xl:table-cell">🔐 2FA</th>
                         <th class="hidden xl:table-cell">👆 Биометрия</th>
                         <th>✅ Статус</th>
-                        <th>📅 Последний вход</th>
-                        <th>📅 Создан</th>
+                        <th class="hidden 2xl:table-cell">📅 Последний вход</th>
+                        <th class="hidden 2xl:table-cell">📅 Создан</th>
                         <th>⚙️ Действия</th>
                     </tr>
                 </thead>
@@ -626,8 +626,8 @@ function renderUsersTable(users) {
                 <td class="hidden xl:table-cell"><div class="flex flex-wrap gap-1">${twoFactorLabel}</div></td>
                 <td class="hidden xl:table-cell"><div class="flex flex-wrap gap-1">${webauthnLabel}</div></td>
                 <td><div class="flex flex-wrap gap-1">${statusLabel}</div></td>
-                <td>${lastLogin}</td>
-                <td>${createdAt}</td>
+                <td class="hidden 2xl:table-cell">${lastLogin}</td>
+                <td class="hidden 2xl:table-cell">${createdAt}</td>
                 <td>
                     ${renderActions(user)}
                 </td>
