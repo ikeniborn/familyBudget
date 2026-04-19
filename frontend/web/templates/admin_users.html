@@ -28,7 +28,7 @@
                 <h2 class="text-lg sm:text-xl font-bold">👤 Зарегистрированные пользователи</h2>
                 <div class="flex flex-wrap gap-2">
                     <button class="btn btn-sm btn-primary" id="filter-active" onclick="toggleActiveFilter(true)">✅ Активные</button>
-                    <button class="btn btn-sm btn-outline" id="filter-inactive" onclick="toggleActiveFilter(false)">⏳ Неактивные</button>
+                    <button class="btn btn-sm btn-outline" id="filter-inactive" onclick="toggleActiveFilter(false)">⏸️ Неактивные</button>
                     <button class="btn btn-sm btn-outline" id="filter-all-active" onclick="toggleActiveFilter(null)">Все</button>
                     <button class="btn btn-sm btn-success gap-2" onclick="showCreateModal()">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -438,12 +438,12 @@ function renderUsersTable(users) {
                     <tr>
                         <th>📱 Telegram ID</th>
                         <th>📧 Email</th>
-                        <th>📷 Фото</th>
+                        <th class="hidden xl:table-cell">📷 Фото</th>
                         <th>👤 Username</th>
                         <th>📝 Имя</th>
                         <th>🔑 Роль</th>
-                        <th>🔐 2FA</th>
-                        <th>👆 Биометрия</th>
+                        <th class="hidden xl:table-cell">🔐 2FA</th>
+                        <th class="hidden xl:table-cell">👆 Биометрия</th>
                         <th>✅ Статус</th>
                         <th>📅 Последний вход</th>
                         <th>📅 Создан</th>
@@ -481,7 +481,7 @@ function renderUsersTable(users) {
         } else if (user.is_active) {
             statusLabel = '<span class="badge badge-success gap-1 whitespace-nowrap">✅ Активен</span>';
         } else {
-            statusLabel = '<span class="badge badge-warning gap-1 whitespace-nowrap">⏳ Ожидает</span>';
+            statusLabel = '<span class="badge badge-neutral gap-1 whitespace-nowrap">⏸️ Неактивен</span>';
         }
 
         // Format dates (User is SCD Type 1 - created_at only, no versioning)
@@ -506,12 +506,12 @@ function renderUsersTable(users) {
             <tr>
                 <td class="font-mono">${user.telegram_id || '—'}</td>
                 <td class="text-sm">${user.email || '—'}</td>
-                <td>${avatarHTML}</td>
+                <td class="hidden xl:table-cell">${avatarHTML}</td>
                 <td>${user.username || '—'}</td>
                 <td class="font-medium">${displayName}</td>
                 <td><div class="flex flex-wrap gap-1">${roleLabel}</div></td>
-                <td><div class="flex flex-wrap gap-1">${twoFactorLabel}</div></td>
-                <td><div class="flex flex-wrap gap-1">${webauthnLabel}</div></td>
+                <td class="hidden xl:table-cell"><div class="flex flex-wrap gap-1">${twoFactorLabel}</div></td>
+                <td class="hidden xl:table-cell"><div class="flex flex-wrap gap-1">${webauthnLabel}</div></td>
                 <td><div class="flex flex-wrap gap-1">${statusLabel}</div></td>
                 <td>${lastLogin}</td>
                 <td>${createdAt}</td>
@@ -898,6 +898,39 @@ async function refreshUserProfile(userId) {
     }
 }
 
+// Delete user permanently
+async function deleteUser(userId) {
+    const confirmed = await showConfirmDialog(
+        '⚠️ Вы уверены, что хотите удалить этого пользователя?\n\nЭто действие необратимо. Удаление возможно только для пользователей без транзакций.',
+        '🗑️ Удаление пользователя'
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/admin/users/${userId}`, {
+            method: 'DELETE',
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || `HTTP error! status: ${response.status}`);
+        }
+
+        await loadUsers();
+        await loadStats();
+
+        showNotification('🗑️ Пользователь удалён!', 'success');
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        const errorMessage = error?.message || String(error);
+        showNotification(`❌ Ошибка: ${errorMessage}`, 'error');
+    }
+}
+
 // Show create modal
 function showCreateModal() {
     document.getElementById('create-modal').showModal();
@@ -1155,7 +1188,7 @@ function showEditUserModal(userId) {
     if (user.is_active) {
         badges.push(`<span class="badge badge-success gap-1">✅ Активен</span>`);
     } else {
-        badges.push(`<span class="badge badge-warning gap-1">⏳ Ожидает</span>`);
+        badges.push(`<span class="badge badge-neutral gap-1">⏸️ Неактивен</span>`);
     }
     document.getElementById('edit-user-info').innerHTML = badges.join('');
 
