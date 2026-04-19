@@ -98,6 +98,16 @@
 
             const newVersion = localStorage.getItem(SW_NEW_VERSION_KEY);
 
+            // Stale-flag guard: update flag was set but version never recorded (or cleared).
+            // Hide the notification and clean up to avoid showing a broken modal.
+            if (!newVersion) {
+                localStorage.removeItem(SW_UPDATE_AVAILABLE_KEY);
+                const wrapper = document.getElementById('update-available-wrapper');
+                if (wrapper) wrapper.classList.add('hidden');
+                updateIconShown = false;
+                return;
+            }
+
             // Show confirmation modal
             const modal = document.getElementById('sw-update-modal');
             if (!modal) {
