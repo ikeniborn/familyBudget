@@ -1141,6 +1141,74 @@ async def refresh_user_profile_from_telegram(
     return updated_user
 
 
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    current_admin: CurrentAdmin,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Delete user (admin only).
+
+    Hard delete — permanently removes user and their history records.
+    Blocked if user has any budget facts (suggest deactivation instead).
+
+    Security: Cannot delete self or last active admin.
+    """
+    from backend.app.models.user_history import UserHistory
+
+    statement = select(User).where(User.id == user_id)
+    result = await session.execute(statement)
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User with id={user_id} not found")
+
+    if user.id == current_admin.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+
+    # Prevent deleting last active admin
+    if user.is_admin:
+        admin_count_query = select(func.count(User.id)).where(
+            User.is_admin == True,  # noqa: E712
+            User.is_active == True,  # noqa: E712
+            User.id != user_id
+        )
+        admin_count_result = await session.execute(admin_count_query)
+        remaining_active_admins = admin_count_result.scalar()
+        if remaining_active_admins == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="Cannot delete the last active admin. Activate another admin first."
+            )
+
+    # Block deletion if user has facts (data loss prevention)
+    facts_count_query = select(func.count(Fact.id)).where(Fact.user_id == user_id)
+    facts_count_result = await session.execute(facts_count_query)
+    facts_count = facts_count_result.scalar()
+    if facts_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot delete user with {facts_count} budget fact(s). Use deactivation instead."
+        )
+
+    # Delete UserHistory records first (FK constraint)
+    history_query = select(UserHistory).where(UserHistory.user_id == user_id)
+    history_result = await session.execute(history_query)
+    for history_record in history_result.scalars().all():
+        await session.delete(history_record)
+
+    await session.delete(user)
+    await session.commit()
+
+    logger.info(
+        f"User {user_id} permanently deleted by admin {current_admin.id} "
+        f"(email={user.email}, telegram_id={user.telegram_id})"
+    )
+
+    return {"message": "User deleted successfully", "user_id": user_id}
+
+
 @router.post("/users/merge", response_model=UserMergeResponse)
 async def merge_users(
     merge_data: UserMergeRequest,
