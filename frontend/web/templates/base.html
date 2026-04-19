@@ -683,10 +683,6 @@
                 </button>
             </div>
 
-            <!-- Service Worker Update Confirmation Modal -->
-            {% from "components/sw_update_modal.html" import sw_update_modal %}
-            {{ sw_update_modal() }}
-
             <!-- Theme Toggle -->
             <label class="swap swap-rotate cursor-pointer p-1 sm:p-2">
                 <input type="checkbox" class="theme-controller" value="dark" aria-label="Toggle dark mode" />
@@ -728,6 +724,10 @@
             {% endif %}
         </div>
     </header>
+
+    <!-- Service Worker Update Modal (outside header stacking context) -->
+    {% from "components/sw_update_modal.html" import sw_update_modal %}
+    {{ sw_update_modal() }}
 
     <!-- Navigation Fade Overlay (v5.2 - Elastic Morphing, no DaisyUI conflict) -->
     <div id="navigation-fade-overlay" class="navigation-fade-overlay" aria-hidden="true">
