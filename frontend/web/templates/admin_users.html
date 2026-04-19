@@ -497,25 +497,25 @@ function renderMobileCards(users) {
 
                     <!-- Action Dropdown (opens upward) -->
                     <div class="dropdown dropdown-top w-full pt-2 border-t border-base-300">
-                        <button class="btn btn-sm btn-primary w-full">
+                        <label tabindex="0" class="btn btn-sm btn-primary w-full">
                             ⚙️ Действия
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                             </svg>
-                        </button>
-                        <ul class="dropdown-content menu p-2 shadow-xl bg-base-100 rounded-box w-full mb-2 z-10">
-                            <li><a onclick="showEditModal(${user.id})">✏️ Редактировать</a></li>
+                        </label>
+                        <ul tabindex="0" class="dropdown-content menu p-2 shadow-xl bg-base-100 rounded-box w-full mb-2 z-10">
+                            <li><a onclick="showEditUserModal(${user.id})">✏️ Редактировать</a></li>
                             ${isActive ? `
                                 <li><a onclick="deactivateUser(${user.id})">⏸️ Деактивировать</a></li>
                             ` : `
                                 <li><a onclick="activateUser(${user.id})">▶️ Активировать</a></li>
                             `}
                             ${user.is_admin ? `
-                                <li><a onclick="removeAdminRole(${user.id})">👤 Снять роль админа</a></li>
+                                <li><a onclick="toggleAdmin(${user.id}, false)">👤 Снять роль админа</a></li>
                             ` : `
-                                <li><a onclick="grantAdminRole(${user.id})">🔑 Назначить админом</a></li>
+                                <li><a onclick="toggleAdmin(${user.id}, true)">🔑 Назначить админом</a></li>
                             `}
-                            <li><a onclick="refreshTelegramData(${user.id})">🔄 Обновить из Telegram</a></li>
+                            <li><a onclick="refreshUserProfile(${user.id})">🔄 Обновить из Telegram</a></li>
                             ${user.two_factor_enabled ? `
                                 <li><a onclick="reset2FA(${user.id})">🔓 Сбросить 2FA</a></li>
                             ` : ''}
