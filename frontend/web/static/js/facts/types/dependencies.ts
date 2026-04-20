@@ -164,11 +164,11 @@ export function getCalendarWidget(): CalendarWidgetConstructor {
 }
 
 /**
- * Get budgetWSManager
+ * Get budgetWSClient (window export from budgetWSClient.js)
  */
 export function getWSManager(): WebSocketManager | null {
-    if (typeof window !== 'undefined' && (window as any).budgetWSManager) {
-        return (window as any).budgetWSManager;
+    if (typeof window !== 'undefined' && (window as any).budgetWSClient) {
+        return (window as any).budgetWSClient;
     }
     return null;
 }

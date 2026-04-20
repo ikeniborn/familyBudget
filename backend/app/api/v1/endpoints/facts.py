@@ -1810,6 +1810,11 @@ async def delete_fact(
             f"by user {current_user.id}"
         )
 
+    # Invalidate cache BEFORE WebSocket broadcast so that when the client's
+    # debounced refresh fires (~300ms after the WS event), Redis already
+    # serves fresh data instead of the stale cached quick-stats HTML.
+    await cache_service.invalidate_dashboard()
+
     # WebSocket Broadcast: Notify connected clients about deleted fact
     try:
         ws = _get_budget_ws_broadcast()
@@ -1823,10 +1828,6 @@ async def delete_fact(
     except Exception as e:
         logger.warning("WebSocket broadcast failed for deleted fact %s: %s", fact_id, e)
         # Don't fail the request if broadcast fails
-
-    # AWAIT cache invalidation to ensure fresh data on subsequent requests
-    # Performance: adds ~5-20ms latency, but prevents stale data display
-    await cache_service.invalidate_dashboard()
 
     return None
 
@@ -1924,6 +1925,9 @@ async def batch_delete_facts(
     deleted_count = len(facts_to_delete)
     logger.info("[BULK_DELETE] Batch deleted %s facts by user %s", deleted_count, current_user.id)
 
+    # Invalidate cache BEFORE WebSocket broadcast (same race-condition fix as single delete).
+    await cache_service.invalidate_dashboard()
+
     # 5. WebSocket broadcast: SINGLE summary event (NEW PATTERN)
     # Replaces individual fact_deleted/plan_deleted events to eliminate toast spam
     try:
@@ -1938,10 +1942,6 @@ async def batch_delete_facts(
     except Exception as e:
         logger.warning("[BULK_DELETE] WebSocket broadcast failed: %s", e)
         # Don't fail the request if broadcast fails
-
-    # AWAIT cache invalidation to ensure fresh data on subsequent requests
-    # Performance: adds ~5-20ms latency, but prevents stale data display
-    await cache_service.invalidate_dashboard()
 
     return {
         "message": f"Deleted {deleted_count} facts",

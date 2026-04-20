@@ -490,9 +490,10 @@
             const currentText = currentVersion || '(неизвестно)';
             currentElem.textContent = currentText;
 
-            // Display new version: prefer localStorage (actual new SW version), fall back to meta tag
+            // Display new version: prefer meta tag (server-authoritative, always current page version)
+            // over localStorage which may lag on pages where SW hasn't activated yet (e.g. /login).
             const metaVersion = document.querySelector('meta[name="app-version"]')?.content;
-            const newText = newVersion || metaVersion || '';
+            const newText = metaVersion || newVersion || '';
             if (newText) {
                 newElem.textContent = newText;
             }

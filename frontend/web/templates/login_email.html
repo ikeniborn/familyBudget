@@ -443,7 +443,7 @@ async function handlePasswordLogin(e) {
     try {
         console.log('[AUTH_EMAIL] Login attempt:', identifier);
 
-        const response = await fetch('/api/v1/auth/login', {
+        const loginOptions = {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -453,7 +453,12 @@ async function handlePasswordLogin(e) {
                 email: identifier,
                 password: password
             })
-        });
+        };
+        let response = await fetch('/api/v1/auth/login', loginOptions);
+        if (response.status === 502 || response.status === 503) {
+            await new Promise(r => setTimeout(r, 1500));
+            response = await fetch('/api/v1/auth/login', loginOptions);
+        }
 
         const data = await response.json();
 
