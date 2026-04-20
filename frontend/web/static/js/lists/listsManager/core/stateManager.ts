@@ -197,7 +197,16 @@ export async function initializeListsManager(): Promise<void> {
     window.addEventListener('offline-status-change', async (event: Event) => {
       const { online } = (event as CustomEvent).detail || {};
       if (online) {
-        debugLog('[ListsManager] Network restored, refreshing data...');
+        debugLog('[ListsManager] Network restored, uploading pending data...');
+
+        const currentDexie = getState().dexieManager;
+        if (currentDexie?.isReady()) {
+          currentDexie.uploadPendingShoppingData().catch((err: unknown) => {
+            console.warn('[ListsManager] Pending sync on reconnect failed:', err);
+          });
+        }
+
+        debugLog('[ListsManager] Refreshing data after reconnect...');
         await loadShoppingLists();
         const currentState = getState();
         const currentListId = currentState.currentListId;

@@ -13,7 +13,7 @@ import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { loadShoppingLists } from '../core/stateManager';
 import { setupProductAutocomplete, hideProductSuggestions } from '../features/autocomplete';
-import { getDexieManager, isDexieActive, db as dexieDb } from '@db/dexie';
+import { getDexieManager, isDexieActive, db as dexieDb, createShoppingList } from '@db/dexie';
 import { getNetworkDelay, isDexieDisabledForTesting, isVerboseLoggingEnabled } from '../testing/debugUtils';
 
 // ============================================================================
@@ -198,7 +198,33 @@ export async function handleCreateList(event: Event): Promise<void> {
     await renderDetailView(newList.id);
   } catch (error) {
     console.error('[ListsManager] Error creating list:', error);
-    showToast('Ошибка создания списка', 'error');
+
+    const isNetworkError = error instanceof TypeError &&
+      (error.message.toLowerCase().includes('fetch') || error.message.toLowerCase().includes('network'));
+
+    if (isNetworkError && isDexieActive()) {
+      try {
+        const creatorId = (window as any).userData?.id || null;
+        const temp_id = await createShoppingList({
+          name: data.name as string,
+          description: (data.description as string) || null,
+          is_active: true,
+          creator_id: creatorId,
+          sync_hash: null,
+          content_hash: null,
+          synced_at: null
+        });
+        closeCreateListModal();
+        showToast('Список сохранён офлайн — синхронизируется при восстановлении сети', 'warning');
+        debugLog('[ListsManager] List saved offline', { temp_id });
+        await loadShoppingLists();
+      } catch (dexieError) {
+        console.error('[ListsManager] Dexie offline fallback failed:', dexieError);
+        showToast('Ошибка создания списка', 'error');
+      }
+    } else {
+      showToast('Ошибка создания списка', 'error');
+    }
   }
 }
 
