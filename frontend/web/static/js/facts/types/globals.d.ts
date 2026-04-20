@@ -17,7 +17,7 @@ declare global {
         // Third-party libraries
         CategoryTreeSelect: CategoryTreeSelectConstructor;
         CalendarWidget: CalendarWidgetConstructor;
-        budgetWSManager: WebSocketManager | undefined;
+        budgetWSClient: WebSocketManager | undefined;
         htmx: HTMX;
 
         // AdminFactsCommon (admin-facts-common.js)

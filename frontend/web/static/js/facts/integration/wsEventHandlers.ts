@@ -406,25 +406,25 @@ function handleFinancialCenterUpdated(_data: any): void {
  * Called during Facts Manager initialization
  */
 export function registerWSHandlers(): void {
-    if (typeof window === 'undefined' || !window.budgetWSManager) {
+    if (typeof window === 'undefined' || !window.budgetWSClient) {
         // WebSocket not available (offline mode or not initialized yet)
         return;
     }
 
     // Fact CRUD events
-    window.budgetWSManager.on('fact_created', handleFactCreated);
-    window.budgetWSManager.on('fact_updated', handleFactUpdated);
-    window.budgetWSManager.on('fact_deleted', handleFactDeleted);
+    window.budgetWSClient.on('fact_created', handleFactCreated);
+    window.budgetWSClient.on('fact_updated', handleFactUpdated);
+    window.budgetWSClient.on('fact_deleted', handleFactDeleted);
 
     // Batch operations
-    window.budgetWSManager.on('batch_delete_completed', handleBatchDeleteCompleted);
+    window.budgetWSClient.on('batch_delete_completed', handleBatchDeleteCompleted);
 
     // Transfer events (transfers create facts)
-    window.budgetWSManager.on('transfer_created', handleTransferCreated);
+    window.budgetWSClient.on('transfer_created', handleTransferCreated);
 
     // Dropdown data updates
-    window.budgetWSManager.on('article_updated', handleArticleUpdated);
-    window.budgetWSManager.on('financial_center_updated', handleFinancialCenterUpdated);
+    window.budgetWSClient.on('article_updated', handleArticleUpdated);
+    window.budgetWSClient.on('financial_center_updated', handleFinancialCenterUpdated);
 }
 
 /**
@@ -432,15 +432,15 @@ export function registerWSHandlers(): void {
  * Called during cleanup (if needed)
  */
 export function unregisterWSHandlers(): void {
-    if (typeof window === 'undefined' || !window.budgetWSManager) {
+    if (typeof window === 'undefined' || !window.budgetWSClient) {
         return;
     }
 
-    window.budgetWSManager.off('fact_created', handleFactCreated);
-    window.budgetWSManager.off('fact_updated', handleFactUpdated);
-    window.budgetWSManager.off('fact_deleted', handleFactDeleted);
-    window.budgetWSManager.off('batch_delete_completed', handleBatchDeleteCompleted);
-    window.budgetWSManager.off('transfer_created', handleTransferCreated);
-    window.budgetWSManager.off('article_updated', handleArticleUpdated);
-    window.budgetWSManager.off('financial_center_updated', handleFinancialCenterUpdated);
+    window.budgetWSClient.off('fact_created', handleFactCreated);
+    window.budgetWSClient.off('fact_updated', handleFactUpdated);
+    window.budgetWSClient.off('fact_deleted', handleFactDeleted);
+    window.budgetWSClient.off('batch_delete_completed', handleBatchDeleteCompleted);
+    window.budgetWSClient.off('transfer_created', handleTransferCreated);
+    window.budgetWSClient.off('article_updated', handleArticleUpdated);
+    window.budgetWSClient.off('financial_center_updated', handleFinancialCenterUpdated);
 }
