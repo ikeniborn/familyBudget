@@ -210,7 +210,10 @@ export async function initializeListsManager(): Promise<void> {
         await loadShoppingLists();
         const currentState = getState();
         const currentListId = currentState.currentListId;
-        if (currentListId) {
+        if (!currentListId) {
+          const { renderLandingView } = await import('../rendering/listRenderer');
+          renderLandingView();
+        } else if (currentListId) {
           // BUG-7: if the currently-open list was deleted while we were
           // offline, currentListId still points at it on reconnect, and we
           // would fire a 404 against /api/v1/shopping-lists/<id>. Verify

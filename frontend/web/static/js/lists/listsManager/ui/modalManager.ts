@@ -218,6 +218,7 @@ export async function handleCreateList(event: Event): Promise<void> {
         showToast('Список сохранён офлайн — синхронизируется при восстановлении сети', 'warning');
         debugLog('[ListsManager] List saved offline', { temp_id });
         await loadShoppingLists();
+        renderLandingView();
       } catch (dexieError) {
         console.error('[ListsManager] Dexie offline fallback failed:', dexieError);
         showToast('Ошибка создания списка', 'error');
