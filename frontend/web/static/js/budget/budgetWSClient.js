@@ -2489,8 +2489,6 @@ if (typeof window !== 'undefined') {
         }
     });
 
-
-
     // Admin sync helper — triggers full reference data re-sync after CRUD operations
     if (!window.BudgetSync) window.BudgetSync = {};
     window.BudgetSync.triggerEntitySync = function(entityType) {

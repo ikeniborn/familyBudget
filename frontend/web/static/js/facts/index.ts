@@ -594,7 +594,7 @@ function setupModalFactListeners(): void {
                     ) as HTMLSelectElement | null;
                     if (!fcSelect || fcSelect.options.length <= 1) {
                         loadAndPopulateDropdowns().catch(err =>
-                            logger.warn(' Modal dropdown reload failed:', err)
+                            logger.warn('[facts] Modal dropdown reload failed:', err)
                         );
                     }
                     // Transaction tree только когда dashboard.min.js не загружен

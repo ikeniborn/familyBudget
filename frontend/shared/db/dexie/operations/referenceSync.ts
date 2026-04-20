@@ -672,7 +672,7 @@ export async function initialReferenceSync(
   const success = criticalSyncs.every(key => results[key as keyof typeof results].success);
 
   // Non-critical syncs (nice to have, but app works without them)
-  const nonCriticalSyncs = ['stores', 'productGroups', 'shoppingLists', 'plans', 'recurringPlans'];
+  const nonCriticalSyncs = ['stores', 'productGroups', 'productGroupHierarchy', 'shoppingLists', 'plans', 'recurringPlans'];
   nonCriticalSyncs.forEach(key => {
     if (!results[key as keyof typeof results].success) {
       logger.warn(`[referenceSync] ${key} sync failed, but continuing (non-critical)`);
