@@ -224,8 +224,8 @@ services:
       test: ["CMD", "python", "/app/healthcheck.py"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     # Command removed: Using Dockerfile CMD instead (correct array syntax for distroless)
     # Dockerfile CMD: ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
     # Workers: Default 1 for legacy SSE mode, can be increased via WORKERS env var with Redis Pub/Sub
