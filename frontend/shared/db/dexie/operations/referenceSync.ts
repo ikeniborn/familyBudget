@@ -248,6 +248,37 @@ export async function syncProductGroups(): Promise<{ success: boolean; count: nu
 }
 
 /**
+ * Sync product group hierarchy (closure table) from server
+ */
+export async function syncProductGroupHierarchy(): Promise<{ success: boolean; count: number }> {
+  logger.info('[referenceSync] Syncing product group hierarchy...');
+
+  try {
+    const response = await fetchWithTimeout('/api/v1/product-groups/hierarchy', {
+      method: 'GET',
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch product group hierarchy: ${response.status}`);
+    }
+
+    const hierarchy = await response.json();
+
+    await db.productGroupHierarchy.clear();
+    if (hierarchy.length > 0) {
+      await db.productGroupHierarchy.bulkPut(hierarchy);
+    }
+
+    logger.info('[referenceSync] ✅ Product group hierarchy synced', { count: hierarchy.length });
+    return { success: true, count: hierarchy.length };
+  } catch (error) {
+    logger.error('[referenceSync] ❌ Product group hierarchy sync failed:', error);
+    return { success: false, count: 0 };
+  }
+}
+
+/**
  * Sync shopping lists from server (v11.4.3+)
  *
  * NOTE: Shopping Lists are TRANSACTIONAL DATA (user mutations), but we cache them
@@ -628,8 +659,9 @@ export async function initialReferenceSync(
     financialCenters: await syncFinancialCenters(userId),
     costCenters: await syncCostCenters(userId),
     articleHierarchy: await syncArticleHierarchy(userId),
-    stores: await syncStores(),                      // v11.4.2+ (global reference data, no userId)
-    productGroups: await syncProductGroups(),         // v11.4.2+ (global reference data, no userId)
+    stores: await syncStores(),                                // v11.4.2+ (global reference data, no userId)
+    productGroups: await syncProductGroups(),                  // v11.4.2+ (global reference data, no userId)
+    productGroupHierarchy: await syncProductGroupHierarchy(),  // closure table for offline hierarchy queries
     shoppingLists: await syncShoppingLists(userId),  // v11.4.3+ (transactional data for offline /lists)
     plans: await syncPlans(userId, historyMonths, futureMonths),  // v11.6.0: regular plans with date window
     recurringPlans: await syncRecurringPlans(userId) // v11.6.0: all active recurring plans (no date filter)

@@ -525,6 +525,7 @@ async function createCenter(event) {
         closeCreateModal();
         await loadCenters();
         showNotification('✅ МЗ успешно создано!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('cost-centers');
     } catch (error) {
         console.error('Error creating cost center:', error);
         const errorMessage = error?.message || String(error);
@@ -620,6 +621,7 @@ async function updateCenter(event) {
         closeEditModal();
         await loadCenters();
         showNotification('✅ МЗ успешно обновлено!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('cost-centers');
     } catch (error) {
         console.error('Error updating cost center:', error);
         const errorMessage = error?.message || String(error);
@@ -718,6 +720,7 @@ async function archiveCenter(centerId) {
         // Success
         await loadCenters();
         showNotification('✅ МЗ успешно архивировано!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('cost-centers');
     } catch (error) {
         console.error('Error archiving cost location:', error);
         const errorMessage = error?.message || String(error);
@@ -746,6 +749,7 @@ async function restoreCenter(centerId) {
         // Success
         await loadCenters();
         showNotification('✅ МЗ успешно восстановлено!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('cost-centers');
     } catch (error) {
         console.error('Error restoring cost location:', error);
         const errorMessage = error?.message || String(error);

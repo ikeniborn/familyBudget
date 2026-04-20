@@ -9,6 +9,7 @@
 declare const debugLog: (...args: any[]) => void;
 
 import { notifyHandlers } from './eventRegistration';
+import { db } from '@db/dexie';
 import type {
   FactCreatedEvent,
   FactUpdatedEvent,
@@ -30,6 +31,36 @@ import type {
   SyncClientChangesResponse,
 } from '../types/events';
 import { handleSyncInitial, handleSyncIncremental } from './syncHandler';
+
+// ============================================================================
+// Dexie helpers (non-fatal, fire-and-forget pattern from wsEventHandlers.ts)
+// ============================================================================
+
+async function softDeleteFactInDexie(factId: number): Promise<void> {
+  try {
+    await db.budgetFacts.where('id').equals(factId).modify({
+      sync_status: 'deleted',
+      updated_at: new Date(),
+    });
+  } catch { /* non-fatal */ }
+}
+
+async function deleteRecurringPlanFromDexie(planId: number): Promise<void> {
+  try {
+    await db.recurringPlans.where('id').equals(planId).delete();
+  } catch { /* non-fatal */ }
+}
+
+async function upsertRecurringPlanToDexie(plan: PlanCreatedEvent): Promise<void> {
+  try {
+    await db.recurringPlans.put({
+      ...plan,
+      is_active: (plan as unknown as Record<string, unknown>).is_active ?? true,
+    } as any);
+  } catch { /* non-fatal */ }
+}
+
+// ============================================================================
 
 /**
  * Handle fact_created event
@@ -53,6 +84,7 @@ export function handleFactUpdated(data: FactUpdatedEvent): void {
 export function handleFactDeleted(data: FactDeletedEvent): void {
   notifyHandlers('fact_deleted', data);
   callOfflineManagerUI('fact_deleted', data);
+  void softDeleteFactInDexie(data.id);
 }
 
 /**
@@ -61,6 +93,7 @@ export function handleFactDeleted(data: FactDeletedEvent): void {
 export function handlePlanCreated(data: PlanCreatedEvent): void {
   notifyHandlers('plan_created', data);
   callOfflineManagerUI('plan_created', data);
+  void upsertRecurringPlanToDexie(data);
 }
 
 /**
@@ -77,6 +110,7 @@ export function handlePlanUpdated(data: PlanUpdatedEvent): void {
 export function handlePlanDeleted(data: PlanDeletedEvent): void {
   notifyHandlers('plan_deleted', data);
   callOfflineManagerUI('plan_deleted', data);
+  void deleteRecurringPlanFromDexie(data.id);
 }
 
 /**

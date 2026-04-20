@@ -376,6 +376,7 @@ async function createStore(event) {
         closeCreateModal();
         await loadStores();
         showToast('✅ Магазин создан успешно', 'success');
+        window.BudgetSync?.triggerEntitySync?.('stores');
     } catch (error) {
         console.error('Failed to create store:', error);
         showToast(`❌ Ошибка: ${error.message}`, 'error');
@@ -464,6 +465,7 @@ async function updateStore(event) {
         closeEditModal();
         await loadStores();
         showToast('✅ Магазин обновлен успешно', 'success');
+        window.BudgetSync?.triggerEntitySync?.('stores');
     } catch (error) {
         console.error('Failed to update store:', error);
         showToast(`❌ Ошибка: ${error.message}`, 'error');
@@ -493,6 +495,7 @@ async function archiveStore(storeId) {
 
         await loadStores();
         showToast('✅ Магазин архивирован', 'success');
+        window.BudgetSync?.triggerEntitySync?.('stores');
     } catch (error) {
         console.error('Failed to archive store:', error);
         showToast(`❌ Ошибка: ${error.message}`, 'error');
@@ -522,6 +525,7 @@ async function restoreStore(storeId) {
 
         await loadStores();
         showToast('✅ Магазин восстановлен', 'success');
+        window.BudgetSync?.triggerEntitySync?.('stores');
     } catch (error) {
         console.error('Failed to restore store:', error);
         showToast(`❌ Ошибка: ${error.message}`, 'error');
@@ -563,6 +567,7 @@ async function deleteStore(storeId) {
 
         await loadStores();
         showToast('✅ Магазин удален', 'success');
+        window.BudgetSync?.triggerEntitySync?.('stores');
     } catch (error) {
         console.error('Failed to delete store:', error);
         showToast(`❌ Ошибка: ${error.message}`, 'error');

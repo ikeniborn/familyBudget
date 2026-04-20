@@ -1827,12 +1827,29 @@ class BudgetWSClient {
         if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
             window.offlineManager.refreshUICallback('fact_deleted', data);
         }
+        if (data && data.id && typeof window.Dexie !== 'undefined') {
+            try {
+                const db = window.Dexie.getDatabase();
+                db && db.budgetFacts && db.budgetFacts.where('id').equals(data.id).modify({
+                    sync_status: 'deleted',
+                    updated_at: new Date()
+                }).catch(function() {});
+            } catch (e) {}
+        }
     }
 
     _handlePlanCreated(data) {
         this._notifyHandlers('plan_created', data);
         if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
             window.offlineManager.refreshUICallback('plan_created', data);
+        }
+        if (data && data.id && typeof window.Dexie !== 'undefined') {
+            try {
+                const db = window.Dexie.getDatabase();
+                db && db.recurringPlans && db.recurringPlans.put(
+                    Object.assign({}, data, { is_active: data.is_active !== undefined ? data.is_active : true })
+                ).catch(function() {});
+            } catch (e) {}
         }
     }
 
@@ -1847,6 +1864,12 @@ class BudgetWSClient {
         this._notifyHandlers('plan_deleted', data);
         if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
             window.offlineManager.refreshUICallback('plan_deleted', data);
+        }
+        if (data && data.id && typeof window.Dexie !== 'undefined') {
+            try {
+                const db = window.Dexie.getDatabase();
+                db && db.recurringPlans && db.recurringPlans.where('id').equals(data.id).delete().catch(function() {});
+            } catch (e) {}
         }
     }
 
@@ -2465,6 +2488,19 @@ if (typeof window !== 'undefined') {
             client._updateStatusIndicator();
         }
     });
+
+
+
+    // Admin sync helper — triggers full reference data re-sync after CRUD operations
+    if (!window.BudgetSync) window.BudgetSync = {};
+    window.BudgetSync.triggerEntitySync = function(entityType) {
+        if (typeof window.Dexie === 'undefined') return;
+        window.Dexie.getDexieManager().then(function(dexie) {
+            return dexie.syncReferenceData();
+        }).catch(function(err) {
+            console.warn('[BudgetSync] Re-sync failed for', entityType, err);
+        });
+    };
 
 }
 

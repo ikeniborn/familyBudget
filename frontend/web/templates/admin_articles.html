@@ -867,6 +867,7 @@ async function createArticle(event) {
         closeCreateModal();
         await loadArticles();
         showNotification('✅ Категория успешно создана!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('articles');
     } catch (error) {
         console.error('Error creating article:', error);
         const errorMessage = error?.message || String(error);
@@ -1049,6 +1050,7 @@ async function updateArticle(event) {
         closeEditModal();
         await loadArticles();
         showNotification('✅ Категория успешно обновлена!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('articles');
     } catch (error) {
         console.error('Error updating article:', error);
         const errorMessage = error?.message || String(error);
@@ -1122,6 +1124,7 @@ async function deactivateArticle(articleId) {
         // Success
         await loadArticles();
         showNotification('✅ Категория успешно удалена!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('articles');
     } catch (error) {
         console.error('Error deactivating article:', error);
         const errorMessage = error?.message || String(error);
@@ -1188,6 +1191,7 @@ async function archiveArticle(articleId, event) {
 
         await loadArticles();
         showNotification('✅ Категория и все подкатегории архивированы!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('articles');
     } catch (error) {
         console.error('Error archiving article:', error);
         showNotification(`❌ Ошибка архивирования: ${error.message}`, 'error');
@@ -1235,6 +1239,7 @@ async function restoreArticle(articleId, event) {
 
         await loadArticles();
         showNotification('✅ Категория и все подкатегории восстановлены!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('articles');
     } catch (error) {
         console.error('Error restoring article:', error);
         showNotification(`❌ Ошибка восстановления: ${error.message}`, 'error');

@@ -58,6 +58,22 @@ router = APIRouter(
 
 
 @router.get(
+    "/hierarchy",
+    summary="Get product group hierarchy (closure table)",
+    description="Return all rows from the closure table for Dexie IndexedDB sync.",
+)
+async def get_product_group_hierarchy(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> list[dict]:
+    rows = await product_group_hierarchy_service.get_all(session)
+    return [
+        {"ancestor_id": r.ancestor_id, "descendant_id": r.descendant_id, "depth": r.depth}
+        for r in rows
+    ]
+
+
+@router.get(
     "",
     response_model=ProductGroupListResponse,
     summary="List product groups",

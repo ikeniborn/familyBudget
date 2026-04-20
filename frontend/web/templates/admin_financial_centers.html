@@ -343,6 +343,7 @@ async function createCenter(event) {
         closeCreateModal();
         await loadCenters();
         showNotification('✅ Счет успешно создан!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('financial-centers');
     } catch (error) {
         console.error('Error creating account:', error);
         const errorMessage = error?.message || String(error);
@@ -444,6 +445,7 @@ async function updateCenter(event) {
         closeEditModal();
         await loadCenters();
         showNotification('✅ Счет успешно обновлен (создана новая версия SCD2)!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('financial-centers');
     } catch (error) {
         console.error('Error updating account:', error);
         const errorMessage = error?.message || String(error);
@@ -542,6 +544,7 @@ async function archiveCenter(centerId) {
         // Success
         await loadCenters();
         showNotification('✅ Счет успешно архивирован!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('financial-centers');
     } catch (error) {
         console.error('Error archiving account:', error);
         const errorMessage = error?.message || String(error);
@@ -565,6 +568,7 @@ async function restoreCenter(centerId) {
         // Success
         await loadCenters();
         showNotification('✅ Счет успешно восстановлен!', 'success');
+        window.BudgetSync?.triggerEntitySync?.('financial-centers');
     } catch (error) {
         console.error('Error restoring account:', error);
         const errorMessage = error?.message || String(error);

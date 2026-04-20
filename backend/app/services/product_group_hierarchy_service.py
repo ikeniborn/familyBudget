@@ -28,6 +28,12 @@ from backend.app.models.product_group import ProductGroup
 from backend.app.models.product_group_hierarchy import ProductGroupHierarchy
 
 
+async def get_all(session: AsyncSession) -> list[ProductGroupHierarchy]:
+    """Return all rows from the closure table (for Dexie sync)."""
+    result = await session.exec(select(ProductGroupHierarchy))
+    return list(result.all())
+
+
 async def get_subtree(
     session: AsyncSession,
     product_group_id: int,

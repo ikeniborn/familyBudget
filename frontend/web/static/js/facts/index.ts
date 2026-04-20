@@ -588,6 +588,15 @@ function setupModalFactListeners(): void {
                     setFactTransferDate(0);               // Дата transfer tab
                     initModalFactCalendars();             // CalendarWidget иконки
                     setupModalFactTabSwitching();         // Radio tab switching
+                    // Re-populate selects if empty (race: Dexie not ready at init time)
+                    const fcSelect = target.querySelector(
+                        'select[name="financial_center_id"]'
+                    ) as HTMLSelectElement | null;
+                    if (!fcSelect || fcSelect.options.length <= 1) {
+                        loadAndPopulateDropdowns().catch(err =>
+                            logger.warn(' Modal dropdown reload failed:', err)
+                        );
+                    }
                     // Transaction tree только когда dashboard.min.js не загружен
                     // Prevents "Choices already initialised" error when both
                     // facts.min.js and dashboard.min.js are loaded on dashboard page:

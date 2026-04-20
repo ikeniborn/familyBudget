@@ -456,15 +456,12 @@ export async function deleteItem(itemId: number, skipConfirm: boolean = false): 
   const state = getState();
   const dexie = await getDexieManager();
 
-  // Find item and get temp_id
+  // Find item — may be undefined if state wasn't initialized (e.g. after login redirect)
   const item = state.currentItems.find(i => i.id === itemId);
-  if (!item) {
-    throw new Error('Item not found in state');
-  }
 
   try {
-    // Dexie-first strategy
-    if (isDexieActive() && dexie.isReady() && item.temp_id) {
+    // Dexie-first strategy (only when item found in state with temp_id)
+    if (item && isDexieActive() && dexie.isReady() && item.temp_id) {
       // Delete in Dexie (soft delete, adds to pending queue)
       await deleteShoppingListItem(item.temp_id);
       debugLog('[LIST_OPS] Item deleted in Dexie', { temp_id: item.temp_id });

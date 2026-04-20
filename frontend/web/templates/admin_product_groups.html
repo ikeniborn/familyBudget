@@ -499,6 +499,7 @@ async function createProductGroup(event) {
         closeCreateModal();
         await loadProductGroups();
         showToast('✅ Группа товаров создана успешно', 'success');
+        window.BudgetSync?.triggerEntitySync?.('product-groups');
     } catch (error) {
         console.error('Failed to create product group:', error);
         showToast(`❌ Ошибка: ${error.message}`, 'error');
@@ -591,6 +592,7 @@ async function updateProductGroup(event) {
         closeEditModal();
         await loadProductGroups();
         showToast('✅ Группа товаров обновлена успешно', 'success');
+        window.BudgetSync?.triggerEntitySync?.('product-groups');
     } catch (error) {
         console.error('Failed to update product group:', error);
         showToast(`❌ Ошибка: ${error.message}`, 'error');
@@ -620,6 +622,7 @@ async function archiveProductGroup(groupId) {
 
         await loadProductGroups();
         showToast('✅ Группа товаров архивирована', 'success');
+        window.BudgetSync?.triggerEntitySync?.('product-groups');
     } catch (error) {
         console.error('Failed to archive product group:', error);
         showToast(`❌ Ошибка: ${error.message}`, 'error');
@@ -649,6 +652,7 @@ async function restoreProductGroup(groupId) {
 
         await loadProductGroups();
         showToast('✅ Группа товаров восстановлена', 'success');
+        window.BudgetSync?.triggerEntitySync?.('product-groups');
     } catch (error) {
         console.error('Failed to restore product group:', error);
         showToast(`❌ Ошибка: ${error.message}`, 'error');
@@ -690,6 +694,7 @@ async function deleteProductGroup(groupId) {
 
         await loadProductGroups();
         showToast('✅ Группа товаров удалена', 'success');
+        window.BudgetSync?.triggerEntitySync?.('product-groups');
     } catch (error) {
         console.error('Failed to delete product group:', error);
         showToast(`❌ Ошибка: ${error.message}`, 'error');
