@@ -29,7 +29,7 @@ webauthn==2.1.0            # WebAuthn biometric authentication (TouchID/FaceID)
 
 # Configuration
 pydantic-settings==2.7.0
-python-dotenv==1.0.1
+python-dotenv==1.2.2
 
 # Logging
 python-json-logger==3.2.1
