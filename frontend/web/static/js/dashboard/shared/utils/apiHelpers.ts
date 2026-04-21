@@ -30,6 +30,44 @@ export function parseFloatOrNull(value: FormDataEntryValue | null): number | nul
 }
 
 /**
+ * Typed API error with FastAPI detail payload
+ */
+export class APIError extends Error {
+  constructor(public status: number, public detail: string, message?: string) {
+    super(message || `HTTP ${status}: ${detail}`);
+    this.name = 'APIError';
+  }
+}
+
+/**
+ * Parse FastAPI error detail from Response body
+ * Handles: string detail, array of {loc, msg} (422), or raw text fallback
+ */
+async function parseAPIErrorDetail(response: Response): Promise<string> {
+  try {
+    const errJson = await response.clone().json();
+    const detail = errJson.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      return detail
+        .map((e: any) => {
+          const field = Array.isArray(e.loc) ? e.loc[e.loc.length - 1] : '';
+          return field ? `${field}: ${e.msg}` : e.msg;
+        })
+        .join('; ');
+    }
+    if (detail !== undefined) return JSON.stringify(detail);
+    return JSON.stringify(errJson);
+  } catch {
+    try {
+      return await response.text();
+    } catch {
+      return '';
+    }
+  }
+}
+
+/**
  * Generic API POST call with error handling
  * @param url - API endpoint URL
  * @param data - Request payload
@@ -50,8 +88,8 @@ export async function postAPI<T = any>(
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`HTTP ${response.status}: ${errorText}`);
+    const detail = await parseAPIErrorDetail(response);
+    throw new APIError(response.status, detail);
   }
 
   // Check if response is JSON before parsing

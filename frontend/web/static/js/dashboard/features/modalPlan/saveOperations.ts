@@ -9,6 +9,7 @@ import { closeModalPlan } from './index';
 import { getCurrentTab } from './tabManager';
 import { savePlanTransaction } from './saveTransaction';
 import { setButtonLoading } from '../../shared/utils/buttonState';
+import { APIError } from '../../shared/utils/apiHelpers';
 import {
   disableInactiveTabValidation,
   restoreRequiredValidation,
@@ -77,8 +78,13 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
 
   } catch (error) {
     debugLog('[SavePlanModal] Error:', error);
+    const message = error instanceof APIError
+      ? (error.status === 422
+          ? `Проверьте форму: ${error.detail}`
+          : `Ошибка (${error.status}): ${error.detail}`)
+      : 'Ошибка сохранения';
     if (typeof (window as any).showToast === 'function') {
-      (window as any).showToast('Ошибка сохранения', 'error');
+      (window as any).showToast(message, 'error');
     }
   } finally {
     setButtonLoading(button, false);
