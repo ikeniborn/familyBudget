@@ -2491,13 +2491,20 @@ if (typeof window !== 'undefined') {
 
     // Admin sync helper — triggers full reference data re-sync after CRUD operations
     if (!window.BudgetSync) window.BudgetSync = {};
-    window.BudgetSync.triggerEntitySync = function(entityType) {
+    window.BudgetSync.triggerEntitySync = async function(entityType) {
         if (typeof window.Dexie === 'undefined') return;
-        window.Dexie.getDexieManager().then(function(dexie) {
-            return dexie.syncReferenceData();
-        }).catch(function(err) {
+        try {
+            const dexie = window.Dexie.getDexieManager();
+            if (!dexie) return;
+            if (typeof dexie.isReady === 'function' && !dexie.isReady()) {
+                await dexie.init();
+            }
+            if (typeof dexie.syncReferenceData === 'function') {
+                await dexie.syncReferenceData();
+            }
+        } catch (err) {
             console.warn('[BudgetSync] Re-sync failed for', entityType, err);
-        });
+        }
     };
 
 }

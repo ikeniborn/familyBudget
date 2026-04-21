@@ -11,6 +11,15 @@ import * as PlanHelpers from './helpers';
 import * as PlanFilters from './filters';
 import { escapeHtml } from '../shared/htmlSanitizer';
 import { TableFormatters } from '../shared/tableUtils';
+import { dataLayer } from '../data/DataLayer';
+import {
+  isDexieActive,
+  type FactFilters,
+  type LocalBudgetFact,
+  type LocalArticle,
+  type LocalFinancialCenter,
+  type LocalCostCenter
+} from '@db/dexie';
 
 // Import BudgetShared from global window object
 declare const BudgetShared: {
@@ -179,8 +188,103 @@ async function loadRemindersForFacts(factIds: number[]): Promise<void> {
 }
 
 /**
- * Load facts from API with current filters and pagination
- * Main data loading function called on page load and filter changes
+ * Build FactFilters (Dexie-compatible) from current Plan filter state.
+ * has_recurring_plan / has_reminder are not in FactFilters — applied post-hoc.
+ */
+function buildPlanFactFilters(): FactFilters {
+  const f = PlanFilters.getFilters();
+  const ff: FactFilters = { record_type: 'plan' };
+  if (f.user_id) ff.user_id = f.user_id;
+  if (f.article_id) ff.article_id = f.article_id;
+  if (f.article_type) ff.article_type = f.article_type as any;
+  if (f.date_from) ff.date_from = f.date_from;
+  if (f.date_to) ff.date_to = f.date_to;
+  if (f.financial_center_id) ff.financial_center_id = f.financial_center_id;
+  if (f.cost_center_id) ff.cost_center_id = f.cost_center_id;
+  if (f.search) ff.search = f.search;
+  return ff;
+}
+
+interface EnrichmentMaps {
+  articles: Map<number, LocalArticle>;
+  financialCenters: Map<number, LocalFinancialCenter>;
+  costCenters: Map<number, LocalCostCenter>;
+}
+
+async function loadEnrichmentMaps(userId: number): Promise<EnrichmentMaps> {
+  const [articles, financialCenters, costCenters] = await Promise.all([
+    dataLayer.getArticles(),
+    dataLayer.getFinancialCenters(userId, true),
+    dataLayer.getCostCenters(userId, null, true)
+  ]);
+  return {
+    articles: new Map(articles.map(a => [a.id, a])),
+    financialCenters: new Map(financialCenters.map(fc => [fc.id, fc])),
+    costCenters: new Map(costCenters.map(cc => [cc.id, cc]))
+  };
+}
+
+/**
+ * Convert LocalBudgetFact (Dexie shape) → BudgetFact (UI shape) with enrichment
+ */
+function toUIFact(local: LocalBudgetFact, maps: EnrichmentMaps): PlanHelpers.BudgetFact {
+  const article = maps.articles.get(local.article_id);
+  const fc = maps.financialCenters.get(local.financial_center_id || 0);
+  const cc = local.cost_center_id ? maps.costCenters.get(local.cost_center_id) : null;
+
+  return {
+    id: local.id || 0,
+    fact_date: local.date,
+    financial_center_id: local.financial_center_id || 0,
+    financial_center_name: fc?.name || '',
+    cost_center_id: local.cost_center_id,
+    cost_center_name: cc?.name || null,
+    article_id: local.article_id,
+    article_name: article?.name || '',
+    article_type: (article?.type as any) || 'expense',
+    amount: Number(local.amount),
+    description: local.comment,
+    user_id: local.user_id,
+    user_name: (local as any).user_name || '',
+    record_type: local.record_type,
+    recurring_plan_id: (local as any).recurring_plan_id ?? null,
+    has_reminder: (local as any).has_reminder ?? false,
+    is_offline_sync: (local as any).is_offline_sync ?? false,
+    created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at?.toISOString?.(),
+    updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at?.toISOString?.()
+  };
+}
+
+/**
+ * Convert API fact (with already-populated names) → UI fact
+ */
+function toUIFactFromAPI(apiFact: any): PlanHelpers.BudgetFact {
+  return {
+    id: apiFact.id || 0,
+    fact_date: apiFact.fact_date,
+    financial_center_id: apiFact.financial_center_id || 0,
+    financial_center_name: apiFact.financial_center_name || '',
+    cost_center_id: apiFact.cost_center_id || null,
+    cost_center_name: apiFact.cost_center_name || null,
+    article_id: apiFact.article_id,
+    article_name: apiFact.article_name || '',
+    article_type: apiFact.article_type || 'expense',
+    amount: Number(apiFact.amount),
+    description: apiFact.description,
+    user_id: apiFact.user_id,
+    user_name: apiFact.user_name || '',
+    record_type: apiFact.record_type,
+    recurring_plan_id: apiFact.recurring_plan_id ?? null,
+    has_reminder: apiFact.has_reminder ?? false,
+    is_offline_sync: apiFact.is_offline_sync ?? false,
+    created_at: apiFact.created_at,
+    updated_at: apiFact.updated_at
+  };
+}
+
+/**
+ * Load facts via DataLayer (Dexie-first with API fallback), with client-side
+ * enrichment, post-filtering (has_recurring_plan / has_reminder), sorting and pagination.
  */
 export async function loadFacts(): Promise<void> {
   const container = document.getElementById('facts-table-container');
@@ -196,53 +300,55 @@ export async function loadFacts(): Promise<void> {
   );
 
   try {
-    // Build query params
-    const params = new URLSearchParams({
-      limit: String(pageSize),
-      offset: String(currentPage * pageSize),
-      record_type: 'plan' // Filter by plan records only
-    });
+    const uiFilters = PlanFilters.getFilters();
+    const factFilters = buildPlanFactFilters();
 
-    // Add filter parameters
-    const filters = PlanFilters.getFilters();
-    if (filters.user_id) params.append('user_id', String(filters.user_id));
-    if (filters.article_id) params.append('article_id', String(filters.article_id));
-    if (filters.article_type) params.append('article_type', filters.article_type);
-    if (filters.date_from) params.append('date_from', filters.date_from);
-    if (filters.date_to) params.append('date_to', filters.date_to);
-    if (filters.financial_center_id)
-      params.append('financial_center_id', String(filters.financial_center_id));
-    if (filters.cost_center_id) params.append('cost_center_id', String(filters.cost_center_id));
-    if (filters.search) params.append('search', filters.search);
-    if (filters.has_recurring_plan) params.append('has_recurring_plan', 'true');
-    if (filters.has_reminder) params.append('has_reminder', 'true');
-
-    // Debug: Log applied filters
     if (window.DEBUG_MODE && typeof debugLog !== 'undefined') {
-      debugLog('[PlanFactsTable] Loading facts with filters:', {
-        filters,
-        queryParams: params.toString(),
+      debugLog('[PlanFactsTable] Loading via DataLayer with filters:', {
+        uiFilters,
+        factFilters,
         page: currentPage,
         pageSize
       });
     }
 
-    // Load facts and count in parallel
-    const [factsResponse, countResponse] = await Promise.all([
-      fetch(`/api/v1/facts?${params}`),
-      fetch(`/api/v1/facts/count?${params}`)
-    ]);
+    // Load facts via DataLayer (Dexie-first + API fallback)
+    const localFacts = await dataLayer.getFacts(factFilters);
 
-    if (!factsResponse.ok || !countResponse.ok) {
-      throw new Error('Failed to load facts');
+    // Convert Dexie / API shape → UI shape
+    let allFacts: PlanHelpers.BudgetFact[];
+    if (isDexieActive() && localFacts.length > 0) {
+      const userId = localFacts[0].user_id;
+      const maps = await loadEnrichmentMaps(userId);
+      allFacts = localFacts.map(f => toUIFact(f, maps));
+      // Safety-net article_type filter post-enrichment
+      if (factFilters.article_type) {
+        allFacts = allFacts.filter(f => f.article_type === factFilters.article_type);
+      }
+    } else {
+      allFacts = (localFacts as any[]).map(toUIFactFromAPI);
     }
 
-    const factsResponseData = await factsResponse.json();
-    factsData = factsResponseData.facts || [];
-    const countData = await countResponse.json();
-    totalFacts = countData.total;
+    // Plan-specific post-filters (not supported by FactFilters)
+    if (uiFilters.has_recurring_plan) {
+      allFacts = allFacts.filter(f => !!f.recurring_plan_id);
+    }
+    if (uiFilters.has_reminder) {
+      allFacts = allFacts.filter(f => !!f.has_reminder);
+    }
 
-    // Load reminders for all facts
+    // Sort by updated_at DESC, id DESC (matches backend ordering)
+    allFacts.sort((a, b) => {
+      const dA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+      const dB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+      return dB - dA || (b.id ?? 0) - (a.id ?? 0);
+    });
+
+    totalFacts = allFacts.length;
+    const start = currentPage * pageSize;
+    factsData = allFacts.slice(start, start + pageSize);
+
+    // Load reminders for current-page facts
     await loadRemindersForFacts(factsData.map(f => f.id));
 
     // Render and update UI
@@ -252,7 +358,7 @@ export async function loadFacts(): Promise<void> {
 
     // Sync UI with filter state
     if (typeof AdminFactsCommon !== 'undefined') {
-      AdminFactsCommon.syncFiltersUI(filters);
+      AdminFactsCommon.syncFiltersUI(uiFilters);
     }
 
     // Load recurring plan stats asynchronously (fire-and-forget)

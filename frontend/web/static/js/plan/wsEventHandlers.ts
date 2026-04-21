@@ -10,6 +10,7 @@
  */
 
 import * as PlanFactsTable from './factsTable';
+import { getDexieManager, isDexieActive, mapAPIFactToLocal } from '@db/dexie';
 
 // ============================================================================
 // Debouncing
@@ -28,6 +29,44 @@ function debouncedReloadFacts(): void {
 }
 
 // ============================================================================
+// Dexie sync helpers
+// ============================================================================
+
+/**
+ * Fetch fact JSON and upsert into Dexie (non-critical).
+ * Keeps local cache converged with server after WS events from other clients.
+ */
+async function syncFactToDexie(planId: number): Promise<void> {
+  if (!isDexieActive()) return;
+  try {
+    const response = await fetch(`/api/v1/facts/${planId}`, { credentials: 'include' });
+    if (!response.ok) return;
+    const apiFact = await response.json();
+    const dexie = getDexieManager();
+    if (!dexie.isReady()) return;
+    const local = mapAPIFactToLocal(apiFact);
+    await dexie.bulkUpdateFacts([local]);
+  } catch (err) {
+    console.warn('[PlanWS] Failed to sync fact to Dexie:', err);
+  }
+}
+
+async function removeFactFromDexie(planId: number): Promise<void> {
+  if (!isDexieActive()) return;
+  try {
+    const dexie = getDexieManager();
+    if (!dexie.isReady()) return;
+    const facts = await dexie.queryFacts({});
+    const fact = facts.find((f: any) => f.id === planId);
+    if (fact?.temp_id) {
+      await dexie.deleteFact(fact.temp_id);
+    }
+  } catch (err) {
+    console.warn('[PlanWS] Failed to remove fact from Dexie:', err);
+  }
+}
+
+// ============================================================================
 // Event Handlers
 // ============================================================================
 
@@ -37,6 +76,8 @@ async function handlePlanCreated(data: { id?: number }): Promise<void> {
     debouncedReloadFacts();
     return;
   }
+  // Sync to Dexie in background (non-blocking)
+  void syncFactToDexie(planId);
   const injected = await PlanFactsTable.fetchAndInjectPlanRow(planId, 'create');
   if (!injected) {
     debouncedReloadFacts();
@@ -49,6 +90,8 @@ async function handlePlanUpdated(data: { id?: number }): Promise<void> {
     debouncedReloadFacts();
     return;
   }
+  // Sync to Dexie in background (non-blocking)
+  void syncFactToDexie(planId);
   const injected = await PlanFactsTable.fetchAndInjectPlanRow(planId, 'update');
   if (!injected) {
     debouncedReloadFacts();
@@ -61,6 +104,8 @@ function handlePlanDeleted(data: { id?: number }): void {
     debouncedReloadFacts();
     return;
   }
+  // Remove from Dexie in background (non-blocking)
+  void removeFactFromDexie(planId);
   PlanFactsTable.removePlanRow(planId);
 }
 

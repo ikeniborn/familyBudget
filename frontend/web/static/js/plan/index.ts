@@ -19,6 +19,8 @@ import { setupWindowExports } from './adapters/windowExports';
 import { registerWSHandlers } from './wsEventHandlers';
 import { savePlanTransfer } from '../dashboard/features/modalPlan/saveTransfer';
 import { setButtonLoading } from '../dashboard/shared/utils/buttonState';
+import { APIError } from '../dashboard/shared/utils/apiHelpers';
+import { getDexieManager } from '@db/dexie';
 
 // Logger из utils/logger.js (загружается глобально через bundle)
 declare class Logger {
@@ -118,6 +120,22 @@ declare global {
  * Initialize plan page
  * Called on DOMContentLoaded from inline script
  */
+async function ensureDexieReady(): Promise<void> {
+  try {
+    const mgr = getDexieManager();
+    if (!mgr || typeof mgr.isReady !== 'function') return;
+    if (!mgr.isReady() && typeof mgr.init === 'function') {
+      await mgr.init();
+    }
+    const userId = (window as any).userData?.id;
+    if (userId && typeof (mgr as any).syncReferenceData === 'function') {
+      await (mgr as any).syncReferenceData(userId);
+    }
+  } catch (err) {
+    log.warn('Dexie init failed (non-critical):', err);
+  }
+}
+
 export async function initialize(): Promise<void> {
   log.info('Initializing plan page...');
 
@@ -130,6 +148,9 @@ export async function initialize(): Promise<void> {
 
     // Initialize analytics month buttons
     PlanAnalytics.initAnalyticsMonthButtons();
+
+    // Ensure Dexie is ready before loading any data (non-critical: loadFacts falls back to API)
+    await ensureDexieReady();
 
     // Load dropdown data in parallel
     log.debug('Loading dropdown data...');
@@ -475,6 +496,14 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
         form.reportValidity();
       }
     }
+  } catch (error) {
+    log.error('savePlanModal error:', error);
+    const message = error instanceof APIError
+      ? (error.status === 422
+          ? `Проверьте форму: ${error.detail}`
+          : `Ошибка (${error.status}): ${error.detail}`)
+      : `Ошибка сохранения: ${(error as Error).message || 'неизвестная ошибка'}`;
+    PlanHelpers.showToast(message, 'error');
   } finally {
     isSubmitting = false;
     setButtonLoading(btn, false);
