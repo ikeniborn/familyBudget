@@ -250,20 +250,18 @@ export class DexieManager {
   async queryFinancialCenters(userId: number, includeGlobal: boolean = false): Promise<LocalFinancialCenter[]> {
     logger.debug('[DexieManager] queryFinancialCenters', { userId, includeGlobal });
 
-    // IndexedDB не поддерживает OR conditions
-    // Решение: два запроса + merge
-    const userCenters = await this.getDB().financialCenters
-      .where('user_id').equals(userId)
-      .toArray();
-
+    // BUG-001 (2026-04-22): «Shared Family Budget» — все пользователи видят все FC
+    // (backend financial_centers.py:70). Строки в Dexie хранят user_id создателя,
+    // поэтому фильтр по текущему userId показывал только созданные им центры
+    // (в продовом баге — 1 из 7). Когда includeGlobal=true (реальный call-site
+    // в dashboard/features), возвращаем все FC независимо от user_id.
     if (includeGlobal) {
-      const globalCenters = await this.getDB().financialCenters
-        .where('user_id').equals(0)  // global user_id = 0
-        .toArray();
-      return [...userCenters, ...globalCenters];
+      return await this.getDB().financialCenters.toArray();
     }
 
-    return userCenters;
+    return await this.getDB().financialCenters
+      .where('user_id').equals(userId)
+      .toArray();
   }
 
   /**

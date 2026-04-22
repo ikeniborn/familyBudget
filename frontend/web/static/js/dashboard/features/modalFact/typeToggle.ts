@@ -43,6 +43,30 @@ export function setupTransactionTypeToggle(): void {
     button.dataset.toggleListenerAttached = 'true';
   });
 
+  // BUG-006 (2026-04-22): also react to programmatic `change` on the radios
+  // themselves. The click handler above only fires when the surrounding label is
+  // clicked; when something else toggles the radio (Choices.js, tests, a11y
+  // shortcut) the category tree was left stale with the wrong expense/income set.
+  const radios = document.querySelectorAll<HTMLInputElement>(
+    `#${tabId} input[type="radio"][name="record_type"]`
+  );
+
+  radios.forEach((radio) => {
+    if (radio.dataset.toggleListenerAttached === 'true') return;
+
+    radio.addEventListener('change', () => {
+      if (!radio.checked) return;
+      const type = radio.value as 'expense' | 'income';
+      if (type !== 'expense' && type !== 'income') return;
+
+      updateTransactionTypeUI(type);
+      updateCategoryTreeType(type);
+      debugLog('[TypeToggle] record_type radio changed to:', type);
+    });
+
+    radio.dataset.toggleListenerAttached = 'true';
+  });
+
   debugLog('[TypeToggle] Transaction type toggle listeners setup');
 }
 

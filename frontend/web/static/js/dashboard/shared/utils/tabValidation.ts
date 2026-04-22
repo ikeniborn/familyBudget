@@ -59,3 +59,47 @@ export function restoreRequiredValidation(modalId: string): void {
     field.removeAttribute('data-was-required');
   });
 }
+
+/**
+ * Disable every form control inside the inactive tab so that `new FormData(form)`
+ * excludes them. Without this, shared field names (`amount`, `description`) from
+ * the hidden tab overwrite active-tab values with empty strings, leading to 422
+ * responses from POST /api/v1/facts (BUG-005, 2026-04-22).
+ *
+ * Each control newly disabled by this helper is marked with
+ * `data-was-disabled="true"` so {@link restoreInactiveTabInputs} can restore the
+ * original state without touching controls that were already disabled for other
+ * reasons.
+ *
+ * Idempotent: repeated calls with the same active tab do not stack markers.
+ */
+export function disableInactiveTabInputs(
+  modalId: string,
+  activeTab: 'transaction' | 'transfer'
+): void {
+  const inactiveTab = activeTab === 'transaction' ? 'transfer' : 'transaction';
+  const inactiveControls = document.querySelectorAll<
+    HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+  >(`#${modalId}-tab-${inactiveTab} input, #${modalId}-tab-${inactiveTab} select, #${modalId}-tab-${inactiveTab} textarea`);
+
+  inactiveControls.forEach((el) => {
+    if (el.disabled) return; // Preserve pre-existing disabled state.
+    el.disabled = true;
+    el.setAttribute('data-was-disabled', 'true');
+  });
+}
+
+/**
+ * Re-enable every control previously disabled by
+ * {@link disableInactiveTabInputs} within the modal.
+ */
+export function restoreInactiveTabInputs(modalId: string): void {
+  const controls = document.querySelectorAll<
+    HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+  >(`#${modalId} [data-was-disabled="true"]`);
+
+  controls.forEach((el) => {
+    el.disabled = false;
+    el.removeAttribute('data-was-disabled');
+  });
+}
