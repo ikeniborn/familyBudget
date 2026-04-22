@@ -146,6 +146,49 @@ function canInjectRow(): boolean {
 }
 
 /**
+ * Deduplicated fetch for /row-html.
+ * Collapses concurrent requests for the same factId into one in-flight promise,
+ * and returns a recently fetched response for ROW_HTML_TTL_MS to avoid a second
+ * network round-trip when both the optimistic UI path and the WS handler ask
+ * for the same row within the same event cycle.
+ */
+const ROW_HTML_TTL_MS = 1000;
+const rowHtmlCache = new Map<number, { ts: number; html: string }>();
+const rowHtmlInFlight = new Map<number, Promise<string | null>>();
+
+export async function fetchRowHtmlDeduped(factId: number): Promise<string | null> {
+    const now = Date.now();
+    const cached = rowHtmlCache.get(factId);
+    if (cached && now - cached.ts < ROW_HTML_TTL_MS) {
+        return cached.html;
+    }
+    const existing = rowHtmlInFlight.get(factId);
+    if (existing) return existing;
+
+    const promise = (async () => {
+        try {
+            const response = await fetch(`/api/v1/facts/${factId}/row-html`, {
+                credentials: 'include'
+            });
+            if (!response.ok) {
+                logger.warn(`fetchRowHtmlDeduped: HTTP ${response.status} for fact ${factId}`);
+                return null;
+            }
+            const html = await response.text();
+            rowHtmlCache.set(factId, { ts: Date.now(), html });
+            return html;
+        } catch (error) {
+            logger.warn('fetchRowHtmlDeduped failed:', error);
+            return null;
+        } finally {
+            rowHtmlInFlight.delete(factId);
+        }
+    })();
+    rowHtmlInFlight.set(factId, promise);
+    return promise;
+}
+
+/**
  * Fetch HTML for a single row from the backend and inject it into the table.
  * For 'create': prepend to tbody.
  * For 'update': replace existing tr[data-id] and div[data-id].
@@ -157,16 +200,11 @@ export async function fetchAndInjectRow(factId: number, operation: 'create' | 'u
     }
 
     try {
-        const response = await fetch(`/api/v1/facts/${factId}/row-html`, {
-            credentials: 'include'
-        });
-
-        if (!response.ok) {
-            logger.warn(`fetchAndInjectRow: HTTP ${response.status} for fact ${factId}`);
+        const html = await fetchRowHtmlDeduped(factId);
+        if (html === null) {
             return false;
         }
 
-        const html = await response.text();
         const parsed = parseRowHtml(html);
 
         if (operation === 'create') {
