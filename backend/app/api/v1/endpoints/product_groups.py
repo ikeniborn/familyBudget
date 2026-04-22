@@ -28,6 +28,11 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from backend.app.api.v1.endpoints.budget_ws import (
+    broadcast_product_group_created,
+    broadcast_product_group_deleted,
+    broadcast_product_group_updated,
+)
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
 from backend.app.models.product_group import ProductGroup
@@ -213,7 +218,13 @@ async def create_product_group(
         product_group.id, product_group.name, product_group.parent_id, current_user.id
     )
 
-    return ProductGroupResponse.model_validate(product_group)
+    response = ProductGroupResponse.model_validate(product_group)
+    try:
+        await broadcast_product_group_created(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_product_group_created failed: %s", e)
+
+    return response
 
 
 @router.get(
@@ -306,7 +317,13 @@ async def update_product_group(
         product_group_id, product_group.name, changed_fields, current_user.id
     )
 
-    return ProductGroupResponse.model_validate(updated_product_group)
+    response = ProductGroupResponse.model_validate(updated_product_group)
+    try:
+        await broadcast_product_group_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_product_group_updated failed: %s", e)
+
+    return response
 
 
 @router.put(
@@ -356,7 +373,13 @@ async def archive_product_group(
         product_group_id, product_group.name, current_user.id
     )
 
-    return ProductGroupResponse.model_validate(product_group)
+    response = ProductGroupResponse.model_validate(product_group)
+    try:
+        await broadcast_product_group_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_product_group_updated (archive) failed: %s", e)
+
+    return response
 
 
 @router.put(
@@ -405,7 +428,13 @@ async def restore_product_group(
         product_group_id, product_group.name, current_user.id
     )
 
-    return ProductGroupResponse.model_validate(product_group)
+    response = ProductGroupResponse.model_validate(product_group)
+    try:
+        await broadcast_product_group_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_product_group_updated (restore) failed: %s", e)
+
+    return response
 
 
 @router.delete(
@@ -508,6 +537,11 @@ async def delete_product_group(
         f"({product_group.name}) with {items_count} related shopping list items "
         f"by admin {current_user.id}"
     )
+
+    try:
+        await broadcast_product_group_deleted(product_group_id)
+    except Exception as e:
+        logger.warning("broadcast_product_group_deleted failed: %s", e)
 
     return {
         "message": "Product group deleted successfully",
@@ -765,4 +799,10 @@ async def move_product_group_to_parent(
         f"by admin {current_user.id}"
     )
 
-    return ProductGroupResponse.model_validate(updated_product_group)
+    response = ProductGroupResponse.model_validate(updated_product_group)
+    try:
+        await broadcast_product_group_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_product_group_updated (move) failed: %s", e)
+
+    return response

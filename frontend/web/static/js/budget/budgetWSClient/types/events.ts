@@ -140,6 +140,101 @@ export interface ShoppingListDeletedEvent {
 }
 
 // ============================================================================
+// Financial Center Events
+// ============================================================================
+
+export interface FinancialCenterCreatedEvent {
+  id: number;
+  user_id: number;
+  name: string;
+  description: string | null;
+  code: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface FinancialCenterUpdatedEvent extends FinancialCenterCreatedEvent {
+  // Same structure as created
+}
+
+export interface FinancialCenterDeletedEvent {
+  id: number;
+}
+
+// ============================================================================
+// Cost Center Events
+// ============================================================================
+
+export interface CostCenterCreatedEvent {
+  id: number;
+  user_id: number;
+  name: string;
+  code: string | null;
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  financial_center_ids?: number[];
+}
+
+export interface CostCenterUpdatedEvent extends CostCenterCreatedEvent {
+  // Same structure as created
+}
+
+export interface CostCenterDeletedEvent {
+  id: number;
+}
+
+// ============================================================================
+// Store Events
+// ============================================================================
+
+export interface StoreCreatedEvent {
+  id: number;
+  creator_id: number;
+  name: string;
+  address: string | null;
+  description: string | null;
+  code: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface StoreUpdatedEvent extends StoreCreatedEvent {
+  // Same structure as created
+}
+
+export interface StoreDeletedEvent {
+  id: number;
+}
+
+// ============================================================================
+// Product Group Events
+// ============================================================================
+
+export interface ProductGroupCreatedEvent {
+  id: number;
+  creator_id: number;
+  parent_id: number | null;
+  name: string;
+  description: string | null;
+  code: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProductGroupUpdatedEvent extends ProductGroupCreatedEvent {
+  // Same structure as created
+}
+
+export interface ProductGroupDeletedEvent {
+  id: number;
+}
+
+// ============================================================================
 // Multi-Tab Coordination Events
 // ============================================================================
 

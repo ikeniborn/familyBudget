@@ -9,7 +9,7 @@
 declare const debugLog: (...args: any[]) => void;
 
 import { notifyHandlers } from './eventRegistration';
-import { db } from '@db/dexie';
+import { db, generateUUID } from '@db/dexie';
 import type {
   FactCreatedEvent,
   FactUpdatedEvent,
@@ -26,6 +26,18 @@ import type {
   ShoppingListCreatedEvent,
   ShoppingListUpdatedEvent,
   ShoppingListDeletedEvent,
+  FinancialCenterCreatedEvent,
+  FinancialCenterUpdatedEvent,
+  FinancialCenterDeletedEvent,
+  CostCenterCreatedEvent,
+  CostCenterUpdatedEvent,
+  CostCenterDeletedEvent,
+  StoreCreatedEvent,
+  StoreUpdatedEvent,
+  StoreDeletedEvent,
+  ProductGroupCreatedEvent,
+  ProductGroupUpdatedEvent,
+  ProductGroupDeletedEvent,
   SyncInitialResponse,
   SyncIncrementalResponse,
   SyncClientChangesResponse,
@@ -36,28 +48,133 @@ import { handleSyncInitial, handleSyncIncremental } from './syncHandler';
 // Dexie helpers (non-fatal, fire-and-forget pattern from wsEventHandlers.ts)
 // ============================================================================
 
-async function softDeleteFactInDexie(factId: number): Promise<void> {
+function toDate(value: unknown): Date {
+  if (value instanceof Date) return value;
+  if (typeof value === 'string' || typeof value === 'number') return new Date(value);
+  return new Date();
+}
+
+async function hardDeleteFactInDexie(factId: number): Promise<void> {
   try {
-    await db.budgetFacts.where('id').equals(factId).modify({
-      sync_status: 'deleted',
-      updated_at: new Date(),
-    });
+    await db.budgetFacts.where('id').equals(factId).delete();
   } catch { /* non-fatal */ }
 }
 
-async function deleteRecurringPlanFromDexie(planId: number): Promise<void> {
+async function upsertFactInDexie(fact: any): Promise<void> {
   try {
-    await db.recurringPlans.where('id').equals(planId).delete();
+    const existing = await db.budgetFacts.where('id').equals(fact.id).first();
+    if (existing) {
+      await db.budgetFacts.where('temp_id').equals(existing.temp_id).modify({
+        ...fact,
+        temp_id: existing.temp_id,
+        sync_status: 'synced',
+        updated_at: toDate(fact.updated_at),
+      });
+    } else {
+      await db.budgetFacts.put({
+        ...fact,
+        temp_id: generateUUID(),
+        sync_status: 'synced',
+        created_at: toDate(fact.created_at),
+        updated_at: toDate(fact.updated_at),
+      } as any);
+    }
   } catch { /* non-fatal */ }
 }
 
-async function upsertRecurringPlanToDexie(plan: PlanCreatedEvent): Promise<void> {
+async function upsertShoppingListInDexie(list: any): Promise<void> {
   try {
-    await db.recurringPlans.put({
-      ...plan,
-      is_active: (plan as unknown as Record<string, unknown>).is_active ?? true,
-    } as any);
+    const existing = await db.shoppingLists.where('id').equals(list.id).first();
+    if (existing) {
+      await db.shoppingLists.where('temp_id').equals(existing.temp_id).modify({
+        ...list,
+        temp_id: existing.temp_id,
+        sync_status: 'synced',
+        updated_at: toDate(list.updated_at),
+      });
+    } else {
+      await db.shoppingLists.put({
+        ...list,
+        temp_id: generateUUID(),
+        sync_status: 'synced',
+        created_at: toDate(list.created_at),
+        updated_at: toDate(list.updated_at),
+      } as any);
+    }
   } catch { /* non-fatal */ }
+}
+
+async function hardDeleteShoppingListFromDexie(listId: number): Promise<void> {
+  try {
+    const existing = await db.shoppingLists.where('id').equals(listId).first();
+    if (existing) {
+      await db.shoppingListItems
+        .where('shopping_list_temp_id').equals(existing.temp_id).delete();
+      await db.shoppingLists.where('temp_id').equals(existing.temp_id).delete();
+    } else {
+      await db.shoppingLists.where('id').equals(listId).delete();
+    }
+  } catch { /* non-fatal */ }
+}
+
+async function upsertShoppingItemInDexie(item: any): Promise<void> {
+  try {
+    const existing = await db.shoppingListItems.where('id').equals(item.id).first();
+    if (existing) {
+      await db.shoppingListItems.where('temp_id').equals(existing.temp_id).modify({
+        ...item,
+        temp_id: existing.temp_id,
+        sync_status: 'synced',
+        updated_at: toDate(item.updated_at),
+      });
+    } else {
+      await db.shoppingListItems.put({
+        ...item,
+        temp_id: generateUUID(),
+        sync_status: 'synced',
+        created_at: toDate(item.created_at),
+        updated_at: toDate(item.updated_at),
+      } as any);
+    }
+  } catch { /* non-fatal */ }
+}
+
+async function hardDeleteShoppingItemInDexie(itemId: number): Promise<void> {
+  try {
+    await db.shoppingListItems.where('id').equals(itemId).delete();
+  } catch { /* non-fatal */ }
+}
+
+async function upsertFinancialCenterInDexie(fc: any): Promise<void> {
+  try { await db.financialCenters.put(fc); } catch { /* non-fatal */ }
+}
+
+async function deleteFinancialCenterFromDexie(id: number): Promise<void> {
+  try { await db.financialCenters.where('id').equals(id).delete(); } catch { /* non-fatal */ }
+}
+
+async function upsertCostCenterInDexie(cc: any): Promise<void> {
+  try { await db.costCenters.put(cc); } catch { /* non-fatal */ }
+}
+
+async function deleteCostCenterFromDexie(id: number): Promise<void> {
+  try { await db.costCenters.where('id').equals(id).delete(); } catch { /* non-fatal */ }
+}
+
+async function upsertStoreInDexie(store: any): Promise<void> {
+  try { await db.stores.put(store); } catch { /* non-fatal */ }
+}
+
+async function deleteStoreFromDexie(id: number): Promise<void> {
+  try { await db.stores.where('id').equals(id).delete(); } catch { /* non-fatal */ }
+}
+
+async function upsertProductGroupInDexie(pg: any): Promise<void> {
+  try { await db.productGroups.put(pg); } catch { /* non-fatal */ }
+}
+
+async function deleteProductGroupFromDexie(id: number): Promise<void> {
+  try { await db.productGroups.where('id').equals(id).delete(); } catch { /* non-fatal */ }
 }
 
 // ============================================================================
@@ -68,6 +185,7 @@ async function upsertRecurringPlanToDexie(plan: PlanCreatedEvent): Promise<void>
 export function handleFactCreated(data: FactCreatedEvent): void {
   notifyHandlers('fact_created', data);
   callOfflineManagerUI('fact_created', data);
+  void upsertFactInDexie(data);
 }
 
 /**
@@ -76,6 +194,7 @@ export function handleFactCreated(data: FactCreatedEvent): void {
 export function handleFactUpdated(data: FactUpdatedEvent): void {
   notifyHandlers('fact_updated', data);
   callOfflineManagerUI('fact_updated', data);
+  void upsertFactInDexie(data);
 }
 
 /**
@@ -84,16 +203,16 @@ export function handleFactUpdated(data: FactUpdatedEvent): void {
 export function handleFactDeleted(data: FactDeletedEvent): void {
   notifyHandlers('fact_deleted', data);
   callOfflineManagerUI('fact_deleted', data);
-  void softDeleteFactInDexie(data.id);
+  void hardDeleteFactInDexie(data.id);
 }
 
 /**
- * Handle plan_created event
+ * Handle plan_created event (stored in budgetFacts with record_type='plan')
  */
 export function handlePlanCreated(data: PlanCreatedEvent): void {
   notifyHandlers('plan_created', data);
   callOfflineManagerUI('plan_created', data);
-  void upsertRecurringPlanToDexie(data);
+  void upsertFactInDexie(data);
 }
 
 /**
@@ -102,6 +221,7 @@ export function handlePlanCreated(data: PlanCreatedEvent): void {
 export function handlePlanUpdated(data: PlanUpdatedEvent): void {
   notifyHandlers('plan_updated', data);
   callOfflineManagerUI('plan_updated', data);
+  void upsertFactInDexie(data);
 }
 
 /**
@@ -110,7 +230,7 @@ export function handlePlanUpdated(data: PlanUpdatedEvent): void {
 export function handlePlanDeleted(data: PlanDeletedEvent): void {
   notifyHandlers('plan_deleted', data);
   callOfflineManagerUI('plan_deleted', data);
-  void deleteRecurringPlanFromDexie(data.id);
+  void hardDeleteFactInDexie(data.id);
 }
 
 /**
@@ -135,6 +255,7 @@ export function handleTransferDeleted(data: TransferDeletedEvent): void {
 export function handleItemCreated(data: ItemCreatedEvent): void {
   notifyHandlers('item_created', data);
   callListsManagerUI('addItemToUI', data);
+  void upsertShoppingItemInDexie(data);
 }
 
 /**
@@ -143,6 +264,7 @@ export function handleItemCreated(data: ItemCreatedEvent): void {
 export function handleItemUpdated(data: ItemUpdatedEvent): void {
   notifyHandlers('item_updated', data);
   callListsManagerUI('updateItemInUI', data);
+  void upsertShoppingItemInDexie(data);
 }
 
 /**
@@ -153,6 +275,7 @@ export function handleItemDeleted(data: ItemDeletedEvent): void {
   if ((window as any).listsManager) {
     (window as any).listsManager.removeItemFromUI(data.id, data.shopping_list_id);
   }
+  void hardDeleteShoppingItemInDexie(data.id);
 }
 
 /**
@@ -175,6 +298,7 @@ export function handleItemCompleted(data: ItemCompletedEvent): void {
 export function handleShoppingListCreated(data: ShoppingListCreatedEvent): void {
   debugLog('[WS] Shopping list created:', data);
   notifyHandlers('shopping_list_created', data);
+  void upsertShoppingListInDexie(data);
 
   // Refresh dashboard if on landing view
   if ((window as any).listsManager?.refreshDashboard) {
@@ -188,6 +312,7 @@ export function handleShoppingListCreated(data: ShoppingListCreatedEvent): void 
 export function handleShoppingListUpdated(data: ShoppingListUpdatedEvent): void {
   debugLog('[WS] Shopping list updated:', data);
   notifyHandlers('shopping_list_updated', data);
+  void upsertShoppingListInDexie(data);
 
   // Use efficient in-state stats update (no API reload) when available
   // This updates total_items/completed_items/completion_percentage in landing page cards
@@ -205,11 +330,88 @@ export function handleShoppingListUpdated(data: ShoppingListUpdatedEvent): void 
 export function handleShoppingListDeleted(data: ShoppingListDeletedEvent): void {
   debugLog('[BudgetWS] Handling shopping_list_deleted event', data);
   notifyHandlers('shopping_list_deleted', data);
+  void hardDeleteShoppingListFromDexie(data.id);
 
   // Notify lists manager if available
   if ((window as any).listsManager?.handleShoppingListDeleted) {
     (window as any).listsManager.handleShoppingListDeleted(data.id);
   }
+}
+
+// ============================================================================
+// Reference-data handlers (FC / CC / Stores / Product Groups)
+// ============================================================================
+
+export function handleFinancialCenterCreated(data: FinancialCenterCreatedEvent): void {
+  notifyHandlers('financial_center_created', data);
+  callOfflineManagerUI('financial_center_created', data);
+  void upsertFinancialCenterInDexie(data);
+}
+
+export function handleFinancialCenterUpdated(data: FinancialCenterUpdatedEvent): void {
+  notifyHandlers('financial_center_updated', data);
+  callOfflineManagerUI('financial_center_updated', data);
+  void upsertFinancialCenterInDexie(data);
+}
+
+export function handleFinancialCenterDeleted(data: FinancialCenterDeletedEvent): void {
+  notifyHandlers('financial_center_deleted', data);
+  callOfflineManagerUI('financial_center_deleted', data);
+  void deleteFinancialCenterFromDexie(data.id);
+}
+
+export function handleCostCenterCreated(data: CostCenterCreatedEvent): void {
+  notifyHandlers('cost_center_created', data);
+  callOfflineManagerUI('cost_center_created', data);
+  void upsertCostCenterInDexie(data);
+}
+
+export function handleCostCenterUpdated(data: CostCenterUpdatedEvent): void {
+  notifyHandlers('cost_center_updated', data);
+  callOfflineManagerUI('cost_center_updated', data);
+  void upsertCostCenterInDexie(data);
+}
+
+export function handleCostCenterDeleted(data: CostCenterDeletedEvent): void {
+  notifyHandlers('cost_center_deleted', data);
+  callOfflineManagerUI('cost_center_deleted', data);
+  void deleteCostCenterFromDexie(data.id);
+}
+
+export function handleStoreCreated(data: StoreCreatedEvent): void {
+  notifyHandlers('store_created', data);
+  callOfflineManagerUI('store_created', data);
+  void upsertStoreInDexie(data);
+}
+
+export function handleStoreUpdated(data: StoreUpdatedEvent): void {
+  notifyHandlers('store_updated', data);
+  callOfflineManagerUI('store_updated', data);
+  void upsertStoreInDexie(data);
+}
+
+export function handleStoreDeleted(data: StoreDeletedEvent): void {
+  notifyHandlers('store_deleted', data);
+  callOfflineManagerUI('store_deleted', data);
+  void deleteStoreFromDexie(data.id);
+}
+
+export function handleProductGroupCreated(data: ProductGroupCreatedEvent): void {
+  notifyHandlers('product_group_created', data);
+  callOfflineManagerUI('product_group_created', data);
+  void upsertProductGroupInDexie(data);
+}
+
+export function handleProductGroupUpdated(data: ProductGroupUpdatedEvent): void {
+  notifyHandlers('product_group_updated', data);
+  callOfflineManagerUI('product_group_updated', data);
+  void upsertProductGroupInDexie(data);
+}
+
+export function handleProductGroupDeleted(data: ProductGroupDeletedEvent): void {
+  notifyHandlers('product_group_deleted', data);
+  callOfflineManagerUI('product_group_deleted', data);
+  void deleteProductGroupFromDexie(data.id);
 }
 
 /**
@@ -305,6 +507,42 @@ export function dispatchEvent(eventType: string, eventData: unknown): void {
       ).catch(err => {
         debugLog('[UPLOAD] Failed to handle sync_client_changes_response', err);
       });
+      break;
+    case 'financial_center_created':
+      handleFinancialCenterCreated(eventData as FinancialCenterCreatedEvent);
+      break;
+    case 'financial_center_updated':
+      handleFinancialCenterUpdated(eventData as FinancialCenterUpdatedEvent);
+      break;
+    case 'financial_center_deleted':
+      handleFinancialCenterDeleted(eventData as FinancialCenterDeletedEvent);
+      break;
+    case 'cost_center_created':
+      handleCostCenterCreated(eventData as CostCenterCreatedEvent);
+      break;
+    case 'cost_center_updated':
+      handleCostCenterUpdated(eventData as CostCenterUpdatedEvent);
+      break;
+    case 'cost_center_deleted':
+      handleCostCenterDeleted(eventData as CostCenterDeletedEvent);
+      break;
+    case 'store_created':
+      handleStoreCreated(eventData as StoreCreatedEvent);
+      break;
+    case 'store_updated':
+      handleStoreUpdated(eventData as StoreUpdatedEvent);
+      break;
+    case 'store_deleted':
+      handleStoreDeleted(eventData as StoreDeletedEvent);
+      break;
+    case 'product_group_created':
+      handleProductGroupCreated(eventData as ProductGroupCreatedEvent);
+      break;
+    case 'product_group_updated':
+      handleProductGroupUpdated(eventData as ProductGroupUpdatedEvent);
+      break;
+    case 'product_group_deleted':
+      handleProductGroupDeleted(eventData as ProductGroupDeletedEvent);
       break;
     default:
       handleEvent(eventType, eventData);

@@ -1180,6 +1180,86 @@ async def broadcast_shopping_list_deleted(list_id: int):
     await _broadcast_and_buffer("shopping_list_deleted", {"id": list_id})
 
 
+# Financial center broadcast functions
+
+async def broadcast_financial_center_created(fc_data: dict):
+    """Broadcast financial center created event."""
+    logger.debug("broadcast_financial_center_created: fc_id=%s", fc_data.get('id'))
+    await _broadcast_and_buffer("financial_center_created", fc_data)
+
+
+async def broadcast_financial_center_updated(fc_data: dict):
+    """Broadcast financial center updated event (includes archive/restore)."""
+    logger.debug("broadcast_financial_center_updated: fc_id=%s is_active=%s", fc_data.get('id'), fc_data.get('is_active'))
+    await _broadcast_and_buffer("financial_center_updated", fc_data)
+
+
+async def broadcast_financial_center_deleted(fc_id: int):
+    """Broadcast financial center deleted event (hard delete / cascade)."""
+    logger.debug("broadcast_financial_center_deleted: fc_id=%s", fc_id)
+    await _broadcast_and_buffer("financial_center_deleted", {"id": fc_id})
+
+
+# Cost center broadcast functions
+
+async def broadcast_cost_center_created(cc_data: dict):
+    """Broadcast cost center created event."""
+    logger.debug("broadcast_cost_center_created: cc_id=%s", cc_data.get('id'))
+    await _broadcast_and_buffer("cost_center_created", cc_data)
+
+
+async def broadcast_cost_center_updated(cc_data: dict):
+    """Broadcast cost center updated event (includes archive/restore)."""
+    logger.debug("broadcast_cost_center_updated: cc_id=%s is_active=%s", cc_data.get('id'), cc_data.get('is_active'))
+    await _broadcast_and_buffer("cost_center_updated", cc_data)
+
+
+async def broadcast_cost_center_deleted(cc_id: int):
+    """Broadcast cost center deleted event (hard delete / cascade)."""
+    logger.debug("broadcast_cost_center_deleted: cc_id=%s", cc_id)
+    await _broadcast_and_buffer("cost_center_deleted", {"id": cc_id})
+
+
+# Store broadcast functions
+
+async def broadcast_store_created(store_data: dict):
+    """Broadcast store created event."""
+    logger.debug("broadcast_store_created: store_id=%s", store_data.get('id'))
+    await _broadcast_and_buffer("store_created", store_data)
+
+
+async def broadcast_store_updated(store_data: dict):
+    """Broadcast store updated event (includes archive/restore)."""
+    logger.debug("broadcast_store_updated: store_id=%s is_active=%s", store_data.get('id'), store_data.get('is_active'))
+    await _broadcast_and_buffer("store_updated", store_data)
+
+
+async def broadcast_store_deleted(store_id: int):
+    """Broadcast store deleted event (hard delete / cascade)."""
+    logger.debug("broadcast_store_deleted: store_id=%s", store_id)
+    await _broadcast_and_buffer("store_deleted", {"id": store_id})
+
+
+# Product group broadcast functions
+
+async def broadcast_product_group_created(pg_data: dict):
+    """Broadcast product group created event."""
+    logger.debug("broadcast_product_group_created: pg_id=%s", pg_data.get('id'))
+    await _broadcast_and_buffer("product_group_created", pg_data)
+
+
+async def broadcast_product_group_updated(pg_data: dict):
+    """Broadcast product group updated event (includes archive/restore)."""
+    logger.debug("broadcast_product_group_updated: pg_id=%s is_active=%s", pg_data.get('id'), pg_data.get('is_active'))
+    await _broadcast_and_buffer("product_group_updated", pg_data)
+
+
+async def broadcast_product_group_deleted(pg_id: int):
+    """Broadcast product group deleted event (hard delete / cascade)."""
+    logger.debug("broadcast_product_group_deleted: pg_id=%s", pg_id)
+    await _broadcast_and_buffer("product_group_deleted", {"id": pg_id})
+
+
 # WebAuthn credential broadcast functions
 
 async def broadcast_webauthn_credential_added(user_id: int, credential_data: dict):

@@ -33,6 +33,14 @@ const TEMP_ID_PREFIX = 'list_';
 /** Suffix for generated temp_id (indicates fallback generation) */
 const TEMP_ID_SUFFIX = '_temp';
 
+/**
+ * BUG-6: One-shot forced API pull flag.
+ * Ensures the very first loadShoppingLists() call after page open refreshes
+ * Dexie from the server, so stale cache (e.g. missed WS shopping_list_created
+ * events) cannot mask newly-created lists.
+ */
+let bootstrapPullDone = false;
+
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -283,6 +291,22 @@ export async function loadShoppingLists(): Promise<void> {
   }
 
   try {
+    // BUG-6: On first load, force a fresh server pull into Dexie so missed WS
+    // events (e.g. shopping_list_created from another tab) cannot leave stale
+    // cache masking newly-created lists on /lists.
+    if (!bootstrapPullDone) {
+      bootstrapPullDone = true;
+      try {
+        const userId = (window as any).userData?.id;
+        if (userId) {
+          const { downloadShoppingLists } = await import('@db/dexie');
+          await downloadShoppingLists(userId);
+        }
+      } catch (pullError) {
+        debugLog('[ListsManager] Bootstrap forced pull failed (non-fatal)', pullError);
+      }
+    }
+
     // DataLayer automatically handles Dexie-first + API fallback
     const localLists = await dataLayer.getShoppingLists({ is_active: true });
     const shoppingLists = localLists.map(convertShoppingList);

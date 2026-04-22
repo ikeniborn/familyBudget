@@ -29,6 +29,11 @@ from backend.app.schemas.financial_center import (
     FinancialCenterResponse,
     FinancialCenterUpdate,
 )
+from backend.app.api.v1.endpoints.budget_ws import (
+    broadcast_financial_center_created,
+    broadcast_financial_center_deleted,
+    broadcast_financial_center_updated,
+)
 from backend.app.services.cache_service import cache_service
 from backend.app.services.financial_center_service import (
     FAR_FUTURE_DATETIME,
@@ -140,7 +145,13 @@ async def create_financial_center(
     # Invalidate financial centers cache
     await cache_service.invalidate_financial_centers()
 
-    return FinancialCenterResponse.model_validate(financial_center)
+    response = FinancialCenterResponse.model_validate(financial_center)
+    try:
+        await broadcast_financial_center_created(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_financial_center_created failed: %s", e)
+
+    return response
 
 
 @router.get(
@@ -253,7 +264,13 @@ async def update_financial_center(
     # Invalidate financial centers cache
     await cache_service.invalidate_financial_centers()
 
-    return FinancialCenterResponse.model_validate(updated_financial_center)
+    response = FinancialCenterResponse.model_validate(updated_financial_center)
+    try:
+        await broadcast_financial_center_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_financial_center_updated failed: %s", e)
+
+    return response
 
 
 @router.put(
@@ -303,6 +320,13 @@ async def archive_financial_center(
     # Invalidate financial centers cache
     await cache_service.invalidate_financial_centers()
 
+    try:
+        await broadcast_financial_center_updated(
+            FinancialCenterResponse.model_validate(financial_center).model_dump(mode="json")
+        )
+    except Exception as e:
+        logger.warning("broadcast_financial_center_updated (archive) failed: %s", e)
+
     return financial_center
 
 
@@ -351,6 +375,13 @@ async def restore_financial_center(
 
     # Invalidate financial centers cache
     await cache_service.invalidate_financial_centers()
+
+    try:
+        await broadcast_financial_center_updated(
+            FinancialCenterResponse.model_validate(financial_center).model_dump(mode="json")
+        )
+    except Exception as e:
+        logger.warning("broadcast_financial_center_updated (restore) failed: %s", e)
 
     return financial_center
 
@@ -480,6 +511,11 @@ async def delete_financial_center(
         "Physically deleted financial center %s (%s) with %s related facts by admin %s",
         financial_center_id, financial_center.name, facts_count, current_user.id
     )
+
+    try:
+        await broadcast_financial_center_deleted(financial_center_id)
+    except Exception as e:
+        logger.warning("broadcast_financial_center_deleted failed: %s", e)
 
     return {
         "message": "Financial center deleted successfully",

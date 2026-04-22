@@ -13,7 +13,7 @@ import { updateItemsCache } from '../core/listOperations';
 import { renderCurrentView } from '../rendering/tableBuilder';
 import { updateFABVisibility, renderLandingView, renderShoppingListCards } from '../rendering/listRenderer';
 import { updateFABButtons } from '../features/searchFilter';
-import { db, generateUUID } from '@db/dexie';
+import { db } from '@db/dexie';
 
 // ============================================================================
 // Type Definitions
@@ -23,71 +23,13 @@ declare const debugLog: (...args: any[]) => void;
 declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 
 // ============================================================================
-// Dexie Sync Helpers (BUG #4 fix)
+// Dexie Sync Helpers
 // ----------------------------------------------------------------------------
-// WebSocket handlers update in-memory state AND persist changes to Dexie so the
-// offline-first reads don't return stale data on next reload. Dexie writes are
-// fire-and-forget: a Dexie failure logs a warning but does not block the UI
-// re-render.
-//
-// Primary key for shoppingListItems / shoppingLists is `temp_id` (UUID string).
-// WS payloads carry the server-side `id`, so we look up rows by the secondary
-// `id` index and fall back to creating a new row when the record is missing.
+// Item create/update/delete persistence lives in budgetWSClient/integration/
+// eventHandlers.ts (upsertShoppingItemInDexie / hardDeleteShoppingItemInDexie),
+// which is always loaded. This layer only handles the is_completed toggle —
+// the budget-layer does not have a handler for `item_completed`.
 // ============================================================================
-
-/**
- * Convert a loosely-typed date value (string | Date | null | undefined) to Date.
- */
-function toDate(value: unknown): Date {
-  if (value instanceof Date) return value;
-  if (typeof value === 'string' || typeof value === 'number') return new Date(value);
-  return new Date();
-}
-
-/**
- * Persist a created/updated item coming from WebSocket into Dexie.
- * If a row with the same server id already exists, it is modified in place;
- * otherwise a fresh row is inserted with a generated temp_id.
- */
-async function syncItemToDexie(item: any): Promise<void> {
-  try {
-    const existing = await db.shoppingListItems.where('id').equals(item.id).first();
-    const updated_at = toDate(item.updated_at);
-
-    if (existing) {
-      await db.shoppingListItems.where('temp_id').equals(existing.temp_id).modify({
-        ...item,
-        temp_id: existing.temp_id, // Keep primary key stable
-        sync_status: 'synced',
-        updated_at,
-      });
-    } else {
-      await db.shoppingListItems.put({
-        ...item,
-        temp_id: generateUUID(),
-        sync_status: 'synced',
-        created_at: toDate(item.created_at),
-        updated_at,
-      });
-    }
-  } catch (error) {
-    debugLog('[ListsManager] Dexie sync failed for item:', item?.id, error);
-  }
-}
-
-/**
- * Soft-delete an item in Dexie by server id.
- */
-async function softDeleteItemInDexie(itemId: number): Promise<void> {
-  try {
-    await db.shoppingListItems.where('id').equals(itemId).modify({
-      sync_status: 'deleted',
-      updated_at: new Date(),
-    });
-  } catch (error) {
-    debugLog('[ListsManager] Dexie soft-delete failed for item:', itemId, error);
-  }
-}
 
 /**
  * Update is_completed on a Dexie row by server id.
@@ -164,9 +106,6 @@ export function handleItemCreated(item: any): void {
   });
   debugLog('[ListsManager] Added item from WebSocket:', item.id);
 
-  // Persist to Dexie so offline-first reads stay in sync (BUG #4)
-  void syncItemToDexie(item);
-
   // Re-render and update UI
   renderCurrentView();
   updateFABVisibility();
@@ -211,9 +150,6 @@ export function handleItemUpdated(item: any): void {
   newItems[index] = { ...newItems[index], ...item };
   updateState({ currentItems: newItems });
   debugLog('[ListsManager] Updated item from WebSocket:', item.id);
-
-  // Persist to Dexie (BUG #4)
-  void syncItemToDexie(item);
 
   // Re-render and update UI
   renderCurrentView();
@@ -263,9 +199,6 @@ export function handleItemDeleted(itemId: number, shoppingListId: number): void 
     selectedItemIds: newSelection
   });
   debugLog('[ListsManager] Removed item from WebSocket:', itemId);
-
-  // Soft-delete in Dexie (BUG #4)
-  void softDeleteItemInDexie(itemId);
 
   // Re-render and update UI
   renderCurrentView();

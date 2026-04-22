@@ -19,6 +19,11 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import or_, select
 
+from backend.app.api.v1.endpoints.budget_ws import (
+    broadcast_cost_center_created,
+    broadcast_cost_center_deleted,
+    broadcast_cost_center_updated,
+)
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import CostCenter, FinancialCenter, User
 from backend.app.models.cost_center_financial_center import CostCenterFinancialCenter
@@ -222,7 +227,7 @@ async def create_cost_center(
     # Invalidate cost centers cache
     await cache_service.invalidate_cost_centers()
 
-    return CostCenterResponse(
+    response = CostCenterResponse(
         id=cost_center.id,
         user_id=cost_center.user_id,
         name=cost_center.name,
@@ -233,6 +238,13 @@ async def create_cost_center(
         updated_at=cost_center.updated_at,
         financial_center_ids=financial_center_ids
     )
+
+    try:
+        await broadcast_cost_center_created(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_cost_center_created failed: %s", e)
+
+    return response
 
 
 @router.get(
@@ -419,7 +431,7 @@ async def update_cost_center(
     # Invalidate cost centers cache
     await cache_service.invalidate_cost_centers()
 
-    return CostCenterResponse(
+    response = CostCenterResponse(
         id=updated_cost_center.id,
         user_id=updated_cost_center.user_id,
         name=updated_cost_center.name,
@@ -430,6 +442,13 @@ async def update_cost_center(
         updated_at=updated_cost_center.updated_at,
         financial_center_ids=financial_center_ids
     )
+
+    try:
+        await broadcast_cost_center_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_cost_center_updated failed: %s", e)
+
+    return response
 
 
 @router.put(
@@ -479,6 +498,27 @@ async def archive_cost_center(
     # Invalidate cost centers cache
     await cache_service.invalidate_cost_centers()
 
+    try:
+        fc_links_query = select(CostCenterFinancialCenter.financial_center_id).where(
+            CostCenterFinancialCenter.cost_center_id == cost_center_id
+        )
+        fc_links_result = await session.execute(fc_links_query)
+        fc_ids = [row[0] for row in fc_links_result.all()]
+        payload = CostCenterResponse(
+            id=cost_center.id,
+            user_id=cost_center.user_id,
+            name=cost_center.name,
+            code=cost_center.code,
+            description=cost_center.description,
+            is_active=cost_center.is_active,
+            created_at=cost_center.created_at,
+            updated_at=cost_center.updated_at,
+            financial_center_ids=fc_ids,
+        )
+        await broadcast_cost_center_updated(payload.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_cost_center_updated (archive) failed: %s", e)
+
     return cost_center
 
 
@@ -527,6 +567,27 @@ async def restore_cost_center(
 
     # Invalidate cost centers cache
     await cache_service.invalidate_cost_centers()
+
+    try:
+        fc_links_query = select(CostCenterFinancialCenter.financial_center_id).where(
+            CostCenterFinancialCenter.cost_center_id == cost_center_id
+        )
+        fc_links_result = await session.execute(fc_links_query)
+        fc_ids = [row[0] for row in fc_links_result.all()]
+        payload = CostCenterResponse(
+            id=cost_center.id,
+            user_id=cost_center.user_id,
+            name=cost_center.name,
+            code=cost_center.code,
+            description=cost_center.description,
+            is_active=cost_center.is_active,
+            created_at=cost_center.created_at,
+            updated_at=cost_center.updated_at,
+            financial_center_ids=fc_ids,
+        )
+        await broadcast_cost_center_updated(payload.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_cost_center_updated (restore) failed: %s", e)
 
     return cost_center
 
@@ -656,6 +717,11 @@ async def delete_cost_center(
         "Physically deleted cost center %s (%s) with %s related facts by admin %s",
         cost_center_id, cost_center.name, facts_count, current_user.id
     )
+
+    try:
+        await broadcast_cost_center_deleted(cost_center_id)
+    except Exception as e:
+        logger.warning("broadcast_cost_center_deleted failed: %s", e)
 
     return {
         "message": "Cost center deleted successfully",

@@ -634,6 +634,36 @@ export async function initialReferenceSync(
 }> {
   logger.info('[referenceSync] Starting initial sync...', { userId, historyMonths, futureMonths });
 
+  // BUG-5 one-shot pruner: remove synthetic duplicate shopping items.
+  // Older versions of listOperations.ts synthesised `item_<id>_<ts>` temp_ids
+  // when the API did not echo temp_id — leaving two Dexie rows with the same
+  // server `id` (one synthetic, one real UUID). Drop the synthetic ones.
+  try {
+    const { db } = await import('../core/database');
+    const synthetic = await db.shoppingListItems
+      .filter(item => typeof item.temp_id === 'string' && item.temp_id.startsWith('item_'))
+      .toArray();
+    let pruned = 0;
+    for (const syn of synthetic) {
+      if (syn.id == null) continue;
+      const siblings = await db.shoppingListItems.where('id').equals(syn.id).toArray();
+      const hasRealSibling = siblings.some(s =>
+        s.temp_id !== syn.temp_id &&
+        typeof s.temp_id === 'string' &&
+        !s.temp_id.startsWith('item_')
+      );
+      if (hasRealSibling) {
+        await db.shoppingListItems.where('temp_id').equals(syn.temp_id).delete();
+        pruned++;
+      }
+    }
+    if (pruned > 0) {
+      logger.info('[referenceSync] Pruned synthetic duplicate shopping items', { count: pruned });
+    }
+  } catch (pruneError) {
+    logger.warn('[referenceSync] Synthetic-item pruner failed (non-fatal)', pruneError);
+  }
+
   // Upload pending shopping items BEFORE downloading (prevents data loss on cache refresh)
   try {
     const { uploadPendingShoppingOperations, uploadPendingShoppingLists } = await import('./shoppingSync');

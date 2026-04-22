@@ -10,7 +10,7 @@
  */
 
 import * as PlanFactsTable from './factsTable';
-import { getDexieManager, isDexieActive, mapAPIFactToLocal } from '@db/dexie';
+import { db, getDexieManager, isDexieActive, mapAPIFactToLocal } from '@db/dexie';
 
 // ============================================================================
 // Debouncing
@@ -54,13 +54,9 @@ async function syncFactToDexie(planId: number): Promise<void> {
 async function removeFactFromDexie(planId: number): Promise<void> {
   if (!isDexieActive()) return;
   try {
-    const dexie = getDexieManager();
-    if (!dexie.isReady()) return;
-    const facts = await dexie.queryFacts({});
-    const fact = facts.find((f: any) => f.id === planId);
-    if (fact?.temp_id) {
-      await dexie.deleteFact(fact.temp_id);
-    }
+    // Hard-delete by id index (BUG-3): soft-delete left sync_status='deleted' rows
+    // that lingered in UI after reload.
+    await db.budgetFacts.where('id').equals(planId).delete();
   } catch (err) {
     console.warn('[PlanWS] Failed to remove fact from Dexie:', err);
   }

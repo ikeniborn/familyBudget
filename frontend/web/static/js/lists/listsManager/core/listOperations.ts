@@ -179,11 +179,19 @@ export async function createItem(data: ItemData): Promise<any> {
             return;
           }
 
-          // Convert API response to LocalShoppingListItem
+          // BUG-5 fix: lookup existing Dexie row by server id to reuse temp_id
+          // and prevent dup rows (one synthetic `item_<id>_<ts>`, one real UUID).
+          const existing = await dexieDb.shoppingListItems.where('id').equals(result.id).first();
+          const stableTempId = existing?.temp_id ?? result.temp_id;
+          if (!stableTempId) {
+            console.warn('[LIST_OPS] No stable temp_id available (existing row not found and API did not echo temp_id); skipping Dexie sync to avoid synthetic id duplication');
+            return;
+          }
+
           const localItem = {
             id: result.id,
-            temp_id: result.temp_id || `item_${result.id}_${Date.now()}`,  // Fallback for old API
-            shopping_list_temp_id: currentList.temp_id,  // ✅ Use list's temp_id (now UUID)
+            temp_id: stableTempId,
+            shopping_list_temp_id: currentList.temp_id,  // Use list's temp_id (UUID)
             store_id: result.store_id,
             product_group_id: result.product_group_id,
             product_name: result.product_name,
@@ -205,7 +213,6 @@ export async function createItem(data: ItemData): Promise<any> {
             completed_at: null
           };
 
-          // Use Dexie db directly (public API, no private method access)
           await dexieDb.shoppingListItems.put(localItem);
           debugLog('[LIST_OPS] ✅ Item synced to Dexie', {
             itemId: result.id,

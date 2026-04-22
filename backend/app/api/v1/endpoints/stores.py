@@ -24,6 +24,11 @@ from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from backend.app.api.v1.endpoints.budget_ws import (
+    broadcast_store_created,
+    broadcast_store_deleted,
+    broadcast_store_updated,
+)
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
 from backend.app.models.store import Store
@@ -146,7 +151,13 @@ async def create_store(
 
     logger.info("Created store %s (%s) by admin %s", store.id, store.name, current_user.id)
 
-    return StoreResponse.model_validate(store)
+    response = StoreResponse.model_validate(store)
+    try:
+        await broadcast_store_created(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_store_created failed: %s", e)
+
+    return response
 
 
 @router.get(
@@ -238,7 +249,13 @@ async def update_store(
         store_id, store.name, changed_fields, current_user.id
     )
 
-    return StoreResponse.model_validate(updated_store)
+    response = StoreResponse.model_validate(updated_store)
+    try:
+        await broadcast_store_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_store_updated failed: %s", e)
+
+    return response
 
 
 @router.put(
@@ -285,7 +302,13 @@ async def archive_store(
 
     logger.info("Archived store %s (%s) by admin %s", store_id, store.name, current_user.id)
 
-    return StoreResponse.model_validate(store)
+    response = StoreResponse.model_validate(store)
+    try:
+        await broadcast_store_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_store_updated (archive) failed: %s", e)
+
+    return response
 
 
 @router.put(
@@ -331,7 +354,13 @@ async def restore_store(
 
     logger.info("Restored store %s (%s) by admin %s", store_id, store.name, current_user.id)
 
-    return StoreResponse.model_validate(store)
+    response = StoreResponse.model_validate(store)
+    try:
+        await broadcast_store_updated(response.model_dump(mode="json"))
+    except Exception as e:
+        logger.warning("broadcast_store_updated (restore) failed: %s", e)
+
+    return response
 
 
 @router.delete(
@@ -428,6 +457,11 @@ async def delete_store(
         "Physically deleted store %s (%s) with %s related shopping list items by admin %s",
         store_id, store.name, items_count, current_user.id
     )
+
+    try:
+        await broadcast_store_deleted(store_id)
+    except Exception as e:
+        logger.warning("broadcast_store_deleted failed: %s", e)
 
     return {
         "message": "Store deleted successfully",
