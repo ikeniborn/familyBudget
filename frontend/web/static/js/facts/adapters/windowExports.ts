@@ -134,20 +134,14 @@ async function openAddTransactionModal(): Promise<void> {
     }
 
     // Fallback: Open v10.x tabbed modal (modal_fact)
-    // Try modern modal first (v10.x+)
-    let modal = document.getElementById('modal_fact') as HTMLDialogElement | null;
-
-    // Fallback to legacy modal (v9.x)
-    if (!modal) {
-        modal = document.getElementById('modal_add_transaction') as HTMLDialogElement | null;
-    }
+    const modal = document.getElementById('modal_fact') as HTMLDialogElement | null;
 
     if (modal?.showModal) {
         // Set default date to today
         setTransactionDate(0);
         modal.showModal();
     } else {
-        console.warn('[FactsManager] Transaction modal not found (tried modal_fact and modal_add_transaction)');
+        console.warn('[FactsManager] Transaction modal not found (modal_fact)');
     }
 }
 
@@ -278,7 +272,7 @@ function setTransactionDate(offsetDays: number): void {
     );
 
     // Find date input in transaction modal
-    const dateInput = document.querySelector('#modal_add_transaction input[name="fact_date"]') as HTMLInputElement;
+    const dateInput = document.querySelector('#modal_fact input[name="fact_date"]') as HTMLInputElement;
     if (dateInput) {
         dateInput.value = formattedDate;
         // Trigger change event for any listeners
@@ -299,11 +293,7 @@ async function loadFactHintsWrapper(_category?: any): Promise<void> {
     if (!hintsContainer) return;
 
     try {
-        // modal_fact form (v10.x+) with fallback to legacy modal
-        const form = (
-            document.getElementById('form_modal_fact') ||
-            document.getElementById('form_modal_add_transaction')
-        ) as HTMLFormElement | null;
+        const form = document.getElementById('form_modal_fact') as HTMLFormElement | null;
         if (!form) return;
 
         const formData = new FormData(form);

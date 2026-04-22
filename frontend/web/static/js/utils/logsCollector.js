@@ -128,6 +128,12 @@ class LogsCollector {
             return;
         }
 
+        // Startup grace period: defer first POST until page has settled (2.5s)
+        // Avoids races with page init, auth, and service worker activation.
+        if (this._readyAt && Date.now() < this._readyAt) {
+            return;
+        }
+
         // Skip send when offline or auto-offline-mode is active
         const isOffline = !navigator.onLine || localStorage.getItem('budget_auto_offline_mode') === 'true';
         if (isOffline) {
@@ -187,6 +193,7 @@ class LogsCollector {
         }
 
         this.isRunning = true;
+        this._readyAt = Date.now() + 2500;
 
         // Send batch every 30 seconds (sendBatch handles offline guard internally)
         this.intervalId = setInterval(() => {

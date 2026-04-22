@@ -8,7 +8,7 @@
  * Phase 3: WebSocket Integration
  */
 
-import { loadFacts, fetchAndInjectRow } from '../operations/factsController';
+import { loadFacts, fetchAndInjectRow, fetchRowHtmlDeduped } from '../operations/factsController';
 import { buildFilterQuery } from '../operations/filterOperations';
 import { getCurrentPage, getTotalFacts, setTotalFacts } from '../core/stateManager';
 import { updatePaginationUI } from '../operations/paginationOperations';
@@ -115,17 +115,7 @@ function matchesCurrentFilters(fact: Partial<BudgetFact>): boolean {
  * @returns HTML string (desktop tr + mobile div) or null on error
  */
 async function fetchRowHtml(factId: number): Promise<string | null> {
-    try {
-        const response = await fetch(`/api/v1/facts/${factId}/row-html`, {
-            headers: { 'Accept': 'text/html' }
-        });
-        if (!response.ok) {
-            return null;
-        }
-        return await response.text();
-    } catch {
-        return null;
-    }
+    return fetchRowHtmlDeduped(factId);
 }
 
 /**
