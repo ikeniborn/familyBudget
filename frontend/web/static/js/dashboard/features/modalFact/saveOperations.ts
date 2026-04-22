@@ -12,6 +12,8 @@ import { setButtonLoading } from '../../shared/utils/buttonState';
 import {
   disableInactiveTabValidation,
   restoreRequiredValidation,
+  disableInactiveTabInputs,
+  restoreInactiveTabInputs,
 } from '../../shared/utils/tabValidation';
 
 declare const debugLog: (...args: any[]) => void;
@@ -54,6 +56,9 @@ export async function saveFactModal(button: HTMLElement): Promise<void> {
     return;
   }
 
+  // Exclude inactive-tab inputs from FormData (shared `name` collision, BUG-005)
+  disableInactiveTabInputs(MODAL_ID, activeTab);
+
   try {
     if (activeTab === 'transaction') {
       await saveFactTransaction(form);
@@ -79,5 +84,6 @@ export async function saveFactModal(button: HTMLElement): Promise<void> {
   } finally {
     setButtonLoading(button, false);
     restoreRequiredValidation(MODAL_ID);
+    restoreInactiveTabInputs(MODAL_ID);
   }
 }

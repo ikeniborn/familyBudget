@@ -1843,14 +1843,10 @@ class BudgetWSClient {
         if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
             window.offlineManager.refreshUICallback('plan_created', data);
         }
-        if (data && data.id && typeof window.Dexie !== 'undefined') {
-            try {
-                const db = window.Dexie.getDatabase();
-                db && db.recurringPlans && db.recurringPlans.put(
-                    Object.assign({}, data, { is_active: data.is_active !== undefined ? data.is_active : true })
-                ).catch(function() {});
-            } catch (e) {}
-        }
+        // BUG-004 (2026-04-22): one-time plans live in budgetFacts only. The
+        // recurringPlans table is populated exclusively by `recurring_plan_created`
+        // events (backend budget_ws.py:1036). Earlier this handler wrote every
+        // plan into recurringPlans, producing ghost rows for plan_mode=regular.
     }
 
     _handlePlanUpdated(data) {
@@ -1865,12 +1861,8 @@ class BudgetWSClient {
         if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
             window.offlineManager.refreshUICallback('plan_deleted', data);
         }
-        if (data && data.id && typeof window.Dexie !== 'undefined') {
-            try {
-                const db = window.Dexie.getDatabase();
-                db && db.recurringPlans && db.recurringPlans.where('id').equals(data.id).delete().catch(function() {});
-            } catch (e) {}
-        }
+        // Symmetric to _handlePlanCreated (BUG-004): do not touch recurringPlans
+        // on plan_deleted — the id namespace belongs to budgetFacts.
     }
 
     _handleTransferCreated(data) {
