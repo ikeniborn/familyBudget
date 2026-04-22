@@ -153,7 +153,7 @@ function buildRecentTransactionsHTML(facts: RecentTransaction[]): string {
     </button>`;
 
     desktopHTML += `
-      <tr>
+      <tr data-fact-id="${fact.id}">
         <td>${recordTypeBadgeSm}</td>
         <td class="whitespace-nowrap">${factDateFull}</td>
         <td class="whitespace-nowrap">${fcName}</td>
@@ -184,6 +184,7 @@ function buildRecentTransactionsHTML(facts: RecentTransaction[]): string {
 
     mobileHTML += `
       <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+           data-fact-id="${fact.id}"
            onclick="openEditFromDashboard(${fact.id})">
         <div class="flex items-center gap-2">
           ${recordTypeBadge}
