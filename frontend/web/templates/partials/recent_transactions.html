@@ -57,7 +57,7 @@
             {% set fc_name = fc.name if fc else '—' %}
             {% set description = fact.description if fact.description else '—' %}
             {% set description_truncated = (description[:30] + '...') if description|length > 30 else description %}
-            <tr>
+            <tr data-fact-id="{{ fact.id }}">
                 <td>
                     {% if fact.record_type == 'plan' %}
                     <span class="badge badge-info badge-sm">План</span>
@@ -100,6 +100,7 @@
     {% if fc_name %}{% set line2_parts = line2_parts + [fc_name] %}{% endif %}
     {% if description %}{% set line2_parts = line2_parts + [description] %}{% endif %}
     <div class="py-2 cursor-pointer hover:bg-base-200 transition-colors rounded-lg px-2 -mx-2"
+         data-fact-id="{{ fact.id }}"
          onclick="openEditFromDashboard({{ fact.id }})">
         <div class="flex items-center gap-2">
             {% if fact.record_type == 'plan' %}
