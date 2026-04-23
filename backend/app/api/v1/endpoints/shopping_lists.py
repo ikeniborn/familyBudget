@@ -379,7 +379,7 @@ async def restore_shopping_list(
     "/{shopping_list_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete shopping list",
-    description="Delete shopping list (owner only!) with cascade (deletes all items)",
+    description="Delete shopping list (any family member) with cascade (deletes all items)",
 )
 async def delete_shopping_list(
     shopping_list_id: int,
@@ -389,18 +389,15 @@ async def delete_shopping_list(
     """
     Physically delete shopping list with cascade deletion.
 
-    **IMPORTANT: Only list OWNER can delete!**
-    - Checks creator_id == current_user.id
-    - Returns 403 Forbidden if user is not the owner
+    Shared-references architecture: any authenticated user can delete any list
+    (matches shopping list items: see shopping_list_items.delete endpoint).
 
     Cascade deletion order:
-    1. Check delete permission (owner only)
-    2. Delete all ShoppingListItem records (CASCADE via FK constraint)
-    3. Delete the ShoppingList record
-    4. No history tracking for shopping lists (simple fact table)
+    1. Delete all ShoppingListItem records (CASCADE via FK constraint)
+    2. Delete the ShoppingList record
+    3. No history tracking for shopping lists (simple fact table)
 
     Raises:
-        HTTPException: 403 if not owner
         HTTPException: 404 if shopping list not found
     """
     from backend.app.models.shopping_list_item import ShoppingListItem
@@ -415,19 +412,6 @@ async def delete_shopping_list(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Shopping list {shopping_list_id} not found",
-        )
-
-    # Check delete permission using service (CRITICAL: only owner can delete)
-    has_permission, error_msg = await shopping_list_service.check_delete_permission(
-        session=session,
-        shopping_list_id=shopping_list_id,
-        user_id=current_user.id,
-    )
-
-    if not has_permission:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=error_msg,
         )
 
     # Count items for logging
@@ -448,7 +432,7 @@ async def delete_shopping_list(
         logger.warning("WebSocket broadcast failed for deleted list %s: %s", shopping_list_id, e)
 
     logger.info(
-        "Deleted shopping list %s (%s) with %s items by owner %s",
+        "Deleted shopping list %s (%s) with %s items by user %s",
         shopping_list_id, shopping_list.name, items_count, current_user.id
     )
 

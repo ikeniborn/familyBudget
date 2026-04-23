@@ -639,11 +639,6 @@ export async function confirmDeleteList(): Promise<void> {
         return;
       }
 
-      // Handle 403 Forbidden (not creator)
-      if (response.status === 403) {
-        throw new Error('Только создатель списка может его удалить');
-      }
-
       throw new Error(errorDetail);
     }
 

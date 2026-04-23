@@ -2,18 +2,16 @@
 ShoppingList Service Layer.
 
 This module manages ShoppingList CRUD operations (header in Header+Lines pattern).
-Shopping lists are SHARED across all users with special delete permission.
+Shopping lists are SHARED across all users.
 
 Key Features:
-    - SHARED model: All users can view and edit all lists
-    - DELETE permission: Only list creator (owner) can delete their list
+    - SHARED model: Any authenticated user can view, edit, and delete any list
     - No history tracking (simple fact table)
     - Aggregation functions for list statistics
 
 Key Functions:
     - get_shopping_lists_with_stats(): Get all lists with item count and completion stats
     - get_shopping_list_with_items(): Get list with all items (detail view)
-    - check_delete_permission(): Verify user can delete list (creator_id check)
 """
 
 from sqlalchemy import func
@@ -173,53 +171,6 @@ async def get_shopping_list_with_items(
     items = list(items_result.scalars().all())
 
     return shopping_list, items
-
-
-async def check_delete_permission(
-    session: AsyncSession,
-    shopping_list_id: int,
-    user_id: int,
-) -> tuple[bool, str | None]:
-    """
-    Check if user has permission to delete shopping list.
-
-    Only the list creator (owner) can delete their list.
-
-    Args:
-        session: AsyncSession for database operations
-        shopping_list_id: ShoppingList.id to check
-        user_id: Current user ID attempting to delete
-
-    Returns:
-        Tuple of (has_permission: bool, error_message: Optional[str])
-
-    Example:
-        >>> has_permission, error_msg = await check_delete_permission(
-        ...     session=session,
-        ...     shopping_list_id=1,
-        ...     user_id=123
-        ... )
-        >>> if not has_permission:
-        ...     raise HTTPException(status_code=403, detail=error_msg)
-
-    Notes:
-        - Returns (True, None) if user is creator
-        - Returns (False, "error message") if user is NOT creator
-        - Returns (False, "List not found") if shopping_list_id doesn't exist
-    """
-    # Get shopping list
-    statement = select(ShoppingList).where(ShoppingList.id == shopping_list_id)
-    result = await session.execute(statement)
-    shopping_list = result.scalar_one_or_none()
-
-    if not shopping_list:
-        return False, "Shopping list not found"
-
-    # Check if user is creator
-    if shopping_list.creator_id != user_id:
-        return False, "Only the list owner can delete this shopping list"
-
-    return True, None
 
 
 async def get_shopping_list_item_count(
