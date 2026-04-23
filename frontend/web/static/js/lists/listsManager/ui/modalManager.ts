@@ -13,7 +13,7 @@ import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { loadShoppingLists } from '../core/stateManager';
 import { setupProductAutocomplete, hideProductSuggestions } from '../features/autocomplete';
-import { getDexieManager, isDexieActive, db as dexieDb, createShoppingList } from '@db/dexie';
+import { getDexieManager, isDexieActive, db as dexieDb, createShoppingList, deleteShoppingList } from '@db/dexie';
 import { getNetworkDelay, isDexieDisabledForTesting, isVerboseLoggingEnabled } from '../testing/debugUtils';
 
 // ============================================================================
@@ -678,6 +678,26 @@ export async function confirmDeleteList(): Promise<void> {
 
   } catch (error) {
     console.error('[DeleteList] Error deleting list:', error);
+
+    const isNetworkError = error instanceof TypeError &&
+      (error.message.toLowerCase().includes('fetch') || error.message.toLowerCase().includes('network'));
+
+    const state = getState();
+    const deletedList = state.shoppingLists.find(list => list.id === listId);
+    const deletedListTempId = deletedList?.temp_id;
+
+    if (isNetworkError && isDexieActive() && deletedListTempId) {
+      try {
+        await deleteShoppingList(deletedListTempId);
+        showToast('Список удалён офлайн — синхронизируется при восстановлении сети', 'warning');
+        debugLog('[DeleteList] List soft-deleted offline:', deletedListTempId);
+        await renderLandingView();
+        return;
+      } catch (dexieError) {
+        console.error('[DeleteList] Dexie offline fallback failed:', dexieError);
+      }
+    }
+
     showToast(`❌ Ошибка удаления: ${(error as Error).message}`, 'error');
   }
 }

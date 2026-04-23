@@ -201,48 +201,65 @@ export async function initializeListsManager(): Promise<void> {
       console.warn('[ListsManager] Dexie initialization failed, offline mode disabled');
     }
 
-    // Listen for network status changes (sync when back online)
-    window.addEventListener('offline-status-change', async (event: Event) => {
-      const { online } = (event as CustomEvent).detail || {};
-      if (online) {
-        debugLog('[ListsManager] Network restored, uploading pending data...');
+    // Listen for network status changes (sync when back online).
+    // Both events signal transitions: 'offline-status-change' (auto-offline / restored)
+    // and 'network-status-change' (regular online/offline transitions from networkDetector).
+    // Deduplicate via a short-lived flag so we don't double-fire when both arrive.
+    let lastReconnectAt = 0;
+    const handleReconnect = async () => {
+      const now = Date.now();
+      if (now - lastReconnectAt < 2000) return;
+      lastReconnectAt = now;
 
-        const currentDexie = getState().dexieManager;
-        if (currentDexie?.isReady()) {
-          currentDexie.uploadPendingShoppingData().catch((err: unknown) => {
-            console.warn('[ListsManager] Pending sync on reconnect failed:', err);
+      debugLog('[ListsManager] Network restored, uploading pending data...');
+
+      const currentDexie = getState().dexieManager;
+      if (currentDexie?.isReady()) {
+        currentDexie.uploadPendingShoppingData().catch((err: unknown) => {
+          console.warn('[ListsManager] Pending sync on reconnect failed:', err);
+        });
+      }
+
+      debugLog('[ListsManager] Refreshing data after reconnect...');
+      await loadShoppingLists();
+      const currentState = getState();
+      const currentListId = currentState.currentListId;
+      if (!currentListId) {
+        const { renderLandingView } = await import('../rendering/listRenderer');
+        renderLandingView();
+      } else if (currentListId) {
+        // BUG-7: if the currently-open list was deleted while we were
+        // offline, currentListId still points at it on reconnect, and we
+        // would fire a 404 against /api/v1/shopping-lists/<id>. Verify
+        // the list still exists in the freshly-loaded set; if not, drop
+        // the stale id and bounce back to the landing view.
+        const stillExists = currentState.shoppingLists.some(
+          (list) => list.id === currentListId
+        );
+        if (!stillExists) {
+          debugLog('[ListsManager] Current list no longer exists, returning to landing', {
+            currentListId,
           });
-        }
-
-        debugLog('[ListsManager] Refreshing data after reconnect...');
-        await loadShoppingLists();
-        const currentState = getState();
-        const currentListId = currentState.currentListId;
-        if (!currentListId) {
+          updateState({ currentListId: null, currentItems: [] });
           const { renderLandingView } = await import('../rendering/listRenderer');
           renderLandingView();
-        } else if (currentListId) {
-          // BUG-7: if the currently-open list was deleted while we were
-          // offline, currentListId still points at it on reconnect, and we
-          // would fire a 404 against /api/v1/shopping-lists/<id>. Verify
-          // the list still exists in the freshly-loaded set; if not, drop
-          // the stale id and bounce back to the landing view.
-          const stillExists = currentState.shoppingLists.some(
-            (list) => list.id === currentListId
-          );
-          if (!stillExists) {
-            debugLog('[ListsManager] Current list no longer exists, returning to landing', {
-              currentListId,
-            });
-            updateState({ currentListId: null, currentItems: [] });
-            const { renderLandingView } = await import('../rendering/listRenderer');
-            renderLandingView();
-            return;
-          }
-          await loadShoppingListItems(currentListId);
+          return;
         }
+        await loadShoppingListItems(currentListId);
       }
+    };
+
+    window.addEventListener('offline-status-change', (event: Event) => {
+      const { online } = (event as CustomEvent).detail || {};
+      if (online) void handleReconnect();
     });
+    window.addEventListener('network-status-change', (event: Event) => {
+      const { status, previousStatus } = (event as CustomEvent).detail || {};
+      const cameBackOnline =
+        previousStatus === 'offline' && (status === 'online' || status === 'degraded');
+      if (cameBackOnline) void handleReconnect();
+    });
+    window.addEventListener('online', () => void handleReconnect());
 
     debugLog('[ListsManager] Initialization complete');
   } catch (error) {
