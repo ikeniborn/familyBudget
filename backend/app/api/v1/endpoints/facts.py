@@ -1793,7 +1793,25 @@ async def delete_fact(
     fact_record_type = fact.record_type
     fact_transfer_id = fact.transfer_id
 
-    # 2. Delete fact (and paired fact if transfer)
+    # 2. Cascade delete ScheduledReminder rows (no FK due to partitioned t_f_budget_fact)
+    reminder_fact_ids = [fact.id]
+    if paired_fact is not None:
+        reminder_fact_ids.append(paired_fact.id)
+    reminders_stmt = select(ScheduledReminder).where(
+        ScheduledReminder.fact_id.in_(reminder_fact_ids)
+    )
+    reminders_result = await session.execute(reminders_stmt)
+    deleted_reminders = 0
+    for reminder in reminders_result.scalars().all():
+        await session.delete(reminder)
+        deleted_reminders += 1
+    if deleted_reminders:
+        logger.info(
+            "Cascade-deleted %s ScheduledReminder rows for fact_ids=%s",
+            deleted_reminders, reminder_fact_ids
+        )
+
+    # 3. Delete fact (and paired fact if transfer)
     await session.delete(fact)
     if paired_fact is not None:
         await session.delete(paired_fact)
@@ -1890,6 +1908,22 @@ async def batch_delete_facts(
             "message": "No facts found to delete",
             "deleted_count": 0
         }
+
+    # 2a. Cascade delete ScheduledReminder rows (no FK due to partitioned t_f_budget_fact)
+    loaded_fact_ids = [f.id for f in facts_to_delete]
+    reminders_stmt = select(ScheduledReminder).where(
+        ScheduledReminder.fact_id.in_(loaded_fact_ids)
+    )
+    reminders_result = await session.execute(reminders_stmt)
+    deleted_reminders = 0
+    for reminder in reminders_result.scalars().all():
+        await session.delete(reminder)
+        deleted_reminders += 1
+    if deleted_reminders:
+        logger.info(
+            "[BULK_DELETE] Cascade-deleted %s ScheduledReminder rows for %s facts",
+            deleted_reminders, len(loaded_fact_ids)
+        )
 
     # 2. Create DELETE history record for each fact (audit trail)
     now = datetime.utcnow()

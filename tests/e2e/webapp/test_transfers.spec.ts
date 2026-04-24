@@ -48,7 +48,7 @@ test.describe('Transfers - Create Transfer', () => {
 
     if (speedDialVisible) {
       // Click "Перевод" button in Speed Dial
-      const transferButton = speedDialMenu.locator('button[title*="перевод" i], button:has-text("Перевод")');
+      const transferButton = speedDialMenu.locator('button[title*="перевод" i], button:has-text("Перевод")').first();
       await transferButton.click();
     } else {
       // Look for Transfer tab in modal
@@ -69,9 +69,9 @@ test.describe('Transfers - Create Transfer', () => {
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Verify transfer form fields exist
-    const sourceSelect = modal.locator('select[name*="source" i], select[name*="from" i]');
-    const destSelect = modal.locator('select[name*="dest" i], select[name*="to" i]');
-    const amountInput = modal.locator('input[name="amount"]');
+    const sourceSelect = modal.locator('select[name*="source" i], select[name*="from" i]').first();
+    const destSelect = modal.locator('select[name*="dest" i], select[name*="to" i]').first();
+    const amountInput = modal.locator('input[name="amount"]').first();
 
     await expect(sourceSelect).toBeVisible();
     await expect(destSelect).toBeVisible();
@@ -93,7 +93,7 @@ test.describe('Transfers - Create Transfer', () => {
     const speedDialVisible = await speedDialMenu.isVisible({ timeout: 1000 }).catch(() => false);
 
     if (speedDialVisible) {
-      const transferButton = speedDialMenu.locator('button[title*="перевод" i]');
+      const transferButton = speedDialMenu.locator('button[title*="перевод" i]').first();
       await transferButton.click();
     }
 
@@ -108,7 +108,7 @@ test.describe('Transfers - Create Transfer', () => {
     }
 
     // Select source financial center
-    const sourceSelect = modal.locator('select[name*="source" i], select[name*="from" i]');
+    const sourceSelect = modal.locator('select[name*="source" i], select[name*="from" i]').first();
     const sourceOptions = await sourceSelect.locator('option').count();
 
     if (sourceOptions > 1) {
@@ -117,7 +117,7 @@ test.describe('Transfers - Create Transfer', () => {
     }
 
     // Select destination financial center (different from source)
-    const destSelect = modal.locator('select[name*="dest" i], select[name*="to" i]');
+    const destSelect = modal.locator('select[name*="dest" i], select[name*="to" i]').first();
     const destOptions = await destSelect.locator('option').count();
 
     if (destOptions > 2) {
@@ -167,7 +167,7 @@ test.describe('Transfers - Create Transfer', () => {
     const speedDialVisible = await speedDialMenu.isVisible({ timeout: 1000 }).catch(() => false);
 
     if (speedDialVisible) {
-      const transferButton = speedDialMenu.locator('button[title*="перевод" i]');
+      const transferButton = speedDialMenu.locator('button[title*="перевод" i]').first();
       await transferButton.click();
     }
 
@@ -175,8 +175,8 @@ test.describe('Transfers - Create Transfer', () => {
     await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Select same financial center for both source and destination
-    const sourceSelect = modal.locator('select[name*="source" i]');
-    const destSelect = modal.locator('select[name*="dest" i]');
+    const sourceSelect = modal.locator('select[name*="source" i]').first();
+    const destSelect = modal.locator('select[name*="dest" i]').first();
 
     const sourceOptions = await sourceSelect.locator('option').count();
     if (sourceOptions > 1) {
@@ -230,7 +230,7 @@ test.describe('Transfers - View Transfers', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Look for filter/tab to show transfers
-    const transferFilter = page.locator('button:has-text("Перевод"), [data-type="transfer"]');
+    const transferFilter = page.locator('button:has-text("Перевод"), [data-type="transfer"]').first();
     const filterVisible = await transferFilter.isVisible({ timeout: 2000 }).catch(() => false);
 
     if (filterVisible) {
@@ -238,8 +238,8 @@ test.describe('Transfers - View Transfers', () => {
       await page.waitForTimeout(500);
     }
 
-    // Check if table/list contains transfers
-    const table = page.locator('table, .facts-list');
+    // Check if table/list contains transfers (desktop table OR mobile list — pick first)
+    const table = page.locator('.facts-desktop-table table, .facts-mobile-list, #facts-table-container').first();
     await expect(table).toBeVisible();
 
     // Look for transfer rows (might have specific class or icon)
@@ -257,7 +257,7 @@ test.describe('Transfers - View Transfers', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Filter for transfers if needed
-    const transferFilter = page.locator('button:has-text("Перевод"), [data-type="transfer"]');
+    const transferFilter = page.locator('button:has-text("Перевод"), [data-type="transfer"]').first();
     const filterVisible = await transferFilter.isVisible({ timeout: 2000 }).catch(() => false);
 
     if (filterVisible) {
