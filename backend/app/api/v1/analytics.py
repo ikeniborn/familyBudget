@@ -1835,6 +1835,197 @@ async def get_heatmap_data(
         }
 
 
+_HEATMAP_TOP_N = 9
+_HEATMAP_OTHER_ID = -1
+_HEATMAP_OTHER_NAME = "Прочее"
+
+
+def _resolve_heatmap_range(
+    period: str | None,
+    date_from: date | None,
+    date_to: date | None,
+) -> tuple[date, date, str]:
+    """Resolve (start_date, end_date, resolved_period) from query params."""
+    if date_from and date_to:
+        return date_from, date_to, "custom"
+    if not period:
+        raise HTTPException(400, "Укажите period или date_from/date_to")
+
+    today = date.today()
+    if period == "month":
+        start, end = get_current_calendar_month(today)
+    elif period == "quarter":
+        start, end = get_current_calendar_quarter(today)
+    else:
+        start, end = get_current_calendar_year(today)
+    return start, end, period
+
+
+def _build_heatmap_categories_query(
+    record_type: str,
+    start_date: date,
+    end_date: date,
+    transaction_filter: TransactionFilterEnum | None,
+    article_type: str,
+    cfo_id: int | None,
+    article_ids: list[int] | None,
+):
+    q = select(
+        Article.id,
+        Article.name,
+        Article.type,
+        func.coalesce(func.sum(Fact.amount), 0).label("total"),
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.record_type == record_type,
+        Fact.fact_date >= start_date,
+        Fact.fact_date <= end_date,
+    )
+
+    if transaction_filter is not None:
+        effective = transaction_filter.value
+        if effective != "all":
+            q = q.where(Article.type == effective)
+    elif article_type != "all":
+        q = q.where(Article.type == article_type)
+
+    if cfo_id is not None:
+        q = q.where(Fact.financial_center_id == cfo_id)
+    if article_ids:
+        q = q.where(Fact.article_id.in_(article_ids))
+
+    return q.group_by(Article.id, Article.name, Article.type)
+
+
+def _merge_fact_plan(fact_rows, plan_rows) -> dict[int, dict]:
+    """Merge fact + plan rows by article id, preserving categories present in either."""
+    merged: dict[int, dict] = {}
+    for row in fact_rows:
+        merged[row.id] = {
+            "id": row.id,
+            "name": row.name,
+            "type": row.type,
+            "fact": float(row.total) if row.total is not None else 0.0,
+            "plan": 0.0,
+        }
+    for row in plan_rows:
+        entry = merged.setdefault(row.id, {
+            "id": row.id,
+            "name": row.name,
+            "type": row.type,
+            "fact": 0.0,
+            "plan": 0.0,
+        })
+        entry["plan"] = float(row.total) if row.total is not None else 0.0
+    return merged
+
+
+def _build_heatmap_categories_payload(merged: dict[int, dict]) -> dict:
+    """Build top-N + Other payload from merged fact/plan map.
+
+    total_fact: only categories with fact>0 (heatmap is fact-driven).
+    total_plan: across all categories that have plan in the period (regardless of fact).
+    """
+    items = [c for c in merged.values() if c["fact"] > 0]
+    items.sort(key=lambda c: c["fact"], reverse=True)
+
+    total_fact = sum(c["fact"] for c in items)
+    total_plan = sum(c["plan"] for c in merged.values())
+
+    def execution(fact: float, plan: float) -> float | None:
+        return round(fact / plan * 100, 1) if plan > 0 else None
+
+    def share(fact: float) -> float:
+        return round(fact / total_fact * 100, 1) if total_fact > 0 else 0.0
+
+    def format_category(c: dict) -> dict:
+        return {
+            "id": c["id"],
+            "name": c["name"],
+            "fact": round(c["fact"], 2),
+            "plan": round(c["plan"], 2),
+            "execution": execution(c["fact"], c["plan"]),
+            "share": share(c["fact"]),
+        }
+
+    top = items[:_HEATMAP_TOP_N]
+    rest = items[_HEATMAP_TOP_N:]
+    categories = [format_category(c) for c in top]
+
+    if rest:
+        other_fact = sum(c["fact"] for c in rest)
+        other_plan = sum(c["plan"] for c in rest)
+        categories.append({
+            "id": _HEATMAP_OTHER_ID,
+            "name": _HEATMAP_OTHER_NAME,
+            "fact": round(other_fact, 2),
+            "plan": round(other_plan, 2),
+            "execution": execution(other_fact, other_plan),
+            "share": share(other_fact),
+            "others": [format_category(c) for c in rest],
+        })
+
+    return {
+        "categories": categories,
+        "total_fact": round(total_fact, 2),
+        "total_plan": round(total_plan, 2),
+    }
+
+
+@router.get("/heatmap-categories")
+async def get_heatmap_categories(
+    current_user: CurrentUser,
+    period: str | None = Query(None, pattern="^(month|quarter|year)$"),
+    date_from: date | None = Query(None, description="Start date for custom range (YYYY-MM-DD)"),
+    date_to: date | None = Query(None, description="End date for custom range (YYYY-MM-DD)"),
+    transaction_filter: TransactionFilterEnum | None = Query(None),
+    article_type: str = Query("expense", pattern="^(income|expense|debit|credit|all)$"),
+    cfo_id: int | None = Query(None, description="Filter by Financial Center ID"),
+    article_ids: list[int] | None = Query(None, description="Filter by category IDs"),
+    session: AsyncSession = Depends(get_session)
+):
+    """Top-9 categories by fact + aggregated 'Other' for treemap view.
+
+    Heatmap is built only on facts; plan is fetched in parallel for the
+    'execution' indicator inside the tooltip card.
+    """
+    try:
+        start_date, end_date, resolved_period = _resolve_heatmap_range(period, date_from, date_to)
+
+        fact_result, plan_result = await asyncio.gather(
+            session.execute(_build_heatmap_categories_query(
+                "fact", start_date, end_date, transaction_filter, article_type, cfo_id, article_ids,
+            )),
+            session.execute(_build_heatmap_categories_query(
+                "plan", start_date, end_date, transaction_filter, article_type, cfo_id, article_ids,
+            )),
+        )
+
+        merged = _merge_fact_plan(fact_result.all(), plan_result.all())
+        payload = _build_heatmap_categories_payload(merged)
+
+        return {
+            **payload,
+            "period": resolved_period,
+            "article_type": article_type,
+            "start_date": start_date.isoformat(),
+            "end_date": end_date.isoformat(),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error in /heatmap-categories: %s", str(e), exc_info=True)
+        return {
+            "categories": [],
+            "total_fact": 0.0,
+            "total_plan": 0.0,
+            "period": period or "month",
+            "article_type": article_type,
+            "start_date": date.today().isoformat(),
+            "end_date": date.today().isoformat(),
+        }
+
+
 # ==================== Plan Analytics Endpoints ====================
 
 
