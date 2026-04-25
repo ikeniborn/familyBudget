@@ -152,6 +152,31 @@ determine_image_tag() {
 
 # Validate that required images exist in registry
 # Usage: validate_registry_images [service...]
+# Check image existence via GHCR HTTP API with OCI Accept headers.
+# Workaround for docker manifest inspect failing on OCI image indexes
+# when daemon credentials/experimental flags are stale.
+# Usage: check_image_via_api <service> <tag>
+# Returns: 0 if manifest is reachable (HTTP 200), 1 otherwise
+check_image_via_api() {
+    local service="$1"
+    local tag="$2"
+    local repo="$REGISTRY_OWNER/familybudget-$service"
+    local token
+
+    token=$(curl -fsS "https://${REGISTRY_URL}/token?service=${REGISTRY_URL}&scope=repository:${repo}:pull" 2>/dev/null \
+        | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+    [[ -z "$token" ]] && return 1
+
+    local code
+    code=$(curl -s -o /dev/null -w "%{http_code}" \
+        -H "Authorization: Bearer $token" \
+        -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+        -H "Accept: application/vnd.oci.image.manifest.v1+json" \
+        -H "Accept: application/vnd.oci.image.index.v1+json" \
+        "https://${REGISTRY_URL}/v2/${repo}/manifests/${tag}")
+    [[ "$code" == "200" ]]
+}
+
 # Returns: 0 if all images exist, 1 otherwise
 validate_registry_images() {
     local services=("$@")
@@ -213,9 +238,13 @@ validate_registry_images() {
 
         info "Checking $service image (version: $image_tag): $image_name"
 
-        # Use docker manifest inspect to check if image exists without pulling
+        # Use docker manifest inspect to check if image exists without pulling.
+        # Fallback to curl with OCI Accept headers — docker manifest inspect can
+        # fail for OCI image indexes when the daemon's auth/feature flags lag.
         if docker manifest inspect "$image_name" > /dev/null 2>&1; then
             success "$service image exists in registry"
+        elif check_image_via_api "$service" "$image_tag"; then
+            success "$service image exists in registry (via API)"
         else
             error "$service image NOT found in registry: $image_name"
             validation_failed=true
