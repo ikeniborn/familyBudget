@@ -8,6 +8,7 @@
 import { closeModalPlan } from './index';
 import { getCurrentTab } from './tabManager';
 import { savePlanTransaction } from './saveTransaction';
+import { syncPlanPeriodFromActive } from '../addPlan/periodButtons';
 import { setButtonLoading } from '../../shared/utils/buttonState';
 import { APIError } from '../../shared/utils/apiHelpers';
 import {
@@ -45,6 +46,7 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
   // Set button loading state
   setButtonLoading(button, true);
 
+  syncPlanPeriodFromActive(MODAL_ID);
   disableInactiveTabValidation(MODAL_ID, activeTab);
 
   // Validate form (only active tab fields)

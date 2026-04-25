@@ -18,6 +18,7 @@ import { setupEventDelegation } from './adapters/eventDelegation';
 import { setupWindowExports } from './adapters/windowExports';
 import { registerWSHandlers } from './wsEventHandlers';
 import { savePlanTransfer } from '../dashboard/features/modalPlan/saveTransfer';
+import { syncPlanPeriodFromActive } from '../dashboard/features/addPlan/periodButtons';
 import { setButtonLoading } from '../dashboard/shared/utils/buttonState';
 import { APIError } from '../dashboard/shared/utils/apiHelpers';
 import { getDexieManager } from '@db/dexie';
@@ -454,6 +455,8 @@ export async function savePlanModal(button: HTMLElement): Promise<void> {
   const modalId = button.dataset.modalId || 'modal_plan';
   const form = document.getElementById(formId || `form_${modalId}`) as HTMLFormElement | null;
   if (!form) { isSubmitting = false; return; }
+
+  syncPlanPeriodFromActive(modalId);
 
   setButtonLoading(btn, true);
 

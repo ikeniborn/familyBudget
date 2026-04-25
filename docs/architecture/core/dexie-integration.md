@@ -912,6 +912,26 @@ GET /api/v1/recurring-plans?from_date=2024-11-01&to_date=2025-05-31&limit=100
 3. Check token endpoint: `curl -X POST https://fbd.ikeniborn.ru/api/v1/budget/ws/token`
 4. Check nginx config: WebSocket upgrade headers должны быть настроены
 
+### Direct API POST в обход UI
+
+Прямой `fetch('/api/v1/facts', ...)` (например, из DevTools Console или MCP-скрипта, минуя
+`savePlanModal` / `saveFactModal`) **создаёт запись в БД, но не попадает в Dexie автора сессии**.
+
+Причина: запись в Dexie происходит в save-обработчике (`savePlanTransaction` →
+`db.budgetFacts.put(...)`), а не в ответ на WebSocket-broadcast. Broadcast идёт всем
+клиентам (включая отправителя), но Dexie upsert из WS-события есть только для внешних
+источников — локальный клиент предполагает, что он уже синхронизировал запись в save-хендлере.
+
+**Последствия для QA:**
+- Тестовые сценарии, создающие данные через `fetch()` в обход UI, должны вручную
+  вызвать reload страницы или sync pull, чтобы увидеть запись в Dexie.
+- Рекомендуется всегда тестировать через UI-flow (клики, форма, submit), иначе Dexie ↔ backend
+  могут разойтись до следующей полной синхронизации.
+
+Если в будущем понадобится «echo-to-sender» для восстановления консистентности — это
+отдельное design-решение (текущий broadcast всем не фильтрует отправителя, см.
+`backend/app/api/v1/endpoints/budget_ws.py`).
+
 ---
 
 ## История изменений

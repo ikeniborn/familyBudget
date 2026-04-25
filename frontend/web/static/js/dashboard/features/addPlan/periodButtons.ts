@@ -38,6 +38,43 @@ export function updatePlanPeriodButtons(): void {
 }
 
 /**
+ * Resync the hidden `plan_month` / `transfer_plan_month` input value from the
+ * currently `.btn-active` period button. Safe to call before submit — guards
+ * against races where the modal opened but setup*PeriodButtons() did not run
+ * (or the form was reset after close). If no active button is found, marks the
+ * first one active and uses its data-year/month.
+ *
+ * Returns true if the value is now a non-empty YYYY-MM string.
+ */
+function syncHiddenFromActive(
+  tabSelector: string,
+  hiddenName: string,
+  btnClass: string
+): boolean {
+  const buttons = document.querySelectorAll<HTMLButtonElement>(`${tabSelector} .${btnClass}`);
+  const hidden = document.querySelector<HTMLInputElement>(`${tabSelector} input[name="${hiddenName}"]`);
+  if (!hidden || buttons.length === 0) return false;
+
+  let active = Array.from(buttons).find(b => b.classList.contains('btn-active'));
+  if (!active) {
+    active = buttons[0];
+    active?.classList.add('btn-active');
+  }
+  if (!active?.dataset.year || !active?.dataset.month) {
+    const now = new Date();
+    active!.dataset.year = String(now.getFullYear());
+    active!.dataset.month = String(now.getMonth() + 1).padStart(2, '0');
+  }
+  hidden.value = `${active!.dataset.year}-${active!.dataset.month}`;
+  return hidden.value.length >= 7;
+}
+
+export function syncPlanPeriodFromActive(modalId: string): void {
+  syncHiddenFromActive(`#${modalId}-tab-transaction`, 'plan_month', 'period-btn');
+  syncHiddenFromActive(`#${modalId}-tab-transfer`, 'transfer_plan_month', 'transfer-period-btn');
+}
+
+/**
  * Set up handlers for period selection buttons
  */
 export function setupPlanPeriodButtons(): void {
