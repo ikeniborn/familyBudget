@@ -322,23 +322,30 @@ async function loadFactHintsWrapper(_category?: any): Promise<void> {
             financial_center_id: financialCenterId ? parseInt(financialCenterId) : undefined
         });
 
-        // Update hint buttons
-        const planBtn = document.getElementById('hint-period-plan') as HTMLButtonElement | null;
-        const factBtn = document.getElementById('hint-period-fact') as HTMLButtonElement | null;
+        const setAmountInput = (value: number): void => {
+            const input = document.querySelector<HTMLInputElement>('#modal_fact input[name="amount"]');
+            if (input) {
+                input.value = String(value);
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        };
 
-        if (planBtn) {
+        const setupHintButton = (id: string, label: string, rawAmount: number | null | undefined): void => {
+            const btn = document.getElementById(id) as HTMLButtonElement | null;
+            if (!btn) return;
+            const amount = parseFloat(String(rawAmount ?? 0));
             const monthName = getShortMonthName(hints.period);
-            planBtn.textContent = `План ${monthName}: ${formatHintAmount(hints.period_plan_sum)}`;
-            planBtn.disabled = !hints.period_plan_sum;
-            planBtn.classList.toggle('btn-disabled', !hints.period_plan_sum);
-        }
+            btn.textContent = `${label} ${monthName}: ${formatHintAmount(rawAmount ?? null)}`;
+            const enabled = amount > 0;
+            btn.disabled = !enabled;
+            btn.classList.toggle('btn-disabled', !enabled);
+            btn.classList.toggle('btn-info', enabled);
+            btn.classList.toggle('btn-outline', enabled);
+            btn.onclick = enabled ? () => setAmountInput(amount) : null;
+        };
 
-        if (factBtn) {
-            const monthName = getShortMonthName(hints.period);
-            factBtn.textContent = `Факт ${monthName}: ${formatHintAmount(hints.period_fact_sum)}`;
-            factBtn.disabled = !hints.period_fact_sum;
-            factBtn.classList.toggle('btn-disabled', !hints.period_fact_sum);
-        }
+        setupHintButton('hint-period-plan', 'План', hints.period_plan_sum);
+        setupHintButton('hint-period-fact', 'Факт', hints.period_fact_sum);
     } catch (error) {
         console.error('[FactsManager] Error loading fact hints:', error);
         updateHintButtons();

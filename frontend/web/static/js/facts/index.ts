@@ -174,8 +174,12 @@ function initDateRangeCalendar(): void {
                 logger.log(' Date range selected:', dateFrom, '-', dateTo);
                 // CalendarWidget already updates input values
                 // Trigger filter reload
-                import('./operations/filterOperations').then(({ applyFiltersAction }) => {
-                    applyFiltersAction();
+                Promise.all([
+                    import('./operations/filterOperations'),
+                    import('./operations/factsController')
+                ]).then(([filterOps, factsCtrl]) => {
+                    filterOps.applyFiltersAction();
+                    factsCtrl.applyFiltersAndReload();
                 });
             }
         });

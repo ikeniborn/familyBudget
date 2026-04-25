@@ -532,6 +532,7 @@ async def list_facts(
     cost_center_id: Annotated[int | None, Query(gt=0)] = None,
     has_recurring_plan: Annotated[bool | None, Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
     has_reminder: Annotated[bool | None, Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
+    user_id: Annotated[int | None, Query(gt=0, description="Optional filter by author user_id (shared budget remains: omit param = all users)")] = None,
 ) -> FactListResponse:
     """
     List budget facts with optional filtering.
@@ -624,6 +625,9 @@ async def list_facts(
 
     if cost_center_id:
         statement = statement.where(BudgetFact.cost_center_id == cost_center_id)
+
+    if user_id is not None:
+        statement = statement.where(BudgetFact.user_id == user_id)
 
     # Filter by recurring plan presence
     if has_recurring_plan is not None:
@@ -1136,6 +1140,7 @@ async def get_facts_summary(
     session: AsyncSession = Depends(get_session),
     date_from: Annotated[date | None, Query()] = None,
     date_to: Annotated[date | None, Query()] = None,
+    user_id: Annotated[int | None, Query(gt=0, description="Optional filter by author user_id")] = None,
 ) -> FactSummary:
     """
     Get aggregated summary of facts (income/expense totals).
@@ -1161,6 +1166,9 @@ async def get_facts_summary(
 
     if date_to:
         statement = statement.where(BudgetFact.fact_date <= date_to)
+
+    if user_id is not None:
+        statement = statement.where(BudgetFact.user_id == user_id)
 
     # Get all facts for processing
     result = await session.execute(statement)
@@ -1221,6 +1229,7 @@ async def get_facts_count(
     cost_center_id: Annotated[int | None, Query(gt=0)] = None,
     has_recurring_plan: Annotated[bool | None, Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
     has_reminder: Annotated[bool | None, Query(description="Filter by reminder (True = with reminder, False = without)")] = None,
+    user_id: Annotated[int | None, Query(gt=0, description="Optional filter by author user_id")] = None,
 ) -> dict:
     """
     Get total facts count with filters (Shared Family Budget).
@@ -1274,6 +1283,9 @@ async def get_facts_count(
 
     if cost_center_id:
         statement = statement.where(BudgetFact.cost_center_id == cost_center_id)
+
+    if user_id is not None:
+        statement = statement.where(BudgetFact.user_id == user_id)
 
     # Filter by recurring plan presence
     if has_recurring_plan is not None:

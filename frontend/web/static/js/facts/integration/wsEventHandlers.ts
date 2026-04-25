@@ -277,6 +277,10 @@ async function handleFactCreated(data: Partial<BudgetFact>): Promise<void> {
         return;
     }
 
+    if (document.querySelector(`tbody tr[data-id="${data.id}"]`)) {
+        return;
+    }
+
     const html = await fetchRowHtml(data.id);
     if (!html) {
         debouncedReloadFacts();
@@ -286,6 +290,10 @@ async function handleFactCreated(data: Partial<BudgetFact>): Promise<void> {
     const parsed = parseRowHtml(html);
     if (!parsed) {
         debouncedReloadFacts();
+        return;
+    }
+
+    if (document.querySelector(`tbody tr[data-id="${data.id}"]`)) {
         return;
     }
 

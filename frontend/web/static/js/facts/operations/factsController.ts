@@ -696,7 +696,14 @@ export function exportFilteredFacts(format: 'csv'): void {
 
     try {
         const filters = buildFilterQuery();
-        const exportUrl = `/api/v1/facts/export?${filters.toString()}&format=csv`;
+        const exportParams = new URLSearchParams();
+        const dateFrom = filters.get('date_from');
+        const dateTo = filters.get('date_to');
+        if (dateFrom) exportParams.append('start_date', dateFrom);
+        if (dateTo) exportParams.append('end_date', dateTo);
+
+        const qs = exportParams.toString();
+        const exportUrl = `/api/v1/export/facts/csv${qs ? '?' + qs : ''}`;
 
         // Download file
         const link = document.createElement('a');

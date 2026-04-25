@@ -464,7 +464,7 @@ export class DexieManager {
 
     for (let i = 0; i < factsWithCents.length; i += BATCH_SIZE) {
       const batch = factsWithCents.slice(i, i + BATCH_SIZE);
-      await this.getDB().budgetFacts.bulkAdd(batch);
+      await this.getDB().budgetFacts.bulkPut(batch);
 
       if (onProgress) {
         onProgress(i + batch.length, factsWithCents.length);
@@ -484,7 +484,7 @@ export class DexieManager {
    */
   async bulkInsertArticles(articles: LocalArticle[], onProgress?: ProgressCallback): Promise<void> {
     logger.info('[DexieManager] bulkInsertArticles', { count: articles.length });
-    await this.getDB().articles.bulkAdd(articles);
+    await this.getDB().articles.bulkPut(articles);
     if (onProgress) onProgress(articles.length, articles.length);
   }
 
@@ -493,7 +493,7 @@ export class DexieManager {
    */
   async bulkInsertFinancialCenters(centers: LocalFinancialCenter[], onProgress?: ProgressCallback): Promise<void> {
     logger.info('[DexieManager] bulkInsertFinancialCenters', { count: centers.length });
-    await this.getDB().financialCenters.bulkAdd(centers);
+    await this.getDB().financialCenters.bulkPut(centers);
     if (onProgress) onProgress(centers.length, centers.length);
   }
 
@@ -502,7 +502,7 @@ export class DexieManager {
    */
   async bulkInsertCostCenters(centers: LocalCostCenter[], onProgress?: ProgressCallback): Promise<void> {
     logger.info('[DexieManager] bulkInsertCostCenters', { count: centers.length });
-    await this.getDB().costCenters.bulkAdd(centers);
+    await this.getDB().costCenters.bulkPut(centers);
     if (onProgress) onProgress(centers.length, centers.length);
   }
 
@@ -511,7 +511,7 @@ export class DexieManager {
    */
   async bulkInsertHierarchy(hierarchy: LocalArticleHierarchy[], onProgress?: ProgressCallback): Promise<void> {
     logger.info('[DexieManager] bulkInsertHierarchy', { count: hierarchy.length });
-    await this.getDB().articleHierarchy.bulkAdd(hierarchy);
+    await this.getDB().articleHierarchy.bulkPut(hierarchy);
     if (onProgress) onProgress(hierarchy.length, hierarchy.length);
   }
 

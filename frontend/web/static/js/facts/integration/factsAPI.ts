@@ -256,14 +256,10 @@ export async function loadFactsWithCount(options?: DataLayerFetchOptions): Promi
     facts: BudgetFact[];
     total: number;
 }> {
-    const [factsResponse, total] = await Promise.all([
-        loadFacts(options),
-        loadFactsCount(options)
-    ]);
-
+    const factsResponse = await loadFacts(options);
     return {
         facts: factsResponse.facts,
-        total
+        total: factsResponse.total
     };
 }
 
