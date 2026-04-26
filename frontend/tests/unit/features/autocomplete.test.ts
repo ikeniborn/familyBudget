@@ -96,7 +96,7 @@ describe('autocomplete', () => {
         });
 
         // Mock fetch
-        global.fetch = vi.fn();
+        vi.stubGlobal('fetch', vi.fn());
 
         // Mock window properties
         Object.defineProperty(window, 'innerHeight', { value: 800, writable: true });
@@ -104,6 +104,7 @@ describe('autocomplete', () => {
 
     afterEach(() => {
         vi.useRealTimers();
+        vi.unstubAllGlobals();
     });
 
     describe('setupProductAutocomplete', () => {

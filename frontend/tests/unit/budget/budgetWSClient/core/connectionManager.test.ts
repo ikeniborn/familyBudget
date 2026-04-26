@@ -33,16 +33,10 @@ vi.mock('@web/budget/budgetWSClient/multiTab/tabCoordination', () => ({
 describe('Connection Manager', () => {
   let mockWebSocket: any;
   let mockFetch: any;
-  let originalWebSocket: any;
-  let originalFetch: any;
 
   beforeEach(() => {
     vi.useFakeTimers();
     vi.clearAllMocks();
-
-    // Save originals
-    originalWebSocket = global.WebSocket;
-    originalFetch = global.fetch;
 
     // Mock WebSocket
     mockWebSocket = {
@@ -61,7 +55,7 @@ describe('Connection Manager', () => {
       onmessage: null,
     };
 
-    (global.WebSocket as any) = vi.fn(() => mockWebSocket);
+    vi.stubGlobal('WebSocket', vi.fn(() => mockWebSocket));
     // Add WebSocket constants
     (global.WebSocket as any).CONNECTING = 0;
     (global.WebSocket as any).OPEN = 1;
@@ -70,7 +64,7 @@ describe('Connection Manager', () => {
 
     // Mock fetch
     mockFetch = vi.fn();
-    global.fetch = mockFetch;
+    vi.stubGlobal('fetch', mockFetch);
 
     // Reset WSState
     WSState.resetState();
@@ -95,8 +89,7 @@ describe('Connection Manager', () => {
 
   afterEach(() => {
     vi.useRealTimers();
-    global.WebSocket = originalWebSocket;
-    global.fetch = originalFetch;
+    vi.unstubAllGlobals();
   });
 
   describe('Token Management (getWSToken)', () => {

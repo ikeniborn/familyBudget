@@ -56,13 +56,13 @@ describe('Multi-Tab Synchronization', () => {
     });
 
     // Mock fetch for connection limit check
-    global.fetch = vi.fn().mockResolvedValue({
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         limits: { max_per_user: 10 },
         user_connections: 2,
       }),
-    });
+    }));
 
     // Mock window.dispatchEvent
     global.dispatchEvent = vi.fn();
@@ -71,6 +71,7 @@ describe('Multi-Tab Synchronization', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
     delete (navigator as any).locks;
   });
 
@@ -166,13 +167,13 @@ describe('Multi-Tab Synchronization', () => {
     });
 
     it('should set approachingLimit flag when connections >= 70%', async () => {
-      global.fetch = vi.fn().mockResolvedValue({
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
         ok: true,
         json: async () => ({
           limits: { max_per_user: 10 },
           user_connections: 8, // 80%
         }),
-      });
+      }));
 
       mockNavigatorLocks.request.mockImplementation((name, callback) => {
         callback({});

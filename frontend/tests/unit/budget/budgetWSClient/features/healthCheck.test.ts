@@ -42,13 +42,14 @@ describe('Health Check Module', () => {
       onmessage: null,
     };
 
-    (global.WebSocket as any) = vi.fn(() => mockWebSocket);
+    vi.stubGlobal('WebSocket', vi.fn(() => mockWebSocket));
     (global.WebSocket as any).OPEN = 1;
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   describe('startClientPing()', () => {
@@ -370,7 +371,7 @@ describe('Health Check Module', () => {
   describe('checkOnline() - HTTP fallback strategy', () => {
     beforeEach(() => {
       // Reset fetch mock
-      global.fetch = vi.fn();
+      vi.stubGlobal('fetch', vi.fn());
     });
 
     it('should use HTTP fallback if WebSocket is not open', async () => {

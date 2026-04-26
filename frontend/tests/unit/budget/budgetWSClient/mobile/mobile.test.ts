@@ -51,7 +51,7 @@ describe('Mobile Handling Modules', () => {
     originalMaxTouchPoints = navigator.maxTouchPoints;
 
     // Mock WebSocket global constants
-    (global.WebSocket as any) = vi.fn();
+    vi.stubGlobal('WebSocket', vi.fn());
     (global.WebSocket as any).OPEN = 1;
     (global.WebSocket as any).CLOSED = 3;
     (global.WebSocket as any).CONNECTING = 0;
@@ -78,6 +78,7 @@ describe('Mobile Handling Modules', () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
 
     // Restore navigator properties
     Object.defineProperty(navigator, 'userAgent', {

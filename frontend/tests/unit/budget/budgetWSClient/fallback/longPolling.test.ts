@@ -28,7 +28,7 @@ describe('Long Polling Fallback Module', () => {
 
     // Mock fetch
     mockFetch = vi.fn();
-    global.fetch = mockFetch;
+    vi.stubGlobal('fetch', mockFetch);
 
     // Mock AbortController
     mockAbortController = {

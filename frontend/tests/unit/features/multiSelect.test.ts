@@ -80,7 +80,11 @@ describe('multiSelect', () => {
         });
 
         // Mock fetch
-        global.fetch = vi.fn();
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
     });
 
     describe('toggleSelectAll', () => {
