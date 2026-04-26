@@ -141,7 +141,18 @@ async function upsertShoppingItemInDexie(item: any): Promise<void> {
 
 async function hardDeleteShoppingItemInDexie(itemId: number): Promise<void> {
   try {
-    await db.shoppingListItems.where('id').equals(itemId).delete();
+    // Primary delete via secondary `id` index.
+    const deleted = await db.shoppingListItems.where('id').equals(itemId).delete();
+    // Fallback: locate row by id and remove by primary key `temp_id`. Catches
+    // edge cases where the secondary index missed (older Dexie schema rows or
+    // rows with non-numeric id types).
+    if (!deleted) {
+      const stale = await db.shoppingListItems.where('id').equals(itemId).first();
+      if (stale?.temp_id) {
+        // primary key is temp_id (string); table typing is `<..., number>`
+        await db.shoppingListItems.delete(stale.temp_id as unknown as number);
+      }
+    }
   } catch { /* non-fatal */ }
 }
 
