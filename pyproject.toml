@@ -1,3 +1,11 @@
+[tool.pyright]
+include = ["backend", "bot", "tests", "scripts"]
+exclude = ["**/__pycache__", "**/.venv", "**/venv", "**/node_modules", "dist", "build"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
+
 [tool.ruff]
 # Allow lines up to 120 characters (more reasonable for FastAPI endpoints)
 line-length = 120

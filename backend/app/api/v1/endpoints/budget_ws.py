@@ -1075,7 +1075,7 @@ async def broadcast_recurring_plans_batch_deleted(
 async def broadcast_facts_batch_deleted(
     fact_ids: list[int],
     deleted_count: int,
-    record_type: str = None,
+    record_type: str | None = None,
 ):
     """
     Broadcast batch deletion of facts (summary event).

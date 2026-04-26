@@ -19,9 +19,9 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
-from sqlalchemy import func
+from sqlalchemy import desc, func
 from sqlalchemy.exc import SQLAlchemyError
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import (
@@ -214,7 +214,7 @@ async def create_fact(
             BudgetFact.sync_hash == fact_data.sync_hash,
             BudgetFact.is_offline_sync,
             BudgetFact.created_at >= datetime.utcnow() - timedelta(days=1)
-        ).order_by(BudgetFact.created_at.desc())
+        ).order_by(desc(BudgetFact.created_at))
 
         duplicate_result = await session.execute(duplicate_stmt)
         existing_fact = duplicate_result.scalar_one_or_none()
@@ -327,6 +327,7 @@ async def create_fact(
         )
 
     # Validate: Cost center exists and is active if provided (optional field)
+    cost_center = None
     if fact_data.cost_center_id:
         cc_stmt = select(CostCenter).where(
             CostCenter.id == fact_data.cost_center_id
@@ -381,9 +382,7 @@ async def create_fact(
                 financial_center_name = financial_center.name if financial_center else None
 
                 # Load cost center name for response
-                cost_center_name = None
-                if fact_data.cost_center_id and 'cost_center' in locals():
-                    cost_center_name = cost_center.name
+                cost_center_name = cost_center.name if cost_center else None
 
                 response_data = {
                     "id": fact_id,
@@ -611,7 +610,7 @@ async def list_facts(
         # Substring search using ILIKE with pg_trgm GIN index
         # GIN index on description (gin_trgm_ops) speeds up ILIKE queries significantly
         # This provides case-insensitive substring matching with good performance
-        statement = statement.where(BudgetFact.description.ilike(f"%{search}%"))
+        statement = statement.where(col(BudgetFact.description).ilike(f"%{search}%"))
 
     if amount_min is not None:
         statement = statement.where(BudgetFact.amount >= amount_min)
@@ -631,9 +630,9 @@ async def list_facts(
     # Filter by recurring plan presence
     if has_recurring_plan is not None:
         if has_recurring_plan:
-            statement = statement.where(BudgetFact.recurring_plan_id.isnot(None))
+            statement = statement.where(col(BudgetFact.recurring_plan_id).isnot(None))
         else:
-            statement = statement.where(BudgetFact.recurring_plan_id.is_(None))
+            statement = statement.where(col(BudgetFact.recurring_plan_id).is_(None))
 
     # Filter by reminder presence (requires EXISTS subquery)
     if has_reminder is not None:
@@ -656,7 +655,7 @@ async def list_facts(
     total = total_result.scalar_one()
 
     # Apply pagination and ordering (newest by updated_at first, then by id as tiebreaker)
-    statement = statement.order_by(BudgetFact.updated_at.desc(), BudgetFact.id.desc())
+    statement = statement.order_by(desc(BudgetFact.updated_at), desc(BudgetFact.id))
     statement = statement.limit(limit).offset(offset)
 
     # Execute query
@@ -785,7 +784,7 @@ async def get_recent_facts(
         statement = statement.where(BudgetFact.fact_date >= cutoff_date)
 
         # Order by most recent (by creation time)
-        statement = statement.order_by(BudgetFact.created_at.desc())
+        statement = statement.order_by(desc(BudgetFact.created_at))
         statement = statement.limit(limit)
 
         # Execute query
@@ -797,7 +796,7 @@ async def get_recent_facts(
         reminders: dict[int, bool] = {}
         if fact_ids:
             reminders_stmt = select(ScheduledReminder.fact_id).where(
-                ScheduledReminder.fact_id.in_(fact_ids),
+                col(ScheduledReminder.fact_id).in_(fact_ids),
                 ScheduledReminder.status == "pending",
             )
             reminders_result = await session.execute(reminders_stmt)
@@ -902,7 +901,7 @@ async def get_recent_facts_html(
 
         # Order by most recent (by creation time in DB, not transaction date)
         # This shows newest added transactions first, regardless of their fact_date
-        statement = statement.order_by(BudgetFact.created_at.desc())
+        statement = statement.order_by(desc(BudgetFact.created_at))
         statement = statement.limit(limit)
 
         # Execute query
@@ -924,7 +923,7 @@ async def get_recent_facts_html(
         # Load articles for fact details
         article_ids = {fact.article_id for fact in facts}
         articles_stmt = select(Article).where(
-            Article.id.in_(article_ids)
+            col(Article.id).in_(article_ids)
         )
         articles_result = await session.execute(articles_stmt)
         articles = {a.id: a for a in articles_result.scalars().all()}
@@ -934,7 +933,7 @@ async def get_recent_facts_html(
         financial_center_ids = {fact.financial_center_id for fact in facts if fact.financial_center_id}
         if financial_center_ids:
             fcs_stmt = select(FinancialCenter).where(
-                FinancialCenter.id.in_(financial_center_ids)
+                col(FinancialCenter.id).in_(financial_center_ids)
             )
             fcs_result = await session.execute(fcs_stmt)
             financial_centers = {fc.id: fc for fc in fcs_result.scalars().all()}
@@ -945,8 +944,8 @@ async def get_recent_facts_html(
         from backend.app.models.scheduled_reminder import ScheduledReminder
         fact_ids = [fact.id for fact in facts]
         reminders_stmt = select(ScheduledReminder).where(
-            ScheduledReminder.fact_id.in_(fact_ids),
-            ScheduledReminder.status.in_(["pending", "sent"])  # Only show active reminders
+            col(ScheduledReminder.fact_id).in_(fact_ids),
+            col(ScheduledReminder.status).in_(["pending", "sent"])  # Only show active reminders
         )
         reminders_result = await session.execute(reminders_stmt)
         reminders = {r.fact_id: r for r in reminders_result.scalars().all()}
@@ -1183,7 +1182,7 @@ async def get_facts_summary(
     if facts:
         article_ids = {fact.article_id for fact in facts}
         articles_stmt = select(Article).where(
-            Article.id.in_(article_ids)
+            col(Article.id).in_(article_ids)
         )
         articles_result = await session.execute(articles_stmt)
         articles = {a.id: a for a in articles_result.scalars().all()}
@@ -1289,9 +1288,9 @@ async def get_facts_count(
     # Filter by recurring plan presence
     if has_recurring_plan is not None:
         if has_recurring_plan:
-            statement = statement.where(BudgetFact.recurring_plan_id.isnot(None))
+            statement = statement.where(col(BudgetFact.recurring_plan_id).isnot(None))
         else:
-            statement = statement.where(BudgetFact.recurring_plan_id.is_(None))
+            statement = statement.where(col(BudgetFact.recurring_plan_id).is_(None))
 
     # Filter by reminder presence (requires EXISTS subquery)
     if has_reminder is not None:
@@ -1345,7 +1344,7 @@ async def get_fact_row_html(
         .outerjoin(
             ScheduledReminder,
             (ScheduledReminder.fact_id == BudgetFact.id)
-            & ScheduledReminder.status.in_(["pending", "sent"]),
+            & col(ScheduledReminder.status).in_(["pending", "sent"]),
         )
         .where(BudgetFact.id == fact_id)
     )
@@ -1590,6 +1589,7 @@ async def update_fact(
     # All authenticated users can update any transaction
 
     # Validate article_id if changed
+    article = None
     if "article_id" in update_data:
         article_stmt = select(Article).where(
             Article.id == update_data["article_id"]
@@ -1658,8 +1658,8 @@ async def update_fact(
         "id": fact.id,
         "user_id": fact.user_id,
         "article_id": fact.article_id,
-        "article_type": article.type,
-        "article_name": article.name,
+        "article_type": article.type if article else None,
+        "article_name": article.name if article else None,
         "fact_date": fact.fact_date,
         "amount": fact.amount,
         "description": fact.description,
@@ -1809,7 +1809,7 @@ async def delete_fact(
     if paired_fact is not None:
         reminder_fact_ids.append(paired_fact.id)
     reminders_stmt = select(ScheduledReminder).where(
-        ScheduledReminder.fact_id.in_(reminder_fact_ids)
+        col(ScheduledReminder.fact_id).in_(reminder_fact_ids)
     )
     reminders_result = await session.execute(reminders_stmt)
     deleted_reminders = 0
@@ -1910,7 +1910,7 @@ async def batch_delete_facts(
         )
 
     # 1. Load facts to delete (need full data for history)
-    stmt = select(BudgetFact).where(BudgetFact.id.in_(fact_ids))
+    stmt = select(BudgetFact).where(col(BudgetFact.id).in_(fact_ids))
     result = await session.execute(stmt)
     facts_to_delete = result.scalars().all()
 
@@ -1923,7 +1923,7 @@ async def batch_delete_facts(
     # 2a. Cascade delete ScheduledReminder rows (no FK due to partitioned t_f_budget_fact)
     loaded_fact_ids = [f.id for f in facts_to_delete]
     reminders_stmt = select(ScheduledReminder).where(
-        ScheduledReminder.fact_id.in_(loaded_fact_ids)
+        col(ScheduledReminder.fact_id).in_(loaded_fact_ids)
     )
     reminders_result = await session.execute(reminders_stmt)
     deleted_reminders = 0
