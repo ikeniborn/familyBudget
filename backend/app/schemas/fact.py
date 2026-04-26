@@ -422,7 +422,7 @@ class FactResponse(BaseModel):
                 "article_type": "expense",
                 "article_name": "Продукты",
                 "fact_date": "2025-10-13",
-                "amount": "50.75",
+                "amount": 50,
                 "description": "Weekly groceries at supermarket",
                 "financial_center_id": 1,
                 "financial_center_name": "Личные средства",

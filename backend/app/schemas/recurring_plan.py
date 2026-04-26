@@ -233,7 +233,7 @@ class RecurringPlanCreate(BaseModel):
                 "frequency_type": "monthly",
                 "frequency_value": 5,
                 "start_date": "2025-01-05",
-                "amount": "50000.00",
+                "amount": 50000,
                 "description": "Monthly rent payment",
                 "record_type": "plan"
             }
