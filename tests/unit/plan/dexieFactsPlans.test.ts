@@ -34,7 +34,7 @@ function buildPlanFact(overrides: Partial<NewFact> = {}): NewFact {
     financial_center_id: 20,
     cost_center_id: null,
     date: '2026-05-01',
-    amount: 1234.56,
+    amount: 1235,
     record_type: 'plan',
     comment: 'unit test plan',
     transfer_group_id: null,
@@ -67,8 +67,8 @@ describe('Dexie budgetFacts — plan records', () => {
     expect(plans).toHaveLength(1);
     expect(plans[0].temp_id).toBe(tempId);
     expect(plans[0].record_type).toBe('plan');
-    // Stored as cents (1234.56 → 123456)
-    expect(plans[0].amount).toBe(123456);
+    // Stored as integer rubles, no conversion (БАГ-5)
+    expect(plans[0].amount).toBe(1235);
   });
 
   it('deleteFact soft-deletes the plan row (sync_status="deleted")', async () => {

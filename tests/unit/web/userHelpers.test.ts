@@ -23,6 +23,7 @@ describe('getCurrentUserId', () => {
 
     // Reset fetch mock
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   afterEach(() => {
@@ -78,10 +79,10 @@ describe('getCurrentUserId', () => {
   describe('FALLBACK 2: Cached user ID', () => {
     it('should use cached user ID from previous API call', async () => {
       // First call: fetch from API
-      global.fetch = vi.fn().mockResolvedValueOnce({
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: 789 })
-      });
+      }));
 
       const userId1 = await getCurrentUserId();
       expect(userId1).toBe(789);
@@ -95,7 +96,7 @@ describe('getCurrentUserId', () => {
 
     it('should clear cache when clearUserIdCache is called', async () => {
       // First call: fetch from API
-      global.fetch = vi.fn()
+      vi.stubGlobal('fetch', vi.fn()
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ id: 789 })
@@ -103,7 +104,7 @@ describe('getCurrentUserId', () => {
         .mockResolvedValueOnce({
           ok: true,
           json: async () => ({ id: 999 })
-        });
+        }));
 
       const userId1 = await getCurrentUserId();
       expect(userId1).toBe(789);
@@ -120,10 +121,10 @@ describe('getCurrentUserId', () => {
 
   describe('FALLBACK 3: API call', () => {
     it('should fetch user ID from API when no other source available', async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: 789, username: 'apiuser' })
-      });
+      }));
 
       const consoleSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
       const userId = await getCurrentUserId();
@@ -139,7 +140,7 @@ describe('getCurrentUserId', () => {
     });
 
     it('should throw error when API fails', async () => {
-      global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'));
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('Network error')));
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -156,11 +157,11 @@ describe('getCurrentUserId', () => {
     });
 
     it('should throw error when API returns non-ok response', async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
         ok: false,
         status: 401,
         statusText: 'Unauthorized'
-      });
+      }));
 
       await expect(getCurrentUserId()).rejects.toThrow(
         'Cannot determine user ID. User must be authenticated.'
@@ -168,10 +169,10 @@ describe('getCurrentUserId', () => {
     });
 
     it('should throw error when API returns invalid user object', async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: 'not-a-number' }) // Invalid type
-      });
+      }));
 
       await expect(getCurrentUserId()).rejects.toThrow(
         'Cannot determine user ID. User must be authenticated.'
@@ -179,10 +180,10 @@ describe('getCurrentUserId', () => {
     });
 
     it('should cache user ID from successful API call', async () => {
-      global.fetch = vi.fn().mockResolvedValueOnce({
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: 789 })
-      });
+      }));
 
       const userId1 = await getCurrentUserId();
       expect(userId1).toBe(789);
@@ -207,7 +208,7 @@ describe('getCurrentUserId', () => {
     });
 
     it('should throw error when user ID unavailable', async () => {
-      global.fetch = vi.fn().mockRejectedValueOnce(new Error('Network error'));
+      vi.stubGlobal('fetch', vi.fn().mockRejectedValueOnce(new Error('Network error')));
 
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -233,10 +234,10 @@ describe('getCurrentUserId', () => {
     it('should handle null userData.id', async () => {
       (window as any).userData = { id: null };
 
-      global.fetch = vi.fn().mockResolvedValueOnce({
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: 789 })
-      });
+      }));
 
       const userId = await getCurrentUserId();
 
@@ -247,10 +248,10 @@ describe('getCurrentUserId', () => {
     it('should handle userData without id property', async () => {
       (window as any).userData = { username: 'test' }; // Missing id
 
-      global.fetch = vi.fn().mockResolvedValueOnce({
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce({
         ok: true,
         json: async () => ({ id: 789 })
-      });
+      }));
 
       const userId = await getCurrentUserId();
 
