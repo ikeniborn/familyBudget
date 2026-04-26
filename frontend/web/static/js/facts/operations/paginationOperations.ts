@@ -119,7 +119,6 @@ export function updatePaginationUI(): void {
     const pageInfo = document.getElementById('page-info');
 
     if (!controls || !prevBtn || !nextBtn || !pageInfo) {
-        console.warn('[PaginationOps] Pagination UI elements not found');
         return;
     }
 
