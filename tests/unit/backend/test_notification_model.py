@@ -5,8 +5,6 @@ Tests model validation, broadcast detection, and field constraints.
 """
 
 from datetime import date, datetime
-from decimal import Decimal
-
 import pytest
 from pydantic import ValidationError
 
@@ -21,16 +19,16 @@ class TestNotificationModel:
         notification = Notification(
             article_id=1,
             notification_type="budget_threshold",
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("9000.00"),
+            plan_amount=10000,
+            actual_amount=9000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
 
         assert notification.article_id == 1
         assert notification.notification_type == "budget_threshold"
-        assert notification.plan_amount == Decimal("10000.00")
-        assert notification.actual_amount == Decimal("9000.00")
+        assert notification.plan_amount == 10000
+        assert notification.actual_amount == 9000
         assert notification.period_start == date(2025, 10, 1)
         assert notification.period_end == date(2025, 10, 31)
         assert notification.threshold_percent == 90  # Default value
@@ -44,8 +42,8 @@ class TestNotificationModel:
             article_id=5,
             notification_type="budget_exceeded",
             threshold_percent=100,
-            plan_amount=Decimal("5000.00"),
-            actual_amount=Decimal("5500.00"),
+            plan_amount=5000,
+            actual_amount=5500,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
             created_at=datetime(2025, 10, 31, 12, 0, 0),
@@ -56,8 +54,8 @@ class TestNotificationModel:
         assert notification.article_id == 5
         assert notification.notification_type == "budget_exceeded"
         assert notification.threshold_percent == 100
-        assert notification.plan_amount == Decimal("5000.00")
-        assert notification.actual_amount == Decimal("5500.00")
+        assert notification.plan_amount == 5000
+        assert notification.actual_amount == 5500
         assert notification.period_start == date(2025, 10, 1)
         assert notification.period_end == date(2025, 10, 31)
         assert notification.created_at == datetime(2025, 10, 31, 12, 0, 0)
@@ -68,8 +66,8 @@ class TestNotificationModel:
             user_id=None,  # Broadcast notification
             article_id=1,
             notification_type="budget_threshold",
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("9000.00"),
+            plan_amount=10000,
+            actual_amount=9000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
@@ -82,8 +80,8 @@ class TestNotificationModel:
             user_id=123,  # User-specific notification
             article_id=1,
             notification_type="budget_threshold",
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("9000.00"),
+            plan_amount=10000,
+            actual_amount=9000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
@@ -95,8 +93,8 @@ class TestNotificationModel:
         notification = Notification(
             article_id=1,
             notification_type="budget_threshold",
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("9000.00"),
+            plan_amount=10000,
+            actual_amount=9000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
@@ -114,8 +112,8 @@ class TestNotificationModel:
         notification = Notification(
             article_id=1,
             notification_type="budget_threshold",
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("9000.00"),
+            plan_amount=10000,
+            actual_amount=9000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
@@ -128,37 +126,37 @@ class TestNotificationModel:
             article_id=1,
             notification_type="budget_threshold",
             threshold_percent=80,
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("8000.00"),
+            plan_amount=10000,
+            actual_amount=8000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
 
         assert notification.threshold_percent == 80
 
-    def test_decimal_amounts(self):
-        """Test that amounts are stored as Decimal (not float)."""
+    def test_integer_amounts(self):
+        """Test that amounts are stored as integer rubles."""
         notification = Notification(
             article_id=1,
             notification_type="budget_threshold",
-            plan_amount=Decimal("10000.50"),
-            actual_amount=Decimal("9000.25"),
+            plan_amount=10000,
+            actual_amount=9000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
 
-        assert isinstance(notification.plan_amount, Decimal)
-        assert isinstance(notification.actual_amount, Decimal)
-        assert notification.plan_amount == Decimal("10000.50")
-        assert notification.actual_amount == Decimal("9000.25")
+        assert isinstance(notification.plan_amount, int)
+        assert isinstance(notification.actual_amount, int)
+        assert notification.plan_amount == 10000
+        assert notification.actual_amount == 9000
 
     def test_date_fields(self):
         """Test period_start and period_end date fields."""
         notification = Notification(
             article_id=1,
             notification_type="budget_threshold",
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("9000.00"),
+            plan_amount=10000,
+            actual_amount=9000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
@@ -173,8 +171,8 @@ class TestNotificationModel:
         notification = Notification(
             article_id=1,
             notification_type="budget_threshold",
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("9000.00"),
+            plan_amount=10000,
+            actual_amount=9000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
@@ -197,8 +195,8 @@ class TestNotificationModel:
         with pytest.raises(ValidationError) as exc_info:
             NotificationCreate(
                 notification_type="budget_threshold",
-                plan_amount=Decimal("10000.00"),
-                actual_amount=Decimal("9000.00"),
+                plan_amount=10000,
+                actual_amount=9000,
                 period_start=date(2025, 10, 1),
                 period_end=date(2025, 10, 31),
             )
@@ -208,8 +206,8 @@ class TestNotificationModel:
         with pytest.raises(ValidationError) as exc_info:
             NotificationCreate(
                 article_id=1,
-                plan_amount=Decimal("10000.00"),
-                actual_amount=Decimal("9000.00"),
+                plan_amount=10000,
+                actual_amount=9000,
                 period_start=date(2025, 10, 1),
                 period_end=date(2025, 10, 31),
             )
@@ -220,7 +218,7 @@ class TestNotificationModel:
             NotificationCreate(
                 article_id=1,
                 notification_type="budget_threshold",
-                actual_amount=Decimal("9000.00"),
+                actual_amount=9000,
                 period_start=date(2025, 10, 1),
                 period_end=date(2025, 10, 31),
             )
@@ -233,8 +231,8 @@ class TestNotificationModel:
             user_id=None,
             article_id=1,
             notification_type="budget_threshold",
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("9000.00"),
+            plan_amount=10000,
+            actual_amount=9000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
@@ -244,8 +242,8 @@ class TestNotificationModel:
         notification2 = Notification(
             article_id=1,
             notification_type="budget_threshold",
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("9000.00"),
+            plan_amount=10000,
+            actual_amount=9000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
@@ -263,8 +261,8 @@ class TestNotificationBroadcastLogic:
             article_id=10,
             notification_type="budget_exceeded",
             threshold_percent=100,
-            plan_amount=Decimal("50000.00"),
-            actual_amount=Decimal("52000.00"),
+            plan_amount=50000,
+            actual_amount=52000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
@@ -286,8 +284,8 @@ class TestNotificationBroadcastLogic:
             article_id=5,
             notification_type="budget_threshold",
             threshold_percent=90,
-            plan_amount=Decimal("20000.00"),
-            actual_amount=Decimal("18000.00"),
+            plan_amount=20000,
+            actual_amount=18000,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )

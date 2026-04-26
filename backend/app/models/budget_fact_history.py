@@ -9,9 +9,8 @@ when, and who made the change. This includes CASCADE DELETIONS when dimension
 records (articles, financial centers, cost centers) are deleted.
 """
 from datetime import date, datetime, timezone
-from decimal import Decimal
 
-from sqlalchemy import ARRAY, DateTime, String
+from sqlalchemy import ARRAY, BigInteger, DateTime, String
 from sqlmodel import Column, Field, SQLModel
 
 # Far future datetime constant for SCD Type 2 valid_to field
@@ -193,11 +192,9 @@ class BudgetFactHistory(SQLModel, table=True):
         description="Transaction date snapshot"
     )
 
-    amount: Decimal = Field(
-        nullable=False,
-        max_digits=15,
-        decimal_places=2,
-        description="Amount snapshot"
+    amount: int = Field(
+        sa_column=Column(BigInteger(), nullable=False),
+        description="Amount snapshot (rubles, integer)"
     )
 
     description: str | None = Field(

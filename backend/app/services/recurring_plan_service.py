@@ -5,7 +5,6 @@ Handles CRUD operations for recurring plans and automatic generation
 of BudgetFact records based on frequency settings.
 """
 from datetime import date, datetime, time, timedelta
-from decimal import Decimal
 
 from fastapi import HTTPException
 from sqlalchemy import and_, case, or_
@@ -1204,7 +1203,7 @@ class RecurringPlanService:
                         ),
                         RecurringPlan.amount
                     ),
-                    else_=Decimal("0")
+                    else_=0
                 )
             ).label("monthly_sum"),
             sa_func.count().filter(
@@ -1227,7 +1226,7 @@ class RecurringPlanService:
         return {
             "active_count": row.active_count or 0,
             "paused_count": row.paused_count or 0,
-            "total_monthly_amount": row.monthly_sum or Decimal("0"),
+            "total_monthly_amount": int(row.monthly_sum or 0),
             "next_pending_count": row.pending_count or 0,
         }
 

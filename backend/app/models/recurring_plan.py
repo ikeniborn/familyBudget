@@ -8,8 +8,8 @@ Pattern: Dimension table (SCD Type 1 with soft delete)
 Table: t_d_recurring_plan
 """
 from datetime import date, datetime
-from decimal import Decimal
 
+from sqlalchemy import BigInteger, Column
 from sqlmodel import Field, SQLModel
 
 
@@ -135,11 +135,9 @@ class RecurringPlan(SQLModel, table=True):
     )
 
     # Transaction template fields
-    amount: Decimal = Field(
-        nullable=False,
-        max_digits=15,
-        decimal_places=2,
-        description="Transaction amount (always positive)"
+    amount: int = Field(
+        sa_column=Column(BigInteger(), nullable=False),
+        description="Transaction amount in rubles (integer, always positive)"
     )
 
     description: str | None = Field(

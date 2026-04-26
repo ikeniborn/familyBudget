@@ -8,8 +8,8 @@ Pattern: Fact table (partitioned by month at DB level)
 Table: t_f_budget_fact
 """
 from datetime import date, datetime
-from decimal import Decimal
 
+from sqlalchemy import BigInteger, Column
 from sqlmodel import Field, SQLModel
 
 
@@ -93,11 +93,9 @@ class BudgetFact(SQLModel, table=True):
         description="Date of transaction (used for partitioning and time-based queries)"
     )
 
-    amount: Decimal = Field(
-        nullable=False,
-        max_digits=15,
-        decimal_places=2,
-        description="Transaction amount (always stored as positive value, sign determined by article_type)"
+    amount: int = Field(
+        sa_column=Column(BigInteger(), nullable=False),
+        description="Transaction amount in rubles (integer, always positive; sign determined by article_type)"
     )
 
     description: str | None = Field(

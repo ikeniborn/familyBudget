@@ -15,7 +15,6 @@ Features:
 import html as _html
 import logging
 from datetime import date, datetime, timedelta, timezone
-from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -362,7 +361,7 @@ async def create_fact(
                 pre_generated_id=fact_id,
                 user_id=get_user_id_for_create(current_user),
                 article_id=fact_data.article_id,
-                amount=abs(float(fact_data.amount)),
+                amount=abs(int(fact_data.amount)),
                 fact_date=str(fact_data.fact_date),
                 description=fact_data.description,
                 financial_center_id=fact_data.financial_center_id,
@@ -526,8 +525,8 @@ async def list_facts(
     record_type: Annotated[str | None, Query(pattern="^(fact|plan)$")] = None,
     article_type: Annotated[str | None, Query(pattern="^(income|expense|debit|credit)$")] = None,
     search: Annotated[str | None, Query(max_length=200)] = None,
-    amount_min: Annotated[Decimal | None, Query(ge=0)] = None,
-    amount_max: Annotated[Decimal | None, Query(ge=0)] = None,
+    amount_min: Annotated[int | None, Query(ge=0)] = None,
+    amount_max: Annotated[int | None, Query(ge=0)] = None,
     financial_center_id: Annotated[int | None, Query(gt=0)] = None,
     cost_center_id: Annotated[int | None, Query(gt=0)] = None,
     has_recurring_plan: Annotated[bool | None, Query(description="Filter by recurring plan (True = with recurring plan, False = without)")] = None,
@@ -953,8 +952,8 @@ async def get_recent_facts_html(
         reminders = {r.fact_id: r for r in reminders_result.scalars().all()}
 
         # Format money helper (without decimals and currency, with +/- sign)
-        def format_money(amount: Decimal, article_type: str) -> str:
-            value = int(float(amount))  # Remove decimals
+        def format_money(amount: int, article_type: str) -> str:
+            value = int(amount)
             formatted = f"{value:,}".replace(",", " ")
             if article_type in ("expense", "debit"):
                 return f"-{formatted}"
@@ -1175,8 +1174,8 @@ async def get_facts_summary(
     facts = result.scalars().all()
 
     # Calculate totals by article type
-    total_income = Decimal("0.00")
-    total_expense = Decimal("0.00")
+    total_income = 0
+    total_expense = 0
     count_income = 0
     count_expense = 0
 
@@ -1361,8 +1360,8 @@ async def get_fact_row_html(
 
     fact, article, financial_center, cost_center, user, reminder = row
 
-    def _format_amount(amount: Decimal, art_type: str) -> str:
-        value = int(float(amount))
+    def _format_amount(amount: int, art_type: str) -> str:
+        value = int(amount)
         formatted = f"{abs(value):,}".replace(",", " ")
         if art_type in ("expense", "debit"):
             return f"-{formatted}"

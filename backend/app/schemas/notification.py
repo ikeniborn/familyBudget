@@ -5,7 +5,6 @@ This module defines schemas for notification CRUD operations including
 broadcast notification support (user_id=NULL).
 """
 from datetime import date, datetime
-from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -59,20 +58,20 @@ class NotificationCreate(BaseModel):
         examples=[90, 100]
     )
 
-    plan_amount: Decimal = Field(
+    plan_amount: int = Field(
         ...,
         gt=0,
-        decimal_places=2,
-        description="Planned budget amount for period",
-        examples=[10000.00]
+        strict=True,
+        description="Planned budget amount for period (rubles, integer)",
+        examples=[10000]
     )
 
-    actual_amount: Decimal = Field(
+    actual_amount: int = Field(
         ...,
         ge=0,
-        decimal_places=2,
-        description="Actual spending that triggered notification",
-        examples=[9500.00]
+        strict=True,
+        description="Actual spending that triggered notification (rubles, integer)",
+        examples=[9500]
     )
 
     period_start: date = Field(
@@ -128,14 +127,14 @@ class NotificationRead(BaseModel):
         examples=[90]
     )
 
-    plan_amount: Decimal = Field(
-        description="Planned budget amount",
-        examples=[10000.00]
+    plan_amount: int = Field(
+        description="Planned budget amount (rubles, integer)",
+        examples=[10000]
     )
 
-    actual_amount: Decimal = Field(
-        description="Actual spending amount",
-        examples=[9500.00]
+    actual_amount: int = Field(
+        description="Actual spending amount (rubles, integer)",
+        examples=[9500]
     )
 
     period_start: date = Field(

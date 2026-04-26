@@ -5,7 +5,6 @@ Focus: regression coverage for BUG-003 (orphan ScheduledReminder rows after
 DELETE /api/v1/facts/{id} and POST /api/v1/facts/batch-delete).
 """
 from datetime import date, datetime, timedelta
-from decimal import Decimal
 
 import pytest
 import pytest_asyncio
@@ -47,7 +46,7 @@ async def plan_article(db_session: AsyncSession, test_user: User) -> Article:
     return article
 
 
-def _plan_payload(article_id: int, fc_id: int, amount: str = "1234.00") -> dict:
+def _plan_payload(article_id: int, fc_id: int, amount: int = 1234) -> dict:
     """Build POST /facts body for a plan record dated next month."""
     plan_date = (date.today().replace(day=1) + timedelta(days=32)).replace(day=1)
     return {
@@ -131,7 +130,7 @@ class TestPlanFactsCascade:
         plan_financial_center: FinancialCenter,
     ):
         fact_ids = []
-        for amount in ("100.00", "200.00", "300.00"):
+        for amount in (100, 200, 300):
             resp = await authenticated_client.post(
                 "/api/v1/facts",
                 json=_plan_payload(plan_article.id, plan_financial_center.id, amount),
@@ -175,7 +174,7 @@ class TestPlanFactsCascade:
     ):
         """Regression for BUG-003 anecdote: deleting one plan must remove only that row."""
         ids = []
-        for amount in ("11.00", "22.00", "33.00"):
+        for amount in (11, 22, 33):
             resp = await authenticated_client.post(
                 "/api/v1/facts",
                 json=_plan_payload(plan_article.id, plan_financial_center.id, amount),

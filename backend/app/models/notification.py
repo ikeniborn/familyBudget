@@ -5,8 +5,8 @@ This module defines the Notification model that stores history of budget
 notifications sent to users (or broadcast to all users).
 """
 from datetime import date, datetime
-from decimal import Decimal
 
+from sqlalchemy import BigInteger, Column
 from sqlmodel import Field, SQLModel
 
 
@@ -44,8 +44,8 @@ class Notification(SQLModel, table=True):
             article_id=5,
             notification_type="budget_threshold",
             threshold_percent=90,
-            plan_amount=Decimal("10000.00"),
-            actual_amount=Decimal("9500.00"),
+            plan_amount=10000,
+            actual_amount=9500,
             period_start=date(2025, 10, 1),
             period_end=date(2025, 10, 31),
         )
@@ -92,20 +92,16 @@ class Notification(SQLModel, table=True):
         description="Threshold percentage that triggered notification (e.g., 90 for 90%)"
     )
 
-    plan_amount: Decimal = Field(
+    plan_amount: int = Field(
         ...,  # Required field (Pydantic v2 explicit syntax)
-        nullable=False,
-        max_digits=15,
-        decimal_places=2,
-        description="Planned budget amount for the period"
+        sa_column=Column(BigInteger(), nullable=False),
+        description="Planned budget amount for the period (rubles, integer)"
     )
 
-    actual_amount: Decimal = Field(
+    actual_amount: int = Field(
         ...,  # Required field (Pydantic v2 explicit syntax)
-        nullable=False,
-        max_digits=15,
-        decimal_places=2,
-        description="Actual spending that triggered notification"
+        sa_column=Column(BigInteger(), nullable=False),
+        description="Actual spending that triggered notification (rubles, integer)"
     )
 
     # Period definition
@@ -156,7 +152,7 @@ class Notification(SQLModel, table=True):
         """
         if self.plan_amount == 0:
             return 0.0
-        return float((self.actual_amount / self.plan_amount) * 100)
+        return float(self.actual_amount * 100) / float(self.plan_amount)
 
     def is_threshold_exceeded(self) -> bool:
         """

@@ -6,7 +6,6 @@ Handles automated notifications:
 - Budget threshold checks (FR-006)
 """
 from datetime import date, timedelta
-from decimal import Decimal
 
 import httpx
 from sqlmodel import select
@@ -74,8 +73,8 @@ class NotificationService:
         article_id: int,
         notification_type: str,
         threshold_percent: int,
-        plan_amount: Decimal,
-        actual_amount: Decimal,
+        plan_amount: int,
+        actual_amount: int,
         period_start: date,
         period_end: date,
         user_id: int | None = None,

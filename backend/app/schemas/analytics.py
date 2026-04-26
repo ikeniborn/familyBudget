@@ -4,7 +4,6 @@ Pydantic schemas for Analytics endpoints.
 This module defines request/response schemas for analytical data operations,
 including plan hints and fact hints for transaction forms.
 """
-from decimal import Decimal
 from enum import Enum
 
 from pydantic import BaseModel, Field
@@ -45,16 +44,16 @@ class PlanHintsResponse(BaseModel):
         }
     """
 
-    prev_period_plan_sum: Decimal | None = Field(
+    prev_period_plan_sum: int | None = Field(
         None,
         ge=0,
-        description="Sum of plans for the previous month (NULL if no data)"
+        description="Sum of plans for the previous month in rubles (NULL if no data)"
     )
 
-    prev_period_fact_sum: Decimal | None = Field(
+    prev_period_fact_sum: int | None = Field(
         None,
         ge=0,
-        description="Sum of facts for the previous month (NULL if no data)"
+        description="Sum of facts for the previous month in rubles (NULL if no data)"
     )
 
     prev_period: str = Field(
@@ -101,16 +100,16 @@ class FactHintsResponse(BaseModel):
         }
     """
 
-    period_plan_sum: Decimal | None = Field(
+    period_plan_sum: int | None = Field(
         None,
         ge=0,
-        description="Sum of plans for the month (NULL if no data)"
+        description="Sum of plans for the month in rubles (NULL if no data)"
     )
 
-    period_fact_sum: Decimal | None = Field(
+    period_fact_sum: int | None = Field(
         None,
         ge=0,
-        description="Sum of facts for the month (NULL if no data)"
+        description="Sum of facts for the month in rubles (NULL if no data)"
     )
 
     period: str = Field(

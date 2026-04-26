@@ -76,7 +76,7 @@ class TestAdminDeleteEndpoint:
     ):
         """Create test fact for deletion."""
         fact = Fact(
-            amount=100.50,
+            amount=101,
             fact_date=date.today(),
             article_id=test_article.id,
             financial_center_id=test_financial_center.id,

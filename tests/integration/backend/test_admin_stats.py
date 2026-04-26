@@ -88,14 +88,14 @@ class TestAdminSystemStats:
         facts = [
             # Admin's transactions
             Fact(
-                amount=1000.00,
+                amount=1000,
                 fact_date=date(2025, 11, 1),
                 article_id=test_articles[0].id,
                 user_id=admin_user.id,
                 description="Admin expense"
             ),
             Fact(
-                amount=2000.00,
+                amount=2000,
                 fact_date=date(2025, 11, 2),
                 article_id=test_articles[1].id,
                 user_id=admin_user.id,
@@ -103,7 +103,7 @@ class TestAdminSystemStats:
             ),
             # Regular user's transactions
             Fact(
-                amount=500.00,
+                amount=500,
                 fact_date=date(2025, 11, 3),
                 article_id=test_articles[0].id,
                 user_id=regular_user.id,
