@@ -33,7 +33,7 @@ export async function savePlanTransfer(form: HTMLFormElement): Promise<void> {
     to_financial_center_id: parseIntOrNull(formData.get('to_financial_center_id'))!,
     from_article_id: parseIntOrNull(formData.get('from_article_id')),
     to_article_id: parseIntOrNull(formData.get('to_article_id')),
-    amount: parseFloat(amountInput?.value || '0'),
+    amount: Number.parseInt(amountInput?.value || '0', 10),
     description: descriptionInput?.value || null
   };
 

@@ -269,7 +269,7 @@ export async function openEditPendingRecord(itemId: number, entity: string): Pro
     const editDescEl = document.getElementById('edit-description') as HTMLTextAreaElement | null;
 
     if (editIdEl) editIdEl.value = String(item.id);
-    if (editAmountEl) editAmountEl.value = String(parseFloat(data.amount) || 0);
+    if (editAmountEl) editAmountEl.value = String(Number.parseInt(String(data.amount), 10) || 0);
     if (editDateEl && data.fact_date && window.BudgetShared?.DateFormatter) {
       editDateEl.value = window.BudgetShared.DateFormatter.formatForDisplay(data.fact_date);
     }
@@ -386,7 +386,7 @@ export async function openEditModal(recordType: 'fact' | 'plan', recordId: numbe
     const editDescEl = document.getElementById('edit-description') as HTMLTextAreaElement | null;
 
     if (editIdEl) editIdEl.value = String(data.id);
-    if (editAmountEl) editAmountEl.value = String(parseFloat(data.amount) || 0);
+    if (editAmountEl) editAmountEl.value = String(Number.parseInt(String(data.amount), 10) || 0);
     if (editDateEl && window.BudgetShared?.DateFormatter) {
       const dateField = recordType === 'fact' ? data.fact_date : data.plan_date;
       if (dateField) {

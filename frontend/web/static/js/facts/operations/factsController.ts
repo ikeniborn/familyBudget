@@ -332,10 +332,10 @@ export async function deleteFact(factId: number): Promise<void> {
 function validateAndBuildUpdateData(formData: FormData, BudgetShared: any): UpdateFactData | null {
     const articleId = parseInt(formData.get('article_id') as string);
     const financialCenterId = parseInt(formData.get('financial_center_id') as string);
-    const amount = parseFloat(formData.get('amount') as string);
+    const amount = Number.parseInt(formData.get('amount') as string, 10);
 
-    if (isNaN(articleId) || isNaN(financialCenterId) || isNaN(amount)) {
-        showToast('Некорректные данные формы', 'error');
+    if (isNaN(articleId) || isNaN(financialCenterId) || !Number.isInteger(amount) || amount <= 0) {
+        showToast('Некорректные данные формы (amount должен быть целым > 0)', 'error');
         return null;
     }
 
@@ -426,11 +426,11 @@ export async function createFact(event: Event): Promise<void> {
         // Parse and validate form data
         const articleId = parseInt(formData.get('article_id') as string);
         const financialCenterId = parseInt(formData.get('financial_center_id') as string);
-        const amount = parseFloat(formData.get('amount') as string);
+        const amount = Number.parseInt(formData.get('amount') as string, 10);
         const factType = formData.get('fact_type') as string;
 
-        if (isNaN(articleId) || isNaN(financialCenterId) || isNaN(amount)) {
-            showToast('Некорректные данные формы', 'error');
+        if (isNaN(articleId) || isNaN(financialCenterId) || !Number.isInteger(amount) || amount <= 0) {
+            showToast('Некорректные данные формы (amount должен быть целым > 0)', 'error');
             return;
         }
 

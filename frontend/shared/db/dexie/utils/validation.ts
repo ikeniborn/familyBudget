@@ -3,7 +3,7 @@
  * Dexie не поддерживает SQL CHECK constraints, нужна JavaScript validation
  */
 
-import { toCents, validateType, validateAmount } from '../core/database';
+import { validateType, validateAmount } from '../core/database';
 
 /**
  * Validate LocalArticle before insert/update
@@ -101,13 +101,3 @@ export function validateSyncStatus(status: string): void {
   }
 }
 
-/**
- * Convert and validate amount to cents
- * Combines toCents() + validateAmount()
- */
-export function amountToCents(amount: number): number {
-  if (!validateAmount(amount)) {
-    throw new Error(`Invalid amount: ${amount}. Must be a positive number`);
-  }
-  return toCents(amount);
-}

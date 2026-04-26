@@ -271,7 +271,7 @@
             let expense = 0;
 
             facts.forEach(fact => {
-                const amount = parseFloat(fact.amount) || 0;
+                const amount = Number(fact.amount) || 0;
                 // Use article_type from API response instead of amount sign
                 if (fact.article_type === 'income') {
                     income += amount;

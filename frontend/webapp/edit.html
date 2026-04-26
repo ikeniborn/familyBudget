@@ -377,7 +377,7 @@
 
             // Amount
             const amountInput = document.getElementById('amount');
-            amountInput.value = formState.amount.toFixed(2);
+            amountInput.value = String(formState.amount);
             amountInput.classList.remove('income', 'expense');
             amountInput.classList.add(formState.factType);
 
@@ -428,8 +428,8 @@
 
             buttons.forEach(button => {
                 button.addEventListener('click', () => {
-                    const amount = parseFloat(button.dataset.amount);
-                    document.getElementById('amount').value = Math.round(amount);
+                    const amount = Number.parseInt(button.dataset.amount, 10);
+                    document.getElementById('amount').value = String(amount);
                     formState.amount = amount;
                     app.ui.hapticLight();
                 });
@@ -440,7 +440,7 @@
             const amountInput = document.getElementById('amount');
 
             amountInput.addEventListener('input', () => {
-                const value = parseFloat(amountInput.value);
+                const value = Number.parseInt(amountInput.value, 10);
                 formState.amount = isNaN(value) ? null : value;
 
                 // Clear error on input

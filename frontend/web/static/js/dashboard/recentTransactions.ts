@@ -117,9 +117,8 @@ function buildRecentTransactionsHTML(facts: RecentTransaction[]): string {
     else if (fact.article_type === 'debit') amountClass = 'text-info font-bold';
     else if (fact.article_type === 'credit') amountClass = 'text-warning font-bold';
 
-    // Format amount (remove decimals, add sign, add spaces)
-    const amount = parseFloat(fact.amount);
-    const amountInt = Math.floor(amount);
+    // Format amount (integer rubles, add sign, add spaces)
+    const amountInt = Number(fact.amount) || 0;
     const amountFormatted = amountInt.toLocaleString('ru-RU').replace(',', ' ');
     let amountDisplay = amountFormatted;
     if (fact.article_type === 'expense' || fact.article_type === 'debit') {

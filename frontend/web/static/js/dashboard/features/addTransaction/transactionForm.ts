@@ -82,7 +82,7 @@ export async function saveTransactionOffline(button: HTMLElement): Promise<void>
     const data: TransactionFormData = {
       record_type: 'fact',
       fact_type: formData.get('record_type') as 'income' | 'expense',
-      amount: parseFloat(formData.get('amount') as string),
+      amount: Number.parseInt(formData.get('amount') as string, 10),
       article_id: parseInt(formData.get('article_id') as string),
       article_name: articleName || undefined,
       financial_center_id: parseInt(formData.get('financial_center_id') as string),

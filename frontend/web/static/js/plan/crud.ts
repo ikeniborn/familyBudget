@@ -325,7 +325,7 @@ export async function showEditModal(factId: number): Promise<void> {
 
   // Fill basic fields
   (document.getElementById('edit-id') as HTMLInputElement).value = String(fact.id);
-  (document.getElementById('edit-amount') as HTMLInputElement).value = String(Math.round(parseFloat(String(fact.amount))));
+  (document.getElementById('edit-amount') as HTMLInputElement).value = String(Number.parseInt(String(fact.amount), 10));
   (document.getElementById('edit-date') as HTMLInputElement).value = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
   (document.getElementById('edit-description') as HTMLTextAreaElement).value = fact.description || '';
 
@@ -1373,9 +1373,9 @@ export async function createPlan(event: Event): Promise<void> {
         setSubmitLoading(form, false);
         return;
       }
-      const amount = parseFloat(formData.get('amount') as string);
-      if (isNaN(amount) || amount <= 0) {
-        showToast('Укажите корректную сумму', 'warning');
+      const amount = Number.parseInt(formData.get('amount') as string, 10);
+      if (!Number.isInteger(amount) || amount <= 0) {
+        showToast('Укажите корректную сумму (целое число > 0)', 'warning');
         setSubmitLoading(form, false);
         return;
       }
@@ -1521,7 +1521,7 @@ export async function createPlan(event: Event): Promise<void> {
 
     const data: any = {
       record_type: 'plan',
-      amount: parseFloat(formData.get('amount') as string),
+      amount: Number.parseInt(formData.get('amount') as string, 10),
       article_id: parseInt(formData.get('article_id') as string),
       financial_center_id: parseInt(formData.get('financial_center_id') as string),
       cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id') as string) : null,
@@ -1645,7 +1645,7 @@ export async function updateFact(event: Event): Promise<void> {
 
   // Build data object with optional center fields
   const data: any = {
-    amount: parseFloat(formData.get('amount') as string),
+    amount: Number.parseInt(formData.get('amount') as string, 10),
     fact_date: editScope !== 'template' ? BudgetShared.DateFormatter.formatForAPI(displayDate) : null,
     article_id: parseInt(formData.get('article_id') as string),
     description: formData.get('description') || null

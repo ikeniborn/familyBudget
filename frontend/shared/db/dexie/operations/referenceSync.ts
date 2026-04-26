@@ -3,7 +3,7 @@
  * Синхронизация справочников (Articles, Financial Centers, Cost Centers)
  */
 
-import { db, toCents } from '../core/database';
+import { db } from '../core/database';
 import { logger } from '../utils/logger';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import {
@@ -17,7 +17,6 @@ import type {
   LocalFinancialCenter,
   LocalCostCenter,
   LocalArticleHierarchy,
-  LocalRecurringPlan,
   LocalBudgetFact,
   LocalSyncMetadata,
   LocalShoppingListItem
@@ -503,7 +502,7 @@ export async function syncPlans(
       try {
         const mapped = mapAPIFactToLocal(rawPlan as Record<string, unknown>);
         validateMappedFact(mapped);
-        mappedPlans.push({ ...mapped, amount: toCents(mapped.amount) });
+        mappedPlans.push(mapped);
       } catch (err) {
         logger.warn('[referenceSync] Skipping malformed plan', {
           id: (rawPlan as any).id,
@@ -590,19 +589,13 @@ export async function syncRecurringPlans(
     const data = await response.json();
     const plans = data.items || data;
 
-    // Convert amounts to cents before storing
-    const plansWithCents = plans.map((plan: LocalRecurringPlan) => ({
-      ...plan,
-      amount: toCents(plan.amount)
-    }));
-
     // Clear user's existing plans and insert new ones
     // Use bulkPut (not bulkAdd) for idempotent sync: prevents ConstraintError if sync
     // is called twice (e.g. post-SW-update trigger + normal init race condition)
     await db.transaction('rw', db.recurringPlans, async () => {
       await db.recurringPlans.where('user_id').equals(userId).delete();
-      if (plansWithCents.length > 0) {
-        await db.recurringPlans.bulkPut(plansWithCents);
+      if (plans.length > 0) {
+        await db.recurringPlans.bulkPut(plans);
       }
     });
 

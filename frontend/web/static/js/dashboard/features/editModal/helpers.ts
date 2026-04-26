@@ -35,7 +35,7 @@ export function buildFactDataFromForm(formData: FormData): Record<string, any> {
   const displayDate = formData.get('fact_date') as string;
 
   const data: Record<string, any> = {
-    amount: parseFloat(formData.get('amount') as string),
+    amount: Number.parseInt(formData.get('amount') as string, 10),
     fact_date: window.BudgetShared?.DateFormatter.formatForAPI(displayDate),
     article_id: parseInt(formData.get('article_id') as string),
     description: (formData.get('description') as string) || null,

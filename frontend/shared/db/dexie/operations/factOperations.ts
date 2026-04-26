@@ -3,7 +3,7 @@
  * Dexie.js implementation
  */
 
-import { db, toCents } from '../core/database';
+import { db } from '../core/database';
 import { queryArticles } from './schemaOperations';
 import { logger } from '../utils/logger';
 import { validateFact } from '../utils/validation';
@@ -21,7 +21,6 @@ const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
 
 /**
  * Create budget fact (offline-first)
- * ВАЖНО: amount конвертируется в cents
  *
  * @param fact - Partial fact data
  * @returns temp_id (UUID)
@@ -45,12 +44,10 @@ export async function createFact(
       is_transfer: fact.is_transfer,
     });
 
-    // Convert amount to cents
     const newFact: LocalBudgetFact = {
       id: null,
       temp_id,
       ...fact,
-      amount: toCents(fact.amount),
       sync_status: 'pending',
       content_hash,
       created_at: new Date(),
@@ -105,14 +102,9 @@ export async function updateFact(
       throw new Error(`Fact not found: ${temp_id}`);
     }
 
-    // Prepare updates (convert amount to cents if needed)
-    const updatesWithCents = updates.amount !== undefined
-      ? { ...updates, amount: toCents(updates.amount) }
-      : updates;
-
     // Update fact
     await db.budgetFacts.where('temp_id').equals(temp_id).modify({
-      ...updatesWithCents,
+      ...updates,
       sync_status: 'pending',
       updated_at: new Date()
     });

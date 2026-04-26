@@ -2,9 +2,9 @@
  * Data models for Dexie Phase 2: Transactional Data
  * Budget Facts, Pending Operations, Sync Conflicts, Recurring Plans
  *
- * ВАЖНО: amount field хранится как integer (cents) для точности
- * Example: $123.45 stored as 12345
- * Convert: save → amount * 100 | load → amount / 100
+ * ВАЖНО: amount field хранится как integer rubles (БАГ-5, 2026-04-25).
+ * Backend Pydantic schemas: strict-int, gt=0, plain int over the wire.
+ * Никаких toCents/fromCents — frontend и backend работают в одних единицах.
  */
 
 /**
@@ -22,7 +22,7 @@ export interface LocalBudgetFact {
 
   // Transaction data
   date: string;               // YYYY-MM-DD
-  amount: number;             // ⚠️ STORED AS CENTS (integer): $123.45 = 12345
+  amount: number;             // integer rubles (БАГ-5)
   record_type: 'fact' | 'plan';
   comment: string | null;
 
@@ -97,7 +97,7 @@ export interface LocalRecurringPlan {
   financial_center_id: number;
   cost_center_id: number | null;
 
-  amount: number;             // ⚠️ STORED AS CENTS (integer)
+  amount: number;             // integer rubles (БАГ-5)
   day_of_month: number | null;
   frequency: string;
   is_active: boolean;
