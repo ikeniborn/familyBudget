@@ -44,19 +44,9 @@ settings = get_settings()
 # ==================== Async Test Support ====================
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator:
-    """
-    Create an instance of the default event loop for the test session.
-
-    Required for pytest-asyncio to work properly with session-scoped fixtures.
-    """
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
-
-
 # ==================== Database Fixtures ====================
+# Note: pytest-asyncio 1.x manages the event loop internally via
+# asyncio_default_fixture_loop_scope=session in pytest.ini.
 
 
 @pytest.fixture(scope="session")

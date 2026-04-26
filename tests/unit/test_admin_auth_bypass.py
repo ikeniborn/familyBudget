@@ -243,7 +243,7 @@ class TestAdminAuthBypass:
         data = response.json()
         # API returns structured error: {"detail": {"message": "...", "status_code": 403}}
         message = data["detail"]["message"]
-        assert "activation" in message.lower() or "pending" in message.lower()
+        assert "активаци" in message.lower() or "ожидает" in message.lower()
 
         # Verify NO cookies set
         assert "access_token" not in response.cookies
@@ -276,7 +276,7 @@ class TestAdminAuthBypass:
         data = response.json()
         # API returns structured error: {"detail": {"message": "...", "status_code": 401}}
         message = data["detail"]["message"]
-        assert "invalid" in message.lower() or "password" in message.lower()
+        assert "неверн" in message.lower() or "пароль" in message.lower()
 
         # Verify NO cookies set
         assert "access_token" not in response.cookies
@@ -292,7 +292,7 @@ class TestPasswordValidation:
 
         is_valid, error = validate_password_strength("Short1!")
         assert is_valid is False
-        assert "12 characters" in error
+        assert "12 символов" in error
 
     def test_password_missing_uppercase(self):
         """Password without uppercase letter is rejected."""
@@ -300,7 +300,7 @@ class TestPasswordValidation:
 
         is_valid, error = validate_password_strength("nouppercase123!")
         assert is_valid is False
-        assert "uppercase" in error.lower()
+        assert "заглавную" in error.lower()
 
     def test_password_missing_lowercase(self):
         """Password without lowercase letter is rejected."""
@@ -308,7 +308,7 @@ class TestPasswordValidation:
 
         is_valid, error = validate_password_strength("NOLOWERCASE123!")
         assert is_valid is False
-        assert "lowercase" in error.lower()
+        assert "строчную" in error.lower()
 
     def test_password_missing_digit(self):
         """Password without digit is rejected."""
@@ -316,7 +316,7 @@ class TestPasswordValidation:
 
         is_valid, error = validate_password_strength("NoDigitsHere!")
         assert is_valid is False
-        assert "number" in error.lower() or "digit" in error.lower()
+        assert "цифр" in error.lower()
 
     def test_password_missing_special(self):
         """Password without special character is rejected."""
@@ -324,7 +324,7 @@ class TestPasswordValidation:
 
         is_valid, error = validate_password_strength("NoSpecial123")
         assert is_valid is False
-        assert "special" in error.lower()
+        assert "спецсимвол" in error.lower()
 
     def test_password_common_password(self):
         """Common passwords from top 100 list are rejected."""
@@ -333,7 +333,7 @@ class TestPasswordValidation:
         # "password" is in common passwords list
         is_valid, error = validate_password_strength("Password123!")
         assert is_valid is False
-        assert "common" in error.lower()
+        assert "распростран" in error.lower()
 
     def test_password_valid_strong(self):
         """Strong password meeting all requirements is accepted."""

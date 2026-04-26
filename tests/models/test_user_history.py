@@ -58,8 +58,9 @@ def test_user_history_model_fields():
 
 def test_user_history_fk_constraint():
     """Test user_id has FK to t_d_user.id."""
-    user_id_field = UserHistory.__fields__['user_id']
-    assert user_id_field.field_info.extra.get('foreign_key') == "t_d_user.id", \
+    user_id_col = UserHistory.__table__.columns['user_id']
+    fks = list(user_id_col.foreign_keys)
+    assert any(fk.target_fullname == "t_d_user.id" for fk in fks), \
         "user_id should have FK constraint to t_d_user.id"
 
 
@@ -79,7 +80,8 @@ def test_user_history_default_values():
     assert history.last_name is None  # Optional
     assert history.photo_url is None  # Optional
     assert history.last_login_at is None  # Optional
-    assert history.valid_to == datetime(9999, 12, 31, 23, 59, 59)  # Default 9999-12-31
+    # Default 9999-12-31 (timezone-aware UTC)
+    assert history.valid_to.replace(tzinfo=None) == datetime(9999, 12, 31, 23, 59, 59)
     assert history.is_current is True  # Default True
     assert history.change_type is None  # Optional
     assert history.changed_fields is None  # Optional
@@ -88,10 +90,11 @@ def test_user_history_default_values():
 
 
 def test_user_history_required_fields():
-    """Test UserHistory model validates required fields."""
-    # user_id, telegram_id, is_admin, is_active, valid_from are required
-    with pytest.raises(ValueError):
-        UserHistory()  # Missing required fields
+    """Test UserHistory model marks required columns as NOT NULL at DB level."""
+    cols = UserHistory.__table__.columns
+    for required in ('user_id', 'is_admin', 'is_active', 'valid_from', 'valid_to', 'is_current'):
+        assert cols[required].nullable is False, \
+            f"{required} should be NOT NULL"
 
 
 def test_user_history_change_types():
@@ -184,21 +187,11 @@ def test_user_history_tablename():
 
 def test_user_history_indexes():
     """Test UserHistory model has correct indexes."""
-    # user_id should be indexed
-    user_id_field = UserHistory.__fields__['user_id']
-    assert user_id_field.field_info.extra.get('index') is True
-
-    # telegram_id should be indexed
-    telegram_id_field = UserHistory.__fields__['telegram_id']
-    assert telegram_id_field.field_info.extra.get('index') is True
-
-    # valid_from should be indexed
-    valid_from_field = UserHistory.__fields__['valid_from']
-    assert valid_from_field.field_info.extra.get('index') is True
-
-    # is_current should be indexed
-    is_current_field = UserHistory.__fields__['is_current']
-    assert is_current_field.field_info.extra.get('index') is True
+    cols = UserHistory.__table__.columns
+    assert cols['user_id'].index is True
+    assert cols['telegram_id'].index is True
+    assert cols['valid_from'].index is True
+    assert cols['is_current'].index is True
 
 
 def test_user_history_scd2_architecture():
@@ -219,12 +212,12 @@ def test_user_history_scd2_architecture():
     assert hasattr(history, 'is_current')
 
     # 2. Surrogate key for history records
-    history_id_field = UserHistory.__fields__['history_id']
-    assert history_id_field.field_info.extra.get('primary_key') is True
+    assert UserHistory.__table__.columns['history_id'].primary_key is True
 
     # 3. FK to stable User.id (not versioned)
-    user_id_field = UserHistory.__fields__['user_id']
-    assert user_id_field.field_info.extra.get('foreign_key') == "t_d_user.id"
+    user_id_col = UserHistory.__table__.columns['user_id']
+    fks = list(user_id_col.foreign_keys)
+    assert any(fk.target_fullname == "t_d_user.id" for fk in fks)
 
     # 4. Audit metadata fields
     assert hasattr(history, 'change_type')
