@@ -143,10 +143,12 @@ async function uploadShoppingItem(item: LocalShoppingListItem): Promise<void> {
     const result = await response.json();
     await db.shoppingListItems.where('temp_id').equals(item.temp_id).modify({
       id: result.id,
+      shopping_list_id: result.shopping_list_id ?? shoppingListServerId,
       sync_status: 'synced'
     });
   } else {
     await db.shoppingListItems.where('temp_id').equals(item.temp_id).modify({
+      shopping_list_id: shoppingListServerId,
       sync_status: 'synced'
     });
   }

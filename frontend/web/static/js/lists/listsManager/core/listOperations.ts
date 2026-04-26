@@ -191,6 +191,7 @@ export async function createItem(data: ItemData): Promise<any> {
           const localItem = {
             id: result.id,
             temp_id: stableTempId,
+            shopping_list_id: result.shopping_list_id ?? currentList.id ?? null,
             shopping_list_temp_id: currentList.temp_id,  // Use list's temp_id (UUID)
             store_id: result.store_id,
             product_group_id: result.product_group_id,

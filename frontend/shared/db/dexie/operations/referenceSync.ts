@@ -408,6 +408,7 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
           const transformedItems: LocalShoppingListItem[] = items.map((item: any) => ({
             ...item,
             temp_id: existingTempIdByItemServerId.get(item.id) || item.temp_id || `server-item-${item.id}`,
+            shopping_list_id: item.shopping_list_id ?? list.id ?? null,
             shopping_list_temp_id: list.temp_id, // Link to the Dexie list by temp_id
             sync_status: 'synced',
             synced_at: new Date(),
