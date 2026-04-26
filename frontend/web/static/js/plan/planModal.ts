@@ -368,7 +368,7 @@ function renderRecurringPlansTable(plans: any[]): void {
     const articleName = plan.article_name || String(plan.article_id) || '—';
     const fcName = plan.financial_center_name || '—';
     const amount = plan.amount
-      ? parseFloat(plan.amount).toLocaleString('ru-RU', { minimumFractionDigits: 0 })
+      ? Number(plan.amount).toLocaleString('ru-RU')
       : '—';
     const nextDate = plan.next_generation_date || '—';
     const frequencyText = getFrequencyDisplayText(plan.frequency_type, plan.frequency_value);

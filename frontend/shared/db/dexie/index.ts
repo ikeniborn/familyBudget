@@ -8,8 +8,8 @@
 import { DexieManager } from './DexieManager';
 import { getDexieManager as getDexieManagerImpl } from './DexieManager';
 export { DexieManager, getDexieManager } from './DexieManager';
-import { initializeDatabase, getDatabase, db as dexieDb, toCents as dexieToCents, fromCents as dexieFromCents, clearVersionCache } from './core/database';
-export { initializeDatabase, getDatabase, db, toCents, fromCents, clearVersionCache } from './core/database';
+import { initializeDatabase, getDatabase, db as dexieDb, clearVersionCache } from './core/database';
+export { initializeDatabase, getDatabase, db, clearVersionCache } from './core/database';
 export type { InitializationStatus, ProgressCallback } from './DexieManager';
 
 /**
@@ -132,8 +132,7 @@ export {
   validateArticle,
   validateFact,
   validateShoppingItem,
-  validateSyncStatus,
-  amountToCents
+  validateSyncStatus
 } from './utils/validation';
 
 // Validation Results (for notifications)
@@ -239,8 +238,6 @@ type DexieWithUtilities = typeof Dexie & {
   getDatabase: typeof getDatabase;
   clearVersionCache: typeof clearVersionCache;
   db: typeof dexieDb;
-  toCents: typeof dexieToCents;
-  fromCents: typeof dexieFromCents;
   isDexieActive: typeof isDexieActive;
   setDexieActive: typeof setDexieActive;
   getState: typeof getState;
@@ -297,8 +294,6 @@ if (typeof window !== 'undefined') {
       getDatabase,
       clearVersionCache,
       db: dexieDb,
-      toCents: dexieToCents,
-      fromCents: dexieFromCents,
       isDexieActive,
       setDexieActive,
       getState,
@@ -332,7 +327,7 @@ if (typeof window !== 'undefined') {
     }
 
     // Verify critical utilities are attached
-    const requiredUtilities = ['getDexieManager', 'DexieManager', 'initializeDatabase', 'getDatabase', 'clearVersionCache', 'db', 'toCents', 'fromCents'];
+    const requiredUtilities = ['getDexieManager', 'DexieManager', 'initializeDatabase', 'getDatabase', 'clearVersionCache', 'db'];
     const missingUtilities = requiredUtilities.filter(util => !(util in window.Dexie));
     if (missingUtilities.length > 0) {
       throw new Error(
@@ -376,8 +371,6 @@ if (typeof window !== 'undefined') {
           throw new Error(`[Dexie] Initialization failed - cannot access '${String(prop)}'`);
         }
       }) as any,
-      toCents: (amount: number) => Math.round(amount * 100),
-      fromCents: (cents: number) => cents / 100,
       isDexieActive: () => false,
       setDexieActive: () => {
         dexieLogger.warn('Dexie initialization failed - cannot set active state');

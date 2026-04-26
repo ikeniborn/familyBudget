@@ -512,7 +512,7 @@ function createNotificationRow(notification) {
     if (notification.notification_type === 'plan_reminder') {
         const categoryName = notification.article_name || `Категория #${notification.article_id || '—'}`;
         const amount = notification.amount
-            ? parseFloat(notification.amount).toLocaleString('ru-RU', {minimumFractionDigits: 2})
+            ? Number(notification.amount).toLocaleString('ru-RU')
             : '—';
         const reminderDate = notification.reminder_datetime
             ? new Date(notification.reminder_datetime).toLocaleDateString('ru-RU')
@@ -545,15 +545,15 @@ function createNotificationRow(notification) {
 
     // Format amounts
     const planAmount = notification.plan_amount
-        ? parseFloat(notification.plan_amount).toLocaleString('ru-RU', {minimumFractionDigits: 2})
+        ? Number(notification.plan_amount).toLocaleString('ru-RU')
         : '—';
     const actualAmount = notification.actual_amount
-        ? parseFloat(notification.actual_amount).toLocaleString('ru-RU', {minimumFractionDigits: 2})
+        ? Number(notification.actual_amount).toLocaleString('ru-RU')
         : '—';
 
-    // Calculate percentage
+    // Calculate percentage (integer)
     const percentage = (notification.plan_amount && notification.actual_amount)
-        ? (parseFloat(notification.actual_amount) / parseFloat(notification.plan_amount) * 100).toFixed(0)
+        ? String(Math.round(Number(notification.actual_amount) * 100 / Number(notification.plan_amount)))
         : '—';
 
     // Category name (prefer article_name if available)

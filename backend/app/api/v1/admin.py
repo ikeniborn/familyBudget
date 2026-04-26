@@ -2054,7 +2054,7 @@ class FactResponse(BaseModel):
     id: int
     user_id: int
     article_id: int
-    amount: float
+    amount: int
     fact_date: str
     description: str | None
     record_type: str
@@ -2072,7 +2072,7 @@ class FactResponse(BaseModel):
 
 class FactUpdateRequest(BaseModel):
     """Fact update request model."""
-    amount: float | None = None
+    amount: int | None = None
     fact_date: str | None = None  # ISO date string
     description: str | None = None
     article_id: int | None = None
@@ -2178,7 +2178,7 @@ async def get_all_facts(
             id=fact.id,
             user_id=fact.user_id,
             article_id=fact.article_id,
-            amount=float(fact.amount),
+            amount=int(fact.amount),
             fact_date=fact.fact_date.isoformat(),
             description=fact.description,
             record_type=fact.record_type,
@@ -2376,7 +2376,7 @@ async def update_fact(
         id=fact.id,
         user_id=fact.user_id,
         article_id=fact.article_id,
-        amount=float(fact.amount),
+        amount=int(fact.amount),
         fact_date=fact.fact_date.isoformat(),
         description=fact.description,
         record_type=fact.record_type,

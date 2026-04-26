@@ -1,7 +1,6 @@
 """Transfer schemas for API requests and responses."""
 
 from datetime import date
-from decimal import Decimal
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -14,12 +13,12 @@ class TransferCreate(BaseModel):
         ...,
         description="Transfer date (YYYY-MM-DD)"
     )
-    amount: Decimal = Field(
+    amount: int = Field(
         ...,
         gt=0,
-        max_digits=15,
-        decimal_places=2,
-        description="Transfer amount (must be positive)"
+        strict=True,
+        le=1_000_000_000,
+        description="Transfer amount in rubles (positive integer)"
     )
     record_type: Literal["fact", "plan"] = Field(
         default="fact",

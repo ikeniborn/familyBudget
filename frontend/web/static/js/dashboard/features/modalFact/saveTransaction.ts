@@ -6,7 +6,7 @@
 
 import { refreshUIAfterFactSave } from '../../shared/utils/uiRefresh';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
-import { getDexieManager, isDexieActive, mapAPIFactToLocal, toCents, db, createFact } from '@db/dexie';
+import { getDexieManager, isDexieActive, mapAPIFactToLocal, db, createFact } from '@db/dexie';
 import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 /**
@@ -30,7 +30,7 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
     financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
     article_id: parseIntOrNull(formData.get('article_id'))!,
     cost_center_id: parseIntOrNull(formData.get('cost_center_id')),
-    amount: parseFloat(formData.get('amount') as string),
+    amount: Number.parseInt(formData.get('amount') as string, 10),
     description: formData.get('description') || null
   };
 
@@ -44,7 +44,7 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
         const manager = getDexieManager();
         if (manager.isReady()) {
           const localFact = mapAPIFactToLocal(responseData);
-          await db.budgetFacts.put({ ...localFact, amount: toCents(localFact.amount) });
+          await db.budgetFacts.put(localFact);
         }
       } catch (dexieError) {
         console.warn('[SaveFactModal] Failed to write to Dexie (non-critical):', dexieError);

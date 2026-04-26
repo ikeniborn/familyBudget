@@ -9,7 +9,6 @@ Also handles incremental sync for budget facts (delta updates).
 import asyncio
 import logging
 from datetime import datetime, timezone
-from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import and_, select
@@ -337,7 +336,7 @@ async def _handle_create_fact(
         financial_center_id=payload.get("financial_center_id"),
         cost_center_id=payload.get("cost_center_id"),
         fact_date=datetime.fromisoformat(payload["date"]),
-        amount=Decimal(str(payload["amount"])),
+        amount=int(payload["amount"]),
         description=payload.get("comment"),
         record_type=payload.get("record_type", "fact"),
         transfer_id=payload.get("transfer_group_id"),
@@ -410,7 +409,7 @@ async def _handle_update_fact(
 def _apply_fact_field_updates(fact: BudgetFact, payload: dict) -> None:
     """Apply partial field updates from sync payload to a BudgetFact."""
     if "amount" in payload:
-        fact.amount = Decimal(str(payload["amount"]))
+        fact.amount = int(payload["amount"])
     if "comment" in payload:
         fact.description = payload["comment"]
     if "date" in payload:

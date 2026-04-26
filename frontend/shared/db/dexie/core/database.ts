@@ -231,24 +231,6 @@ export const db: FamilyBudgetDB = new Proxy({} as FamilyBudgetDB, {
 });
 
 /**
- * Helper: Convert dollar amount to cents (for storage)
- * Example: toCents(123.45) → 12345
- *
- * ВАЖНО: Использовать Math.round() для корректного округления float
- */
-export function toCents(amount: number): number {
-  return Math.round(amount * 100);
-}
-
-/**
- * Helper: Convert cents to dollar amount (for display)
- * Example: fromCents(12345) → 123.45
- */
-export function fromCents(cents: number): number {
-  return cents / 100;
-}
-
-/**
  * Helper: Validate constraint (type check)
  * Dexie не поддерживает CHECK constraints, нужна JavaScript validation
  */

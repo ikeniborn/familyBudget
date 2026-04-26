@@ -104,6 +104,8 @@ export interface LocalShoppingListItem {
 
   // Foreign keys (temp_id for offline creates)
   shopping_list_temp_id: string;
+  /** Server FK to shopping list — populated once the parent list has a server id */
+  shopping_list_id?: number | null;
   store_id: number;
   product_group_id: number;
 

@@ -168,7 +168,7 @@ class WriteBehindService:
         pre_generated_id: int,
         user_id: int,
         article_id: int,
-        amount: float,
+        amount: int,
         fact_date: str,
         description: str | None = None,
         financial_center_id: int | None = None,

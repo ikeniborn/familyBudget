@@ -6,15 +6,11 @@ Recurring plans generate BudgetFact records automatically based on frequency.
 """
 
 from datetime import date, datetime
-from decimal import Decimal
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import BaseModel, Field, PlainSerializer, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from backend.app.utils.timezone import now_local
-
-# Reusable type for Decimal fields that serialize to float in JSON
-SerializedDecimal = Annotated[Decimal, PlainSerializer(lambda x: float(x), return_type=float)]
 
 FrequencyType = Literal["monthly", "quarterly", "yearly"]
 RecordType = Literal["plan", "fact"]
@@ -91,13 +87,13 @@ class RecurringPlanCreate(BaseModel):
         examples=[None, 12, 52]
     )
 
-    amount: Decimal = Field(
+    amount: int = Field(
         ...,
         gt=0,
-        max_digits=15,
-        decimal_places=2,
-        description="Transaction amount (positive)",
-        examples=["50000.00", "5000.00"]
+        strict=True,
+        le=1_000_000_000,
+        description="Transaction amount in rubles (positive integer)",
+        examples=[50000, 5000]
     )
 
     description: str | None = Field(
@@ -257,13 +253,13 @@ class RecurringPlanUpdate(BaseModel):
     Note: frequency_type, frequency_value, start_date cannot be changed.
     """
 
-    amount: Decimal | None = Field(
+    amount: int | None = Field(
         default=None,
         gt=0,
-        max_digits=15,
-        decimal_places=2,
-        description="New transaction amount",
-        examples=["55000.00"]
+        strict=True,
+        le=1_000_000_000,
+        description="New transaction amount in rubles (positive integer)",
+        examples=[55000]
     )
 
     description: str | None = Field(
@@ -343,7 +339,7 @@ class RecurringPlanResponse(BaseModel):
     occurrences_count: int | None = Field(default=None, description="Max occurrences")
     occurrences_generated: int = Field(description="Facts already generated")
 
-    amount: SerializedDecimal = Field(description="Transaction amount")
+    amount: int = Field(description="Transaction amount in rubles (integer)")
     description: str | None = Field(default=None, description="Description template")
     record_type: RecordType = Field(description="Generated record type")
 
@@ -446,7 +442,7 @@ class RecurringPlanStats(BaseModel):
 
     active_count: int = Field(description="Number of active recurring plans")
     paused_count: int = Field(description="Number of paused plans")
-    total_monthly_amount: SerializedDecimal = Field(description="Sum of monthly recurring amounts")
+    total_monthly_amount: int = Field(description="Sum of monthly recurring amounts in rubles")
     next_pending_count: int = Field(description="Plans with pending generation today")
 
     model_config = {

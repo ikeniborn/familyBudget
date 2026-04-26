@@ -7,7 +7,7 @@
 import { refreshUIAfterPlanSave } from '../../shared/utils/uiRefresh';
 import { extractRecurringSettings, extractReminderSettings } from './recurringSettings';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
-import { getDexieManager, isDexieActive, mapAPIFactToLocal, toCents, db, createFact, addPendingOperation, generateUUID, calculateContentHash } from '@db/dexie';
+import { getDexieManager, isDexieActive, mapAPIFactToLocal, db, createFact, addPendingOperation, generateUUID, calculateContentHash } from '@db/dexie';
 import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 /**
@@ -30,7 +30,7 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
       financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
       article_id: parseIntOrNull(formData.get('article_id'))!,
       cost_center_id: parseIntOrNull(formData.get('cost_center_id')),
-      amount: parseFloat(formData.get('amount') as string),
+      amount: Number.parseInt(formData.get('amount') as string, 10),
       description: formData.get('description') || null,
       // Recurring settings
       frequency_type: recurringSettings.frequency_type,
@@ -51,7 +51,7 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
       financial_center_id: parseIntOrNull(formData.get('financial_center_id'))!,
       article_id: parseIntOrNull(formData.get('article_id'))!,
       cost_center_id: parseIntOrNull(formData.get('cost_center_id')),
-      amount: parseFloat(formData.get('amount') as string),
+      amount: Number.parseInt(formData.get('amount') as string, 10),
       description: formData.get('description') || null,
     };
   }
@@ -69,7 +69,6 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
           if (manager.isReady()) {
             await db.recurringPlans.put({
               ...responseData,
-              amount: toCents(responseData.amount),
               synced_at: new Date()
             });
           }
@@ -132,7 +131,7 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
           const manager = getDexieManager();
           if (manager.isReady()) {
             const localFact = mapAPIFactToLocal(responseData);
-            await db.budgetFacts.put({ ...localFact, amount: toCents(localFact.amount) });
+            await db.budgetFacts.put(localFact);
           }
         } catch (dexieError) {
           console.warn('[SavePlanModal] Failed to write plan to Dexie (non-critical):', dexieError);

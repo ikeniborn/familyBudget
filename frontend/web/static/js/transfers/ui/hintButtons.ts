@@ -109,7 +109,6 @@ export function setTransferAmount(amount: number): void {
  */
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('ru-RU', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 0
   }).format(value);
 }

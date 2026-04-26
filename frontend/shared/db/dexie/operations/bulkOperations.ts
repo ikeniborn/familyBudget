@@ -3,7 +3,7 @@
  * Оптимизация для initial sync и массовых операций
  */
 
-import { db, toCents } from '../core/database';
+import { db } from '../core/database';
 import { logger } from '../utils/logger';
 import type { LocalBudgetFact } from '../types/fact';
 
@@ -14,9 +14,8 @@ export type BulkProgressCallback = (_current: number, _total: number) => void;
 
 /**
  * Bulk insert facts с progress reporting
- * ВАЖНО: amount должен быть в dollars, конвертируется в cents автоматически
  *
- * @param facts - Array of facts (amount в dollars)
+ * @param facts - Array of facts (amount в integer rubles)
  * @param onProgress - Optional progress callback
  */
 export async function bulkInsertFacts(
@@ -27,25 +26,19 @@ export async function bulkInsertFacts(
 
   const BATCH_SIZE = 1000;
 
-  // Convert amounts to cents
-  const factsWithCents = facts.map(f => ({
-    ...f,
-    amount: toCents(f.amount)
-  }));
-
-  for (let i = 0; i < factsWithCents.length; i += BATCH_SIZE) {
-    const batch = factsWithCents.slice(i, i + BATCH_SIZE);
+  for (let i = 0; i < facts.length; i += BATCH_SIZE) {
+    const batch = facts.slice(i, i + BATCH_SIZE);
 
     // bulkPut вместо bulkAdd для upsert behavior
     await db.budgetFacts.bulkPut(batch);
 
     if (onProgress) {
-      onProgress(i + batch.length, factsWithCents.length);
+      onProgress(i + batch.length, facts.length);
     }
 
     logger.debug(`[bulkOps] Batch ${Math.floor(i / BATCH_SIZE) + 1} inserted`, {
       current: i + batch.length,
-      total: factsWithCents.length
+      total: facts.length
     });
   }
 

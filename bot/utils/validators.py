@@ -6,7 +6,6 @@ Provides validation functions for user input in conversational handlers.
 
 import re
 from datetime import date, datetime, timedelta
-from decimal import Decimal, InvalidOperation
 from typing import Optional, Tuple
 
 from bot.utils.logger import get_logger
@@ -30,82 +29,70 @@ class ValidationError(Exception):
         super().__init__(message)
 
 
-def validate_amount(amount_str: str) -> Decimal:
+def validate_amount(amount_str: str) -> int:
     """
-    Validate and parse amount input.
+    Validate and parse amount input as integer rubles (БАГ-5).
 
     Accepts formats:
-    - "100" → 100.00
-    - "100.50" → 100.50
-    - "100,50" → 100.50 (comma as decimal separator)
-    - "1 000" → 1000.00 (spaces as thousands separator)
-    - "1 000.50" → 1000.50
+    - "100" → 100
+    - "1 000" → 1000 (spaces as thousands separator)
 
     Validation rules:
-    - Must be > 0
-    - Maximum 2 decimal places
-    - Maximum 1 billion (1,000,000,000.00)
+    - Must be a whole integer > 0
+    - Maximum 1 billion
 
     Args:
         amount_str: User input string
 
     Returns:
-        Decimal: Validated amount
+        int: Validated amount in integer rubles
 
     Raises:
         ValidationError: If validation fails
 
     Examples:
         >>> validate_amount("100")
-        Decimal('100.00')
-        >>> validate_amount("50.75")
-        Decimal('50.75')
-        >>> validate_amount("1 000,50")
-        Decimal('1000.50')
+        100
+        >>> validate_amount("1 000")
+        1000
     """
     if not amount_str or not amount_str.strip():
         raise ValidationError("❌ Сумма не может быть пустой", field="amount")
 
-    # Normalize input: remove spaces, replace comma with dot
-    normalized = amount_str.strip().replace(" ", "").replace(",", ".")
+    # Normalize input: remove spaces (thousands separator)
+    normalized = amount_str.strip().replace(" ", "")
 
-    # Validate format (digits and optional single decimal point)
-    if not re.match(r'^\d+(\.\d{1,2})?$', normalized):
+    # Validate format: only digits (integer rubles, no decimals)
+    if not re.match(r'^\d+$', normalized):
         raise ValidationError(
-            "❌ Неверный формат суммы.\n\n"
-            "Примеры правильного ввода:\n"
+            "❌ Сумма должна быть целым числом в рублях.\n\n"
+            "Примеры:\n"
             "• 100\n"
-            "• 100.50\n"
-            "• 1000,50\n"
-            "• 1 000.50",
+            "• 1 000\n"
+            "• 50000",
             field="amount"
         )
 
     try:
-        amount = Decimal(normalized)
-    except (InvalidOperation, ValueError):
+        amount = int(normalized)
+    except ValueError:
         raise ValidationError(
             "❌ Не удалось распознать сумму. Проверьте формат.",
             field="amount"
         )
 
-    # Validate: must be positive
     if amount <= 0:
         raise ValidationError(
             "❌ Сумма должна быть больше нуля",
             field="amount"
         )
 
-    # Validate: max 1 billion
-    max_amount = Decimal("1000000000.00")
+    max_amount = 1_000_000_000
     if amount > max_amount:
         raise ValidationError(
-            f"❌ Сумма не может превышать {max_amount:,.2f}",
+            f"❌ Сумма не может превышать {max_amount:,}".replace(",", " "),
             field="amount"
         )
-
-    # Ensure exactly 2 decimal places
-    amount = amount.quantize(Decimal("0.01"))
 
     logger.debug(f"Amount validated: {amount_str} → {amount}")
 
@@ -271,29 +258,27 @@ def validate_description(description_str: Optional[str]) -> Optional[str]:
     return trimmed
 
 
-def format_amount(amount: Decimal) -> str:
+def format_amount(amount) -> str:
     """
-    Format amount for display (with thousands separator).
+    Format amount for display (integer rubles, with thousands separator).
+
+    Accepts int, Decimal, or numeric string — all rendered as integer rubles
+    after БАГ-5 (rounded to int for display).
 
     Args:
-        amount: Decimal amount
+        amount: numeric amount in rubles (int, Decimal, str)
 
     Returns:
-        str: Formatted amount string (e.g., "1 000.50")
+        str: Formatted amount string (e.g., "1 000")
 
     Examples:
-        >>> format_amount(Decimal("1000.50"))
-        '1 000.50'
-        >>> format_amount(Decimal("50.00"))
-        '50.00'
+        >>> format_amount(1000)
+        '1 000'
+        >>> format_amount(50)
+        '50'
     """
-    # Format with 2 decimal places
-    formatted = f"{amount:,.2f}"
-
-    # Replace comma with space (Russian format)
-    formatted = formatted.replace(",", " ")
-
-    return formatted
+    # Coerce through int — handles int, Decimal, float, numeric string
+    return f"{int(amount):,}".replace(",", " ")
 
 
 def format_date(date_obj: date) -> str:

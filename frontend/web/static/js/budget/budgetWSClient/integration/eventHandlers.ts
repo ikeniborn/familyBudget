@@ -107,9 +107,21 @@ async function upsertShoppingListInDexie(list: any): Promise<void> {
 async function hardDeleteShoppingListFromDexie(listId: number): Promise<void> {
   try {
     const existing = await db.shoppingLists.where('id').equals(listId).first();
+    // Cascade by every available key: items may carry only `shopping_list_id`
+    // (БАГ-4 legacy rows), only `shopping_list_temp_id`, or both. Walking the
+    // table once and matching on either field guarantees orphan-free delete.
+    const orphanedItems = await db.shoppingListItems
+      .filter(i =>
+        (existing?.temp_id != null && i.shopping_list_temp_id === existing.temp_id) ||
+        (i.shopping_list_id != null && i.shopping_list_id === listId)
+      )
+      .toArray();
+    if (orphanedItems.length > 0) {
+      await db.shoppingListItems.bulkDelete(
+        orphanedItems.map(i => i.temp_id) as unknown as number[]
+      );
+    }
     if (existing) {
-      await db.shoppingListItems
-        .where('shopping_list_temp_id').equals(existing.temp_id).delete();
       await db.shoppingLists.where('temp_id').equals(existing.temp_id).delete();
     } else {
       await db.shoppingLists.where('id').equals(listId).delete();
@@ -120,10 +132,19 @@ async function hardDeleteShoppingListFromDexie(listId: number): Promise<void> {
 async function upsertShoppingItemInDexie(item: any): Promise<void> {
   try {
     const existing = await db.shoppingListItems.where('id').equals(item.id).first();
+    // Resolve shopping_list_temp_id from the parent list when only the server
+    // FK is known. Keeps the cascade-on-list-delete query working.
+    let listTempId: string | undefined = existing?.shopping_list_temp_id;
+    if (!listTempId && item.shopping_list_id != null) {
+      const parent = await db.shoppingLists.where('id').equals(item.shopping_list_id).first();
+      listTempId = parent?.temp_id;
+    }
     if (existing) {
       await db.shoppingListItems.where('temp_id').equals(existing.temp_id).modify({
         ...item,
         temp_id: existing.temp_id,
+        shopping_list_id: item.shopping_list_id ?? existing.shopping_list_id ?? null,
+        shopping_list_temp_id: listTempId ?? existing.shopping_list_temp_id,
         sync_status: 'synced',
         updated_at: toDate(item.updated_at),
       });
@@ -131,6 +152,8 @@ async function upsertShoppingItemInDexie(item: any): Promise<void> {
       await db.shoppingListItems.put({
         ...item,
         temp_id: generateUUID(),
+        shopping_list_id: item.shopping_list_id ?? null,
+        shopping_list_temp_id: listTempId ?? item.shopping_list_temp_id,
         sync_status: 'synced',
         created_at: toDate(item.created_at),
         updated_at: toDate(item.updated_at),
@@ -141,7 +164,18 @@ async function upsertShoppingItemInDexie(item: any): Promise<void> {
 
 async function hardDeleteShoppingItemInDexie(itemId: number): Promise<void> {
   try {
-    await db.shoppingListItems.where('id').equals(itemId).delete();
+    // Primary delete via secondary `id` index.
+    const deleted = await db.shoppingListItems.where('id').equals(itemId).delete();
+    // Fallback: locate row by id and remove by primary key `temp_id`. Catches
+    // edge cases where the secondary index missed (older Dexie schema rows or
+    // rows with non-numeric id types).
+    if (!deleted) {
+      const stale = await db.shoppingListItems.where('id').equals(itemId).first();
+      if (stale?.temp_id) {
+        // primary key is temp_id (string); table typing is `<..., number>`
+        await db.shoppingListItems.delete(stale.temp_id as unknown as number);
+      }
+    }
   } catch { /* non-fatal */ }
 }
 

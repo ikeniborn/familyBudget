@@ -6,7 +6,6 @@ Facts represent actual income/expense transactions.
 """
 
 from datetime import date, datetime, timedelta
-from decimal import Decimal
 from typing import Optional
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -43,13 +42,13 @@ class FactCreate(BaseModel):
         examples=["2025-10-13", "2025-09-15"]
     )
 
-    amount: Decimal = Field(
+    amount: int = Field(
         ...,
         gt=0,
-        max_digits=15,
-        decimal_places=2,
-        description="Transaction amount (positive values only)",
-        examples=["50.75", "1200.00", "15.99"]
+        strict=True,
+        le=1_000_000_000,
+        description="Transaction amount in rubles (positive integer)",
+        examples=[51, 1200, 16]
     )
 
     description: str | None = Field(
@@ -142,33 +141,6 @@ class FactCreate(BaseModel):
 
         return self
 
-    @field_validator("amount")
-    @classmethod
-    def amount_validation(cls, v: Decimal) -> Decimal:
-        """
-        Validate transaction amount.
-
-        Rules:
-        - Must be positive (> 0)
-        - Cannot exceed 1 billion (reasonable upper limit)
-        - Maximum 2 decimal places
-        """
-        if v <= 0:
-            raise ValueError("Amount must be greater than zero")
-
-        # Check upper bound (1 billion)
-        max_amount = Decimal("1000000000.00")
-        if v > max_amount:
-            raise ValueError(
-                f"Amount cannot exceed {max_amount:,.2f} (1 billion)"
-            )
-
-        # Check decimal places (should be handled by Field, but double-check)
-        if v.as_tuple().exponent < -2:
-            raise ValueError("Amount cannot have more than 2 decimal places")
-
-        return v
-
     @field_validator("description")
     @classmethod
     def description_trimmed(cls, v: str | None) -> str | None:
@@ -216,13 +188,13 @@ class FactUpdate(BaseModel):
         examples=["2025-10-13"]
     )
 
-    amount: Decimal | None = Field(
+    amount: int | None = Field(
         default=None,
         gt=0,
-        max_digits=15,
-        decimal_places=2,
-        description="Transaction amount",
-        examples=["75.00"]
+        strict=True,
+        le=1_000_000_000,
+        description="Transaction amount in rubles (positive integer)",
+        examples=[75]
     )
 
     description: str | None = Field(
@@ -297,29 +269,6 @@ class FactUpdate(BaseModel):
 
         return v
 
-    @field_validator("amount")
-    @classmethod
-    def amount_validation(cls, v: Decimal | None) -> Decimal | None:
-        """Validate transaction amount if provided."""
-        if v is None:
-            return None
-
-        if v <= 0:
-            raise ValueError("Amount must be greater than zero")
-
-        # Check upper bound (1 billion)
-        max_amount = Decimal("1000000000.00")
-        if v > max_amount:
-            raise ValueError(
-                f"Amount cannot exceed {max_amount:,.2f} (1 billion)"
-            )
-
-        # Check decimal places
-        if v.as_tuple().exponent < -2:
-            raise ValueError("Amount cannot have more than 2 decimal places")
-
-        return v
-
     @field_validator("description")
     @classmethod
     def description_trimmed(cls, v: str | None) -> str | None:
@@ -383,9 +332,9 @@ class FactResponse(BaseModel):
         examples=["2025-10-13"]
     )
 
-    amount: Decimal = Field(
-        description="Transaction amount",
-        examples=["50.75"]
+    amount: int = Field(
+        description="Transaction amount in rubles (integer)",
+        examples=[51]
     )
 
     description: str | None = Field(
@@ -525,19 +474,19 @@ class FactSummary(BaseModel):
     Provides income/expense totals for a given period.
     """
 
-    total_income: Decimal = Field(
-        description="Total income amount",
-        examples=["5000.00"]
+    total_income: int = Field(
+        description="Total income amount (rubles)",
+        examples=[5000]
     )
 
-    total_expense: Decimal = Field(
-        description="Total expense amount",
-        examples=["3500.00"]
+    total_expense: int = Field(
+        description="Total expense amount (rubles)",
+        examples=[3500]
     )
 
-    balance: Decimal = Field(
-        description="Balance (income - expense)",
-        examples=["1500.00"]
+    balance: int = Field(
+        description="Balance (income - expense, rubles)",
+        examples=[1500]
     )
 
     count_income: int = Field(

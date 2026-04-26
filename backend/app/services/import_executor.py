@@ -223,9 +223,9 @@ class ImportExecutor:
                     )
                     continue
 
-                # Parse amount and ensure it's positive
-                amount = ImportExecutor.parse_amount(record.amount_string)
-                amount = abs(amount)  # Always store as positive
+                # Parse amount and ensure it's positive integer (rubles)
+                amount_decimal = ImportExecutor.parse_amount(record.amount_string)
+                amount = int(abs(amount_decimal).to_integral_value())  # Round to int rubles
 
                 # Build description: concatenate CSV description + budget_description
                 description = record.description or ""

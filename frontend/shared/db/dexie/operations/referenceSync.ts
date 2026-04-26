@@ -3,7 +3,7 @@
  * Синхронизация справочников (Articles, Financial Centers, Cost Centers)
  */
 
-import { db, toCents } from '../core/database';
+import { db } from '../core/database';
 import { logger } from '../utils/logger';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import {
@@ -17,7 +17,6 @@ import type {
   LocalFinancialCenter,
   LocalCostCenter,
   LocalArticleHierarchy,
-  LocalRecurringPlan,
   LocalBudgetFact,
   LocalSyncMetadata,
   LocalShoppingListItem
@@ -86,8 +85,10 @@ export async function syncFinancialCenters(userId: number): Promise<{ success: b
     const data = await response.json();
     const centers: LocalFinancialCenter[] = data.financial_centers || [];
 
-    // Clear existing
-    await db.financialCenters.where('user_id').equals(userId).delete();
+    // Shared reference data: clear ALL local rows so server-side hard deletes
+    // propagate even when the WS `financial_center_deleted` event was missed
+    // (page reload, offline window, slow socket). Same pattern as stores/productGroups.
+    await db.financialCenters.clear();
 
     // Bulk insert
     await bulkInsertFinancialCenters(centers);
@@ -124,8 +125,9 @@ export async function syncCostCenters(userId: number): Promise<{ success: boolea
     const data = await response.json();
     const centers: LocalCostCenter[] = data.cost_centers || [];
 
-    // Clear existing
-    await db.costCenters.where('user_id').equals(userId).delete();
+    // Shared reference data: clear ALL local rows so server-side hard deletes
+    // propagate even when the WS `cost_center_deleted` event was missed.
+    await db.costCenters.clear();
 
     // Bulk insert
     await bulkInsertCostCenters(centers);
@@ -347,7 +349,9 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
     // Sync shopping list items for each list (v11.6.1+)
     // API: GET /api/v1/shopping-list-items?shopping_list_id={id}
     // Returns { items: [...], total, limit, offset }
+    // Track server IDs across all lists to detect orphaned synced items below.
     let totalItems = 0;
+    const allServerItemIds = new Set<number>();
     for (const list of transformedLists) {
       const serverId = list.id;
       if (!serverId) continue; // Skip offline-only lists (no server ID yet)
@@ -369,6 +373,11 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
         const itemsData = await itemsResponse.json();
         // Filter soft-deleted items (API already excludes them, but guard defensively)
         const items = (itemsData.items || []).filter((item: any) => !item.deleted_at);
+
+        // Collect server IDs for orphaned-row cleanup pass below
+        for (const item of items) {
+          if (item.id != null) allServerItemIds.add(item.id);
+        }
 
         // Preserve existing temp_ids so items keep stable primary keys across re-syncs
         const existingItems = await db.shoppingListItems
@@ -399,6 +408,7 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
           const transformedItems: LocalShoppingListItem[] = items.map((item: any) => ({
             ...item,
             temp_id: existingTempIdByItemServerId.get(item.id) || item.temp_id || `server-item-${item.id}`,
+            shopping_list_id: item.shopping_list_id ?? list.id ?? null,
             shopping_list_temp_id: list.temp_id, // Link to the Dexie list by temp_id
             sync_status: 'synced',
             synced_at: new Date(),
@@ -428,6 +438,31 @@ export async function syncShoppingLists(userId: number): Promise<{ success: bool
         });
         // Continue with next list — item sync failure is non-critical
       }
+    }
+
+    // Orphan cleanup: remove synced Dexie items whose server id no longer
+    // appears in any list's items collection (covers missed WS `item_deleted`
+    // events and broken shopping_list_temp_id linkage from older clients).
+    // Pending/deleted local rows are preserved for offline upload.
+    try {
+      const orphanedSynced = await db.shoppingListItems
+        .filter(item =>
+          item.sync_status === 'synced' &&
+          item.id != null &&
+          !allServerItemIds.has(item.id)
+        )
+        .toArray();
+      if (orphanedSynced.length > 0) {
+        const tempIds = orphanedSynced.map(i => i.temp_id);
+        // shoppingListItems primary key is temp_id (string); type signature
+        // is `Table<..., number>` for legacy reasons — cast to satisfy TS.
+        await db.shoppingListItems.bulkDelete(tempIds as unknown as number[]);
+        logger.info('[referenceSync] Pruned orphaned synced shopping items', {
+          count: orphanedSynced.length
+        });
+      }
+    } catch (orphanError) {
+      logger.warn('[referenceSync] Orphan cleanup failed (non-fatal)', orphanError);
     }
 
     logger.info('[referenceSync] ✅ Shopping lists synced', {
@@ -503,7 +538,7 @@ export async function syncPlans(
       try {
         const mapped = mapAPIFactToLocal(rawPlan as Record<string, unknown>);
         validateMappedFact(mapped);
-        mappedPlans.push({ ...mapped, amount: toCents(mapped.amount) });
+        mappedPlans.push(mapped);
       } catch (err) {
         logger.warn('[referenceSync] Skipping malformed plan', {
           id: (rawPlan as any).id,
@@ -590,19 +625,13 @@ export async function syncRecurringPlans(
     const data = await response.json();
     const plans = data.items || data;
 
-    // Convert amounts to cents before storing
-    const plansWithCents = plans.map((plan: LocalRecurringPlan) => ({
-      ...plan,
-      amount: toCents(plan.amount)
-    }));
-
     // Clear user's existing plans and insert new ones
     // Use bulkPut (not bulkAdd) for idempotent sync: prevents ConstraintError if sync
     // is called twice (e.g. post-SW-update trigger + normal init race condition)
     await db.transaction('rw', db.recurringPlans, async () => {
       await db.recurringPlans.where('user_id').equals(userId).delete();
-      if (plansWithCents.length > 0) {
-        await db.recurringPlans.bulkPut(plansWithCents);
+      if (plans.length > 0) {
+        await db.recurringPlans.bulkPut(plans);
       }
     });
 

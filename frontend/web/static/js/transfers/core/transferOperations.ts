@@ -175,7 +175,7 @@ export async function handleTransferSubmit(event: Event): Promise<void> {
   const transferData: TransferFormData = {
     fromFinancialCenterId: parseInt(formData.get('from_financial_center') as string),
     toFinancialCenterId: parseInt(formData.get('to_financial_center') as string),
-    amount: parseFloat(formData.get('amount') as string),
+    amount: Number.parseInt(formData.get('amount') as string, 10),
     recordType: state.recordType,
     date: state.recordType === 'fact' ? (formData.get('transfer_date') as string) : '',
     period: state.recordType === 'plan' ? (formData.get('transfer_plan_month') as string) : undefined,
