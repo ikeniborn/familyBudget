@@ -3,7 +3,7 @@
 Affects:
 - t_f_budget_fact.amount (partitioned parent; ALTER propagates to all partitions in PG10+)
 - t_d_recurring_plan.amount
-- t_h_budget_fact_history.amount
+- t_f_budget_fact_history.amount
 - t_notification.plan_amount, t_notification.actual_amount
 
 ROUND(amount)::BIGINT chosen because production amounts are de-facto whole rubles
@@ -42,7 +42,7 @@ def upgrade() -> None:
         postgresql_using='ROUND(amount)::BIGINT',
     )
     op.alter_column(
-        't_h_budget_fact_history', 'amount',
+        't_f_budget_fact_history', 'amount',
         type_=sa.BigInteger(),
         existing_type=sa.Numeric(15, 2),
         existing_nullable=False,
@@ -68,7 +68,7 @@ def downgrade() -> None:
     for table, col, nullable in [
         ('t_notification', 'actual_amount', False),
         ('t_notification', 'plan_amount', False),
-        ('t_h_budget_fact_history', 'amount', False),
+        ('t_f_budget_fact_history', 'amount', False),
         ('t_d_recurring_plan', 'amount', False),
         ('t_f_budget_fact', 'amount', False),
     ]:
