@@ -44,9 +44,9 @@ def test_user_model_fields():
 
 def test_user_telegram_id_unique():
     """Test telegram_id has unique constraint."""
-    # Check in model field definition
-    telegram_id_field = User.__fields__['telegram_id']
-    assert telegram_id_field.field_info.extra.get('unique') is True, \
+    # Check via SQLAlchemy table column (sa_column carries DB constraints)
+    telegram_id_col = User.__table__.columns['telegram_id']
+    assert telegram_id_col.unique is True, \
         "telegram_id should have unique constraint"
 
 
@@ -69,10 +69,12 @@ def test_user_default_values():
 
 
 def test_user_required_fields():
-    """Test User model validates required fields."""
-    # telegram_id is required
-    with pytest.raises(ValueError):
-        User()  # Missing telegram_id
+    """Test User model enforces 'telegram_id OR email' constraint at table level."""
+    # Both telegram_id and email are nullable individually (User() instantiates),
+    # but a CHECK constraint requires at least one to be set.
+    constraints = [c.sqltext.text for c in User.__table__.constraints if hasattr(c, 'sqltext')]
+    assert any('telegram_id' in s and 'email' in s for s in constraints), \
+        "User table must have CHECK constraint requiring telegram_id OR email"
 
 
 def test_user_repr():
@@ -104,17 +106,10 @@ def test_user_tablename():
 
 def test_user_indexes():
     """Test User model has correct indexes."""
-    # telegram_id should be indexed
-    telegram_id_field = User.__fields__['telegram_id']
-    assert telegram_id_field.field_info.extra.get('index') is True
-
-    # is_active should be indexed
-    is_active_field = User.__fields__['is_active']
-    assert is_active_field.field_info.extra.get('index') is True
-
-    # last_login_at should be indexed
-    last_login_at_field = User.__fields__['last_login_at']
-    assert last_login_at_field.field_info.extra.get('index') is True
+    cols = User.__table__.columns
+    assert cols['telegram_id'].index is True
+    assert cols['is_active'].index is True
+    assert cols['last_login_at'].index is True
 
 
 def test_user_scd1_architecture():
@@ -131,9 +126,7 @@ def test_user_scd1_architecture():
     assert not hasattr(user, 'is_current')
 
     # 2. Stable PK (id field exists and is primary key)
-    id_field = User.__fields__['id']
-    assert id_field.field_info.extra.get('primary_key') is True
+    assert User.__table__.columns['id'].primary_key is True
 
     # 3. Business key (telegram_id) is unique
-    telegram_id_field = User.__fields__['telegram_id']
-    assert telegram_id_field.field_info.extra.get('unique') is True
+    assert User.__table__.columns['telegram_id'].unique is True
