@@ -20,7 +20,8 @@ export default defineConfig({
       '**/.{idea,git,cache,output,temp}/**',
       '**/e2e/**',      // Exclude E2E tests (run with Playwright separately)
       'tests/e2e/**',   // Exclude existing E2E directory
-      'tests/manual/**' // Exclude manual checklists (not runnable by Vitest)
+      'tests/manual/**', // Exclude manual checklists (not runnable by Vitest)
+      '.claude/worktrees/**' // Exclude git worktrees (stale agent workspaces)
     ],
     coverage: {
       provider: 'v8',
