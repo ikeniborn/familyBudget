@@ -9,7 +9,7 @@
 declare const debugLog: (...args: any[]) => void;
 
 import { notifyHandlers } from './eventRegistration';
-import { db, generateUUID, factRepo, logger as dbLogger } from '@db/dexie';
+import { db, generateUUID, factRepo, logger as dbLogger, isDexieActive } from '@db/dexie';
 import type { WsFactPayload } from '@db/dexie';
 import type {
   FactCreatedEvent,
@@ -64,6 +64,7 @@ async function hardDeleteFactInDexie(factId: number): Promise<void> {
 }
 
 async function upsertFactInDexie(fact: WsFactPayload): Promise<void> {
+  if (!isDexieActive()) return;
   try {
     await factRepo.upsertFromServer(fact);
   } catch (error) {
@@ -209,7 +210,7 @@ async function deleteProductGroupFromDexie(id: number): Promise<void> {
 export function handleFactCreated(data: FactCreatedEvent): void {
   notifyHandlers('fact_created', data);
   callOfflineManagerUI('fact_created', data);
-  void upsertFactInDexie(data as unknown as WsFactPayload);
+  void upsertFactInDexie(data as WsFactPayload);
 }
 
 /**
@@ -218,7 +219,7 @@ export function handleFactCreated(data: FactCreatedEvent): void {
 export function handleFactUpdated(data: FactUpdatedEvent): void {
   notifyHandlers('fact_updated', data);
   callOfflineManagerUI('fact_updated', data);
-  void upsertFactInDexie(data as unknown as WsFactPayload);
+  void upsertFactInDexie(data as WsFactPayload);
 }
 
 /**
@@ -236,7 +237,7 @@ export function handleFactDeleted(data: FactDeletedEvent): void {
 export function handlePlanCreated(data: PlanCreatedEvent): void {
   notifyHandlers('plan_created', data);
   callOfflineManagerUI('plan_created', data);
-  void upsertFactInDexie(data as unknown as WsFactPayload);
+  void upsertFactInDexie(data as WsFactPayload);
 }
 
 /**
@@ -245,7 +246,7 @@ export function handlePlanCreated(data: PlanCreatedEvent): void {
 export function handlePlanUpdated(data: PlanUpdatedEvent): void {
   notifyHandlers('plan_updated', data);
   callOfflineManagerUI('plan_updated', data);
-  void upsertFactInDexie(data as unknown as WsFactPayload);
+  void upsertFactInDexie(data as WsFactPayload);
 }
 
 /**

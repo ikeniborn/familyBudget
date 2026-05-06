@@ -6,7 +6,7 @@
 
 import { refreshUIAfterFactSave } from '../../shared/utils/uiRefresh';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
-import { isDexieActive, factRepo, getTabId } from '@db/dexie';
+import { isDexieActive, factRepo, getTabId, logger as dbLogger } from '@db/dexie';
 import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 /**
@@ -45,7 +45,7 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
       try {
         await factRepo.createFromAPI(responseData);
       } catch (dexieError) {
-        console.warn('[SaveFactModal] Failed to write to Dexie (non-critical):', dexieError);
+        dbLogger.warn('[SaveFactModal] Failed to write to Dexie (non-critical):', dexieError);
       }
     }
 
@@ -78,7 +78,7 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
         await refreshUIAfterFactSave();
         return;
       } catch (offlineError) {
-        console.error('[SaveFactModal] Failed to save offline:', offlineError);
+        dbLogger.error('[SaveFactModal] Failed to save offline:', offlineError);
       }
     }
 
