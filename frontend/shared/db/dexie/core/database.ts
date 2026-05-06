@@ -30,7 +30,7 @@ import type {
  * Default schema version
  * Increment this when adding new migrations
  */
-const DEFAULT_SCHEMA_VERSION = 4;  // Acknowledge native v4 from SchemaDiff workaround
+const DEFAULT_SCHEMA_VERSION = 5;  // v5: created_at index on pendingOperations
 
 /**
  * Cached database version (to avoid redundant Dexie.exists() calls)
@@ -90,6 +90,7 @@ export function clearVersionCache(): void {
  * Version 2: Shopping lists creator_id schema fix
  * Version 3: Remove user_id from Stores/ProductGroups (global reference data)
  * Version 4: No-op — acknowledges native v4 created by Dexie SchemaDiff workaround
+ * Version 5: Add created_at index to pendingOperations for efficient sorted queries
  */
 export class FamilyBudgetDB extends Dexie {
   // Reference Data Tables
@@ -176,6 +177,11 @@ export class FamilyBudgetDB extends Dexie {
     // the old v1 schema (before creator_id was added in commit 48fe5552).
     // This version prevents repeated SchemaDiff warnings.
     this.version(4).stores({});
+
+    // Version 5: Add created_at index to pendingOperations for efficient sorted queries
+    this.version(5).stores({
+      pendingOperations: '++id, content_hash, entity_type, temp_id, server_id, next_retry_at, created_at'
+    });
   }
 }
 
