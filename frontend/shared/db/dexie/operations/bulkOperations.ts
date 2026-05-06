@@ -5,6 +5,7 @@
 
 import { db } from '../core/database';
 import { logger } from '../utils/logger';
+import { factRepo } from '../repositories/FactRepository';
 import type { LocalBudgetFact } from '../types/fact';
 
 /**
@@ -23,25 +24,7 @@ export async function bulkInsertFacts(
   onProgress?: BulkProgressCallback
 ): Promise<void> {
   logger.info('[bulkOps] bulkInsertFacts', { count: facts.length });
-
-  const BATCH_SIZE = 1000;
-
-  for (let i = 0; i < facts.length; i += BATCH_SIZE) {
-    const batch = facts.slice(i, i + BATCH_SIZE);
-
-    // bulkPut вместо bulkAdd для upsert behavior
-    await db.budgetFacts.bulkPut(batch);
-
-    if (onProgress) {
-      onProgress(i + batch.length, facts.length);
-    }
-
-    logger.debug(`[bulkOps] Batch ${Math.floor(i / BATCH_SIZE) + 1} inserted`, {
-      current: i + batch.length,
-      total: facts.length
-    });
-  }
-
+  await factRepo.bulkUpsert(facts, onProgress);
   logger.info('[bulkOps] ✅ Bulk insert complete', { total: facts.length });
 }
 

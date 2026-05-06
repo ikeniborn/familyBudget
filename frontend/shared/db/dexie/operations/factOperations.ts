@@ -6,8 +6,8 @@
 import { db } from '../core/database';
 import { queryArticles } from './schemaOperations';
 import { logger } from '../utils/logger';
-import { validateFact } from '../utils/validation';
-import { calculateContentHash, generateUUID } from '../utils/hash';
+import { calculateContentHash } from '../utils/hash';
+import { factRepo } from '../repositories/FactRepository';
 import type {
   LocalBudgetFact,
   LocalPendingOperation,
@@ -28,60 +28,7 @@ const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
 export async function createFact(
   fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at' | 'tab_origin_id'>
 ): Promise<string> {
-  try {
-    const temp_id = generateUUID();
-    const content_hash = await calculateContentHash(fact as Record<string, unknown>);
-
-    logger.debug('[Dexie] Creating fact', { temp_id, fact });
-
-    // Validate перед insert
-    validateFact({
-      amount: fact.amount,
-      date: fact.date,
-      record_type: fact.record_type,
-      user_id: fact.user_id,
-      article_id: fact.article_id,
-      is_transfer: fact.is_transfer,
-    });
-
-    const newFact: LocalBudgetFact = {
-      id: null,
-      temp_id,
-      ...fact,
-      sync_status: 'pending',
-      content_hash,
-      created_at: new Date(),
-      updated_at: new Date(),
-      synced_at: null,
-      tab_origin_id: null
-    };
-
-    // Insert fact
-    await db.budgetFacts.add(newFact);
-
-    // Add to pending operations queue
-    await addPendingOperation({
-      operation: 'create',
-      entity_type: 'fact',
-      temp_id,
-      server_id: null,
-      payload: fact as Record<string, unknown>,
-      attempts: 0,
-      max_attempts: DEFAULT_MAX_RETRY_ATTEMPTS,
-      last_error: null,
-      next_retry_at: null, // First attempt - no backoff
-      content_hash,
-      created_at: new Date(),
-      updated_at: new Date()
-    });
-
-    logger.info('[Dexie] ✅ Fact created', { temp_id });
-
-    return temp_id;
-  } catch (error) {
-    logger.error('[Dexie] ❌ Fact create error:', error);
-    throw error;
-  }
+  return factRepo.createOffline(fact);
 }
 
 /**
@@ -301,25 +248,7 @@ export async function confirmPendingOperation(
   temp_id: string,
   server_id: number
 ): Promise<void> {
-  logger.debug('[Dexie] confirmPendingOperation', { temp_id, server_id });
-
-  // 🔒 CRITICAL: Wrap in transaction to ensure atomicity
-  // If crash happens between modify() and delete(), both operations rollback
-  await db.transaction('rw', [db.budgetFacts, db.pendingOperations], async () => {
-    // Update fact с server ID
-    await db.budgetFacts.where('temp_id').equals(temp_id).modify({
-      id: server_id,
-      sync_status: 'synced',
-      synced_at: new Date()
-    });
-
-    // Remove from pending queue
-    await db.pendingOperations
-      .where('temp_id').equals(temp_id)
-      .delete();
-  });
-
-  logger.info('[Dexie] ✅ Operation confirmed', { temp_id, server_id });
+  return factRepo.confirmPending(temp_id, server_id);
 }
 
 /**

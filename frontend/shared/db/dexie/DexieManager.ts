@@ -6,6 +6,7 @@
 
 import { initializeDatabase, clearVersionCache } from './core/database';
 import type { FamilyBudgetDB } from './core/database';
+import { factRepo } from './repositories/FactRepository';
 import { logger } from './utils/logger';
 import { cleanupLegacyDatabase } from './migration/cleanupLegacyDB';
 import { validateFact } from './utils/validation';
@@ -447,23 +448,7 @@ export class DexieManager {
    */
   async bulkInsertFacts(facts: LocalBudgetFact[], onProgress?: ProgressCallback): Promise<void> {
     logger.info('[DexieManager] bulkInsertFacts', { count: facts.length });
-
-    const BATCH_SIZE = 1000;
-
-    for (let i = 0; i < facts.length; i += BATCH_SIZE) {
-      const batch = facts.slice(i, i + BATCH_SIZE);
-      await this.getDB().budgetFacts.bulkPut(batch);
-
-      if (onProgress) {
-        onProgress(i + batch.length, facts.length);
-      }
-
-      logger.debug(`[DexieManager] Inserted batch ${i / BATCH_SIZE + 1}`, {
-        current: i + batch.length,
-        total: facts.length
-      });
-    }
-
+    await factRepo.bulkUpsert(facts, onProgress);
     logger.info('[DexieManager] ✅ Bulk insert complete', { total: facts.length });
   }
 
