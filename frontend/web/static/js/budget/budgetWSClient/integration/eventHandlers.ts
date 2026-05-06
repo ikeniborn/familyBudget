@@ -209,7 +209,7 @@ async function deleteProductGroupFromDexie(id: number): Promise<void> {
 export function handleFactCreated(data: FactCreatedEvent): void {
   notifyHandlers('fact_created', data);
   callOfflineManagerUI('fact_created', data);
-  void upsertFactInDexie(data);
+  void upsertFactInDexie(data as unknown as WsFactPayload);
 }
 
 /**
@@ -218,7 +218,7 @@ export function handleFactCreated(data: FactCreatedEvent): void {
 export function handleFactUpdated(data: FactUpdatedEvent): void {
   notifyHandlers('fact_updated', data);
   callOfflineManagerUI('fact_updated', data);
-  void upsertFactInDexie(data);
+  void upsertFactInDexie(data as unknown as WsFactPayload);
 }
 
 /**
