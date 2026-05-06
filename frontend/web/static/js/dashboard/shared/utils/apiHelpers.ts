@@ -77,13 +77,17 @@ async function parseAPIErrorDetail(response: Response): Promise<string> {
 export async function postAPI<T = any>(
   url: string,
   data: any,
-  context: string
+  context: string,
+  additionalHeaders?: Record<string, string>
 ): Promise<T> {
   debugLog(`[${context}] POST ${url}:`, data);
 
   const response = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...additionalHeaders,
+    },
     body: JSON.stringify(data)
   });
 

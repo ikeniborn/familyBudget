@@ -121,9 +121,14 @@ export type {
   ProductGroupFilters
 } from './types/shopping';
 
+// Repository
+export { FactRepository, factRepo } from './repositories/FactRepository';
+export type { WsFactPayload, OfflineFactData } from './repositories/FactRepository';
+
 // Utils
 import { logger as dexieLogger } from './utils/logger';
 export { logger } from './utils/logger';
+export { getTabId } from './utils/tabId';
 export { fetchWithTimeout } from './utils/fetchWithTimeout';
 export { generateUUID, calculateContentHash } from './utils/hash';
 import { mapAPIFactToLocal, mapLocalFactToAPI } from './utils/apiMapper';
