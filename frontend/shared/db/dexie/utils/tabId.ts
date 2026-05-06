@@ -13,4 +13,5 @@ export function getTabId(): string {
 
 export function resetTabId(): void {
   _id = null;
+  sessionStorage.removeItem(KEY);
 }

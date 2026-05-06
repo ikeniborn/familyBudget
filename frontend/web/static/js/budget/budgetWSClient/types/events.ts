@@ -20,7 +20,7 @@ export interface FactCreatedEvent {
   description: string | null;
   transfer_id: number | null;
   sync_hash: string;
-  tab_origin_id?: string | null;
+  tab_origin_id: string | null;  // set by backend from X-Tab-Id header
   created_at: string;
   updated_at: string;
 }
