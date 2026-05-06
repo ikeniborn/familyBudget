@@ -195,7 +195,8 @@ describe('DexieManager', () => {
         content_hash: null,
         created_at: new Date(),
         updated_at: new Date(),
-        synced_at: new Date()
+        synced_at: new Date(),
+        tab_origin_id: null
       }));
 
       await manager.bulkInsertFacts(facts);

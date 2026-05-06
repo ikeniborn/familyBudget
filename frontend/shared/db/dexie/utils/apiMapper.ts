@@ -125,6 +125,9 @@ export function mapAPIFactToLocal(apiFact: Record<string, any>): LocalBudgetFact
   if (!('content_hash' in mapped)) {
     mapped.content_hash = null;
   }
+  if (!('tab_origin_id' in mapped)) {
+    mapped.tab_origin_id = null;
+  }
 
   return mapped as LocalBudgetFact;
 }

@@ -194,7 +194,8 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
       sync_status: 'synced' as const,  // Server facts are always synced
       synced_at: new Date(),             // Current time
       created_at: new Date(f.created_at),
-      updated_at: new Date(f.updated_at)
+      updated_at: new Date(f.updated_at),
+      tab_origin_id: null
     }));
 
     const updated = data.updated.map(f => ({
@@ -203,7 +204,8 @@ export async function handleSyncIncremental(data: SyncIncrementalResponse['data'
       sync_status: 'synced' as const,
       synced_at: new Date(),
       created_at: new Date(f.created_at),
-      updated_at: new Date(f.updated_at)
+      updated_at: new Date(f.updated_at),
+      tab_origin_id: null
     }));
 
     // Apply bulk operations

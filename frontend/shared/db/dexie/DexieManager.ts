@@ -324,7 +324,7 @@ export class DexieManager {
    * ВАЖНО: amount конвертируется в cents при сохранении
    */
   async createFact(
-    fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
+    fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at' | 'tab_origin_id'>
   ): Promise<string> {
     logger.debug('[DexieManager] createFact', fact);
 
@@ -348,7 +348,8 @@ export class DexieManager {
       content_hash: null,
       created_at: new Date(),
       updated_at: new Date(),
-      synced_at: null
+      synced_at: null,
+      tab_origin_id: null
     };
 
     await this.getDB().budgetFacts.add(factToStore);

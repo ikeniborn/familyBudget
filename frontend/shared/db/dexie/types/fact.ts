@@ -39,6 +39,7 @@ export interface LocalBudgetFact {
   created_at: Date;
   updated_at: Date;
   synced_at: Date | null;
+  tab_origin_id: string | null;
 }
 
 /**

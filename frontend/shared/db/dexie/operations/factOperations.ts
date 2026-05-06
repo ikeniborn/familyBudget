@@ -26,7 +26,7 @@ const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
  * @returns temp_id (UUID)
  */
 export async function createFact(
-  fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at'>
+  fact: Omit<LocalBudgetFact, 'id' | 'temp_id' | 'sync_status' | 'content_hash' | 'created_at' | 'updated_at' | 'synced_at' | 'tab_origin_id'>
 ): Promise<string> {
   try {
     const temp_id = generateUUID();
@@ -52,7 +52,8 @@ export async function createFact(
       content_hash,
       created_at: new Date(),
       updated_at: new Date(),
-      synced_at: null
+      synced_at: null,
+      tab_origin_id: null
     };
 
     // Insert fact
