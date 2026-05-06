@@ -20,13 +20,12 @@ export interface WsFactPayload {
   amount: number;
   date?: string;
   fact_date?: string;
-  description?: string;
-  transfer_id?: string | null;
+  description?: string | null;
+  transfer_id?: number | string | null;
   sync_hash?: string | null;
   created_at?: string;
   updated_at?: string;
   tab_origin_id?: string | null;
-  [key: string]: unknown;
 }
 
 /**

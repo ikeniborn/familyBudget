@@ -9,7 +9,8 @@
 declare const debugLog: (...args: any[]) => void;
 
 import { notifyHandlers } from './eventRegistration';
-import { db, generateUUID } from '@db/dexie';
+import { db, generateUUID, factRepo, logger as dbLogger } from '@db/dexie';
+import type { WsFactPayload } from '@db/dexie';
 import type {
   FactCreatedEvent,
   FactUpdatedEvent,
@@ -57,29 +58,18 @@ function toDate(value: unknown): Date {
 async function hardDeleteFactInDexie(factId: number): Promise<void> {
   try {
     await db.budgetFacts.where('id').equals(factId).delete();
-  } catch { /* non-fatal */ }
+  } catch (error) {
+    dbLogger.error('[WS] hardDeleteFactInDexie failed', { factId, error });
+  }
 }
 
-async function upsertFactInDexie(fact: any): Promise<void> {
+async function upsertFactInDexie(fact: WsFactPayload): Promise<void> {
   try {
-    const existing = await db.budgetFacts.where('id').equals(fact.id).first();
-    if (existing) {
-      await db.budgetFacts.where('temp_id').equals(existing.temp_id).modify({
-        ...fact,
-        temp_id: existing.temp_id,
-        sync_status: 'synced',
-        updated_at: toDate(fact.updated_at),
-      });
-    } else {
-      await db.budgetFacts.put({
-        ...fact,
-        temp_id: generateUUID(),
-        sync_status: 'synced',
-        created_at: toDate(fact.created_at),
-        updated_at: toDate(fact.updated_at),
-      } as any);
-    }
-  } catch { /* non-fatal */ }
+    await factRepo.upsertFromServer(fact);
+  } catch (error) {
+    dbLogger.error('[WS] upsertFromServer failed', { factId: fact.id, error });
+    // No re-throw: WS handler must not crash due to Dexie errors
+  }
 }
 
 async function upsertShoppingListInDexie(list: any): Promise<void> {
@@ -246,7 +236,7 @@ export function handleFactDeleted(data: FactDeletedEvent): void {
 export function handlePlanCreated(data: PlanCreatedEvent): void {
   notifyHandlers('plan_created', data);
   callOfflineManagerUI('plan_created', data);
-  void upsertFactInDexie(data);
+  void upsertFactInDexie(data as unknown as WsFactPayload);
 }
 
 /**
@@ -255,7 +245,7 @@ export function handlePlanCreated(data: PlanCreatedEvent): void {
 export function handlePlanUpdated(data: PlanUpdatedEvent): void {
   notifyHandlers('plan_updated', data);
   callOfflineManagerUI('plan_updated', data);
-  void upsertFactInDexie(data);
+  void upsertFactInDexie(data as unknown as WsFactPayload);
 }
 
 /**

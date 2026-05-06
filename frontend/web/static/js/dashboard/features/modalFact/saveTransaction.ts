@@ -6,7 +6,7 @@
 
 import { refreshUIAfterFactSave } from '../../shared/utils/uiRefresh';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
-import { getDexieManager, isDexieActive, mapAPIFactToLocal, db, createFact } from '@db/dexie';
+import { isDexieActive, factRepo, getTabId } from '@db/dexie';
 import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 /**
@@ -36,16 +36,14 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
 
   try {
     // POST /api/v1/facts
-    const responseData = await postAPI<any>('/api/v1/facts', data, 'SaveFactModal');
+    const responseData = await postAPI<any>('/api/v1/facts', data, 'SaveFactModal', {
+      'X-Tab-Id': getTabId(),
+    });
 
     // Write to local Dexie DB immediately after successful API call
     if (isDexieActive()) {
       try {
-        const manager = getDexieManager();
-        if (manager.isReady()) {
-          const localFact = mapAPIFactToLocal(responseData);
-          await db.budgetFacts.put(localFact);
-        }
+        await factRepo.createFromAPI(responseData);
       } catch (dexieError) {
         console.warn('[SaveFactModal] Failed to write to Dexie (non-critical):', dexieError);
       }
@@ -61,7 +59,7 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
     if (isOffline && isDexieActive()) {
       try {
         const userId = await getCurrentUserId();
-        await createFact({
+        await factRepo.createOffline({
           user_id: userId,
           article_id: data.article_id,
           financial_center_id: data.financial_center_id,
