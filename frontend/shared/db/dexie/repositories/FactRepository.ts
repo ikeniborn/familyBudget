@@ -145,6 +145,7 @@ export class FactRepository {
       const existing = await db.budgetFacts.where('id').equals(serverFact.id).first();
 
       if (existing) {
+        // Pass null to mapper to get all other fields; restore existing.tab_origin_id below to preserve origin tracking
         const mapped = mapAPIFactToLocal({ ...serverFact, tab_origin_id: null });
         await db.budgetFacts.where('temp_id').equals(existing.temp_id).modify({
           ...mapped,

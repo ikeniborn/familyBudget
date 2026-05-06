@@ -37,6 +37,8 @@ describe('FactRepository', () => {
     resetTabId();
     const database = await initializeDatabase();
     await database.open();
+    await database.budgetFacts.clear();
+    await database.pendingOperations.clear();
     repo = new FactRepository();
   });
 
@@ -119,6 +121,41 @@ describe('FactRepository', () => {
 
       const pendingOps = await db.pendingOperations.where('temp_id').equals(temp_id).toArray();
       expect(pendingOps).toHaveLength(0);
+    });
+  });
+
+  describe('createOffline', () => {
+    it('creates fact with pending status and a pending operation atomically', async () => {
+      mockSessionStorage(MY_TAB);
+      const { db } = await import('../../core/database');
+
+      const temp_id = await repo.createOffline({
+        user_id: 1,
+        article_id: 5,
+        financial_center_id: 2,
+        cost_center_id: null,
+        date: '2026-05-06',
+        amount: 300,
+        record_type: 'fact',
+        comment: null,
+        transfer_group_id: null,
+        is_transfer: false,
+        sync_hash: null,
+      });
+
+      // temp_id is a UUID
+      expect(temp_id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+
+      // Fact stored as pending
+      const fact = await db.budgetFacts.where('temp_id').equals(temp_id).first();
+      expect(fact).toBeDefined();
+      expect(fact?.sync_status).toBe('pending');
+      expect(fact?.id).toBeFalsy();
+
+      // Pending operation created
+      const ops = await db.pendingOperations.where('temp_id').equals(temp_id).toArray();
+      expect(ops).toHaveLength(1);
+      expect(ops[0].entity_type).toBe('fact');
     });
   });
 });
