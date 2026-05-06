@@ -1,0 +1,186 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "LLM Wiki Domain Map",
+  "version": "1.0.0",
+  "wiki_root": ".wiki",
+  "domains": [
+    {
+      "id": "документация",
+      "name": "Документация Family Budget",
+      "description": "Архитектурная документация, PRD, руководства по операциям и паттерны проекта Family Budget",
+      "source_paths": ["docs/"],
+      "wiki_subfolder": "документация",
+      "tags": ["family-budget", "architecture", "documentation"],
+      "language_notes": "Русский основной язык; технические термины (API, JWT, SCD, WebSocket, Dexie) — без перевода",
+      "entity_types": [
+        {
+          "type": "frontend-module",
+          "description": "TypeScript/JS модули фронтенда: dashboard, facts, transfers, lists, shared, WebSocket клиент, offline manager",
+          "extraction_cues": [
+            "frontend-module", "TypeScript", "bundle", "min.js", "windowExports", "HTMX",
+            "module", "adapters", "dashboard", "facts", "transfers", "lists", "Dexie", "offlineManager",
+            "budgetShared", "budgetWSClient", "ES Modules", "Rollup", "Jinja2"
+          ],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "документация/frontend"
+        },
+        {
+          "type": "api-endpoint-group",
+          "description": "Группы REST API эндпоинтов: auth, facts, sync, recurring-plans, websocket, analytics, shopping",
+          "extraction_cues": [
+            "endpoint", "REST API", "router", "POST", "GET", "PUT", "DELETE",
+            "FastAPI", "HTTPException", "dependency injection", "CurrentUser",
+            "api/v1", "auth", "sync", "recurring-plans", "facts", "analytics"
+          ],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "документация/api"
+        },
+        {
+          "type": "architectural-pattern",
+          "description": "Ключевые архитектурные паттерны: SCD Type 1/2, Closure Table, offline-first, WebSocket multi-tab, window exports, lazy initialization",
+          "extraction_cues": [
+            "SCD", "Closure Table", "pattern", "паттерн", "offline-first", "multi-tab",
+            "Leader-Follower", "window exports", "lazy initialization", "IndexedDB",
+            "WebSocket", "sync protocol", "content hash", "deduplication", "backoff",
+            "windowExports", "singleton"
+          ],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "документация/patterns"
+        },
+        {
+          "type": "backend-service",
+          "description": "Backend сервисы и утилиты: auth service, password service, cache service, logging utils, JWT service",
+          "extraction_cues": [
+            "service", "сервис", "backend", "Python", "FastAPI", "SQLModel",
+            "Argon2id", "JWT", "TOTP", "Redis", "cache", "password_service",
+            "jwt_service", "logging_utils", "hash_email", "PII"
+          ],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "документация/backend"
+        },
+        {
+          "type": "database-model",
+          "description": "Модели БД и SQLAlchemy: User, BudgetFact, RefreshToken, RecurringPlan, CostCenter, FinancialCenter",
+          "extraction_cues": [
+            "SQLModel", "table", "model", "модель", "t_d_", "t_f_", "PostgreSQL",
+            "foreign_key", "index", "primary_key", "BudgetFact", "User",
+            "RefreshToken", "RecurringPlan", "CostCenter", "FinancialCenter"
+          ],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "документация/database"
+        },
+        {
+          "type": "deployment-topic",
+          "description": "Темы деплоя и операций: CI/CD, Docker, backup, versioning, nginx, setup scripts",
+          "extraction_cues": [
+            "deploy", "деплой", "Docker", "CI/CD", "GitHub Actions", "backup",
+            "restore", "VERSION", "IMAGE_VERSIONS", "nginx", "setup.sh", "deploy.sh",
+            "Docker Compose", "ghcr.io", "container", "image", "registry"
+          ],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "документация/operations"
+        }
+      ]
+    },
+    {
+      "id": "реализация",
+      "name": "Реализация Family Budget — исходный код",
+      "description": "Исходный код backend (FastAPI/Python), frontend (TypeScript), bot (python-telegram-bot) — детали реализации, сигнатуры, паттерны",
+      "source_paths": ["backend/", "frontend/", "bot/","nginx/","scripts/"],
+      "wiki_subfolder": "реализация",
+      "tags": ["family-budget", "implementation", "source-code"],
+      "language_notes": "Русский основной язык; технические термины, имена классов/функций — без перевода",
+      "entity_types": [
+        {
+          "type": "api-endpoint",
+          "description": "FastAPI маршруты и обработчики: facts, sync, budget_ws, auth, transfers, recurring_plans, shopping",
+          "extraction_cues": ["router", "APIRouter", "@router.get", "@router.post", "@router.put", "@router.delete", "@router.websocket", "FastAPI", "HTTPException", "Depends"],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "реализация/api"
+        },
+        {
+          "type": "backend-service",
+          "description": "Сервисный слой Python: redis_ws_manager, write_behind_service, scd2_service, cache_service, auth_service, jwt, push_service",
+          "extraction_cues": ["service", "Service", "Redis", "cache", "async def", "asyncio", "singleton", "worker", "queue"],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "реализация/services"
+        },
+        {
+          "type": "db-model",
+          "description": "SQLModel/SQLAlchemy модели: BudgetFact, User, Article, CostCenter, FinancialCenter, RecurringPlan, history-таблицы",
+          "extraction_cues": ["SQLModel", "table=True", "Field", "foreign_key", "t_f_", "t_d_", "BigInteger", "nullable"],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "реализация/models"
+        },
+        {
+          "type": "frontend-module",
+          "description": "TypeScript-модули фронтенда: budgetWSClient, dashboard, facts, plan, transfers, dexie offline",
+          "extraction_cues": ["export", "import", "window.", "TypeScript", "Dexie", "WebSocket", "HTMX", "fetch", "addEventListener"],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "реализация/frontend"
+        },
+        {
+          "type": "middleware",
+          "description": "Middleware слой: JWTAuthMiddleware, CSPMiddleware, LoggingMiddleware, RateLimiter, ValidationErrorHandler",
+          "extraction_cues": ["Middleware", "BaseHTTPMiddleware", "dispatch", "request", "call_next", "Response"],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "реализация/middleware"
+        },
+        {
+          "type": "bot-component",
+          "description": "Telegram bot компоненты: handlers (start, add_plan, list, summary), jobs (weekly_report), utils (api_client, scheduler)",
+          "extraction_cues": ["Update", "ContextTypes", "handler", "callback_query", "InlineKeyboardMarkup", "WebAppInfo", "SessionManager"],
+          "min_mentions_for_page": 2,
+          "wiki_subfolder": "реализация/bot"
+        }
+      ]
+    }
+  ],
+  "cross_domain_rules": {
+    "description": "Правила для сущностей, встречающихся в нескольких доменах",
+    "rules": []
+  },
+  "special_source_types": {},
+  "source_types": {
+    ".md": {
+      "reader": "markdown",
+      "extract": ["narrative", "frontmatter", "code_blocks", "headings"],
+      "rules_file": "rules/readers/markdown.md"
+    },
+    ".yaml": {
+      "reader": "markdown",
+      "extract": ["narrative", "code_blocks", "headings"],
+      "rules_file": "rules/readers/markdown.md"
+    },
+    ".py": {
+      "reader": "python",
+      "extract": ["public_api", "docstrings", "types", "imports"],
+      "rules_file": "rules/readers/python.md"
+    },
+    ".ts": {
+      "reader": "typescript",
+      "extract": ["public_api", "docstrings", "types", "imports"],
+      "rules_file": "rules/readers/typescript.md"
+    },
+    ".tsx": {
+      "reader": "typescript",
+      "extract": ["public_api", "docstrings", "types", "imports"],
+      "rules_file": "rules/readers/typescript.md"
+    },
+    ".js": {
+      "reader": "javascript",
+      "extract": ["public_api", "docstrings", "imports"],
+      "rules_file": "rules/readers/javascript.md"
+    },
+    ".mjs": {
+      "reader": "javascript",
+      "extract": ["public_api", "docstrings", "imports"],
+      "rules_file": "rules/readers/javascript.md"
+    },
+    ".sh": {
+      "reader": "bash",
+      "extract": ["functions", "flags", "exports", "comments"],
+      "rules_file": "rules/readers/bash.md"
+    }
+  }
+}

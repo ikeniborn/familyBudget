@@ -1,0 +1,25 @@
+{
+  "entity_types": {
+    "api": {
+      "description": "REST API endpoint groups",
+      "directory": "api/",
+      "tags": ["api"]
+    },
+    "architecture": {
+      "description": "System architecture and design patterns",
+      "directory": "architecture/",
+      "tags": ["architecture"]
+    },
+    "feature": {
+      "description": "Product features and user-facing functionality",
+      "directory": "features/",
+      "tags": ["feature"]
+    }
+  },
+  "source_prefixes": {
+    "docs/prd/": "prd",
+    "docs/architecture/": "architecture",
+    "backend/": "code",
+    "frontend/": "code"
+  }
+}

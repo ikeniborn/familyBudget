@@ -1,0 +1,1 @@
+{"nodes": [{"id": "facts_stats", "label": "Facts Stats \u2014 server-side HTMX stats partial for facts page", "file_type": "document", "source_file": "frontend/web/templates/partials/facts/facts_stats.html", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

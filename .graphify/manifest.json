@@ -1,0 +1,150 @@
+{
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/bot.py": {
+    "mtime": 1776515657.7827609,
+    "hash": "0918a696dfd5e49d2a4f1460670b05a3"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/healthcheck.py": {
+    "mtime": 1776515657.7827609,
+    "hash": "814cd1ee5c907dc21db788fb98e3e140"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/main.py": {
+    "mtime": 1770574755.948043,
+    "hash": "95ed655cd7d4b19499e1e709ac078f4d"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/__init__.py": {
+    "mtime": 1770574755.9457896,
+    "hash": "7da7b227162e5d56c4f1567074dd82b0"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/utils/api_client.py": {
+    "mtime": 1770574755.948175,
+    "hash": "dd14b659bd0ff79c0ca37808feb12e2c"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/utils/validators.py": {
+    "mtime": 1777202462.6279814,
+    "hash": "f5509e03d4caa7e1493ea365a972b103"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/utils/notification_service.py": {
+    "mtime": 1770574755.948175,
+    "hash": "4e3e7932046623678f5cbb5a80734039"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/utils/session.py": {
+    "mtime": 1770574755.948175,
+    "hash": "2a3f4cb0c4f8640f5072fc53f09d863e"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/utils/__init__.py": {
+    "mtime": 1770574755.948175,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/utils/logger.py": {
+    "mtime": 1770574755.948175,
+    "hash": "2981ff87485dc60f5a661f18c43f39a1"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/utils/scheduler.py": {
+    "mtime": 1770574755.948175,
+    "hash": "14242c6ff4d4a65c07addc2e2d414e55"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/utils/telegram_auth.py": {
+    "mtime": 1770574755.948175,
+    "hash": "34bfaa348e3365293191dfd541c067c8"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/jobs/__init__.py": {
+    "mtime": 1770574755.9467895,
+    "hash": "d962a6b9d3aac2e4d5b4e30e55776c49"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/jobs/weekly_report.py": {
+    "mtime": 1770574755.948043,
+    "hash": "cf40bb1098b5386b77db04c458edd238"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/config/settings.py": {
+    "mtime": 1776515657.7827609,
+    "hash": "4b67998d95435a15628c3a919c6e8397"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/config/__init__.py": {
+    "mtime": 1770574755.9457896,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/tests/test_start_handler.py": {
+    "mtime": 1770574755.948175,
+    "hash": "c24abc1b43512d85b1bf571fcad39a3f"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/tests/__init__.py": {
+    "mtime": 1770574755.948175,
+    "hash": "35d18a01a48e86a9fbd9056c2512f15a"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/tests/conftest.py": {
+    "mtime": 1770574755.948175,
+    "hash": "f83646733105bf97b8da5077d100af93"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/tests/test_telegram_bot_journey.py": {
+    "mtime": 1770574755.948175,
+    "hash": "5cb20fa3c5cc3c24747e085b0470e51a"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/tests/test_add_handler.py": {
+    "mtime": 1770574755.948175,
+    "hash": "385e407eaa7f6419e1850d504bb38e96"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/tests/test_summary_handler.py": {
+    "mtime": 1770574755.948175,
+    "hash": "f79e810a31f75958c7cf90f549db426e"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/settings.py": {
+    "mtime": 1770574755.9467895,
+    "hash": "de2ae71911cb6d350cad03108ac3d177"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/summary.py": {
+    "mtime": 1770574755.9467895,
+    "hash": "b97e670eb0f621d546641e68af2a7412"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/__init__.py": {
+    "mtime": 1770574755.9457896,
+    "hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/edit.py": {
+    "mtime": 1770574755.9457896,
+    "hash": "d7718a63afe312ab9b396a27bb7ab318"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/search.py": {
+    "mtime": 1770574755.9467895,
+    "hash": "104feff1a97fedb5b2ebf35862009f03"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/today.py": {
+    "mtime": 1770574755.9467895,
+    "hash": "d71717a01a565df8d83cf1a9779b6431"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/delete.py": {
+    "mtime": 1770574755.9457896,
+    "hash": "ae61eeb597a20cab0f5532f229e818a4"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/help.py": {
+    "mtime": 1770574755.9457896,
+    "hash": "4c25ff6ac1ecaf9d7315419ec05ab26e"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/add_plan.py": {
+    "mtime": 1770574755.9457896,
+    "hash": "956c3033eb095e382a9ec680a138328c"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/list.py": {
+    "mtime": 1770574755.9457896,
+    "hash": "9ec1164b0eaeec10d77f046ff16a5250"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/export.py": {
+    "mtime": 1770574755.9457896,
+    "hash": "9741df928bad0dbc226a7021261f49c7"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/handlers/start.py": {
+    "mtime": 1770574755.9467895,
+    "hash": "85cf53d6114e487629260cf653b9acf0"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/README.md": {
+    "mtime": 1776597952.9382927,
+    "hash": "e6a4a710e3d58aa65832fcbf6c340abe"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/requirements.txt": {
+    "mtime": 1777231614.3547976,
+    "hash": "f0b3715b4f577ddb741ae8a469a27315"
+  },
+  "/home/ikeniborn/Documents/Project/familyBudget/bot/tests/README.md": {
+    "mtime": 1770574755.948043,
+    "hash": "3183090014755b8eb1e6d2111eb6bd15"
+  }
+}

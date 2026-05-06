@@ -1,0 +1,26 @@
+{
+  "runs": [
+    {
+      "date": "2026-05-06T20:00:45.677787+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 570
+    },
+    {
+      "date": "2026-05-06T20:21:59.787396+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 187,
+      "note": "backend/app AST-only merge"
+    },
+    {
+      "date": "2026-05-06T21:06:49.760572+00:00",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "files": 37,
+      "note": "bot/ update"
+    }
+  ],
+  "total_input_tokens": 0,
+  "total_output_tokens": 0
+}
