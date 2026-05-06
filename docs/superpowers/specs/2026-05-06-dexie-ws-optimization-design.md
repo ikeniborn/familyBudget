@@ -59,10 +59,26 @@ WS broadcast → eventHandlers.ts → factRepo.upsertFromServer(fact)
                                        ├── else: idempotent upsert
                                        └── error → dbLogger.error() (visible)
 
-factOperations.ts → factRepo.addPending()
+factOperations.ts → factRepo.createOffline()   (offline path, atomic)
 factSync.ts       → factRepo.confirmPending()
-bulkOperations.ts → factRepo.bulkCreate()
+bulkOperations.ts → factRepo.bulkUpsert()
 ```
+
+---
+
+## Type Changes
+
+### `LocalBudgetFact` — добавить поле
+
+```typescript
+// frontend/shared/db/dexie/types/fact.ts
+export interface LocalBudgetFact {
+  // ... existing fields ...
+  tab_origin_id: string | null;  // ← new: UUID of tab that created this record (for WS dedup)
+}
+```
+
+Not indexed — used only for equality check in `upsertFromServer`, not for querying.
 
 ---
 
