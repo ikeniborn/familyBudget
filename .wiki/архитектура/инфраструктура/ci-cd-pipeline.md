@@ -58,9 +58,36 @@ cd /opt/budget
 # Внутри: git pull → docker pull ghcr.io/... → docker compose up -d → migrations
 ```
 
+### Pre-Commit Hook (Оптимизация)
+
+С версии v11.1.41 pre-commit hook сокращён до 10-15 секунд:
+- ✅ `console.log` check в staged `.ts` файлах
+- ✅ TypeScript type check (`npm run type-check`)
+- ❌ Unit tests перенесены в GitHub Actions (были источником ~7 мин задержки)
+
+### Frontend Quality Gates (GitHub Actions)
+
+Coverage thresholds (`frontend-tests.yml`):
+- Lines: ≥8.9% (baseline, низко из-за ~9,600 строк legacy monoliths)
+- Functions: ≥84%
+- Branches: ≥92%
+- Statements: ≥8.9%
+
+Bundle limit: ≤500KB.
+
+### Build Artifact Validation (v6.6.1)
+
+Deploy.sh валидирует артефакты перед сохранением checksums:
+- `sw.min.js` существует и >1KB
+- CSS bundles существуют и >1KB
+- JS bundles существуют и >1KB
+
+Деплой прерывается если `CACHE_VERSION_PLACEHOLDER` остался в Service Worker (не был заменён версией).
+
 ## Связанные концепции
 
 - [[registry-first]]
 - [[multi-stage-build]]
 - [[семантическое-версионирование]]
 - [[incremental-build]]
+- [[disaster-recovery]]

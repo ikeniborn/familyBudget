@@ -22,21 +22,30 @@
 - [[fab-navigation]] — `.wiki/архитектура/компоненты/fab-navigation.md` (stub)
 - [[modal-система]] — `.wiki/архитектура/компоненты/modal-система.md` (developing)
 - [[base-template]] — `.wiki/архитектура/компоненты/base-template.md` (stub)
+- [[loading-patterns]] — `.wiki/архитектура/компоненты/loading-patterns.md` (developing)
+- [[table-renderer]] — `.wiki/архитектура/компоненты/table-renderer.md` (developing)
+- [[template-macros]] — `.wiki/архитектура/компоненты/template-macros.md` (developing)
+- [[z-index-layering]] — `.wiki/архитектура/компоненты/z-index-layering.md` (developing)
 
 #### сервисы
 
 - [[transfer-service]] — `.wiki/архитектура/сервисы/transfer-service.md` (stub)
 - [[recurring-plans-service]] — `.wiki/архитектура/сервисы/recurring-plans-service.md` (developing)
+- [[cache-service]] — `.wiki/архитектура/сервисы/cache-service.md` (developing)
+- [[import-wizard-service]] — `.wiki/архитектура/сервисы/import-wizard-service.md` (developing)
+- [[notification-service]] — `.wiki/архитектура/сервисы/notification-service.md` (developing)
 
 #### инфраструктура
 
 - [[ci-cd-pipeline]] — `.wiki/архитектура/инфраструктура/ci-cd-pipeline.md` (developing)
 - [[vite-build-system]] — `.wiki/архитектура/инфраструктура/vite-build-system.md` (developing)
+- [[disaster-recovery]] — `.wiki/архитектура/инфраструктура/disaster-recovery.md` (developing)
 
 #### безопасность
 
 - [[аутентификация]] — `.wiki/архитектура/безопасность/аутентификация.md` (mature)
 - [[logging-security]] — `.wiki/архитектура/безопасность/logging-security.md` (developing)
+- [[security-advisories]] — `.wiki/архитектура/безопасность/security-advisories.md` (developing)
 
 #### интеграции
 

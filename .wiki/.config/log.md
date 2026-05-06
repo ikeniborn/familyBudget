@@ -71,6 +71,52 @@
 
 ---
 
+## 2026-05-05T01:00:00
+
+**Операция:** init (incremental — новые файлы с предыдущего запуска)
+**Домен:** архитектура
+**Источники обработаны:** 27 новых файлов из `docs/architecture/` (features/, frontend/, migrations/, operations/, optimization/)
+
+**Создано страниц: 9**
+
+### архитектура/компоненты (4 новых страницы)
+- + `loading-patterns.md` (developing) — из frontend/loading-patterns.md
+- + `table-renderer.md` (developing) — из frontend/table-optimization.md, table-optimization-patterns.md
+- + `template-macros.md` (developing) — из frontend/template-components.md
+- + `z-index-layering.md` (developing) — из frontend/z-index-layering.md
+
+### архитектура/сервисы (3 новых страницы)
+- + `cache-service.md` (developing) — из optimization/caching-strategy.md
+- + `import-wizard-service.md` (developing) — из features/import-wizard.md
+- + `notification-service.md` (developing) — из features/notifications.md
+
+### архитектура/инфраструктура (1 новая страница)
+- + `disaster-recovery.md` (developing) — из operations/disaster-recovery.md, backup-operations.md
+
+### архитектура/безопасность (1 новая страница)
+- + `security-advisories.md` (developing) — из operations/security-advisories.md
+
+**Обновлено страниц: 5**
+
+- ~ `паттерны/retry-pattern.md` — добавлен Installation Resilience (timeout.sh, network_health.sh)
+- ~ `компоненты/modal-система.md` — добавлен ModalKeyboardAdapter (VisualViewport API)
+- ~ `инфраструктура/ci-cd-pipeline.md` — добавлены testing phases, pre-commit optimization, build artifact validation
+- ~ `безопасность/аутентификация.md` — добавлен Admin Setup (auto-generated password, 2FA bypass)
+- ~ `безопасность/аутентификация.md` — добавлена ссылка на security-advisories
+
+**Пропущено (не соответствуют min_mentions или уже покрыты):**
+- `features/welcome-notification.md` — frontend UI detail, покрыт в notification-service
+- `operations/redis-alternatives-comparison.md` — аналитика, не архитектурный паттерн
+- `operations/testing-phases-summary.md` — включён в ci-cd-pipeline обновление
+- `frontend/shopping-lists.md` — покрыт существующим offline-first
+- `frontend/header-standards.md` — CSS standards, не архитектурный компонент
+- `migrations/dexie-rollback.md` — операционная процедура, не wiki-сущность
+- `optimization/installation-resilience.md` — покрыт в retry-pattern обновлении
+
+**Следующий шаг:** /llm-wiki lint архитектура
+
+---
+
 ## 2026-05-05T00:00:00
 
 **Операция:** init

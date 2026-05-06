@@ -39,7 +39,27 @@ aliases: ["Modal Architecture", "Tab-Based Modals", "modal_fact", "modal_plan"]
 - Transfer FROM: `state.factTransferFromCategoryTree` (expense)
 - Transfer TO: `state.factTransferToCategoryTree` (income)
 
+## ModalKeyboardAdapter
+
+Класс для адаптации модальных окон к виртуальной клавиатуре на мобильных устройствах и PWA:
+
+```javascript
+// Автоматически инициализируется при загрузке как:
+window.modalKeyboardAdapter = new ModalKeyboardAdapter();
+```
+
+**Механизм:**
+- Primary: VisualViewport API (iOS 13+, Chrome 61+) — точное измерение высоты viewport при появлении клавиатуры
+- Fallback: window resize event (для старых браузеров)
+
+**CSS-классы:**
+- `.modal-box--keyboard-active` — модалка сжата для keyboard
+- `.modal-box--keyboard-restoring` — анимация возврата после keyboard
+
+**Применение:** Prevents modal content from being hidden behind virtual keyboard when form inputs are focused.
+
 ## Связанные концепции
 
 - [[fab-navigation]]
 - [[transfer-service]]
+- [[z-index-layering]]

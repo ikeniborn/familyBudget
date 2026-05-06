@@ -42,6 +42,29 @@ interface RetryOptions {
 - Для UI-операций: `baseDelay: 500, maxAttempts: 2`
 - Для фоновых sync: `baseDelay: 5000, maxAttempts: 10`
 
+## Installation Resilience (Backend/Scripts)
+
+Retry-паттерн также применяется в скриптах установки (`scripts/lib/timeout.sh`):
+
+**Формула:** `delay = min(RETRY_BASE_DELAY × 2^(attempt-1), RETRY_MAX_DELAY)`
+
+**Конфигурация (env vars):**
+```bash
+MAX_RETRY_ATTEMPTS=3       # количество попыток
+RETRY_BASE_DELAY=5         # начальная задержка (сек)
+RETRY_MAX_DELAY=60         # максимальная задержка (сек)
+```
+
+**Прогрессия:** попытка 1 → 5s, 2 → 10s, 3 → 20s, 4+ → 60s (cap)
+
+**Специализированные обёртки:**
+- `apt_with_retry()` — с очисткой кэша между попытками
+- `npm_with_retry()` — с таймаутом TIMEOUT_NPM_INSTALL=900s
+- `curl_with_retry()` — с таймаутом TIMEOUT_CURL=60s
+- `execute_with_retry()` — generic wrapper
+
+**Отличие от frontend:** install-retry не использует `shouldRetry()` для пропуска auth errors, т.к. работает в bash (не TS).
+
 ## Связанные концепции
 
 - [[offline-first]]
