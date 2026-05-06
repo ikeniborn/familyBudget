@@ -230,13 +230,20 @@ describe('FactRepository', () => {
       // First create via API (simulates own tab write)
       await repo.createFromAPI({ ...baseServerFact, tab_origin_id: MY_TAB });
 
-      // Now WS event arrives from other tab
+      // Now WS event arrives from other tab with changed fields (fact_updated scenario)
       const result = await repo.upsertFromServer({
         ...baseServerFact,
         amount: 600,
+        description: 'Updated description',
         tab_origin_id: OTHER_TAB,
       });
       expect(result).toBe('updated');
+
+      // Verify ALL changed fields applied (not just amount)
+      const { db } = await import('../../core/database');
+      const fact = await db.budgetFacts.where('id').equals(42).first();
+      expect(fact?.amount).toBe(600);
+      expect(fact?.comment).toBe('Updated description'); // mapped from description
     });
 
     it('propagates errors (no silent swallowing)', async () => {
@@ -439,12 +446,14 @@ export class FactRepository {
         .first();
 
       if (existing) {
+        // Map ALL server fields (handles fact_updated: description, article_id, date, etc.)
+        const mapped = mapAPIFactToLocal({ ...serverFact, tab_origin_id: null });
         await db.budgetFacts.where('temp_id').equals(existing.temp_id).modify({
-          id: serverFact.id,
+          ...mapped,
+          temp_id: existing.temp_id,          // preserve primary key
           sync_status: 'synced',
           synced_at: new Date(),
-          amount: serverFact.amount,
-          updated_at: toDate(serverFact.updated_at),
+          tab_origin_id: existing.tab_origin_id, // preserve origin tracking
         });
         return 'updated';
       } else {
@@ -966,10 +975,16 @@ git commit -m "refactor: delegate createFact, confirmPending, bulkInsertFacts to
 
 - [ ] **Step 1: Extract `X-Tab-Id` header in `create_fact`**
 
-In `backend/app/api/v1/endpoints/facts.py`, update the `create_fact` function signature (line ~180):
+In `backend/app/api/v1/endpoints/facts.py`, find the existing FastAPI import line (it contains `APIRouter`, `Depends`, `HTTPException`, etc.) and add `Header` to it. Do NOT add a separate `from fastapi import Header` line — merge into the existing import:
 
 ```python
-from fastapi import Header  # add to existing fastapi imports if not already there
+# Before:
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+# After:
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
+```
+
+Then update the `create_fact` function signature (line ~180):
 
 async def create_fact(
     fact_data: FactCreate,
