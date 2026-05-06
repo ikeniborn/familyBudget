@@ -17,7 +17,7 @@ import logging
 from datetime import date, datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy import desc, func
 from sqlalchemy.exc import SQLAlchemyError
@@ -181,6 +181,7 @@ async def create_fact(
     fact_data: FactCreate,
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session),
+    x_tab_id: str | None = Header(default=None),
 ) -> BudgetFact:
     """
     Create a new budget fact (transaction) with offline sync deduplication.
@@ -403,6 +404,7 @@ async def create_fact(
                     "has_reminder": False,  # New fact has no reminder yet
                     "created_at": now,
                     "updated_at": now,
+                    "tab_origin_id": x_tab_id,
                     "_write_behind": True,  # Indicates async write
                     "_request_id": request_id,  # For tracking
                 }
@@ -487,6 +489,7 @@ async def create_fact(
         "has_reminder": False,  # New fact has no reminder yet
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
+        "tab_origin_id": x_tab_id,
     }
 
     # WebSocket Broadcast: Notify all connected clients about new fact

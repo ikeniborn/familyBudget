@@ -918,6 +918,7 @@ async def _send_push_for_offline_users(title: str, body: str, data: dict | None 
 SAFE_FACT_FIELDS = {
     "id", "article_id", "financial_center_id", "cost_center_id",
     "amount", "fact_date", "description", "record_type", "transfer_id",
+    "tab_origin_id",  # echoed from X-Tab-Id header for client-side dedup
 }
 
 SAFE_TRANSFER_FIELDS = {
