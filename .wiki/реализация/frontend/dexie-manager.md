@@ -2,11 +2,12 @@
 wiki_sources:
   - "frontend/shared/db/dexie/DexieManager.ts"
   - "frontend/shared/db/dexie/core/database.ts"
+  - "frontend/shared/db/dexie/repositories/FactRepository.ts"
   - "frontend/shared/db/dexie/operations/factOperations.ts"
   - "frontend/shared/db/dexie/operations/factSync.ts"
   - "frontend/shared/db/dexie/operations/pruningOperations.ts"
   - "frontend/shared/db/dexie/operations/conflictOperations.ts"
-wiki_updated: 2026-05-06
+wiki_updated: 2026-05-07
 wiki_status: developing
 tags:
   - family-budget
@@ -48,9 +49,20 @@ aliases:
 - `LocalShoppingList`, `LocalRecurringPlan`
 - `LocalSyncMetadata`, `LocalSyncConflict`, `FactFilters`, `ShoppingListFilters`
 
+**Repository (новое, 2026-05-07):**
+- `repositories/FactRepository.ts` — единственная точка записи в `db.budgetFacts`
+  - `createFromAPI(serverFact)` — онлайн-путь, stamping `tab_origin_id`
+  - `createOffline(data)` — атомарная транзакция: budgetFacts + pendingOperations
+  - `upsertFromServer(wsPayload)` — WS-событие, skip если own tab, propagates errors
+  - `confirmPending(temp_id, server_id)` — атомарная замена temp → server id
+  - `bulkUpsert(facts, onProgress?)` — пакетная загрузка, батчи 1000
+  - `remove(temp_id)` — физическое удаление
+- `repositories/__tests__/FactRepository.test.ts` — unit-тесты (fake-indexeddb)
+
 **Утилиты:**
 - `utils/hash.ts` — `generateUUID()`, content hash
 - `utils/apiMapper.ts` — конвертация между server schema ↔ local schema
+- `utils/tabId.ts` — `getTabId()` / `resetTabId()`, UUID вкладки из sessionStorage
 - `utils/retry.ts` — экспоненциальный backoff
 - `utils/fetchWithTimeout.ts`
 
@@ -59,6 +71,17 @@ aliases:
 Два триггера для автоматической очистки старых фактов:
 - `setupVisibilityPruning()` — при переключении вкладки (visibility change)
 - `setupIdlePruning()` — при idle браузера
+
+## Схема БД — версии
+
+| Версия | Изменение |
+|--------|-----------|
+| 5 | `created_at` index на `pendingOperations` → `getPendingOperations()` использует `.orderBy('created_at')` вместо JS-сортировки |
+| 4 | (предыдущая) |
+
+## Поля LocalBudgetFact (обновление 2026-05-07)
+
+Добавлено поле: `tab_origin_id: string | null` — UUID вкладки, создавшей запись. Используется для WS-дедупликации. Не индексируется.
 
 ## Связанные концепции
 

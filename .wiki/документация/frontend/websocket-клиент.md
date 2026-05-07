@@ -3,7 +3,7 @@ wiki_sources:
   - "docs/architecture/core/websocket.md"
   - "docs/architecture/overview.yaml"
   - "docs/architecture/features/transfers-system.md"
-wiki_updated: 2026-05-06
+wiki_updated: 2026-05-07
 wiki_status: mature
 wiki_outgoing_links:
   - "[[dexie-module]]"
@@ -114,6 +114,30 @@ case 'transfer_created':
 ```
 
 Ручной `htmx.ajax()` не требуется — WebSocket покрывает обновление UI. Это исключает двойные toast-уведомления, которые возникали когда response-handler вызывал refresh дополнительно к WebSocket.
+
+## Tab-origin deduplication (2026-05-07)
+
+Устраняет дублирование фактов в UI при online-создании (двойной Dexie write: API + WS echo).
+
+**Поток данных:**
+```
+Вкладка A: POST /api/v1/facts  {X-Tab-Id: "abc"}
+           → 201 {id: 42, tab_origin_id: "abc"}
+           → factRepo.createFromAPI()  ← единственная запись в Dexie
+
+Сервер:    WS broadcast {fact_created, id: 42, tab_origin_id: "abc"}
+
+Вкладка A: upsertFromServer → tab_origin_id === getTabId() → 'skipped' ✓
+Вкладка B: upsertFromServer → другая вкладка → idempotent upsert → 'created' ✓
+```
+
+**Ключевые изменения в `eventHandlers.ts`:**
+- `upsertFactInDexie` → `factRepo.upsertFromServer(fact)` (через `FactRepository`)
+- `catch { /* non-fatal */ }` → `dbLogger.error('[WS] upsertFromServer failed', {...})`
+- Добавлен `isDexieActive()` guard
+- WS listener не падает (нет re-throw), но ошибки видны в логах
+
+**`FactCreatedEvent.tab_origin_id: string | null`** — поле добавлено в типы событий, бэкенд заполняет из заголовка `X-Tab-Id`.
 
 ## Верификация состояния
 

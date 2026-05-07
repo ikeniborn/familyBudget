@@ -2,7 +2,7 @@
 wiki_sources:
   - "docs/architecture/core/dexie-integration.md"
   - "docs/architecture/overview.yaml"
-wiki_updated: 2026-05-06
+wiki_updated: 2026-05-07
 wiki_status: mature
 wiki_outgoing_links:
   - "[[websocket-клиент]]"
@@ -129,10 +129,46 @@ await db.transaction('rw', [db.budgetFacts, db.pendingOperations], async () => {
 - [[dashboard-module]] — основной потребитель DexieManager (analytics queries)
 - [[build-system]]
 
+## FactRepository (2026-05-07)
+
+Новый слой абстракции над `db.budgetFacts`. Все записи в таблицу теперь проходят через `FactRepository` — прямой доступ к `db.budgetFacts.put/add/modify/delete` запрещён вне этого класса.
+
+**Расположение:** `frontend/shared/db/dexie/repositories/FactRepository.ts`
+
+```typescript
+// Экспортируется через @db/dexie
+import { factRepo, getTabId } from '@db/dexie';
+
+factRepo.createFromAPI(responseData);          // POST /facts → Dexie
+factRepo.createOffline(data);                  // offline, атомарная транзакция
+factRepo.upsertFromServer(wsPayload);          // WS-событие, идемпотентно
+factRepo.confirmPending(temp_id, server_id);   // sync подтверждение, атомарно
+factRepo.bulkUpsert(facts, onProgress);        // initial sync, батчи 1000
+factRepo.remove(temp_id);                      // удаление по temp_id
+```
+
+**Tab-origin deduplication** — устраняет двойную запись в Dexie при online-создании факта:
+1. `saveTransaction.ts` отправляет `X-Tab-Id: <uuid>` заголовок
+2. Бэкенд включает `tab_origin_id` в WS broadcast
+3. `upsertFromServer` пропускает запись если `serverFact.tab_origin_id === getTabId()`
+
+**`getTabId()`** — UUID вкладки из `sessionStorage` (`fb_tab_id`). Уникален для каждой вкладки, сохраняется при навигации внутри вкладки, сбрасывается при закрытии.
+
+**Схема версии 5** — добавлен индекс `created_at` на `pendingOperations`:
+```typescript
+this.version(5).stores({
+  pendingOperations: '++id, content_hash, entity_type, temp_id, server_id, next_retry_at, created_at'
+});
+```
+`getPendingOperations()` теперь использует `.orderBy('created_at')` вместо JS-сортировки.
+
+**Видимые ошибки WS** — `catch { /* non-fatal */ }` заменён на `dbLogger.error(...)` в `eventHandlers.ts`. WS listener не падает, но ошибки видны в мониторинге.
+
 ## История версий
 
 | Версия | Дата | Ключевые изменения |
 |--------|------|-------------------|
+| — | 2026-05-07 | FactRepository: централизация db.budgetFacts, tab-origin dedup, schema v5 |
 | v11.5.0 | 2026-02-09 | Раздельные sync periods для Facts/Plans, dual sliders UI |
 | v11.3.1 | 2026-02-05 | Удалён Legacy IndexedDB, завершена миграция Shopping Lists |
 | v11.0.1 | 2026-02-02 | Transaction atomicity fix, exponential backoff |
