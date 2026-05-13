@@ -92,7 +92,7 @@ class DashboardFactsManager {
   private async fetchQuickStatsFromDexie(): Promise<QuickStats> {
     const empty = { income: 0, expense: 0, credit: 0, debit: 0 };
     if (!isDexieActive()) {
-      return { today: empty, month: empty, monthPlan: { ...empty }, planExecution: { incomePct: 0, expensePct: 0, creditPct: 0, debitPct: 0 } };
+      return { today: { ...empty }, month: { ...empty }, monthPlan: { ...empty }, planExecution: { incomePct: 0, expensePct: 0, creditPct: 0, debitPct: 0 } };
     }
 
     const manager = await this.getDexie();

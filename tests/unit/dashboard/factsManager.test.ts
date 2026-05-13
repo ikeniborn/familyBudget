@@ -173,6 +173,14 @@ describe('factsManager — Dexie aggregations', () => {
       const stats = await factsManager.calculateQuickStats();
       expect(stats.planExecution.expensePct).toBe(50);
     });
+
+    it('returns empty stats when isDexieActive is false', async () => {
+      mockIsDexieActive.mockReturnValue(false);
+      const stats = await factsManager.calculateQuickStats();
+      expect(stats.today.expense).toBe(0);
+      expect(stats.month.income).toBe(0);
+      expect(stats.planExecution.expensePct).toBe(0);
+    });
   });
 
   // ── loadAccountBalances ──────────────────────────────────────────────────
