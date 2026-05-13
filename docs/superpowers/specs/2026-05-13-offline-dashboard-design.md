@@ -130,8 +130,13 @@ class OfflineDashboardCoordinator {
     // online=true  → clearAll() + retriggerHtmx()
 
     private async renderAll(): Promise<void>
+    // try/catch wraps entire body — on failure shows "📴 Данные недоступны" placeholder
     // factsManager.initDashboard() [parallel Promise.all]
     // Renders all 3 sections + exposes #recent-transactions-card
+
+    private async renderSection(sectionId: string): Promise<void>
+    // Routes to renderQuickStats / renderAccountBalances by sectionId
+    // Called from htmx:beforeRequest handler for targeted renders
 
     private renderQuickStats(data: QuickStats): void
     private renderAccountBalances(data: AccountBalance[]): void
@@ -148,6 +153,13 @@ class OfflineDashboardCoordinator {
 export const offlineDashboard = new OfflineDashboardCoordinator();
 ```
 
+**Imports needed in `offlineDashboard.ts`:**
+```typescript
+import { factsManager } from './factsManager';
+import { loadRecentTransactions } from '../recentTransactions';
+import type { QuickStats, AccountBalance, RecentFact } from '../types/analytics';
+```
+
 ### isOfflineMode() helper
 
 No shared utility exists — inline check used throughout codebase. `offlineDashboard.ts` defines:
@@ -157,14 +169,24 @@ function isOfflineMode(): boolean {
 }
 ```
 
+### Race condition mitigation
+
+`hx-trigger="load"` fires on DOMContentLoaded. If `htmx:beforeRequest` listener registers after HTMX already sent requests, interception is missed.
+
+Two-layer defence in `init()`:
+1. If `isOfflineMode()` at init time — call `renderAll()` immediately (proactive, no HTMX dependency)
+2. Register `htmx:beforeRequest` listener — cancels any late-fired HTMX loads and handles dynamic offline transitions
+
 ### HTMX interception
+
+**Note:** HTMX cancellation requires `event.detail.cancel = true` — not `e.preventDefault()`.
 
 ```typescript
 document.addEventListener('htmx:beforeRequest', (e) => {
     if (!isOfflineMode()) return;
     const elt = (e as CustomEvent).detail?.elt as HTMLElement;
     if (['quick-stats', 'account-balances'].includes(elt?.id)) {
-        e.preventDefault();
+        (e as CustomEvent).detail.cancel = true;
         void this.renderSection(elt.id);
     }
 });
