@@ -90,7 +90,7 @@ test.describe('Offline Dashboard', () => {
 
   test('adding transaction offline reflects in quick-stats after re-render', async ({ page, context }) => {
     const dexieActive = await page.evaluate(() => localStorage.getItem('enablePGlite') === 'true');
-    if (!dexieActive) { test.skip(); return; }
+    if (!dexieActive) { test.skip(true, 'Dexie not active in this environment'); return; }
 
     // Go offline
     await context.setOffline(true);
@@ -116,7 +116,7 @@ test.describe('Offline Dashboard', () => {
     await page.click('button[type="submit"]');
     await page.waitForSelector('dialog#modal_fact:not([open])', { timeout: 5000 });
 
-    // Dispatch WS event to trigger re-render (same as online flow)
+    // Dispatch offline-status-change event to trigger re-render from Dexie
     await page.evaluate(() => {
       document.dispatchEvent(new CustomEvent('offline-status-change', { detail: { online: false } }));
     });
@@ -137,7 +137,7 @@ test.describe('Offline Dashboard', () => {
     });
 
     if (!dexieActive) {
-      test.skip();
+      test.skip(true, 'Dexie not active in this environment');
       return;
     }
 
