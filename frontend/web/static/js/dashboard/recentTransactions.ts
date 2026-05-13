@@ -28,12 +28,6 @@ export async function loadRecentTransactions(): Promise<void> {
   const container = document.getElementById('recent-transactions');
   if (!container) return;
 
-  // Check offline mode
-  const isOffline = document.documentElement.classList.contains('offline-mode');
-  if (isOffline) {
-    return;
-  }
-
   try {
     const response = await fetch('/api/v1/facts/recent?limit=10');
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
@@ -68,7 +62,7 @@ export async function loadRecentTransactions(): Promise<void> {
  * Build full HTML with desktop table + mobile list
  * Matches backend /api/v1/facts/recent-html rendering
  */
-function buildRecentTransactionsHTML(facts: RecentTransaction[]): string {
+export function buildRecentTransactionsHTML(facts: RecentTransaction[]): string {
   // Desktop table (hidden on mobile, shown on tablet+)
   let desktopHTML = `
     <div class="hidden md:block overflow-x-auto">
