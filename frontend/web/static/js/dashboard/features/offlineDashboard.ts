@@ -188,12 +188,12 @@ class OfflineDashboardCoordinator {
 
   private async renderAll(): Promise<void> {
     if (this.rendering) return;
-    if (!isDexieActive()) {
-      this.showUnavailable();
-      return;
-    }
     this.rendering = true;
     try {
+      if (!isDexieActive()) {
+        this.showUnavailable();
+        return;
+      }
       const { recentFacts, quickStats, accountBalances } = await factsManager.initDashboard();
       this.renderQuickStats(quickStats);
       this.renderAccountBalances(accountBalances);
