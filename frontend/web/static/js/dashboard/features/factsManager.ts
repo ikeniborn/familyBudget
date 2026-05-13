@@ -20,21 +20,21 @@ class DashboardFactsManager {
   async loadRecentFacts(limit: number = 10): Promise<RecentFact[]> {
     const startTime = performance.now();
     const facts = await this.fetchRecentFactsFromDexie(limit);
-    performanceMonitor.trackAPICall('loadRecentFacts', performance.now() - startTime);
+    performanceMonitor.trackDexieCall('loadRecentFacts', performance.now() - startTime);
     return facts;
   }
 
   async calculateQuickStats(): Promise<QuickStats> {
     const startTime = performance.now();
     const stats = await this.fetchQuickStatsFromDexie();
-    performanceMonitor.trackAPICall('calculateQuickStats', performance.now() - startTime);
+    performanceMonitor.trackDexieCall('calculateQuickStats', performance.now() - startTime);
     return stats;
   }
 
   async loadAccountBalances(): Promise<AccountBalance[]> {
     const startTime = performance.now();
     const balances = await this.fetchAccountBalancesFromDexie();
-    performanceMonitor.trackAPICall('loadAccountBalances', performance.now() - startTime);
+    performanceMonitor.trackDexieCall('loadAccountBalances', performance.now() - startTime);
     return balances;
   }
 
