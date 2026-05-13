@@ -1,1 +1,0 @@
-{"nodes": [{"id": "listoperations_module", "label": "listOperations - updateItemsCache and other list CRUD operations", "file_type": "code", "source_file": "frontend/web/static/js/lists/listsManager/core/listOperations.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

@@ -1,1 +1,0 @@
-{"nodes": [{"id": "dashboard_htmx_refresh", "label": "htmxRefresh \u2014 refreshDashboard / refreshQuickStats / refreshAccountBalances", "file_type": "code", "source_file": "frontend/web/static/js/dashboard/integration/htmxRefresh.ts", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

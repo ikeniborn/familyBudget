@@ -1,0 +1,66 @@
+# === Build artifacts ===
+*.min.js
+*.min.css
+*.bundle.js
+*.bundle.js.map
+*.min.js.map
+*.min.css.map
+*.js.map
+*.css.map
+*.gz
+
+# === Rollup / Vite output ===
+.vite-build/
+dist/
+coverage/
+
+# === Frontend vendor (pre-built third-party) ===
+frontend/web/static/js/vendor/
+frontend/web/static/js/dist/
+
+# === Graphify own output ===
+.graphify/
+
+# === Lock files (already in _SKIP_FILES, explicit for clarity) ===
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+poetry.lock
+
+# === Compiled Python ===
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+
+# === Virtual environments ===
+backend/venv/
+tests/venv/
+backend/db/venv/
+
+# === Test output / fixtures ===
+playwright-report/
+tests/e2e/screenshots/
+tests/e2e/videos/
+tests/manual/
+tests/migrations/
+
+# === Docs: generated Sphinx HTML / assets ===
+docs/_build/
+docs/.doctrees/
+
+# === CI / deploy artefacts ===
+IMAGE_VERSIONS.json
+logs/
+
+# === Large SQL dumps ===
+sql/
+
+# === Nginx config (infra, not domain logic) ===
+nginx/
+
+# === Postgres / Redis data dirs ===
+postgres/
+redis/
+
+# === Archive ===
+archive/

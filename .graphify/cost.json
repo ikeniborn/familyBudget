@@ -1,33 +1,12 @@
 {
   "runs": [
     {
-      "date": "2026-05-06T20:00:45.677787+00:00",
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "files": 570
-    },
-    {
-      "date": "2026-05-06T20:21:59.787396+00:00",
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "files": 187,
-      "note": "backend/app AST-only merge"
-    },
-    {
-      "date": "2026-05-06T21:06:49.760572+00:00",
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "files": 37,
-      "note": "bot/ update"
-    },
-    {
-      "date": "2026-05-07T03:51:54.771309+00:00",
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "files": 13,
-      "mode": "--update (code-only, 13 target files)"
+      "date": "2026-05-12T21:45:28.365467+00:00",
+      "input_tokens": 12000,
+      "output_tokens": 2500,
+      "files": 1093
     }
   ],
-  "total_input_tokens": 0,
-  "total_output_tokens": 0
+  "total_input_tokens": 12000,
+  "total_output_tokens": 2500
 }
