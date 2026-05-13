@@ -220,6 +220,9 @@ export {
 // Facts Manager (task-011: Dashboard Query Optimization)
 export { factsManager } from './features/factsManager';
 
+// Offline Dashboard (offline-dashboard: coordinator)
+export { offlineDashboard } from './features/offlineDashboard';
+
 // Recent Transactions (Table Optimization v2.0)
 export { loadRecentTransactions } from './recentTransactions';
 
@@ -235,6 +238,7 @@ export { dashboardExports, initWindowExports } from './adapters/windowExports';
 
 import { initWindowExports, dashboardExports } from './adapters/windowExports';
 import { setInitialized } from './core/stateManager';
+import { offlineDashboard } from './features/offlineDashboard';
 
 // Desktop FAB component (auto-initializes on import)
 import '../components/desktopFab';
@@ -254,6 +258,9 @@ function initModule(): void {
   // Call Dashboard.init() to set up forms, event listeners, and WebSocket handlers
   // This is critical for the module to work properly
   dashboardExports.init();
+
+  // Initialize offline dashboard coordinator
+  offlineDashboard.init();
 
   debugLog('[Dashboard] Module loaded');
 }
