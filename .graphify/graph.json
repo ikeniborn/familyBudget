@@ -8,7 +8,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L1",
-      "community": 6,
+      "community": 7,
       "norm_label": "recenttransactions.ts",
       "id": "frontend_web_static_js_dashboard_recenttransactions_ts"
     },
@@ -17,7 +17,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L10",
-      "community": 6,
+      "community": 7,
       "norm_label": "recenttransaction",
       "id": "dashboard_recenttransactions_recenttransaction"
     },
@@ -26,7 +26,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L27",
-      "community": 6,
+      "community": 7,
       "norm_label": "loadrecenttransactions()",
       "id": "dashboard_recenttransactions_loadrecenttransactions"
     },
@@ -35,7 +35,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L65",
-      "community": 6,
+      "community": 7,
       "norm_label": "buildrecenttransactionshtml()",
       "id": "dashboard_recenttransactions_buildrecenttransactionshtml"
     },
@@ -44,7 +44,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/index.ts",
       "source_location": "L1",
-      "community": 21,
+      "community": 23,
       "norm_label": "index.ts",
       "id": "frontend_web_static_js_dashboard_index_ts"
     },
@@ -53,7 +53,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/index.ts",
       "source_location": "L251",
-      "community": 21,
+      "community": 23,
       "norm_label": "initmodule()",
       "id": "dashboard_index_initmodule"
     },
@@ -539,7 +539,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/adapters/windowExports.ts",
       "source_location": "L661",
-      "community": 21,
+      "community": 23,
       "norm_label": "dashboardexports",
       "id": "adapters_windowexports_dashboardexports"
     },
@@ -548,7 +548,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/adapters/windowExports.ts",
       "source_location": "L745",
-      "community": 21,
+      "community": 23,
       "norm_label": "initwindowexports()",
       "id": "adapters_windowexports_initwindowexports"
     },
@@ -557,7 +557,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/utils/modalHelpers.ts",
       "source_location": "L1",
-      "community": 17,
+      "community": 18,
       "norm_label": "modalhelpers.ts",
       "id": "frontend_web_static_js_dashboard_utils_modalhelpers_ts"
     },
@@ -566,7 +566,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/utils/modalHelpers.ts",
       "source_location": "L38",
-      "community": 17,
+      "community": 18,
       "norm_label": "showmodalwithskeleton()",
       "id": "utils_modalhelpers_showmodalwithskeleton"
     },
@@ -584,7 +584,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/htmxRefresh.ts",
       "source_location": "L1",
-      "community": 12,
+      "community": 13,
       "norm_label": "htmxrefresh.ts",
       "id": "frontend_web_static_js_dashboard_integration_htmxrefresh_ts"
     },
@@ -593,7 +593,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/htmxRefresh.ts",
       "source_location": "L14",
-      "community": 12,
+      "community": 13,
       "norm_label": "refreshdashboard()",
       "id": "integration_htmxrefresh_refreshdashboard"
     },
@@ -602,7 +602,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/htmxRefresh.ts",
       "source_location": "L23",
-      "community": 12,
+      "community": 13,
       "norm_label": "refreshrecenttransactions()",
       "id": "integration_htmxrefresh_refreshrecenttransactions"
     },
@@ -611,7 +611,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/htmxRefresh.ts",
       "source_location": "L35",
-      "community": 12,
+      "community": 13,
       "norm_label": "refreshquickstats()",
       "id": "integration_htmxrefresh_refreshquickstats"
     },
@@ -620,7 +620,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/htmxRefresh.ts",
       "source_location": "L47",
-      "community": 12,
+      "community": 13,
       "norm_label": "refreshaccountbalances()",
       "id": "integration_htmxrefresh_refreshaccountbalances"
     },
@@ -629,7 +629,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/htmxRefresh.ts",
       "source_location": "L60",
-      "community": 12,
+      "community": 13,
       "norm_label": "refreshdashboardwidgets()",
       "id": "integration_htmxrefresh_refreshdashboardwidgets"
     },
@@ -638,7 +638,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/wsEventHandlers.ts",
       "source_location": "L1",
-      "community": 12,
+      "community": 13,
       "norm_label": "wseventhandlers.ts",
       "id": "frontend_web_static_js_dashboard_integration_wseventhandlers_ts"
     },
@@ -647,7 +647,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/wsEventHandlers.ts",
       "source_location": "L34",
-      "community": 12,
+      "community": 13,
       "norm_label": "facteventdata",
       "id": "integration_wseventhandlers_facteventdata"
     },
@@ -656,7 +656,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/wsEventHandlers.ts",
       "source_location": "L39",
-      "community": 12,
+      "community": 13,
       "norm_label": "batchdeleteeventdata",
       "id": "integration_wseventhandlers_batchdeleteeventdata"
     },
@@ -665,7 +665,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/wsEventHandlers.ts",
       "source_location": "L53",
-      "community": 12,
+      "community": 13,
       "norm_label": "registerwseventhandlers()",
       "id": "integration_wseventhandlers_registerwseventhandlers"
     },
@@ -674,7 +674,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/wsEventHandlers.ts",
       "source_location": "L92",
-      "community": 12,
+      "community": 13,
       "norm_label": "registerfacthandlers()",
       "id": "integration_wseventhandlers_registerfacthandlers"
     },
@@ -683,7 +683,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/wsEventHandlers.ts",
       "source_location": "L149",
-      "community": 12,
+      "community": 13,
       "norm_label": "debouncedloadrecurringplans()",
       "id": "integration_wseventhandlers_debouncedloadrecurringplans"
     },
@@ -692,7 +692,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/wsEventHandlers.ts",
       "source_location": "L157",
-      "community": 12,
+      "community": 13,
       "norm_label": "registerplanhandlers()",
       "id": "integration_wseventhandlers_registerplanhandlers"
     },
@@ -701,7 +701,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/wsEventHandlers.ts",
       "source_location": "L204",
-      "community": 12,
+      "community": 13,
       "norm_label": "registertransferhandlers()",
       "id": "integration_wseventhandlers_registertransferhandlers"
     },
@@ -710,7 +710,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/integration/wsEventHandlers.ts",
       "source_location": "L234",
-      "community": 12,
+      "community": 13,
       "norm_label": "registercacheinvalidationhandlers()",
       "id": "integration_wseventhandlers_registercacheinvalidationhandlers"
     },
@@ -719,7 +719,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L1",
-      "community": 7,
+      "community": 8,
       "norm_label": "factsmanager.ts",
       "id": "frontend_web_static_js_dashboard_features_factsmanager_ts"
     },
@@ -728,7 +728,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L23",
-      "community": 7,
+      "community": 8,
       "norm_label": "factrow",
       "id": "features_factsmanager_factrow"
     },
@@ -737,7 +737,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L45",
-      "community": 7,
+      "community": 8,
       "norm_label": "aggregationrow",
       "id": "features_factsmanager_aggregationrow"
     },
@@ -746,7 +746,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L50",
-      "community": 7,
+      "community": 8,
       "norm_label": "balancerow",
       "id": "features_factsmanager_balancerow"
     },
@@ -755,7 +755,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L55",
-      "community": 7,
+      "community": 8,
       "norm_label": "financialcenterrow",
       "id": "features_factsmanager_financialcenterrow"
     },
@@ -764,7 +764,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L19",
-      "community": 7,
+      "community": 8,
       "norm_label": "dashboardfactsmanager",
       "id": "features_factsmanager_dashboardfactsmanager"
     },
@@ -773,7 +773,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L68",
-      "community": 7,
+      "community": 8,
       "norm_label": ".parsenumeric()",
       "id": "features_factsmanager_dashboardfactsmanager_parsenumeric"
     },
@@ -782,7 +782,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L76",
-      "community": 7,
+      "community": 8,
       "norm_label": ".getmonthstart()",
       "id": "features_factsmanager_dashboardfactsmanager_getmonthstart"
     },
@@ -791,7 +791,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L20",
-      "community": 7,
+      "community": 8,
       "norm_label": ".loadrecentfacts()",
       "id": "features_factsmanager_dashboardfactsmanager_loadrecentfacts"
     },
@@ -800,7 +800,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L27",
-      "community": 7,
+      "community": 8,
       "norm_label": ".calculatequickstats()",
       "id": "features_factsmanager_dashboardfactsmanager_calculatequickstats"
     },
@@ -809,7 +809,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L34",
-      "community": 7,
+      "community": 8,
       "norm_label": ".loadaccountbalances()",
       "id": "features_factsmanager_dashboardfactsmanager_loadaccountbalances"
     },
@@ -818,7 +818,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L41",
-      "community": 7,
+      "community": 8,
       "norm_label": ".initdashboard()",
       "id": "features_factsmanager_dashboardfactsmanager_initdashboard"
     },
@@ -827,7 +827,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L366",
-      "community": 7,
+      "community": 8,
       "norm_label": ".maprecentfacts()",
       "id": "features_factsmanager_dashboardfactsmanager_maprecentfacts"
     },
@@ -836,7 +836,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L397",
-      "community": 7,
+      "community": 8,
       "norm_label": ".mapquickstats()",
       "id": "features_factsmanager_dashboardfactsmanager_mapquickstats"
     },
@@ -845,7 +845,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L434",
-      "community": 7,
+      "community": 8,
       "norm_label": ".aggregatebytype()",
       "id": "features_factsmanager_dashboardfactsmanager_aggregatebytype"
     },
@@ -854,7 +854,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L456",
-      "community": 7,
+      "community": 8,
       "norm_label": ".mapaccountbalances()",
       "id": "features_factsmanager_dashboardfactsmanager_mapaccountbalances"
     },
@@ -863,7 +863,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L486",
-      "community": 7,
+      "community": 8,
       "norm_label": ".fetchrecentfactsfromapi()",
       "id": "features_factsmanager_dashboardfactsmanager_fetchrecentfactsfromapi"
     },
@@ -872,7 +872,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L492",
-      "community": 7,
+      "community": 8,
       "norm_label": ".fetchquickstatsfromapi()",
       "id": "features_factsmanager_dashboardfactsmanager_fetchquickstatsfromapi"
     },
@@ -881,7 +881,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L503",
-      "community": 7,
+      "community": 8,
       "norm_label": ".fetchaccountbalancesfromapi()",
       "id": "features_factsmanager_dashboardfactsmanager_fetchaccountbalancesfromapi"
     },
@@ -890,7 +890,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L230",
-      "community": 7,
+      "community": 8,
       "norm_label": "factsmanager",
       "id": "features_factsmanager_factsmanager"
     },
@@ -1079,7 +1079,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveTransfer.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "savetransfer.ts",
       "id": "frontend_web_static_js_dashboard_features_modalfact_savetransfer_ts"
     },
@@ -1088,7 +1088,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveTransfer.ts",
       "source_location": "L16",
-      "community": 2,
+      "community": 3,
       "norm_label": "savefacttransfer()",
       "id": "modalfact_savetransfer_savefacttransfer"
     },
@@ -1133,7 +1133,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveOperations.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "saveoperations.ts",
       "id": "frontend_web_static_js_dashboard_features_modalfact_saveoperations_ts"
     },
@@ -1142,7 +1142,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveOperations.ts",
       "source_location": "L28",
-      "community": 2,
+      "community": 3,
       "norm_label": "savefactmodal()",
       "id": "modalfact_saveoperations_savefactmodal"
     },
@@ -1151,7 +1151,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/dateHelpers.ts",
       "source_location": "L1",
-      "community": 15,
+      "community": 16,
       "norm_label": "datehelpers.ts",
       "id": "frontend_web_static_js_dashboard_features_modalfact_datehelpers_ts"
     },
@@ -1160,7 +1160,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/dateHelpers.ts",
       "source_location": "L14",
-      "community": 15,
+      "community": 16,
       "norm_label": "setfactdate()",
       "id": "modalfact_datehelpers_setfactdate"
     },
@@ -1169,7 +1169,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/dateHelpers.ts",
       "source_location": "L38",
-      "community": 15,
+      "community": 16,
       "norm_label": "setfacttransferdate()",
       "id": "modalfact_datehelpers_setfacttransferdate"
     },
@@ -1178,7 +1178,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveTransaction.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "savetransaction.ts",
       "id": "frontend_web_static_js_dashboard_features_modalfact_savetransaction_ts"
     },
@@ -1187,7 +1187,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveTransaction.ts",
       "source_location": "L15",
-      "community": 2,
+      "community": 3,
       "norm_label": "savefacttransaction()",
       "id": "modalfact_savetransaction_savefacttransaction"
     },
@@ -1196,7 +1196,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/tabManager.ts",
       "source_location": "L1",
-      "community": 14,
+      "community": 15,
       "norm_label": "tabmanager.ts",
       "id": "frontend_web_static_js_dashboard_features_modalfact_tabmanager_ts"
     },
@@ -1205,7 +1205,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/tabManager.ts",
       "source_location": "L11",
-      "community": 14,
+      "community": 15,
       "norm_label": "transaction_fields",
       "id": "modalfact_tabmanager_transaction_fields"
     },
@@ -1214,7 +1214,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/tabManager.ts",
       "source_location": "L17",
-      "community": 14,
+      "community": 15,
       "norm_label": "transfer_fields",
       "id": "modalfact_tabmanager_transfer_fields"
     },
@@ -1223,7 +1223,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/tabManager.ts",
       "source_location": "L23",
-      "community": 14,
+      "community": 15,
       "norm_label": "tabmanager",
       "id": "modalfact_tabmanager_tabmanager"
     },
@@ -1232,7 +1232,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/index.ts",
       "source_location": "L1",
-      "community": 11,
+      "community": 12,
       "norm_label": "index.ts",
       "id": "frontend_web_static_js_dashboard_features_pendingrecords_index_ts"
     },
@@ -1574,7 +1574,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 5,
       "norm_label": "helpers.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_helpers_ts"
     },
@@ -1583,7 +1583,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L17",
-      "community": 3,
+      "community": 5,
       "norm_label": "validatefactform()",
       "id": "editmodal_helpers_validatefactform"
     },
@@ -1592,7 +1592,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L34",
-      "community": 3,
+      "community": 5,
       "norm_label": "buildfactdatafromform()",
       "id": "editmodal_helpers_buildfactdatafromform"
     },
@@ -1601,7 +1601,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L62",
-      "community": 3,
+      "community": 5,
       "norm_label": "getdisplaynamesfromform()",
       "id": "editmodal_helpers_getdisplaynamesfromform"
     },
@@ -1610,7 +1610,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L91",
-      "community": 3,
+      "community": 5,
       "norm_label": "updatependingrecord()",
       "id": "editmodal_helpers_updatependingrecord"
     },
@@ -1619,7 +1619,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L138",
-      "community": 3,
+      "community": 5,
       "norm_label": "updateonlinerecord()",
       "id": "editmodal_helpers_updateonlinerecord"
     },
@@ -1628,7 +1628,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L210",
-      "community": 3,
+      "community": 5,
       "norm_label": "updatereminder()",
       "id": "editmodal_helpers_updatereminder"
     },
@@ -1637,7 +1637,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 5,
       "norm_label": "deleteoperations.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_deleteoperations_ts"
     },
@@ -1646,7 +1646,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L22",
-      "community": 3,
+      "community": 5,
       "norm_label": "showrecurringdeletedialog()",
       "id": "editmodal_deleteoperations_showrecurringdeletedialog"
     },
@@ -1655,7 +1655,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L38",
-      "community": 3,
+      "community": 5,
       "norm_label": "handlerecurringdeletechoice()",
       "id": "editmodal_deleteoperations_handlerecurringdeletechoice"
     },
@@ -1664,7 +1664,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L55",
-      "community": 3,
+      "community": 5,
       "norm_label": "refreshdashboardwidgets()",
       "id": "editmodal_deleteoperations_refreshdashboardwidgets"
     },
@@ -1673,7 +1673,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L79",
-      "community": 3,
+      "community": 5,
       "norm_label": "deletefromeditmodal()",
       "id": "editmodal_deleteoperations_deletefromeditmodal"
     },
@@ -1682,7 +1682,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L145",
-      "community": 3,
+      "community": 5,
       "norm_label": "deletefactfromdashboard()",
       "id": "editmodal_deleteoperations_deletefactfromdashboard"
     },
@@ -1691,7 +1691,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/saveOperations.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 5,
       "norm_label": "saveoperations.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_saveoperations_ts"
     },
@@ -1700,7 +1700,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/saveOperations.ts",
       "source_location": "L24",
-      "community": 3,
+      "community": 5,
       "norm_label": "setsubmitloading()",
       "id": "editmodal_saveoperations_setsubmitloading"
     },
@@ -1709,7 +1709,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/saveOperations.ts",
       "source_location": "L39",
-      "community": 3,
+      "community": 5,
       "norm_label": "refreshdashboardwidgets()",
       "id": "editmodal_saveoperations_refreshdashboardwidgets"
     },
@@ -1718,7 +1718,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/saveOperations.ts",
       "source_location": "L64",
-      "community": 3,
+      "community": 5,
       "norm_label": "updatefact()",
       "id": "editmodal_saveoperations_updatefact"
     },
@@ -1727,7 +1727,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 5,
       "norm_label": "formpopulation.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_formpopulation_ts"
     },
@@ -1736,7 +1736,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L31",
-      "community": 3,
+      "community": 5,
       "norm_label": "getcurrenteditingrecordtype()",
       "id": "editmodal_formpopulation_getcurrenteditingrecordtype"
     },
@@ -1745,7 +1745,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L35",
-      "community": 3,
+      "community": 5,
       "norm_label": "getcurrenteditingpendingid()",
       "id": "editmodal_formpopulation_getcurrenteditingpendingid"
     },
@@ -1754,7 +1754,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L39",
-      "community": 3,
+      "community": 5,
       "norm_label": "setcurrenteditingstate()",
       "id": "editmodal_formpopulation_setcurrenteditingstate"
     },
@@ -1763,7 +1763,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L51",
-      "community": 3,
+      "community": 5,
       "norm_label": "seteditmodalmode()",
       "id": "editmodal_formpopulation_seteditmodalmode"
     },
@@ -1772,7 +1772,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L74",
-      "community": 3,
+      "community": 5,
       "norm_label": "updateeditcategorytypebadge()",
       "id": "editmodal_formpopulation_updateeditcategorytypebadge"
     },
@@ -1781,7 +1781,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L93",
-      "community": 3,
+      "community": 5,
       "norm_label": "setupeditcategorytypebuttons()",
       "id": "editmodal_formpopulation_setupeditcategorytypebuttons"
     },
@@ -1790,7 +1790,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L135",
-      "community": 3,
+      "community": 5,
       "norm_label": "initeditcategorytreeselect()",
       "id": "editmodal_formpopulation_initeditcategorytreeselect"
     },
@@ -1799,7 +1799,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L213",
-      "community": 3,
+      "community": 5,
       "norm_label": "openeditpendingrecord()",
       "id": "editmodal_formpopulation_openeditpendingrecord"
     },
@@ -1808,7 +1808,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L340",
-      "community": 3,
+      "community": 5,
       "norm_label": "openeditmodal()",
       "id": "editmodal_formpopulation_openeditmodal"
     },
@@ -1817,7 +1817,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L463",
-      "community": 3,
+      "community": 5,
       "norm_label": "closeeditmodal()",
       "id": "editmodal_formpopulation_closeeditmodal"
     },
@@ -1826,7 +1826,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 5,
       "norm_label": "dropdowncache.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_dropdowncache_ts"
     },
@@ -1835,7 +1835,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L18",
-      "community": 3,
+      "community": 5,
       "norm_label": "remindersmap",
       "id": "editmodal_dropdowncache_remindersmap"
     },
@@ -1844,7 +1844,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L28",
-      "community": 3,
+      "community": 5,
       "norm_label": "loadcategoriesforedit()",
       "id": "editmodal_dropdowncache_loadcategoriesforedit"
     },
@@ -1853,7 +1853,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L66",
-      "community": 3,
+      "community": 5,
       "norm_label": "populatefinancialcentersdropdown()",
       "id": "editmodal_dropdowncache_populatefinancialcentersdropdown"
     },
@@ -1862,7 +1862,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L97",
-      "community": 3,
+      "community": 5,
       "norm_label": "loadeditfinancialcenters()",
       "id": "editmodal_dropdowncache_loadeditfinancialcenters"
     },
@@ -1871,7 +1871,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L146",
-      "community": 3,
+      "community": 5,
       "norm_label": "populatecostcentersdropdown()",
       "id": "editmodal_dropdowncache_populatecostcentersdropdown"
     },
@@ -1880,7 +1880,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L177",
-      "community": 3,
+      "community": 5,
       "norm_label": "loadeditcostcenters()",
       "id": "editmodal_dropdowncache_loadeditcostcenters"
     },
@@ -1889,7 +1889,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L227",
-      "community": 3,
+      "community": 5,
       "norm_label": "loadremindersforedit()",
       "id": "editmodal_dropdowncache_loadremindersforedit"
     },
@@ -1898,7 +1898,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L258",
-      "community": 3,
+      "community": 5,
       "norm_label": "populateofflinedropdowns()",
       "id": "editmodal_dropdowncache_populateofflinedropdowns"
     },
@@ -1907,7 +1907,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 19,
       "norm_label": "reminderhelpers.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_reminderhelpers_ts"
     },
@@ -1916,7 +1916,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L16",
-      "community": 3,
+      "community": 19,
       "norm_label": "toggleeditremindersettings()",
       "id": "editmodal_reminderhelpers_toggleeditremindersettings"
     },
@@ -1925,7 +1925,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L37",
-      "community": 3,
+      "community": 19,
       "norm_label": "initeditremindercalendarwidget()",
       "id": "editmodal_reminderhelpers_initeditremindercalendarwidget"
     },
@@ -1934,7 +1934,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L87",
-      "community": 3,
+      "community": 19,
       "norm_label": "updateeditreminderdatetime()",
       "id": "editmodal_reminderhelpers_updateeditreminderdatetime"
     },
@@ -1943,7 +1943,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L112",
-      "community": 3,
+      "community": 19,
       "norm_label": "populateeditreminderfields()",
       "id": "editmodal_reminderhelpers_populateeditreminderfields"
     },
@@ -1952,7 +1952,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L145",
-      "community": 3,
+      "community": 5,
       "norm_label": "reseteditreminderfields()",
       "id": "editmodal_reminderhelpers_reseteditreminderfields"
     },
@@ -1961,7 +1961,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L164",
-      "community": 3,
+      "community": 19,
       "norm_label": "getreminderstatusbadge()",
       "id": "editmodal_reminderhelpers_getreminderstatusbadge"
     },
@@ -1979,7 +1979,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planForm.ts",
       "source_location": "L1",
-      "community": 17,
+      "community": 18,
       "norm_label": "planform.ts",
       "id": "frontend_web_static_js_dashboard_features_addplan_planform_ts"
     },
@@ -1988,7 +1988,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planForm.ts",
       "source_location": "L27",
-      "community": 9,
+      "community": 10,
       "norm_label": "loadplancategories()",
       "id": "addplan_planform_loadplancategories"
     },
@@ -1997,7 +1997,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planForm.ts",
       "source_location": "L77",
-      "community": 2,
+      "community": 3,
       "norm_label": "saveplan()",
       "id": "addplan_planform_saveplan"
     },
@@ -2006,7 +2006,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planForm.ts",
       "source_location": "L119",
-      "community": 2,
+      "community": 3,
       "norm_label": "saveplanoffline()",
       "id": "addplan_planform_saveplanoffline"
     },
@@ -2015,7 +2015,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planForm.ts",
       "source_location": "L218",
-      "community": 17,
+      "community": 18,
       "norm_label": "openaddplanmodal()",
       "id": "addplan_planform_openaddplanmodal"
     },
@@ -2024,7 +2024,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L1",
-      "community": 8,
+      "community": 9,
       "norm_label": "remindersettings.ts",
       "id": "frontend_web_static_js_dashboard_features_addplan_remindersettings_ts"
     },
@@ -2033,7 +2033,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L21",
-      "community": 8,
+      "community": 9,
       "norm_label": "getcurrenttimerounded()",
       "id": "addplan_remindersettings_getcurrenttimerounded"
     },
@@ -2042,7 +2042,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L45",
-      "community": 8,
+      "community": 9,
       "norm_label": "prefillreminderdatetime()",
       "id": "addplan_remindersettings_prefillreminderdatetime"
     },
@@ -2051,7 +2051,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L77",
-      "community": 8,
+      "community": 9,
       "norm_label": "toggleremindersettings()",
       "id": "addplan_remindersettings_toggleremindersettings"
     },
@@ -2060,7 +2060,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L102",
-      "community": 8,
+      "community": 9,
       "norm_label": "initremindercalendarwidget()",
       "id": "addplan_remindersettings_initremindercalendarwidget"
     },
@@ -2069,7 +2069,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L148",
-      "community": 8,
+      "community": 9,
       "norm_label": "updatereminderdatetime()",
       "id": "addplan_remindersettings_updatereminderdatetime"
     },
@@ -2078,7 +2078,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L175",
-      "community": 8,
+      "community": 9,
       "norm_label": "resetreminderfields()",
       "id": "addplan_remindersettings_resetreminderfields"
     },
@@ -2087,7 +2087,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L195",
-      "community": 8,
+      "community": 9,
       "norm_label": "toggleplanmode()",
       "id": "addplan_remindersettings_toggleplanmode"
     },
@@ -2096,7 +2096,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "periodbuttons.ts",
       "id": "frontend_web_static_js_dashboard_features_addplan_periodbuttons_ts"
     },
@@ -2105,7 +2105,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts",
       "source_location": "L16",
-      "community": 2,
+      "community": 3,
       "norm_label": "updateplanperiodbuttons()",
       "id": "addplan_periodbuttons_updateplanperiodbuttons"
     },
@@ -2114,7 +2114,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts",
       "source_location": "L49",
-      "community": 2,
+      "community": 3,
       "norm_label": "synchiddenfromactive()",
       "id": "addplan_periodbuttons_synchiddenfromactive"
     },
@@ -2123,7 +2123,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts",
       "source_location": "L72",
-      "community": 2,
+      "community": 3,
       "norm_label": "syncplanperiodfromactive()",
       "id": "addplan_periodbuttons_syncplanperiodfromactive"
     },
@@ -2150,7 +2150,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts",
       "source_location": "L203",
-      "community": 2,
+      "community": 3,
       "norm_label": "setupplantypebuttons()",
       "id": "addplan_periodbuttons_setupplantypebuttons"
     },
@@ -2159,7 +2159,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planHints.ts",
       "source_location": "L1",
-      "community": 17,
+      "community": 18,
       "norm_label": "planhints.ts",
       "id": "frontend_web_static_js_dashboard_features_addplan_planhints_ts"
     },
@@ -2168,7 +2168,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planHints.ts",
       "source_location": "L21",
-      "community": 17,
+      "community": 18,
       "norm_label": "loadplanhints()",
       "id": "addplan_planhints_loadplanhints"
     },
@@ -2177,7 +2177,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planHints.ts",
       "source_location": "L172",
-      "community": 17,
+      "community": 18,
       "norm_label": "updateplanhintbuttons()",
       "id": "addplan_planhints_updateplanhintbuttons"
     },
@@ -2186,7 +2186,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/recurringSettings.ts",
       "source_location": "L1",
-      "community": 16,
+      "community": 17,
       "norm_label": "recurringsettings.ts",
       "id": "frontend_web_static_js_dashboard_features_addplan_recurringsettings_ts"
     },
@@ -2195,7 +2195,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/recurringSettings.ts",
       "source_location": "L17",
-      "community": 16,
+      "community": 17,
       "norm_label": "day_names",
       "id": "addplan_recurringsettings_day_names"
     },
@@ -2204,7 +2204,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/recurringSettings.ts",
       "source_location": "L26",
-      "community": 16,
+      "community": 17,
       "norm_label": "resetrecurringonlyfields()",
       "id": "addplan_recurringsettings_resetrecurringonlyfields"
     },
@@ -2213,7 +2213,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/recurringSettings.ts",
       "source_location": "L55",
-      "community": 16,
+      "community": 17,
       "norm_label": "resetrecurringsettings()",
       "id": "addplan_recurringsettings_resetrecurringsettings"
     },
@@ -2222,7 +2222,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/recurringSettings.ts",
       "source_location": "L86",
-      "community": 16,
+      "community": 17,
       "norm_label": "initrecurringfields()",
       "id": "addplan_recurringsettings_initrecurringfields"
     },
@@ -2231,7 +2231,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/recurringSettings.ts",
       "source_location": "L140",
-      "community": 16,
+      "community": 17,
       "norm_label": "updatefrequencyfields()",
       "id": "addplan_recurringsettings_updatefrequencyfields"
     },
@@ -2240,7 +2240,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/recurringSettings.ts",
       "source_location": "L165",
-      "community": 16,
+      "community": 17,
       "norm_label": "updatedurationfields()",
       "id": "addplan_recurringsettings_updatedurationfields"
     },
@@ -2249,7 +2249,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/recurringSettings.ts",
       "source_location": "L214",
-      "community": 16,
+      "community": 17,
       "norm_label": "updaterecurringpreview()",
       "id": "addplan_recurringsettings_updaterecurringpreview"
     },
@@ -2258,7 +2258,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/recurringSettings.ts",
       "source_location": "L282",
-      "community": 16,
+      "community": 17,
       "norm_label": "collectrecurringsettings()",
       "id": "addplan_recurringsettings_collectrecurringsettings"
     },
@@ -2303,7 +2303,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/factHints.ts",
       "source_location": "L1",
-      "community": 20,
+      "community": 19,
       "norm_label": "facthints.ts",
       "id": "frontend_web_static_js_dashboard_features_addtransaction_facthints_ts"
     },
@@ -2312,7 +2312,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/factHints.ts",
       "source_location": "L21",
-      "community": 20,
+      "community": 19,
       "norm_label": "loadfacthints()",
       "id": "addtransaction_facthints_loadfacthints"
     },
@@ -2321,7 +2321,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/factHints.ts",
       "source_location": "L130",
-      "community": 20,
+      "community": 19,
       "norm_label": "updatefacthintbuttons()",
       "id": "addtransaction_facthints_updatefacthintbuttons"
     },
@@ -2330,7 +2330,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L1",
-      "community": 18,
+      "community": 20,
       "norm_label": "categoryloader.ts",
       "id": "frontend_web_static_js_dashboard_features_addtransaction_categoryloader_ts"
     },
@@ -2339,7 +2339,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L19",
-      "community": 18,
+      "community": 20,
       "norm_label": "safeshowtoast()",
       "id": "addtransaction_categoryloader_safeshowtoast"
     },
@@ -2348,7 +2348,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L36",
-      "community": 18,
+      "community": 20,
       "norm_label": "loadtransactioncategories()",
       "id": "addtransaction_categoryloader_loadtransactioncategories"
     },
@@ -2357,7 +2357,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L95",
-      "community": 18,
+      "community": 20,
       "norm_label": "loadfacthintsforcategory()",
       "id": "addtransaction_categoryloader_loadfacthintsforcategory"
     },
@@ -2366,7 +2366,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L116",
-      "community": 18,
+      "community": 20,
       "norm_label": "loadfinancialcenters()",
       "id": "addtransaction_categoryloader_loadfinancialcenters"
     },
@@ -2375,7 +2375,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L210",
-      "community": 18,
+      "community": 20,
       "norm_label": "setupfinancialcenterlisteners()",
       "id": "addtransaction_categoryloader_setupfinancialcenterlisteners"
     },
@@ -2393,7 +2393,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L372",
-      "community": 18,
+      "community": 20,
       "norm_label": "enabledisablecategoryandcostcenter()",
       "id": "addtransaction_categoryloader_enabledisablecategoryandcostcenter"
     },
@@ -2402,7 +2402,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L432",
-      "community": 18,
+      "community": 20,
       "norm_label": "filtercostcenterdropdown()",
       "id": "addtransaction_categoryloader_filtercostcenterdropdown"
     },
@@ -2411,7 +2411,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts",
       "source_location": "L1",
-      "community": 11,
+      "community": 12,
       "norm_label": "transactionform.ts",
       "id": "frontend_web_static_js_dashboard_features_addtransaction_transactionform_ts"
     },
@@ -2420,7 +2420,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts",
       "source_location": "L21",
-      "community": 2,
+      "community": 3,
       "norm_label": "savetransaction()",
       "id": "addtransaction_transactionform_savetransaction"
     },
@@ -2429,7 +2429,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts",
       "source_location": "L40",
-      "community": 2,
+      "community": 3,
       "norm_label": "savetransactionoffline()",
       "id": "addtransaction_transactionform_savetransactionoffline"
     },
@@ -2438,7 +2438,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts",
       "source_location": "L130",
-      "community": 11,
+      "community": 12,
       "norm_label": "settransactiondate()",
       "id": "addtransaction_transactionform_settransactiondate"
     },
@@ -2447,7 +2447,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts",
       "source_location": "L148",
-      "community": 11,
+      "community": 12,
       "norm_label": "setuptransactiontypebuttons()",
       "id": "addtransaction_transactionform_setuptransactiontypebuttons"
     },
@@ -2591,7 +2591,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveTransfer.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "savetransfer.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_savetransfer_ts"
     },
@@ -2600,7 +2600,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveTransfer.ts",
       "source_location": "L16",
-      "community": 2,
+      "community": 3,
       "norm_label": "saveplantransfer()",
       "id": "modalplan_savetransfer_saveplantransfer"
     },
@@ -2609,7 +2609,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/typeToggle.ts",
       "source_location": "L1",
-      "community": 20,
+      "community": 0,
       "norm_label": "typetoggle.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_typetoggle_ts"
     },
@@ -2627,7 +2627,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/typeToggle.ts",
       "source_location": "L54",
-      "community": 20,
+      "community": 0,
       "norm_label": "updateplantypeui()",
       "id": "modalplan_typetoggle_updateplantypeui"
     },
@@ -2636,7 +2636,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/typeToggle.ts",
       "source_location": "L83",
-      "community": 20,
+      "community": 0,
       "norm_label": "updateplancategorytreetype()",
       "id": "modalplan_typetoggle_updateplancategorytreetype"
     },
@@ -2645,7 +2645,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveOperations.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "saveoperations.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_saveoperations_ts"
     },
@@ -2654,7 +2654,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveOperations.ts",
       "source_location": "L28",
-      "community": 2,
+      "community": 3,
       "norm_label": "saveplanmodal()",
       "id": "modalplan_saveoperations_saveplanmodal"
     },
@@ -2663,7 +2663,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/dateHelpers.ts",
       "source_location": "L1",
-      "community": 15,
+      "community": 16,
       "norm_label": "datehelpers.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_datehelpers_ts"
     },
@@ -2672,7 +2672,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/dateHelpers.ts",
       "source_location": "L14",
-      "community": 15,
+      "community": 16,
       "norm_label": "setplanperiod()",
       "id": "modalplan_datehelpers_setplanperiod"
     },
@@ -2681,7 +2681,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/dateHelpers.ts",
       "source_location": "L29",
-      "community": 15,
+      "community": 16,
       "norm_label": "setplantransferperiod()",
       "id": "modalplan_datehelpers_setplantransferperiod"
     },
@@ -2690,7 +2690,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveTransaction.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "savetransaction.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_savetransaction_ts"
     },
@@ -2699,7 +2699,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveTransaction.ts",
       "source_location": "L16",
-      "community": 2,
+      "community": 3,
       "norm_label": "saveplantransaction()",
       "id": "modalplan_savetransaction_saveplantransaction"
     },
@@ -2708,7 +2708,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/tabManager.ts",
       "source_location": "L1",
-      "community": 14,
+      "community": 15,
       "norm_label": "tabmanager.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_tabmanager_ts"
     },
@@ -2717,7 +2717,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/tabManager.ts",
       "source_location": "L11",
-      "community": 14,
+      "community": 15,
       "norm_label": "transaction_fields",
       "id": "modalplan_tabmanager_transaction_fields"
     },
@@ -2726,7 +2726,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/tabManager.ts",
       "source_location": "L22",
-      "community": 14,
+      "community": 15,
       "norm_label": "transfer_fields",
       "id": "modalplan_tabmanager_transfer_fields"
     },
@@ -2735,7 +2735,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/tabManager.ts",
       "source_location": "L28",
-      "community": 14,
+      "community": 15,
       "norm_label": "tabmanager",
       "id": "modalplan_tabmanager_tabmanager"
     },
@@ -2744,7 +2744,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L1",
-      "community": 8,
+      "community": 9,
       "norm_label": "recurringsettings.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_recurringsettings_ts"
     },
@@ -2753,7 +2753,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L16",
-      "community": 8,
+      "community": 9,
       "norm_label": "toggleplanmode()",
       "id": "modalplan_recurringsettings_toggleplanmode"
     },
@@ -2762,7 +2762,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L101",
-      "community": 8,
+      "community": 9,
       "norm_label": "initializerecurringdefaults()",
       "id": "modalplan_recurringsettings_initializerecurringdefaults"
     },
@@ -2771,7 +2771,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L126",
-      "community": 8,
+      "community": 9,
       "norm_label": "updatefrequencyfields()",
       "id": "modalplan_recurringsettings_updatefrequencyfields"
     },
@@ -2780,7 +2780,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L154",
-      "community": 8,
+      "community": 9,
       "norm_label": "updateyearlyfrequencyvalue()",
       "id": "modalplan_recurringsettings_updateyearlyfrequencyvalue"
     },
@@ -2789,7 +2789,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L182",
-      "community": 8,
+      "community": 9,
       "norm_label": "updatedurationfields()",
       "id": "modalplan_recurringsettings_updatedurationfields"
     },
@@ -2798,7 +2798,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L235",
-      "community": 8,
+      "community": 9,
       "norm_label": "updaterecurringpreview()",
       "id": "modalplan_recurringsettings_updaterecurringpreview"
     },
@@ -2807,7 +2807,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L282",
-      "community": 8,
+      "community": 9,
       "norm_label": "togglerecurringreminder()",
       "id": "modalplan_recurringsettings_togglerecurringreminder"
     },
@@ -2816,7 +2816,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L296",
-      "community": 2,
+      "community": 3,
       "norm_label": "extractrecurringsettings()",
       "id": "modalplan_recurringsettings_extractrecurringsettings"
     },
@@ -2825,7 +2825,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L343",
-      "community": 2,
+      "community": 3,
       "norm_label": "extractremindersettings()",
       "id": "modalplan_recurringsettings_extractremindersettings"
     },
@@ -2843,7 +2843,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/stateManager.ts",
       "source_location": "L1",
-      "community": 9,
+      "community": 10,
       "norm_label": "statemanager.ts",
       "id": "frontend_web_static_js_dashboard_core_statemanager_ts"
     },
@@ -2852,7 +2852,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/stateManager.ts",
       "source_location": "L27",
-      "community": 9,
+      "community": 10,
       "norm_label": "initializestatefromglobals()",
       "id": "core_statemanager_initializestatefromglobals"
     },
@@ -2861,7 +2861,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/stateManager.ts",
       "source_location": "L54",
-      "community": 9,
+      "community": 10,
       "norm_label": "syncstatetoglobals()",
       "id": "core_statemanager_syncstatetoglobals"
     },
@@ -2879,7 +2879,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/stateManager.ts",
       "source_location": "L145",
-      "community": 9,
+      "community": 10,
       "norm_label": "isinitialized()",
       "id": "core_statemanager_isinitialized"
     },
@@ -2888,7 +2888,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/stateManager.ts",
       "source_location": "L152",
-      "community": 21,
+      "community": 23,
       "norm_label": "setinitialized()",
       "id": "core_statemanager_setinitialized"
     },
@@ -2897,7 +2897,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L1",
-      "community": 9,
+      "community": 10,
       "norm_label": "dashboardstate.ts",
       "id": "frontend_web_static_js_dashboard_core_dashboardstate_ts"
     },
@@ -2906,7 +2906,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L29",
-      "community": 9,
+      "community": 10,
       "norm_label": "dashboardstate",
       "id": "core_dashboardstate_dashboardstate"
     },
@@ -2915,7 +2915,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L80",
-      "community": 9,
+      "community": 10,
       "norm_label": "createdefaultstate()",
       "id": "core_dashboardstate_createdefaultstate"
     },
@@ -2924,7 +2924,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L135",
-      "community": 9,
+      "community": 10,
       "norm_label": "state",
       "id": "core_dashboardstate_state"
     },
@@ -2933,7 +2933,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L145",
-      "community": 20,
+      "community": 19,
       "norm_label": "getstate()",
       "id": "core_dashboardstate_getstate"
     },
@@ -2942,7 +2942,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L153",
-      "community": 20,
+      "community": 19,
       "norm_label": "updatestate()",
       "id": "core_dashboardstate_updatestate"
     },
@@ -2951,7 +2951,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L164",
-      "community": 9,
+      "community": 10,
       "norm_label": "resetstate()",
       "id": "core_dashboardstate_resetstate"
     },
@@ -2960,7 +2960,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L262",
-      "community": 17,
+      "community": 18,
       "norm_label": "iscachevalid()",
       "id": "core_dashboardstate_iscachevalid"
     },
@@ -2969,7 +2969,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L270",
-      "community": 12,
+      "community": 13,
       "norm_label": "invalidatecache()",
       "id": "core_dashboardstate_invalidatecache"
     },
@@ -2978,7 +2978,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L278",
-      "community": 3,
+      "community": 5,
       "norm_label": "setcachedata()",
       "id": "core_dashboardstate_setcachedata"
     },
@@ -2987,7 +2987,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L297",
-      "community": 9,
+      "community": 10,
       "norm_label": "settransactioncategorytreeselect()",
       "id": "core_dashboardstate_settransactioncategorytreeselect"
     },
@@ -2996,7 +2996,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L304",
-      "community": 9,
+      "community": 10,
       "norm_label": "setplancategorytreeselect()",
       "id": "core_dashboardstate_setplancategorytreeselect"
     },
@@ -3005,7 +3005,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L311",
-      "community": 9,
+      "community": 10,
       "norm_label": "seteditcategorytreeselect()",
       "id": "core_dashboardstate_seteditcategorytreeselect"
     },
@@ -3050,7 +3050,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/ui/collapsibleSections.ts",
       "source_location": "L1",
-      "community": 19,
+      "community": 21,
       "norm_label": "collapsiblesections.ts",
       "id": "frontend_web_static_js_dashboard_ui_collapsiblesections_ts"
     },
@@ -3059,7 +3059,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/ui/collapsibleSections.ts",
       "source_location": "L29",
-      "community": 19,
+      "community": 21,
       "norm_label": "togglequickstats()",
       "id": "ui_collapsiblesections_togglequickstats"
     },
@@ -3068,7 +3068,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/ui/collapsibleSections.ts",
       "source_location": "L40",
-      "community": 19,
+      "community": 21,
       "norm_label": "applyquickstatsstate()",
       "id": "ui_collapsiblesections_applyquickstatsstate"
     },
@@ -3077,7 +3077,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/ui/collapsibleSections.ts",
       "source_location": "L80",
-      "community": 19,
+      "community": 21,
       "norm_label": "toggleaccountbalances()",
       "id": "ui_collapsiblesections_toggleaccountbalances"
     },
@@ -3086,7 +3086,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/ui/collapsibleSections.ts",
       "source_location": "L91",
-      "community": 19,
+      "community": 21,
       "norm_label": "applyaccountbalancesstate()",
       "id": "ui_collapsiblesections_applyaccountbalancesstate"
     },
@@ -3095,7 +3095,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/ui/collapsibleSections.ts",
       "source_location": "L137",
-      "community": 19,
+      "community": 21,
       "norm_label": "handlehtmxafterswap()",
       "id": "ui_collapsiblesections_handlehtmxafterswap"
     },
@@ -3104,7 +3104,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/ui/collapsibleSections.ts",
       "source_location": "L155",
-      "community": 19,
+      "community": 21,
       "norm_label": "handleresize()",
       "id": "ui_collapsiblesections_handleresize"
     },
@@ -3113,7 +3113,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/ui/collapsibleSections.ts",
       "source_location": "L181",
-      "community": 19,
+      "community": 21,
       "norm_label": "initcollapsiblesections()",
       "id": "ui_collapsiblesections_initcollapsiblesections"
     },
@@ -3122,7 +3122,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/ui/collapsibleSections.ts",
       "source_location": "L201",
-      "community": 19,
+      "community": 21,
       "norm_label": "cleanupcollapsiblesections()",
       "id": "ui_collapsiblesections_cleanupcollapsiblesections"
     },
@@ -3131,7 +3131,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/tabManagerFactory.ts",
       "source_location": "L1",
-      "community": 14,
+      "community": 15,
       "norm_label": "tabmanagerfactory.ts",
       "id": "frontend_web_static_js_dashboard_shared_tabmanagerfactory_ts"
     },
@@ -3140,7 +3140,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/tabManagerFactory.ts",
       "source_location": "L8",
-      "community": 14,
+      "community": 15,
       "norm_label": "tabcache",
       "id": "shared_tabmanagerfactory_tabcache"
     },
@@ -3149,7 +3149,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/tabManagerFactory.ts",
       "source_location": "L13",
-      "community": 14,
+      "community": 15,
       "norm_label": "tabmanagerconfig",
       "id": "shared_tabmanagerfactory_tabmanagerconfig"
     },
@@ -3158,7 +3158,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/tabManagerFactory.ts",
       "source_location": "L20",
-      "community": 14,
+      "community": 15,
       "norm_label": "tabmanager",
       "id": "shared_tabmanagerfactory_tabmanager"
     },
@@ -3167,7 +3167,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/tabManagerFactory.ts",
       "source_location": "L30",
-      "community": 14,
+      "community": 15,
       "norm_label": "createtabmanager()",
       "id": "shared_tabmanagerfactory_createtabmanager"
     },
@@ -3176,7 +3176,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/buttonState.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "buttonstate.ts",
       "id": "frontend_web_static_js_dashboard_shared_utils_buttonstate_ts"
     },
@@ -3185,7 +3185,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/buttonState.ts",
       "source_location": "L13",
-      "community": 2,
+      "community": 3,
       "norm_label": "setbuttonloading()",
       "id": "utils_buttonstate_setbuttonloading"
     },
@@ -3194,7 +3194,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/buttonState.ts",
       "source_location": "L43",
-      "community": 2,
+      "community": 3,
       "norm_label": "setbuttonsloading()",
       "id": "utils_buttonstate_setbuttonsloading"
     },
@@ -3203,7 +3203,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/buttonState.ts",
       "source_location": "L51",
-      "community": 2,
+      "community": 3,
       "norm_label": "disablebutton()",
       "id": "utils_buttonstate_disablebutton"
     },
@@ -3212,7 +3212,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/buttonState.ts",
       "source_location": "L60",
-      "community": 2,
+      "community": 3,
       "norm_label": "enablebutton()",
       "id": "utils_buttonstate_enablebutton"
     },
@@ -3221,7 +3221,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/dateHelpers.ts",
       "source_location": "L1",
-      "community": 15,
+      "community": 16,
       "norm_label": "datehelpers.ts",
       "id": "frontend_web_static_js_dashboard_shared_utils_datehelpers_ts"
     },
@@ -3230,7 +3230,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/dateHelpers.ts",
       "source_location": "L8",
-      "community": 15,
+      "community": 16,
       "norm_label": "datesetterconfig",
       "id": "utils_datehelpers_datesetterconfig"
     },
@@ -3239,7 +3239,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/dateHelpers.ts",
       "source_location": "L19",
-      "community": 15,
+      "community": 16,
       "norm_label": "setdatewithoffset()",
       "id": "utils_datehelpers_setdatewithoffset"
     },
@@ -3248,7 +3248,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/dateHelpers.ts",
       "source_location": "L57",
-      "community": 15,
+      "community": 16,
       "norm_label": "updatebuttonactivestate()",
       "id": "utils_datehelpers_updatebuttonactivestate"
     },
@@ -3257,7 +3257,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/dateHelpers.ts",
       "source_location": "L72",
-      "community": 15,
+      "community": 16,
       "norm_label": "formatdateddmmyyyy()",
       "id": "utils_datehelpers_formatdateddmmyyyy"
     },
@@ -3266,7 +3266,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/dateHelpers.ts",
       "source_location": "L82",
-      "community": 15,
+      "community": 16,
       "norm_label": "formatdateyyyymm()",
       "id": "utils_datehelpers_formatdateyyyymm"
     },
@@ -3275,7 +3275,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "tabvalidation.ts",
       "id": "frontend_web_static_js_dashboard_shared_utils_tabvalidation_ts"
     },
@@ -3284,7 +3284,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts",
       "source_location": "L32",
-      "community": 2,
+      "community": 3,
       "norm_label": "disableinactivetabvalidation()",
       "id": "utils_tabvalidation_disableinactivetabvalidation"
     },
@@ -3293,7 +3293,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts",
       "source_location": "L53",
-      "community": 2,
+      "community": 3,
       "norm_label": "restorerequiredvalidation()",
       "id": "utils_tabvalidation_restorerequiredvalidation"
     },
@@ -3302,7 +3302,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts",
       "source_location": "L76",
-      "community": 2,
+      "community": 3,
       "norm_label": "disableinactivetabinputs()",
       "id": "utils_tabvalidation_disableinactivetabinputs"
     },
@@ -3311,7 +3311,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts",
       "source_location": "L96",
-      "community": 2,
+      "community": 3,
       "norm_label": "restoreinactivetabinputs()",
       "id": "utils_tabvalidation_restoreinactivetabinputs"
     },
@@ -3320,7 +3320,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "apihelpers.ts",
       "id": "frontend_web_static_js_dashboard_shared_utils_apihelpers_ts"
     },
@@ -3329,7 +3329,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L15",
-      "community": 2,
+      "community": 3,
       "norm_label": "parseintornull()",
       "id": "utils_apihelpers_parseintornull"
     },
@@ -3338,7 +3338,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L26",
-      "community": 2,
+      "community": 3,
       "norm_label": "parsefloatornull()",
       "id": "utils_apihelpers_parsefloatornull"
     },
@@ -3347,7 +3347,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L35",
-      "community": 2,
+      "community": 3,
       "norm_label": "apierror",
       "id": "utils_apihelpers_apierror"
     },
@@ -3356,7 +3356,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L36",
-      "community": 2,
+      "community": 3,
       "norm_label": ".constructor()",
       "id": "utils_apihelpers_apierror_constructor"
     },
@@ -3365,7 +3365,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L46",
-      "community": 2,
+      "community": 3,
       "norm_label": "parseapierrordetail()",
       "id": "utils_apihelpers_parseapierrordetail"
     },
@@ -3374,7 +3374,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L77",
-      "community": 2,
+      "community": 3,
       "norm_label": "postapi()",
       "id": "utils_apihelpers_postapi"
     },
@@ -3383,7 +3383,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 3,
       "norm_label": "uirefresh.ts",
       "id": "frontend_web_static_js_dashboard_shared_utils_uirefresh_ts"
     },
@@ -3392,7 +3392,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L14",
-      "community": 2,
+      "community": 3,
       "norm_label": "logger",
       "id": "utils_uirefresh_logger"
     },
@@ -3401,7 +3401,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L32",
-      "community": 2,
+      "community": 3,
       "norm_label": "refreshconfig",
       "id": "utils_uirefresh_refreshconfig"
     },
@@ -3410,7 +3410,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L47",
-      "community": 2,
+      "community": 3,
       "norm_label": "refreshuiaftersave()",
       "id": "utils_uirefresh_refreshuiaftersave"
     },
@@ -3419,7 +3419,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L108",
-      "community": 2,
+      "community": 3,
       "norm_label": "refreshuiafterfactsave()",
       "id": "utils_uirefresh_refreshuiafterfactsave"
     },
@@ -3428,7 +3428,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L119",
-      "community": 2,
+      "community": 3,
       "norm_label": "refreshuiafterplansave()",
       "id": "utils_uirefresh_refreshuiafterplansave"
     },
@@ -3509,7 +3509,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L1",
-      "community": 11,
+      "community": 12,
       "norm_label": "dashboard.d.ts",
       "id": "frontend_web_static_js_dashboard_types_dashboard_d_ts"
     },
@@ -3518,7 +3518,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L15",
-      "community": 17,
+      "community": 18,
       "norm_label": "category",
       "id": "types_dashboard_d_category"
     },
@@ -3527,7 +3527,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L26",
-      "community": 11,
+      "community": 12,
       "norm_label": "article",
       "id": "types_dashboard_d_article"
     },
@@ -3536,7 +3536,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L34",
-      "community": 11,
+      "community": 12,
       "norm_label": "financialcenter",
       "id": "types_dashboard_d_financialcenter"
     },
@@ -3545,7 +3545,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L40",
-      "community": 18,
+      "community": 20,
       "norm_label": "costcenter",
       "id": "types_dashboard_d_costcenter"
     },
@@ -3554,7 +3554,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L50",
-      "community": 11,
+      "community": 12,
       "norm_label": "cacheentry",
       "id": "types_dashboard_d_cacheentry"
     },
@@ -3563,7 +3563,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L56",
-      "community": 9,
+      "community": 10,
       "norm_label": "dropdowncache",
       "id": "types_dashboard_d_dropdowncache"
     },
@@ -3572,7 +3572,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L66",
-      "community": 11,
+      "community": 12,
       "norm_label": "pendingrecordentity",
       "id": "types_dashboard_d_pendingrecordentity"
     },
@@ -3581,7 +3581,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L67",
-      "community": 11,
+      "community": 12,
       "norm_label": "pendingrecordstatus",
       "id": "types_dashboard_d_pendingrecordstatus"
     },
@@ -3599,7 +3599,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L69",
-      "community": 11,
+      "community": 12,
       "norm_label": "facttype",
       "id": "types_dashboard_d_facttype"
     },
@@ -3608,7 +3608,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L71",
-      "community": 11,
+      "community": 12,
       "norm_label": "pendingrecorddata",
       "id": "types_dashboard_d_pendingrecorddata"
     },
@@ -3635,7 +3635,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L126",
-      "community": 10,
+      "community": 12,
       "norm_label": "unsynceditemsresult",
       "id": "types_dashboard_d_unsynceditemsresult"
     },
@@ -3644,7 +3644,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L136",
-      "community": 9,
+      "community": 10,
       "norm_label": "editrecordtype",
       "id": "types_dashboard_d_editrecordtype"
     },
@@ -3653,7 +3653,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L138",
-      "community": 11,
+      "community": 12,
       "norm_label": "editfactdata",
       "id": "types_dashboard_d_editfactdata"
     },
@@ -3662,7 +3662,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L149",
-      "community": 11,
+      "community": 12,
       "norm_label": "editplandata",
       "id": "types_dashboard_d_editplandata"
     },
@@ -3671,7 +3671,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L164",
-      "community": 11,
+      "community": 12,
       "norm_label": "transactionformdata",
       "id": "types_dashboard_d_transactionformdata"
     },
@@ -3680,7 +3680,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L178",
-      "community": 17,
+      "community": 18,
       "norm_label": "planformdata",
       "id": "types_dashboard_d_planformdata"
     },
@@ -3689,7 +3689,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L193",
-      "community": 11,
+      "community": 12,
       "norm_label": "transferformdata",
       "id": "types_dashboard_d_transferformdata"
     },
@@ -3698,7 +3698,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L214",
-      "community": 16,
+      "community": 17,
       "norm_label": "frequencytype",
       "id": "types_dashboard_d_frequencytype"
     },
@@ -3707,7 +3707,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L215",
-      "community": 16,
+      "community": 17,
       "norm_label": "durationtype",
       "id": "types_dashboard_d_durationtype"
     },
@@ -3716,7 +3716,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L216",
-      "community": 8,
+      "community": 9,
       "norm_label": "planmode",
       "id": "types_dashboard_d_planmode"
     },
@@ -3725,7 +3725,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L218",
-      "community": 16,
+      "community": 17,
       "norm_label": "recurringsettings",
       "id": "types_dashboard_d_recurringsettings"
     },
@@ -3734,7 +3734,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L229",
-      "community": 17,
+      "community": 18,
       "norm_label": "planhintsdata",
       "id": "types_dashboard_d_planhintsdata"
     },
@@ -3743,7 +3743,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L235",
-      "community": 20,
+      "community": 19,
       "norm_label": "facthintsdata",
       "id": "types_dashboard_d_facthintsdata"
     },
@@ -3761,7 +3761,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/analytics.d.ts",
       "source_location": "L1",
-      "community": 23,
+      "community": 24,
       "norm_label": "analytics.d.ts",
       "id": "frontend_web_static_js_dashboard_types_analytics_d_ts"
     },
@@ -3770,7 +3770,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/analytics.d.ts",
       "source_location": "L6",
-      "community": 23,
+      "community": 24,
       "norm_label": "quickstats",
       "id": "types_analytics_d_quickstats"
     },
@@ -3779,7 +3779,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/analytics.d.ts",
       "source_location": "L33",
-      "community": 23,
+      "community": 24,
       "norm_label": "accountbalance",
       "id": "types_analytics_d_accountbalance"
     },
@@ -3788,7 +3788,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/analytics.d.ts",
       "source_location": "L44",
-      "community": 23,
+      "community": 24,
       "norm_label": "recentfact",
       "id": "types_analytics_d_recentfact"
     },
@@ -3797,7 +3797,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L1",
-      "community": 10,
+      "community": 11,
       "norm_label": "globals.d.ts",
       "id": "frontend_web_static_js_dashboard_types_globals_d_ts"
     },
@@ -3806,7 +3806,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L24",
-      "community": 10,
+      "community": 11,
       "norm_label": "categorytreeselectoptions",
       "id": "types_globals_d_categorytreeselectoptions"
     },
@@ -3815,7 +3815,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L32",
-      "community": 9,
+      "community": 10,
       "norm_label": "categorytreeselectinstance",
       "id": "types_globals_d_categorytreeselectinstance"
     },
@@ -3824,7 +3824,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L48",
-      "community": 10,
+      "community": 11,
       "norm_label": "calendarwidgetoptions",
       "id": "types_globals_d_calendarwidgetoptions"
     },
@@ -3833,7 +3833,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L56",
-      "community": 9,
+      "community": 10,
       "norm_label": "calendarwidgetinstance",
       "id": "types_globals_d_calendarwidgetinstance"
     },
@@ -3842,7 +3842,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L66",
-      "community": 10,
+      "community": 11,
       "norm_label": "offlinemanagerdb",
       "id": "types_globals_d_offlinemanagerdb"
     },
@@ -3851,7 +3851,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L76",
-      "community": 10,
+      "community": 11,
       "norm_label": "networkdetector",
       "id": "types_globals_d_networkdetector"
     },
@@ -3860,7 +3860,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L80",
-      "community": 10,
+      "community": 11,
       "norm_label": "offlinemanager",
       "id": "types_globals_d_offlinemanager"
     },
@@ -3869,7 +3869,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L99",
-      "community": 10,
+      "community": 11,
       "norm_label": "budgetwsclient",
       "id": "types_globals_d_budgetwsclient"
     },
@@ -3878,7 +3878,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L109",
-      "community": 10,
+      "community": 11,
       "norm_label": "dateformatterstatic",
       "id": "types_globals_d_dateformatterstatic"
     },
@@ -3887,7 +3887,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L116",
-      "community": 10,
+      "community": 11,
       "norm_label": "remindersstatic",
       "id": "types_globals_d_remindersstatic"
     },
@@ -3896,7 +3896,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L123",
-      "community": 10,
+      "community": 11,
       "norm_label": "budgetsharednamespace",
       "id": "types_globals_d_budgetsharednamespace"
     },
@@ -3905,7 +3905,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L134",
-      "community": 10,
+      "community": 11,
       "norm_label": "incrementalupdates",
       "id": "types_globals_d_incrementalupdates"
     },
@@ -3914,7 +3914,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L149",
-      "community": 10,
+      "community": 11,
       "norm_label": "workerwrapperoptions",
       "id": "types_globals_d_workerwrapperoptions"
     },
@@ -3932,7 +3932,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L159",
-      "community": 10,
+      "community": 11,
       "norm_label": "workerwrapperconstructor",
       "id": "types_globals_d_workerwrapperconstructor"
     },
@@ -3941,7 +3941,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L167",
-      "community": 10,
+      "community": 11,
       "norm_label": "htmxajaxoptions",
       "id": "types_globals_d_htmxajaxoptions"
     },
@@ -3950,7 +3950,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L172",
-      "community": 10,
+      "community": 11,
       "norm_label": "htmx",
       "id": "types_globals_d_htmx"
     },
@@ -3959,7 +3959,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L324",
-      "community": 10,
+      "community": 11,
       "norm_label": "dashboardexports",
       "id": "types_globals_d_dashboardexports"
     },
@@ -3968,7 +3968,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 24,
+      "community": 25,
       "norm_label": "basemodel",
       "id": "basemodel"
     },
@@ -3977,7 +3977,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 25,
+      "community": 26,
       "norm_label": "sqlmodel",
       "id": "sqlmodel"
     },
@@ -3986,7 +3986,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 26,
+      "community": 27,
       "norm_label": "basehttpmiddleware",
       "id": "basehttpmiddleware"
     },
@@ -3995,7 +3995,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 27,
+      "community": 28,
       "norm_label": "exception",
       "id": "exception"
     },
@@ -4004,7 +4004,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 28,
+      "community": 29,
       "norm_label": "response",
       "id": "response"
     },
@@ -4013,7 +4013,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 29,
+      "community": 30,
       "norm_label": "basesettings",
       "id": "basesettings"
     },
@@ -4022,7 +4022,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 30,
+      "community": 31,
       "norm_label": "str",
       "id": "str"
     },
@@ -4031,7 +4031,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 31,
+      "community": 32,
       "norm_label": "enum",
       "id": "enum"
     },
@@ -4051,7 +4051,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "dexie rollback documentation",
       "id": "dexie_rollback_doc"
     },
@@ -4072,7 +4072,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "ci/cd setup documentation",
       "id": "ci_cd_setup_doc"
     },
@@ -4095,7 +4095,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "security advisories documentation",
       "id": "security_advisories_doc"
     },
@@ -4118,7 +4118,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "backup operations documentation",
       "id": "backup_operations_doc"
     },
@@ -4139,7 +4139,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "testing phases summary documentation",
       "id": "testing_phases_doc"
     },
@@ -4164,7 +4164,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "redis alternatives comparison documentation",
       "id": "redis_alternatives_doc"
     },
@@ -4185,7 +4185,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "disaster recovery documentation",
       "id": "disaster_recovery_doc"
     },
@@ -4208,7 +4208,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "ci/cd build and deploy documentation",
       "id": "ci_cd_build_deploy_doc"
     },
@@ -4229,7 +4229,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "deployment troubleshooting documentation",
       "id": "deployment_troubleshooting_doc"
     },
@@ -4251,7 +4251,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "ci/cd optimization documentation",
       "id": "ci_cd_optimization_doc"
     },
@@ -4272,7 +4272,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "browser testing workarounds documentation",
       "id": "browser_testing_workarounds_doc"
     },
@@ -4294,7 +4294,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "versioning documentation",
       "id": "versioning_doc"
     },
@@ -4316,7 +4316,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "installation resilience documentation",
       "id": "installation_resilience_doc"
     },
@@ -4337,7 +4337,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "cache busting documentation",
       "id": "cache_busting_doc"
     },
@@ -4358,7 +4358,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "caching strategy documentation",
       "id": "caching_strategy_doc"
     },
@@ -4382,7 +4382,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "retry pattern documentation",
       "id": "retry_pattern_doc"
     },
@@ -4404,7 +4404,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "logging best practices documentation",
       "id": "logging_best_practices_doc"
     },
@@ -4430,7 +4430,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "web frontend index documentation",
       "id": "web_index_doc"
     },
@@ -4452,7 +4452,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "web workers documentation",
       "id": "web_workers_doc"
     },
@@ -4476,7 +4476,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "css documentation",
       "id": "css_doc"
     },
@@ -4501,7 +4501,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "js modules documentation",
       "id": "js_modules_doc"
     },
@@ -4529,7 +4529,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "jinja2 templates documentation",
       "id": "templates_doc"
     },
@@ -4551,7 +4551,7 @@
         "version_file": "IMAGE_VERSIONS.json"
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "registry-first ci/cd architecture",
       "id": "registry_first_architecture"
     },
@@ -4568,7 +4568,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "exponential backoff pattern",
       "id": "exponential_backoff_concept"
     },
@@ -4583,7 +4583,7 @@
         "gdpr_retention": "30 days"
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "pii protection in logging",
       "id": "pii_protection_concept"
     },
@@ -4599,7 +4599,7 @@
         "timing": "after minification"
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "cache busting via placeholder",
       "id": "cache_busting_concept"
     },
@@ -4622,7 +4622,7 @@
         }
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "multi-layer caching strategy",
       "id": "multi_layer_caching_concept"
     },
@@ -4637,7 +4637,7 @@
         "code_changes_required": 0
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "dragonfly as redis alternative",
       "id": "dragonfly_redis_alternative"
     },
@@ -4652,7 +4652,7 @@
         "best_rto": "1-2min (PostgreSQL container)"
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "disaster recovery scenarios",
       "id": "disaster_recovery_scenarios"
     },
@@ -4671,7 +4671,7 @@
         }
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "playwright viewport control workaround",
       "id": "playwright_viewport_workaround"
     },
@@ -4690,7 +4690,7 @@
         "format": "semver X.Y.Z"
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "version file as single source of truth",
       "id": "version_file_single_source"
     },
@@ -4710,7 +4710,7 @@
         "deduplication": "content_hash in syncWorker"
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "web workers in frontend",
       "id": "web_workers_concept"
     },
@@ -4728,7 +4728,7 @@
         "pwa": true
       },
       "file_type": "concept",
-      "community": 5,
+      "community": 6,
       "norm_label": "htmx + jinja2 frontend stack",
       "id": "htmx_jinja2_frontend"
     },
@@ -4737,7 +4737,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L1",
-      "community": 6,
+      "community": 7,
       "norm_label": "recenttransactions.ts",
       "id": "recenttransactions_ts"
     },
@@ -4746,7 +4746,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/index.ts",
       "source_location": "L1",
-      "community": 6,
+      "community": 7,
       "norm_label": "index.ts",
       "id": "index_ts"
     },
@@ -4755,7 +4755,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L1",
-      "community": 6,
+      "community": 7,
       "norm_label": "offlinedashboard.ts",
       "id": "features_offlinedashboard_ts"
     },
@@ -4764,7 +4764,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L18",
-      "community": 6,
+      "community": 7,
       "norm_label": "recenttransaction",
       "id": "features_offlinedashboard_recenttransaction"
     },
@@ -4773,7 +4773,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L67",
-      "community": 6,
+      "community": 7,
       "norm_label": "formatmoneymobile()",
       "id": "features_offlinedashboard_formatmoneymobile"
     },
@@ -4782,7 +4782,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L75",
-      "community": 6,
+      "community": 7,
       "norm_label": "formatmoneydesktop()",
       "id": "features_offlinedashboard_formatmoneydesktop"
     },
@@ -4791,7 +4791,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L81",
-      "community": 6,
+      "community": 7,
       "norm_label": "getbalancecolor()",
       "id": "features_offlinedashboard_getbalancecolor"
     },
@@ -4800,7 +4800,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L87",
-      "community": 6,
+      "community": 7,
       "norm_label": "getpctcolor()",
       "id": "features_offlinedashboard_getpctcolor"
     },
@@ -4809,7 +4809,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L93",
-      "community": 6,
+      "community": 7,
       "norm_label": "moneyspan()",
       "id": "features_offlinedashboard_moneyspan"
     },
@@ -4818,7 +4818,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L97",
-      "community": 6,
+      "community": 7,
       "norm_label": "buildquickstatshtml()",
       "id": "features_offlinedashboard_buildquickstatshtml"
     },
@@ -4827,7 +4827,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L122",
-      "community": 6,
+      "community": 7,
       "norm_label": "buildaccountbalanceshtml()",
       "id": "features_offlinedashboard_buildaccountbalanceshtml"
     },
@@ -4836,7 +4836,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L144",
-      "community": 6,
+      "community": 7,
       "norm_label": "isofflinemode()",
       "id": "features_offlinedashboard_isofflinemode"
     },
@@ -4845,7 +4845,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L148",
-      "community": 6,
+      "community": 7,
       "norm_label": "offlinedashboardcoordinator",
       "id": "features_offlinedashboard_offlinedashboardcoordinator"
     },
@@ -4854,7 +4854,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L152",
-      "community": 6,
+      "community": 7,
       "norm_label": ".init()",
       "id": "features_offlinedashboard_offlinedashboardcoordinator_init"
     },
@@ -4863,7 +4863,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L171",
-      "community": 6,
+      "community": 7,
       "norm_label": ".onhtmxbeforerequest()",
       "id": "features_offlinedashboard_offlinedashboardcoordinator_onhtmxbeforerequest"
     },
@@ -4872,7 +4872,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L181",
-      "community": 6,
+      "community": 7,
       "norm_label": ".onofflinestatuschange()",
       "id": "features_offlinedashboard_offlinedashboardcoordinator_onofflinestatuschange"
     },
@@ -4881,7 +4881,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L189",
-      "community": 6,
+      "community": 7,
       "norm_label": ".renderall()",
       "id": "features_offlinedashboard_offlinedashboardcoordinator_renderall"
     },
@@ -4890,7 +4890,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L212",
-      "community": 6,
+      "community": 7,
       "norm_label": ".rendersection()",
       "id": "features_offlinedashboard_offlinedashboardcoordinator_rendersection"
     },
@@ -4899,7 +4899,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L226",
-      "community": 6,
+      "community": 7,
       "norm_label": ".renderquickstats()",
       "id": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats"
     },
@@ -4908,7 +4908,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L232",
-      "community": 6,
+      "community": 7,
       "norm_label": ".renderaccountbalances()",
       "id": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances"
     },
@@ -4917,7 +4917,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L238",
-      "community": 6,
+      "community": 7,
       "norm_label": ".renderrecentfacts()",
       "id": "features_offlinedashboard_offlinedashboardcoordinator_renderrecentfacts"
     },
@@ -4926,7 +4926,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L261",
-      "community": 6,
+      "community": 7,
       "norm_label": ".clearall()",
       "id": "features_offlinedashboard_offlinedashboardcoordinator_clearall"
     },
@@ -4935,7 +4935,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L277",
-      "community": 6,
+      "community": 7,
       "norm_label": ".showunavailable()",
       "id": "features_offlinedashboard_offlinedashboardcoordinator_showunavailable"
     },
@@ -4944,7 +4944,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L285",
-      "community": 6,
+      "community": 7,
       "norm_label": "offlinedashboard",
       "id": "features_offlinedashboard_offlinedashboard"
     },
@@ -4953,7 +4953,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L1",
-      "community": 7,
+      "community": 8,
       "norm_label": "factsmanager.ts",
       "id": "features_factsmanager_ts"
     },
@@ -4962,7 +4962,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L61",
-      "community": 7,
+      "community": 8,
       "norm_label": ".getdexie()",
       "id": "features_factsmanager_dashboardfactsmanager_getdexie"
     },
@@ -4971,7 +4971,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L67",
-      "community": 7,
+      "community": 8,
       "norm_label": ".fetchrecentfactsfromdexie()",
       "id": "features_factsmanager_dashboardfactsmanager_fetchrecentfactsfromdexie"
     },
@@ -4980,7 +4980,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L92",
-      "community": 7,
+      "community": 8,
       "norm_label": ".fetchquickstatsfromdexie()",
       "id": "features_factsmanager_dashboardfactsmanager_fetchquickstatsfromdexie"
     },
@@ -4989,7 +4989,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L141",
-      "community": 7,
+      "community": 8,
       "norm_label": ".fetchaccountbalancesfromdexie()",
       "id": "features_factsmanager_dashboardfactsmanager_fetchaccountbalancesfromdexie"
     },
@@ -4998,7 +4998,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L199",
-      "community": 7,
+      "community": 8,
       "norm_label": ".mapfacttorecentfact()",
       "id": "features_factsmanager_dashboardfactsmanager_mapfacttorecentfact"
     },
@@ -5011,9 +5011,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_template",
-      "community": 13,
-      "norm_label": "fact_transaction_tab.html"
+      "community": 14,
+      "norm_label": "fact_transaction_tab.html",
+      "id": "fact_transaction_tab_template"
     },
     {
       "label": "fact_date input field",
@@ -5024,9 +5024,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_fact_date_field",
-      "community": 13,
-      "norm_label": "fact_date input field"
+      "community": 14,
+      "norm_label": "fact_date input field",
+      "id": "fact_transaction_tab_fact_date_field"
     },
     {
       "label": "setFactDate() window function",
@@ -5037,9 +5037,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_set_fact_date_fn",
-      "community": 13,
-      "norm_label": "setfactdate() window function"
+      "community": 14,
+      "norm_label": "setfactdate() window function",
+      "id": "fact_transaction_tab_set_fact_date_fn"
     },
     {
       "label": "financial_center_id select (\u0421\u0447\u0435\u0442)",
@@ -5050,9 +5050,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_financial_center_id_field",
-      "community": 13,
-      "norm_label": "financial_center_id select (\u0441\u0447\u0435\u0442)"
+      "community": 14,
+      "norm_label": "financial_center_id select (\u0441\u0447\u0435\u0442)",
+      "id": "fact_transaction_tab_financial_center_id_field"
     },
     {
       "label": "record_type radio (expense/income)",
@@ -5063,9 +5063,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_record_type_field",
-      "community": 13,
-      "norm_label": "record_type radio (expense/income)"
+      "community": 14,
+      "norm_label": "record_type radio (expense/income)",
+      "id": "fact_transaction_tab_record_type_field"
     },
     {
       "label": "fact_type hidden input (synced with record_type)",
@@ -5076,9 +5076,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_fact_type_hidden",
-      "community": 13,
-      "norm_label": "fact_type hidden input (synced with record_type)"
+      "community": 14,
+      "norm_label": "fact_type hidden input (synced with record_type)",
+      "id": "fact_transaction_tab_fact_type_hidden"
     },
     {
       "label": "article_id select (\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f, filtered by financial_center_id)",
@@ -5089,9 +5089,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_article_id_field",
-      "community": 13,
-      "norm_label": "article_id select (\u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f, filtered by financial_center_id)"
+      "community": 14,
+      "norm_label": "article_id select (\u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f, filtered by financial_center_id)",
+      "id": "fact_transaction_tab_article_id_field"
     },
     {
       "label": "cost_center_id select (\u041c\u0435\u0441\u0442\u043e \u0437\u0430\u0442\u0440\u0430\u0442)",
@@ -5102,9 +5102,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_cost_center_id_field",
-      "community": 13,
-      "norm_label": "cost_center_id select (\u043c\u0435\u0441\u0442\u043e \u0437\u0430\u0442\u0440\u0430\u0442)"
+      "community": 14,
+      "norm_label": "cost_center_id select (\u043c\u0435\u0441\u0442\u043e \u0437\u0430\u0442\u0440\u0430\u0442)",
+      "id": "fact_transaction_tab_cost_center_id_field"
     },
     {
       "label": "fact-hints-container (\u041f\u043b\u0430\u043d/\u0424\u0430\u043a\u0442 \u0437\u0430 \u043c\u0435\u0441\u044f\u0446)",
@@ -5115,9 +5115,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_fact_hints_container",
-      "community": 13,
-      "norm_label": "fact-hints-container (\u043f\u043b\u0430\u043d/\u0444\u0430\u043a\u0442 \u0437\u0430 \u043c\u0435\u0441\u044f\u0446)"
+      "community": 14,
+      "norm_label": "fact-hints-container (\u043f\u043b\u0430\u043d/\u0444\u0430\u043a\u0442 \u0437\u0430 \u043c\u0435\u0441\u044f\u0446)",
+      "id": "fact_transaction_tab_fact_hints_container"
     },
     {
       "label": "hint-period-plan button",
@@ -5128,9 +5128,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_hint_period_plan",
-      "community": 13,
-      "norm_label": "hint-period-plan button"
+      "community": 14,
+      "norm_label": "hint-period-plan button",
+      "id": "fact_transaction_tab_hint_period_plan"
     },
     {
       "label": "hint-period-fact button",
@@ -5141,9 +5141,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_hint_period_fact",
-      "community": 13,
-      "norm_label": "hint-period-fact button"
+      "community": 14,
+      "norm_label": "hint-period-fact button",
+      "id": "fact_transaction_tab_hint_period_fact"
     },
     {
       "label": "amount input (\u0421\u0443\u043c\u043c\u0430)",
@@ -5154,9 +5154,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_amount_field",
-      "community": 13,
-      "norm_label": "amount input (\u0441\u0443\u043c\u043c\u0430)"
+      "community": 14,
+      "norm_label": "amount input (\u0441\u0443\u043c\u043c\u0430)",
+      "id": "fact_transaction_tab_amount_field"
     },
     {
       "label": "description textarea (\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435/\u041a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439)",
@@ -5167,9 +5167,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_description_field",
-      "community": 13,
-      "norm_label": "description textarea (\u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435/\u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0438)"
+      "community": 14,
+      "norm_label": "description textarea (\u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435/\u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0438)",
+      "id": "fact_transaction_tab_description_field"
     },
     {
       "label": "categoryWidget.ts (syncFactTypeHidden)",
@@ -5180,9 +5180,9 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "category_widget_ts",
-      "community": 13,
-      "norm_label": "categorywidget.ts (syncfacttypehidden)"
+      "community": 14,
+      "norm_label": "categorywidget.ts (syncfacttypehidden)",
+      "id": "category_widget_ts"
     },
     {
       "label": "fact_type is kept in sync with record_type via syncFactTypeHidden() in categoryWidget.ts to support form submission with the correct transaction type",
@@ -5193,9 +5193,486 @@
       "captured_at": null,
       "author": null,
       "contributor": null,
-      "id": "fact_transaction_tab_sync_fact_type_rationale",
-      "community": 13,
-      "norm_label": "fact_type is kept in sync with record_type via syncfacttypehidden() in categorywidget.ts to support form submission with the correct transaction type"
+      "community": 14,
+      "norm_label": "fact_type is kept in sync with record_type via syncfacttypehidden() in categorywidget.ts to support form submission with the correct transaction type",
+      "id": "fact_transaction_tab_sync_fact_type_rationale"
+    },
+    {
+      "label": "wsEventHandlers.ts",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L1",
+      "id": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "community": 2,
+      "norm_label": "wseventhandlers.ts"
+    },
+    {
+      "label": "debouncedReloadFacts()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L29",
+      "id": "integration_wseventhandlers_debouncedreloadfacts",
+      "community": 2,
+      "norm_label": "debouncedreloadfacts()"
+    },
+    {
+      "label": "matchesCurrentFilters()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L50",
+      "id": "integration_wseventhandlers_matchescurrentfilters",
+      "community": 2,
+      "norm_label": "matchescurrentfilters()"
+    },
+    {
+      "label": "fetchRowHtml()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L117",
+      "id": "integration_wseventhandlers_fetchrowhtml",
+      "community": 2,
+      "norm_label": "fetchrowhtml()"
+    },
+    {
+      "label": "parseRowHtml()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L130",
+      "id": "integration_wseventhandlers_parserowhtml",
+      "community": 2,
+      "norm_label": "parserowhtml()"
+    },
+    {
+      "label": "prependRowToTable()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L166",
+      "id": "integration_wseventhandlers_prependrowtotable",
+      "community": 2,
+      "norm_label": "prependrowtotable()"
+    },
+    {
+      "label": "replaceRowInTable()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L195",
+      "id": "integration_wseventhandlers_replacerowintable",
+      "community": 2,
+      "norm_label": "replacerowintable()"
+    },
+    {
+      "label": "animateAndRemoveRow()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L227",
+      "id": "integration_wseventhandlers_animateandremoverow",
+      "community": 2,
+      "norm_label": "animateandremoverow()"
+    },
+    {
+      "label": "adjustStatTotal()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L249",
+      "id": "integration_wseventhandlers_adjuststattotal",
+      "community": 2,
+      "norm_label": "adjuststattotal()"
+    },
+    {
+      "label": "handleFactCreated()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L265",
+      "id": "integration_wseventhandlers_handlefactcreated",
+      "community": 2,
+      "norm_label": "handlefactcreated()"
+    },
+    {
+      "label": "handleFactUpdated()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L310",
+      "id": "integration_wseventhandlers_handlefactupdated",
+      "community": 2,
+      "norm_label": "handlefactupdated()"
+    },
+    {
+      "label": "handleFactDeleted()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L344",
+      "id": "integration_wseventhandlers_handlefactdeleted",
+      "community": 2,
+      "norm_label": "handlefactdeleted()"
+    },
+    {
+      "label": "handleBatchDeleteCompleted()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L360",
+      "id": "integration_wseventhandlers_handlebatchdeletecompleted",
+      "community": 2,
+      "norm_label": "handlebatchdeletecompleted()"
+    },
+    {
+      "label": "handleTransferCreated()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L369",
+      "id": "integration_wseventhandlers_handletransfercreated",
+      "community": 2,
+      "norm_label": "handletransfercreated()"
+    },
+    {
+      "label": "handleArticleUpdated()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L388",
+      "id": "integration_wseventhandlers_handlearticleupdated",
+      "community": 2,
+      "norm_label": "handlearticleupdated()"
+    },
+    {
+      "label": "handleFinancialCenterUpdated()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L396",
+      "id": "integration_wseventhandlers_handlefinancialcenterupdated",
+      "community": 2,
+      "norm_label": "handlefinancialcenterupdated()"
+    },
+    {
+      "label": "registerWSHandlers()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L409",
+      "id": "integration_wseventhandlers_registerwshandlers",
+      "community": 2,
+      "norm_label": "registerwshandlers()"
+    },
+    {
+      "label": "unregisterWSHandlers()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L435",
+      "id": "integration_wseventhandlers_unregisterwshandlers",
+      "community": 2,
+      "norm_label": "unregisterwshandlers()"
+    },
+    {
+      "label": "factsController.ts",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L1",
+      "id": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "community": 2,
+      "norm_label": "factscontroller.ts"
+    },
+    {
+      "label": "loadFacts()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L28",
+      "id": "operations_factscontroller_loadfacts",
+      "community": 2,
+      "norm_label": "loadfacts()"
+    },
+    {
+      "label": "reloadFacts()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L78",
+      "id": "operations_factscontroller_reloadfacts",
+      "community": 2,
+      "norm_label": "reloadfacts()"
+    },
+    {
+      "label": "applyFiltersAndReload()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L89",
+      "id": "operations_factscontroller_applyfiltersandreload",
+      "community": 2,
+      "norm_label": "applyfiltersandreload()"
+    },
+    {
+      "label": "resetFiltersAndReload()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L100",
+      "id": "operations_factscontroller_resetfiltersandreload",
+      "community": 2,
+      "norm_label": "resetfiltersandreload()"
+    },
+    {
+      "label": "goToPreviousPage()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L115",
+      "id": "operations_factscontroller_gotopreviouspage",
+      "community": 2,
+      "norm_label": "gotopreviouspage()"
+    },
+    {
+      "label": "goToNextPage()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L122",
+      "id": "operations_factscontroller_gotonextpage",
+      "community": 2,
+      "norm_label": "gotonextpage()"
+    },
+    {
+      "label": "canInjectRow()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L134",
+      "id": "operations_factscontroller_caninjectrow",
+      "community": 2,
+      "norm_label": "caninjectrow()"
+    },
+    {
+      "label": "rowHtmlCache",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L156",
+      "id": "operations_factscontroller_rowhtmlcache",
+      "community": 2,
+      "norm_label": "rowhtmlcache"
+    },
+    {
+      "label": "rowHtmlInFlight",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L157",
+      "id": "operations_factscontroller_rowhtmlinflight",
+      "community": 2,
+      "norm_label": "rowhtmlinflight"
+    },
+    {
+      "label": "fetchRowHtmlDeduped()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L159",
+      "id": "operations_factscontroller_fetchrowhtmldeduped",
+      "community": 2,
+      "norm_label": "fetchrowhtmldeduped()"
+    },
+    {
+      "label": "fetchAndInjectRow()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L197",
+      "id": "operations_factscontroller_fetchandinjectrow",
+      "community": 2,
+      "norm_label": "fetchandinjectrow()"
+    },
+    {
+      "label": "removeRowFromTable()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L257",
+      "id": "operations_factscontroller_removerowfromtable",
+      "community": 2,
+      "norm_label": "removerowfromtable()"
+    },
+    {
+      "label": "deletingFactIds",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L287",
+      "id": "operations_factscontroller_deletingfactids",
+      "community": 2,
+      "norm_label": "deletingfactids"
+    },
+    {
+      "label": "statDecrementedIds",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L291",
+      "id": "operations_factscontroller_statdecrementedids",
+      "community": 2,
+      "norm_label": "statdecrementedids"
+    },
+    {
+      "label": "consumeStatDecrement()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L293",
+      "id": "operations_factscontroller_consumestatdecrement",
+      "community": 2,
+      "norm_label": "consumestatdecrement()"
+    },
+    {
+      "label": "deleteFact()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L304",
+      "id": "operations_factscontroller_deletefact",
+      "community": 2,
+      "norm_label": "deletefact()"
+    },
+    {
+      "label": "validateAndBuildUpdateData()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L346",
+      "id": "operations_factscontroller_validateandbuildupdatedata",
+      "community": 2,
+      "norm_label": "validateandbuildupdatedata()"
+    },
+    {
+      "label": "updateFact()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L378",
+      "id": "operations_factscontroller_updatefact",
+      "community": 2,
+      "norm_label": "updatefact()"
+    },
+    {
+      "label": "createFact()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L427",
+      "id": "operations_factscontroller_createfact",
+      "community": 2,
+      "norm_label": "createfact()"
+    },
+    {
+      "label": "showEditModal()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L506",
+      "id": "operations_factscontroller_showeditmodal",
+      "community": 2,
+      "norm_label": "showeditmodal()"
+    },
+    {
+      "label": "populateEditModal()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L556",
+      "id": "operations_factscontroller_populateeditmodal",
+      "community": 2,
+      "norm_label": "populateeditmodal()"
+    },
+    {
+      "label": "closeEditModal()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L617",
+      "id": "operations_factscontroller_closeeditmodal",
+      "community": 2,
+      "norm_label": "closeeditmodal()"
+    },
+    {
+      "label": "deleteFromEditModal()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L628",
+      "id": "operations_factscontroller_deletefromeditmodal",
+      "community": 2,
+      "norm_label": "deletefromeditmodal()"
+    },
+    {
+      "label": "batchDelete()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L658",
+      "id": "operations_factscontroller_batchdelete",
+      "community": 2,
+      "norm_label": "batchdelete()"
+    },
+    {
+      "label": "exportFilteredFacts()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L705",
+      "id": "operations_factscontroller_exportfilteredfacts",
+      "community": 2,
+      "norm_label": "exportfilteredfacts()"
+    },
+    {
+      "label": "showToast()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L742",
+      "id": "operations_factscontroller_showtoast",
+      "community": 2,
+      "norm_label": "showtoast()"
+    },
+    {
+      "label": "showConfirmDialog()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L752",
+      "id": "operations_factscontroller_showconfirmdialog",
+      "community": 2,
+      "norm_label": "showconfirmdialog()"
+    },
+    {
+      "label": "updateStats()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L768",
+      "id": "operations_factscontroller_updatestats",
+      "community": 2,
+      "norm_label": "updatestats()"
+    },
+    {
+      "label": "renderFactsTable()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L786",
+      "id": "operations_factscontroller_renderfactstable",
+      "community": 2,
+      "norm_label": "renderfactstable()"
+    },
+    {
+      "label": "renderFactRow()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L847",
+      "id": "operations_factscontroller_renderfactrow",
+      "community": 2,
+      "norm_label": "renderfactrow()"
+    },
+    {
+      "label": "FactRowParts",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L879",
+      "id": "operations_factscontroller_factrowparts",
+      "community": 2,
+      "norm_label": "factrowparts"
+    },
+    {
+      "label": "buildFactRowHtml()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L891",
+      "id": "operations_factscontroller_buildfactrowhtml",
+      "community": 2,
+      "norm_label": "buildfactrowhtml()"
+    },
+    {
+      "label": "renderFactMobileCard()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L923",
+      "id": "operations_factscontroller_renderfactmobilecard",
+      "community": 2,
+      "norm_label": "renderfactmobilecard()"
+    },
+    {
+      "label": "updatePagination()",
+      "file_type": "code",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L972",
+      "id": "operations_factscontroller_updatepagination",
+      "community": 2,
+      "norm_label": "updatepagination()"
     }
   ],
   "links": [
@@ -16054,8 +16531,1167 @@
       "weight": 1.0,
       "source": "fact_transaction_tab_fact_hints_container",
       "target": "fact_transaction_tab_hint_period_fact"
+    },
+    {
+      "relation": "imports_from",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "operations_factscontroller_loadfacts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "operations_factscontroller_fetchandinjectrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "operations_factscontroller_fetchrowhtmldeduped",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L11",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "operations_factscontroller_consumestatdecrement",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L29",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_debouncedreloadfacts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L50",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_matchescurrentfilters",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L117",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_fetchrowhtml",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L130",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_parserowhtml",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L166",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_prependrowtotable",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L195",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_replacerowintable",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L227",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_animateandremoverow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L249",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_adjuststattotal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L265",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_handlefactcreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L310",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_handlefactupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L344",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_handlefactdeleted",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L360",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_handlebatchdeletecompleted",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L369",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_handletransfercreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L388",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_handlearticleupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L396",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_handlefinancialcenterupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L409",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_registerwshandlers",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L435",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_integration_wseventhandlers_ts",
+      "target": "integration_wseventhandlers_unregisterwshandlers",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L271",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_debouncedreloadfacts",
+      "target": "integration_wseventhandlers_handlefactcreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L361",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_debouncedreloadfacts",
+      "target": "integration_wseventhandlers_handlebatchdeletecompleted",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L371",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_debouncedreloadfacts",
+      "target": "integration_wseventhandlers_handletransfercreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L389",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_debouncedreloadfacts",
+      "target": "integration_wseventhandlers_handlearticleupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L398",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_debouncedreloadfacts",
+      "target": "integration_wseventhandlers_handlefinancialcenterupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L266",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_matchescurrentfilters",
+      "target": "integration_wseventhandlers_handlefactcreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L284",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_fetchrowhtml",
+      "target": "integration_wseventhandlers_handlefactcreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L326",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_fetchrowhtml",
+      "target": "integration_wseventhandlers_handlefactupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L118",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_fetchrowhtml",
+      "target": "operations_factscontroller_fetchrowhtmldeduped"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L290",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_parserowhtml",
+      "target": "integration_wseventhandlers_handlefactcreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L331",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_parserowhtml",
+      "target": "integration_wseventhandlers_handlefactupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L12",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_parserowhtml",
+      "target": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L208",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_parserowhtml",
+      "target": "operations_factscontroller_fetchandinjectrow"
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L300",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_prependrowtotable",
+      "target": "integration_wseventhandlers_handlefactcreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L336",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_replacerowintable",
+      "target": "integration_wseventhandlers_handlefactupdated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L348",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_animateandremoverow",
+      "target": "integration_wseventhandlers_handlefactdeleted",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L301",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_adjuststattotal",
+      "target": "integration_wseventhandlers_handlefactcreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L351",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_adjuststattotal",
+      "target": "integration_wseventhandlers_handlefactdeleted",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L380",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_adjuststattotal",
+      "target": "integration_wseventhandlers_handletransfercreated",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/static/js/facts/integration/wsEventHandlers.ts",
+      "source_location": "L350",
+      "weight": 1.0,
+      "source": "integration_wseventhandlers_handlefactdeleted",
+      "target": "operations_factscontroller_consumestatdecrement"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L28",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_loadfacts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L78",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_reloadfacts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L89",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_applyfiltersandreload",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L100",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_resetfiltersandreload",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L115",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_gotopreviouspage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L122",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_gotonextpage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L134",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_caninjectrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L156",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_rowhtmlcache",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L157",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_rowhtmlinflight",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L159",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_fetchrowhtmldeduped",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L197",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_fetchandinjectrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L257",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_removerowfromtable",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L287",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_deletingfactids",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L291",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_statdecrementedids",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L293",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_consumestatdecrement",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L304",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_deletefact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L346",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_validateandbuildupdatedata",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L378",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_updatefact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L427",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_createfact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L506",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_showeditmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L556",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_populateeditmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L617",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_closeeditmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L628",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_deletefromeditmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L658",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_batchdelete",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L705",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_exportfilteredfacts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L742",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_showtoast",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L752",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_showconfirmdialog",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L768",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_updatestats",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L786",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_renderfactstable",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L847",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_renderfactrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L879",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_factrowparts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L891",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_buildfactrowhtml",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L923",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_renderfactmobilecard",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L972",
+      "weight": 1.0,
+      "source": "frontend_web_static_js_facts_operations_factscontroller_ts",
+      "target": "operations_factscontroller_updatepagination",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L48",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_updatestats",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L49",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_renderfactstable",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L50",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_updatepagination",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L79",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_reloadfacts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L94",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_applyfiltersandreload",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L105",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_resetfiltersandreload",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L116",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_gotopreviouspage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L123",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_gotonextpage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L331",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_deletefact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L413",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_updatefact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L490",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_createfact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L690",
+      "weight": 1.0,
+      "source": "operations_factscontroller_loadfacts",
+      "target": "operations_factscontroller_batchdelete",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L198",
+      "weight": 1.0,
+      "source": "operations_factscontroller_caninjectrow",
+      "target": "operations_factscontroller_fetchandinjectrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L203",
+      "weight": 1.0,
+      "source": "operations_factscontroller_fetchrowhtmldeduped",
+      "target": "operations_factscontroller_fetchandinjectrow",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L228",
+      "weight": 1.0,
+      "source": "operations_factscontroller_fetchandinjectrow",
+      "target": "operations_factscontroller_updatestats",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L411",
+      "weight": 1.0,
+      "source": "operations_factscontroller_fetchandinjectrow",
+      "target": "operations_factscontroller_updatefact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L487",
+      "weight": 1.0,
+      "source": "operations_factscontroller_fetchandinjectrow",
+      "target": "operations_factscontroller_createfact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L329",
+      "weight": 1.0,
+      "source": "operations_factscontroller_removerowfromtable",
+      "target": "operations_factscontroller_deletefact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L312",
+      "weight": 1.0,
+      "source": "operations_factscontroller_deletefact",
+      "target": "operations_factscontroller_showconfirmdialog",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L326",
+      "weight": 1.0,
+      "source": "operations_factscontroller_deletefact",
+      "target": "operations_factscontroller_showtoast",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L648",
+      "weight": 1.0,
+      "source": "operations_factscontroller_deletefact",
+      "target": "operations_factscontroller_deletefromeditmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L352",
+      "weight": 1.0,
+      "source": "operations_factscontroller_validateandbuildupdatedata",
+      "target": "operations_factscontroller_showtoast",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L400",
+      "weight": 1.0,
+      "source": "operations_factscontroller_validateandbuildupdatedata",
+      "target": "operations_factscontroller_updatefact",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L388",
+      "weight": 1.0,
+      "source": "operations_factscontroller_updatefact",
+      "target": "operations_factscontroller_showtoast",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L406",
+      "weight": 1.0,
+      "source": "operations_factscontroller_updatefact",
+      "target": "operations_factscontroller_closeeditmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L447",
+      "weight": 1.0,
+      "source": "operations_factscontroller_createfact",
+      "target": "operations_factscontroller_showtoast",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L530",
+      "weight": 1.0,
+      "source": "operations_factscontroller_showeditmodal",
+      "target": "operations_factscontroller_showtoast",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L536",
+      "weight": 1.0,
+      "source": "operations_factscontroller_showeditmodal",
+      "target": "operations_factscontroller_populateeditmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L645",
+      "weight": 1.0,
+      "source": "operations_factscontroller_closeeditmodal",
+      "target": "operations_factscontroller_deletefromeditmodal",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L632",
+      "weight": 1.0,
+      "source": "operations_factscontroller_deletefromeditmodal",
+      "target": "operations_factscontroller_showtoast",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L665",
+      "weight": 1.0,
+      "source": "operations_factscontroller_batchdelete",
+      "target": "operations_factscontroller_showtoast",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L669",
+      "weight": 1.0,
+      "source": "operations_factscontroller_batchdelete",
+      "target": "operations_factscontroller_showconfirmdialog",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L707",
+      "weight": 1.0,
+      "source": "operations_factscontroller_exportfilteredfacts",
+      "target": "operations_factscontroller_showtoast",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "context": "call",
+      "confidence": "EXTRACTED",
+      "source_file": "frontend/web/static/js/facts/operations/factsController.ts",
+      "source_location": "L864",
+      "weight": 1.0,
+      "source": "operations_factscontroller_renderfactrow",
+      "target": "operations_factscontroller_buildfactrowhtml",
+      "confidence_score": 1.0
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "f1d286c93744a040269d71506e00c0c00a45d15b"
+  "built_at_commit": "b66edf2efd8fb2380979e45477dd08deb48d9514"
 }
