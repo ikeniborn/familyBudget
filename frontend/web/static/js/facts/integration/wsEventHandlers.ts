@@ -8,7 +8,7 @@
  * Phase 3: WebSocket Integration
  */
 
-import { loadFacts, fetchAndInjectRow, fetchRowHtmlDeduped } from '../operations/factsController';
+import { loadFacts, fetchAndInjectRow, fetchRowHtmlDeduped, consumeStatDecrement } from '../operations/factsController';
 import { buildFilterQuery } from '../operations/filterOperations';
 import { getCurrentPage, getTotalFacts, setTotalFacts } from '../core/stateManager';
 import { updatePaginationUI } from '../operations/paginationOperations';
@@ -346,7 +346,10 @@ function handleFactDeleted(data: { id: number }): void {
         return;
     }
     animateAndRemoveRow(data.id);
-    adjustStatTotal(-1);
+    // Skip decrement if already done optimistically by removeRowFromTable
+    if (!consumeStatDecrement(data.id)) {
+        adjustStatTotal(-1);
+    }
     updatePaginationUI();
 }
 

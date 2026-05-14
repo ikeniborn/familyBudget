@@ -274,6 +274,8 @@ function removeRowFromTable(factId: number): boolean {
     setTotalFacts(newTotal);
     const statEl = document.getElementById('stat-total');
     if (statEl) statEl.textContent = String(newTotal);
+    statDecrementedIds.add(factId);
+    setTimeout(() => statDecrementedIds.delete(factId), 3000);
 
     return true;
 }
@@ -283,6 +285,18 @@ function removeRowFromTable(factId: number): boolean {
 // ============================================================================
 
 const deletingFactIds = new Set<number>();
+
+// Track facts whose stat counter was already decremented optimistically.
+// wsEventHandlers.handleFactDeleted checks this to avoid double-decrement.
+const statDecrementedIds = new Set<number>();
+
+export function consumeStatDecrement(factId: number): boolean {
+    if (statDecrementedIds.has(factId)) {
+        statDecrementedIds.delete(factId);
+        return true;
+    }
+    return false;
+}
 
 /**
  * Delete single fact with confirmation
