@@ -8,7 +8,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L1",
-      "community": 5,
+      "community": 6,
       "norm_label": "recenttransactions.ts",
       "id": "frontend_web_static_js_dashboard_recenttransactions_ts"
     },
@@ -17,7 +17,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L10",
-      "community": 5,
+      "community": 6,
       "norm_label": "recenttransaction",
       "id": "dashboard_recenttransactions_recenttransaction"
     },
@@ -26,7 +26,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L27",
-      "community": 5,
+      "community": 6,
       "norm_label": "loadrecenttransactions()",
       "id": "dashboard_recenttransactions_loadrecenttransactions"
     },
@@ -35,7 +35,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L65",
-      "community": 5,
+      "community": 6,
       "norm_label": "buildrecenttransactionshtml()",
       "id": "dashboard_recenttransactions_buildrecenttransactionshtml"
     },
@@ -71,7 +71,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/adapters/windowExports.ts",
       "source_location": "L139",
-      "community": 20,
+      "community": 22,
       "norm_label": "init()",
       "id": "adapters_windowexports_init"
     },
@@ -80,7 +80,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/adapters/windowExports.ts",
       "source_location": "L193",
-      "community": 20,
+      "community": 22,
       "norm_label": "setuppendingrecordslisteners()",
       "id": "adapters_windowexports_setuppendingrecordslisteners"
     },
@@ -89,7 +89,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/adapters/windowExports.ts",
       "source_location": "L256",
-      "community": 20,
+      "community": 22,
       "norm_label": "setupforminitialization()",
       "id": "adapters_windowexports_setupforminitialization"
     },
@@ -98,7 +98,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/adapters/windowExports.ts",
       "source_location": "L272",
-      "community": 20,
+      "community": 22,
       "norm_label": "initializeforms()",
       "id": "adapters_windowexports_initializeforms"
     },
@@ -467,7 +467,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/adapters/windowExports.ts",
       "source_location": "L602",
-      "community": 2,
+      "community": 4,
       "norm_label": "loadpendingrecords()",
       "id": "adapters_windowexports_loadpendingrecords"
     },
@@ -557,7 +557,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/utils/modalHelpers.ts",
       "source_location": "L1",
-      "community": 18,
+      "community": 17,
       "norm_label": "modalhelpers.ts",
       "id": "frontend_web_static_js_dashboard_utils_modalhelpers_ts"
     },
@@ -566,7 +566,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/utils/modalHelpers.ts",
       "source_location": "L38",
-      "community": 18,
+      "community": 17,
       "norm_label": "showmodalwithskeleton()",
       "id": "utils_modalhelpers_showmodalwithskeleton"
     },
@@ -1079,7 +1079,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveTransfer.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "savetransfer.ts",
       "id": "frontend_web_static_js_dashboard_features_modalfact_savetransfer_ts"
     },
@@ -1088,7 +1088,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveTransfer.ts",
       "source_location": "L16",
-      "community": 3,
+      "community": 2,
       "norm_label": "savefacttransfer()",
       "id": "modalfact_savetransfer_savefacttransfer"
     },
@@ -1133,7 +1133,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveOperations.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "saveoperations.ts",
       "id": "frontend_web_static_js_dashboard_features_modalfact_saveoperations_ts"
     },
@@ -1142,7 +1142,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveOperations.ts",
       "source_location": "L28",
-      "community": 3,
+      "community": 2,
       "norm_label": "savefactmodal()",
       "id": "modalfact_saveoperations_savefactmodal"
     },
@@ -1178,7 +1178,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveTransaction.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "savetransaction.ts",
       "id": "frontend_web_static_js_dashboard_features_modalfact_savetransaction_ts"
     },
@@ -1187,7 +1187,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalFact/saveTransaction.ts",
       "source_location": "L15",
-      "community": 3,
+      "community": 2,
       "norm_label": "savefacttransaction()",
       "id": "modalfact_savetransaction_savefacttransaction"
     },
@@ -1232,7 +1232,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/index.ts",
       "source_location": "L1",
-      "community": 6,
+      "community": 11,
       "norm_label": "index.ts",
       "id": "frontend_web_static_js_dashboard_features_pendingrecords_index_ts"
     },
@@ -1241,7 +1241,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/transferSplit.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 4,
       "norm_label": "transfersplit.ts",
       "id": "frontend_web_static_js_dashboard_features_pendingrecords_transfersplit_ts"
     },
@@ -1250,7 +1250,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/transferSplit.ts",
       "source_location": "L22",
-      "community": 2,
+      "community": 4,
       "norm_label": "splittransfertofacts()",
       "id": "pendingrecords_transfersplit_splittransfertofacts"
     },
@@ -1259,7 +1259,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/transferSplit.ts",
       "source_location": "L173",
-      "community": 2,
+      "community": 4,
       "norm_label": "handletransfereditclick()",
       "id": "pendingrecords_transfersplit_handletransfereditclick"
     },
@@ -1268,7 +1268,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingState.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 4,
       "norm_label": "pendingstate.ts",
       "id": "frontend_web_static_js_dashboard_features_pendingrecords_pendingstate_ts"
     },
@@ -1277,7 +1277,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingState.ts",
       "source_location": "L23",
-      "community": 2,
+      "community": 4,
       "norm_label": "isloadinprogress()",
       "id": "pendingrecords_pendingstate_isloadinprogress"
     },
@@ -1286,7 +1286,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingState.ts",
       "source_location": "L31",
-      "community": 2,
+      "community": 4,
       "norm_label": "acquireloadlock()",
       "id": "pendingrecords_pendingstate_acquireloadlock"
     },
@@ -1295,7 +1295,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingState.ts",
       "source_location": "L52",
-      "community": 2,
+      "community": 4,
       "norm_label": "releaseloadlock()",
       "id": "pendingrecords_pendingstate_releaseloadlock"
     },
@@ -1304,7 +1304,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingState.ts",
       "source_location": "L59",
-      "community": 2,
+      "community": 4,
       "norm_label": "waitforexistinglock()",
       "id": "pendingrecords_pendingstate_waitforexistinglock"
     },
@@ -1313,7 +1313,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingState.ts",
       "source_location": "L69",
-      "community": 2,
+      "community": 4,
       "norm_label": "getnextcallid()",
       "id": "pendingrecords_pendingstate_getnextcallid"
     },
@@ -1322,7 +1322,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingState.ts",
       "source_location": "L76",
-      "community": 2,
+      "community": 4,
       "norm_label": "getcurrentcallcount()",
       "id": "pendingrecords_pendingstate_getcurrentcallcount"
     },
@@ -1331,7 +1331,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 4,
       "norm_label": "pendingrenderer.ts",
       "id": "frontend_web_static_js_dashboard_features_pendingrecords_pendingrenderer_ts"
     },
@@ -1340,7 +1340,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L34",
-      "community": 2,
+      "community": 4,
       "norm_label": "initializeworker()",
       "id": "pendingrecords_pendingrenderer_initializeworker"
     },
@@ -1349,7 +1349,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L77",
-      "community": 2,
+      "community": 4,
       "norm_label": "formatshortdate()",
       "id": "pendingrecords_pendingrenderer_formatshortdate"
     },
@@ -1358,7 +1358,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L89",
-      "community": 2,
+      "community": 4,
       "norm_label": "formatamount()",
       "id": "pendingrecords_pendingrenderer_formatamount"
     },
@@ -1367,7 +1367,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L104",
-      "community": 2,
+      "community": 4,
       "norm_label": "getstatusbadge()",
       "id": "pendingrecords_pendingrenderer_getstatusbadge"
     },
@@ -1376,7 +1376,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L119",
-      "community": 2,
+      "community": 4,
       "norm_label": "getstatusbadgemobile()",
       "id": "pendingrecords_pendingrenderer_getstatusbadgemobile"
     },
@@ -1385,7 +1385,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L135",
-      "community": 2,
+      "community": 4,
       "norm_label": "getrecordtypelabel()",
       "id": "pendingrecords_pendingrenderer_getrecordtypelabel"
     },
@@ -1394,7 +1394,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L148",
-      "community": 2,
+      "community": 4,
       "norm_label": "getrecordtypelabelxs()",
       "id": "pendingrecords_pendingrenderer_getrecordtypelabelxs"
     },
@@ -1403,7 +1403,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L161",
-      "community": 2,
+      "community": 4,
       "norm_label": "getamountcolorclass()",
       "id": "pendingrecords_pendingrenderer_getamountcolorclass"
     },
@@ -1412,7 +1412,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L183",
-      "community": 2,
+      "community": 4,
       "norm_label": "generatetransferhtml()",
       "id": "pendingrecords_pendingrenderer_generatetransferhtml"
     },
@@ -1421,7 +1421,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L299",
-      "community": 2,
+      "community": 4,
       "norm_label": "generatefactplanhtml()",
       "id": "pendingrecords_pendingrenderer_generatefactplanhtml"
     },
@@ -1430,7 +1430,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L371",
-      "community": 2,
+      "community": 4,
       "norm_label": "generatehtmlsync()",
       "id": "pendingrecords_pendingrenderer_generatehtmlsync"
     },
@@ -1439,7 +1439,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L432",
-      "community": 2,
+      "community": 4,
       "norm_label": "generatehtmlasync()",
       "id": "pendingrecords_pendingrenderer_generatehtmlasync"
     },
@@ -1448,7 +1448,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L467",
-      "community": 2,
+      "community": 4,
       "norm_label": "shoulduseworker()",
       "id": "pendingrecords_pendingrenderer_shoulduseworker"
     },
@@ -1457,7 +1457,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts",
       "source_location": "L474",
-      "community": 2,
+      "community": 4,
       "norm_label": "getworkerthreshold()",
       "id": "pendingrecords_pendingrenderer_getworkerthreshold"
     },
@@ -1466,7 +1466,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L1",
-      "community": 2,
+      "community": 4,
       "norm_label": "syncoperations.ts",
       "id": "frontend_web_static_js_dashboard_features_pendingrecords_syncoperations_ts"
     },
@@ -1475,7 +1475,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L36",
-      "community": 2,
+      "community": 4,
       "norm_label": "loadpendingrecords()",
       "id": "pendingrecords_syncoperations_loadpendingrecords"
     },
@@ -1484,7 +1484,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L76",
-      "community": 2,
+      "community": 4,
       "norm_label": "loadpendingrecordsimpl()",
       "id": "pendingrecords_syncoperations_loadpendingrecordsimpl"
     },
@@ -1493,7 +1493,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L189",
-      "community": 2,
+      "community": 4,
       "norm_label": "retryfaileditems()",
       "id": "pendingrecords_syncoperations_retryfaileditems"
     },
@@ -1502,7 +1502,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L219",
-      "community": 2,
+      "community": 4,
       "norm_label": "handlesyncresults()",
       "id": "pendingrecords_syncoperations_handlesyncresults"
     },
@@ -1511,7 +1511,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L239",
-      "community": 2,
+      "community": 4,
       "norm_label": "refreshdashboardwidgets()",
       "id": "pendingrecords_syncoperations_refreshdashboardwidgets"
     },
@@ -1520,7 +1520,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L263",
-      "community": 2,
+      "community": 4,
       "norm_label": "deletependingrecord()",
       "id": "pendingrecords_syncoperations_deletependingrecord"
     },
@@ -1529,7 +1529,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L303",
-      "community": 2,
+      "community": 4,
       "norm_label": "deletefailedrecords()",
       "id": "pendingrecords_syncoperations_deletefailedrecords"
     },
@@ -1538,7 +1538,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L355",
-      "community": 2,
+      "community": 4,
       "norm_label": "updatependingcount()",
       "id": "pendingrecords_syncoperations_updatependingcount"
     },
@@ -1547,7 +1547,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L419",
-      "community": 2,
+      "community": 4,
       "norm_label": "syncpendingrecords()",
       "id": "pendingrecords_syncoperations_syncpendingrecords"
     },
@@ -1556,7 +1556,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts",
       "source_location": "L427",
-      "community": 2,
+      "community": 4,
       "norm_label": "notifypendingrecords()",
       "id": "pendingrecords_syncoperations_notifypendingrecords"
     },
@@ -1574,7 +1574,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L1",
-      "community": 6,
+      "community": 3,
       "norm_label": "helpers.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_helpers_ts"
     },
@@ -1583,7 +1583,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L17",
-      "community": 6,
+      "community": 3,
       "norm_label": "validatefactform()",
       "id": "editmodal_helpers_validatefactform"
     },
@@ -1592,7 +1592,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L34",
-      "community": 6,
+      "community": 3,
       "norm_label": "buildfactdatafromform()",
       "id": "editmodal_helpers_buildfactdatafromform"
     },
@@ -1601,7 +1601,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L62",
-      "community": 6,
+      "community": 3,
       "norm_label": "getdisplaynamesfromform()",
       "id": "editmodal_helpers_getdisplaynamesfromform"
     },
@@ -1610,7 +1610,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L91",
-      "community": 6,
+      "community": 3,
       "norm_label": "updatependingrecord()",
       "id": "editmodal_helpers_updatependingrecord"
     },
@@ -1619,7 +1619,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L138",
-      "community": 6,
+      "community": 3,
       "norm_label": "updateonlinerecord()",
       "id": "editmodal_helpers_updateonlinerecord"
     },
@@ -1628,7 +1628,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/helpers.ts",
       "source_location": "L210",
-      "community": 6,
+      "community": 3,
       "norm_label": "updatereminder()",
       "id": "editmodal_helpers_updatereminder"
     },
@@ -1637,7 +1637,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L1",
-      "community": 6,
+      "community": 3,
       "norm_label": "deleteoperations.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_deleteoperations_ts"
     },
@@ -1646,7 +1646,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L22",
-      "community": 6,
+      "community": 3,
       "norm_label": "showrecurringdeletedialog()",
       "id": "editmodal_deleteoperations_showrecurringdeletedialog"
     },
@@ -1655,7 +1655,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L38",
-      "community": 6,
+      "community": 3,
       "norm_label": "handlerecurringdeletechoice()",
       "id": "editmodal_deleteoperations_handlerecurringdeletechoice"
     },
@@ -1664,7 +1664,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L55",
-      "community": 6,
+      "community": 3,
       "norm_label": "refreshdashboardwidgets()",
       "id": "editmodal_deleteoperations_refreshdashboardwidgets"
     },
@@ -1673,7 +1673,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L79",
-      "community": 6,
+      "community": 3,
       "norm_label": "deletefromeditmodal()",
       "id": "editmodal_deleteoperations_deletefromeditmodal"
     },
@@ -1682,7 +1682,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts",
       "source_location": "L145",
-      "community": 6,
+      "community": 3,
       "norm_label": "deletefactfromdashboard()",
       "id": "editmodal_deleteoperations_deletefactfromdashboard"
     },
@@ -1691,7 +1691,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/saveOperations.ts",
       "source_location": "L1",
-      "community": 6,
+      "community": 3,
       "norm_label": "saveoperations.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_saveoperations_ts"
     },
@@ -1700,7 +1700,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/saveOperations.ts",
       "source_location": "L24",
-      "community": 6,
+      "community": 3,
       "norm_label": "setsubmitloading()",
       "id": "editmodal_saveoperations_setsubmitloading"
     },
@@ -1709,7 +1709,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/saveOperations.ts",
       "source_location": "L39",
-      "community": 6,
+      "community": 3,
       "norm_label": "refreshdashboardwidgets()",
       "id": "editmodal_saveoperations_refreshdashboardwidgets"
     },
@@ -1718,7 +1718,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/saveOperations.ts",
       "source_location": "L64",
-      "community": 6,
+      "community": 3,
       "norm_label": "updatefact()",
       "id": "editmodal_saveoperations_updatefact"
     },
@@ -1727,7 +1727,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L1",
-      "community": 8,
+      "community": 3,
       "norm_label": "formpopulation.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_formpopulation_ts"
     },
@@ -1736,7 +1736,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L31",
-      "community": 6,
+      "community": 3,
       "norm_label": "getcurrenteditingrecordtype()",
       "id": "editmodal_formpopulation_getcurrenteditingrecordtype"
     },
@@ -1745,7 +1745,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L35",
-      "community": 6,
+      "community": 3,
       "norm_label": "getcurrenteditingpendingid()",
       "id": "editmodal_formpopulation_getcurrenteditingpendingid"
     },
@@ -1754,7 +1754,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L39",
-      "community": 8,
+      "community": 3,
       "norm_label": "setcurrenteditingstate()",
       "id": "editmodal_formpopulation_setcurrenteditingstate"
     },
@@ -1763,7 +1763,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L51",
-      "community": 8,
+      "community": 3,
       "norm_label": "seteditmodalmode()",
       "id": "editmodal_formpopulation_seteditmodalmode"
     },
@@ -1772,7 +1772,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L74",
-      "community": 8,
+      "community": 3,
       "norm_label": "updateeditcategorytypebadge()",
       "id": "editmodal_formpopulation_updateeditcategorytypebadge"
     },
@@ -1781,7 +1781,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L93",
-      "community": 8,
+      "community": 3,
       "norm_label": "setupeditcategorytypebuttons()",
       "id": "editmodal_formpopulation_setupeditcategorytypebuttons"
     },
@@ -1790,7 +1790,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L135",
-      "community": 8,
+      "community": 3,
       "norm_label": "initeditcategorytreeselect()",
       "id": "editmodal_formpopulation_initeditcategorytreeselect"
     },
@@ -1799,7 +1799,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L213",
-      "community": 8,
+      "community": 3,
       "norm_label": "openeditpendingrecord()",
       "id": "editmodal_formpopulation_openeditpendingrecord"
     },
@@ -1808,7 +1808,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L340",
-      "community": 8,
+      "community": 3,
       "norm_label": "openeditmodal()",
       "id": "editmodal_formpopulation_openeditmodal"
     },
@@ -1817,7 +1817,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts",
       "source_location": "L463",
-      "community": 6,
+      "community": 3,
       "norm_label": "closeeditmodal()",
       "id": "editmodal_formpopulation_closeeditmodal"
     },
@@ -1826,7 +1826,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L1",
-      "community": 8,
+      "community": 3,
       "norm_label": "dropdowncache.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_dropdowncache_ts"
     },
@@ -1835,7 +1835,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L18",
-      "community": 8,
+      "community": 3,
       "norm_label": "remindersmap",
       "id": "editmodal_dropdowncache_remindersmap"
     },
@@ -1844,7 +1844,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L28",
-      "community": 8,
+      "community": 3,
       "norm_label": "loadcategoriesforedit()",
       "id": "editmodal_dropdowncache_loadcategoriesforedit"
     },
@@ -1853,7 +1853,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L66",
-      "community": 8,
+      "community": 3,
       "norm_label": "populatefinancialcentersdropdown()",
       "id": "editmodal_dropdowncache_populatefinancialcentersdropdown"
     },
@@ -1862,7 +1862,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L97",
-      "community": 8,
+      "community": 3,
       "norm_label": "loadeditfinancialcenters()",
       "id": "editmodal_dropdowncache_loadeditfinancialcenters"
     },
@@ -1871,7 +1871,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L146",
-      "community": 8,
+      "community": 3,
       "norm_label": "populatecostcentersdropdown()",
       "id": "editmodal_dropdowncache_populatecostcentersdropdown"
     },
@@ -1880,7 +1880,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L177",
-      "community": 8,
+      "community": 3,
       "norm_label": "loadeditcostcenters()",
       "id": "editmodal_dropdowncache_loadeditcostcenters"
     },
@@ -1889,7 +1889,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L227",
-      "community": 8,
+      "community": 3,
       "norm_label": "loadremindersforedit()",
       "id": "editmodal_dropdowncache_loadremindersforedit"
     },
@@ -1898,7 +1898,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts",
       "source_location": "L258",
-      "community": 8,
+      "community": 3,
       "norm_label": "populateofflinedropdowns()",
       "id": "editmodal_dropdowncache_populateofflinedropdowns"
     },
@@ -1907,7 +1907,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L1",
-      "community": 8,
+      "community": 3,
       "norm_label": "reminderhelpers.ts",
       "id": "frontend_web_static_js_dashboard_features_editmodal_reminderhelpers_ts"
     },
@@ -1916,7 +1916,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L16",
-      "community": 8,
+      "community": 3,
       "norm_label": "toggleeditremindersettings()",
       "id": "editmodal_reminderhelpers_toggleeditremindersettings"
     },
@@ -1925,7 +1925,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L37",
-      "community": 8,
+      "community": 3,
       "norm_label": "initeditremindercalendarwidget()",
       "id": "editmodal_reminderhelpers_initeditremindercalendarwidget"
     },
@@ -1934,7 +1934,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L87",
-      "community": 8,
+      "community": 3,
       "norm_label": "updateeditreminderdatetime()",
       "id": "editmodal_reminderhelpers_updateeditreminderdatetime"
     },
@@ -1943,7 +1943,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L112",
-      "community": 8,
+      "community": 3,
       "norm_label": "populateeditreminderfields()",
       "id": "editmodal_reminderhelpers_populateeditreminderfields"
     },
@@ -1952,7 +1952,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L145",
-      "community": 8,
+      "community": 3,
       "norm_label": "reseteditreminderfields()",
       "id": "editmodal_reminderhelpers_reseteditreminderfields"
     },
@@ -1961,7 +1961,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts",
       "source_location": "L164",
-      "community": 8,
+      "community": 3,
       "norm_label": "getreminderstatusbadge()",
       "id": "editmodal_reminderhelpers_getreminderstatusbadge"
     },
@@ -1979,7 +1979,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planForm.ts",
       "source_location": "L1",
-      "community": 18,
+      "community": 17,
       "norm_label": "planform.ts",
       "id": "frontend_web_static_js_dashboard_features_addplan_planform_ts"
     },
@@ -1988,7 +1988,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planForm.ts",
       "source_location": "L27",
-      "community": 18,
+      "community": 9,
       "norm_label": "loadplancategories()",
       "id": "addplan_planform_loadplancategories"
     },
@@ -1997,7 +1997,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planForm.ts",
       "source_location": "L77",
-      "community": 18,
+      "community": 2,
       "norm_label": "saveplan()",
       "id": "addplan_planform_saveplan"
     },
@@ -2006,7 +2006,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planForm.ts",
       "source_location": "L119",
-      "community": 18,
+      "community": 2,
       "norm_label": "saveplanoffline()",
       "id": "addplan_planform_saveplanoffline"
     },
@@ -2015,7 +2015,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planForm.ts",
       "source_location": "L218",
-      "community": 18,
+      "community": 17,
       "norm_label": "openaddplanmodal()",
       "id": "addplan_planform_openaddplanmodal"
     },
@@ -2024,7 +2024,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L1",
-      "community": 11,
+      "community": 8,
       "norm_label": "remindersettings.ts",
       "id": "frontend_web_static_js_dashboard_features_addplan_remindersettings_ts"
     },
@@ -2033,7 +2033,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L21",
-      "community": 11,
+      "community": 8,
       "norm_label": "getcurrenttimerounded()",
       "id": "addplan_remindersettings_getcurrenttimerounded"
     },
@@ -2042,7 +2042,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L45",
-      "community": 11,
+      "community": 8,
       "norm_label": "prefillreminderdatetime()",
       "id": "addplan_remindersettings_prefillreminderdatetime"
     },
@@ -2051,7 +2051,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L77",
-      "community": 11,
+      "community": 8,
       "norm_label": "toggleremindersettings()",
       "id": "addplan_remindersettings_toggleremindersettings"
     },
@@ -2060,7 +2060,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L102",
-      "community": 11,
+      "community": 8,
       "norm_label": "initremindercalendarwidget()",
       "id": "addplan_remindersettings_initremindercalendarwidget"
     },
@@ -2069,7 +2069,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L148",
-      "community": 11,
+      "community": 8,
       "norm_label": "updatereminderdatetime()",
       "id": "addplan_remindersettings_updatereminderdatetime"
     },
@@ -2078,7 +2078,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L175",
-      "community": 11,
+      "community": 8,
       "norm_label": "resetreminderfields()",
       "id": "addplan_remindersettings_resetreminderfields"
     },
@@ -2087,7 +2087,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts",
       "source_location": "L195",
-      "community": 11,
+      "community": 8,
       "norm_label": "toggleplanmode()",
       "id": "addplan_remindersettings_toggleplanmode"
     },
@@ -2096,7 +2096,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "periodbuttons.ts",
       "id": "frontend_web_static_js_dashboard_features_addplan_periodbuttons_ts"
     },
@@ -2105,7 +2105,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts",
       "source_location": "L16",
-      "community": 3,
+      "community": 2,
       "norm_label": "updateplanperiodbuttons()",
       "id": "addplan_periodbuttons_updateplanperiodbuttons"
     },
@@ -2114,7 +2114,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts",
       "source_location": "L49",
-      "community": 3,
+      "community": 2,
       "norm_label": "synchiddenfromactive()",
       "id": "addplan_periodbuttons_synchiddenfromactive"
     },
@@ -2123,7 +2123,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts",
       "source_location": "L72",
-      "community": 3,
+      "community": 2,
       "norm_label": "syncplanperiodfromactive()",
       "id": "addplan_periodbuttons_syncplanperiodfromactive"
     },
@@ -2150,7 +2150,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts",
       "source_location": "L203",
-      "community": 3,
+      "community": 2,
       "norm_label": "setupplantypebuttons()",
       "id": "addplan_periodbuttons_setupplantypebuttons"
     },
@@ -2159,7 +2159,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planHints.ts",
       "source_location": "L1",
-      "community": 9,
+      "community": 17,
       "norm_label": "planhints.ts",
       "id": "frontend_web_static_js_dashboard_features_addplan_planhints_ts"
     },
@@ -2168,7 +2168,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planHints.ts",
       "source_location": "L21",
-      "community": 9,
+      "community": 17,
       "norm_label": "loadplanhints()",
       "id": "addplan_planhints_loadplanhints"
     },
@@ -2177,7 +2177,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addPlan/planHints.ts",
       "source_location": "L172",
-      "community": 9,
+      "community": 17,
       "norm_label": "updateplanhintbuttons()",
       "id": "addplan_planhints_updateplanhintbuttons"
     },
@@ -2303,7 +2303,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/factHints.ts",
       "source_location": "L1",
-      "community": 9,
+      "community": 20,
       "norm_label": "facthints.ts",
       "id": "frontend_web_static_js_dashboard_features_addtransaction_facthints_ts"
     },
@@ -2312,7 +2312,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/factHints.ts",
       "source_location": "L21",
-      "community": 9,
+      "community": 20,
       "norm_label": "loadfacthints()",
       "id": "addtransaction_facthints_loadfacthints"
     },
@@ -2321,7 +2321,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/factHints.ts",
       "source_location": "L130",
-      "community": 9,
+      "community": 20,
       "norm_label": "updatefacthintbuttons()",
       "id": "addtransaction_facthints_updatefacthintbuttons"
     },
@@ -2330,7 +2330,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L1",
-      "community": 17,
+      "community": 18,
       "norm_label": "categoryloader.ts",
       "id": "frontend_web_static_js_dashboard_features_addtransaction_categoryloader_ts"
     },
@@ -2339,7 +2339,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L19",
-      "community": 17,
+      "community": 18,
       "norm_label": "safeshowtoast()",
       "id": "addtransaction_categoryloader_safeshowtoast"
     },
@@ -2348,7 +2348,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L36",
-      "community": 17,
+      "community": 18,
       "norm_label": "loadtransactioncategories()",
       "id": "addtransaction_categoryloader_loadtransactioncategories"
     },
@@ -2357,7 +2357,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L95",
-      "community": 17,
+      "community": 18,
       "norm_label": "loadfacthintsforcategory()",
       "id": "addtransaction_categoryloader_loadfacthintsforcategory"
     },
@@ -2366,7 +2366,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L116",
-      "community": 17,
+      "community": 18,
       "norm_label": "loadfinancialcenters()",
       "id": "addtransaction_categoryloader_loadfinancialcenters"
     },
@@ -2375,7 +2375,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L210",
-      "community": 17,
+      "community": 18,
       "norm_label": "setupfinancialcenterlisteners()",
       "id": "addtransaction_categoryloader_setupfinancialcenterlisteners"
     },
@@ -2384,7 +2384,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L316",
-      "community": 17,
+      "community": 18,
       "norm_label": "loadcostcenters()",
       "id": "addtransaction_categoryloader_loadcostcenters"
     },
@@ -2393,7 +2393,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L372",
-      "community": 17,
+      "community": 18,
       "norm_label": "enabledisablecategoryandcostcenter()",
       "id": "addtransaction_categoryloader_enabledisablecategoryandcostcenter"
     },
@@ -2402,7 +2402,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts",
       "source_location": "L432",
-      "community": 17,
+      "community": 18,
       "norm_label": "filtercostcenterdropdown()",
       "id": "addtransaction_categoryloader_filtercostcenterdropdown"
     },
@@ -2411,7 +2411,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts",
       "source_location": "L1",
-      "community": 6,
+      "community": 11,
       "norm_label": "transactionform.ts",
       "id": "frontend_web_static_js_dashboard_features_addtransaction_transactionform_ts"
     },
@@ -2420,7 +2420,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts",
       "source_location": "L21",
-      "community": 6,
+      "community": 2,
       "norm_label": "savetransaction()",
       "id": "addtransaction_transactionform_savetransaction"
     },
@@ -2429,7 +2429,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts",
       "source_location": "L40",
-      "community": 6,
+      "community": 2,
       "norm_label": "savetransactionoffline()",
       "id": "addtransaction_transactionform_savetransactionoffline"
     },
@@ -2438,7 +2438,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts",
       "source_location": "L130",
-      "community": 6,
+      "community": 11,
       "norm_label": "settransactiondate()",
       "id": "addtransaction_transactionform_settransactiondate"
     },
@@ -2447,7 +2447,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts",
       "source_location": "L148",
-      "community": 6,
+      "community": 11,
       "norm_label": "setuptransactiontypebuttons()",
       "id": "addtransaction_transactionform_setuptransactiontypebuttons"
     },
@@ -2591,7 +2591,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveTransfer.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "savetransfer.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_savetransfer_ts"
     },
@@ -2600,7 +2600,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveTransfer.ts",
       "source_location": "L16",
-      "community": 3,
+      "community": 2,
       "norm_label": "saveplantransfer()",
       "id": "modalplan_savetransfer_saveplantransfer"
     },
@@ -2609,7 +2609,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/typeToggle.ts",
       "source_location": "L1",
-      "community": 10,
+      "community": 20,
       "norm_label": "typetoggle.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_typetoggle_ts"
     },
@@ -2627,7 +2627,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/typeToggle.ts",
       "source_location": "L54",
-      "community": 10,
+      "community": 20,
       "norm_label": "updateplantypeui()",
       "id": "modalplan_typetoggle_updateplantypeui"
     },
@@ -2636,7 +2636,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/typeToggle.ts",
       "source_location": "L83",
-      "community": 10,
+      "community": 20,
       "norm_label": "updateplancategorytreetype()",
       "id": "modalplan_typetoggle_updateplancategorytreetype"
     },
@@ -2645,7 +2645,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveOperations.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "saveoperations.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_saveoperations_ts"
     },
@@ -2654,7 +2654,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveOperations.ts",
       "source_location": "L28",
-      "community": 3,
+      "community": 2,
       "norm_label": "saveplanmodal()",
       "id": "modalplan_saveoperations_saveplanmodal"
     },
@@ -2690,7 +2690,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveTransaction.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "savetransaction.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_savetransaction_ts"
     },
@@ -2699,7 +2699,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/saveTransaction.ts",
       "source_location": "L16",
-      "community": 3,
+      "community": 2,
       "norm_label": "saveplantransaction()",
       "id": "modalplan_savetransaction_saveplantransaction"
     },
@@ -2744,7 +2744,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L1",
-      "community": 11,
+      "community": 8,
       "norm_label": "recurringsettings.ts",
       "id": "frontend_web_static_js_dashboard_features_modalplan_recurringsettings_ts"
     },
@@ -2753,7 +2753,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L16",
-      "community": 11,
+      "community": 8,
       "norm_label": "toggleplanmode()",
       "id": "modalplan_recurringsettings_toggleplanmode"
     },
@@ -2762,7 +2762,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L101",
-      "community": 11,
+      "community": 8,
       "norm_label": "initializerecurringdefaults()",
       "id": "modalplan_recurringsettings_initializerecurringdefaults"
     },
@@ -2771,7 +2771,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L126",
-      "community": 11,
+      "community": 8,
       "norm_label": "updatefrequencyfields()",
       "id": "modalplan_recurringsettings_updatefrequencyfields"
     },
@@ -2780,7 +2780,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L154",
-      "community": 11,
+      "community": 8,
       "norm_label": "updateyearlyfrequencyvalue()",
       "id": "modalplan_recurringsettings_updateyearlyfrequencyvalue"
     },
@@ -2789,7 +2789,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L182",
-      "community": 11,
+      "community": 8,
       "norm_label": "updatedurationfields()",
       "id": "modalplan_recurringsettings_updatedurationfields"
     },
@@ -2798,7 +2798,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L235",
-      "community": 11,
+      "community": 8,
       "norm_label": "updaterecurringpreview()",
       "id": "modalplan_recurringsettings_updaterecurringpreview"
     },
@@ -2807,7 +2807,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L282",
-      "community": 11,
+      "community": 8,
       "norm_label": "togglerecurringreminder()",
       "id": "modalplan_recurringsettings_togglerecurringreminder"
     },
@@ -2816,7 +2816,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L296",
-      "community": 3,
+      "community": 2,
       "norm_label": "extractrecurringsettings()",
       "id": "modalplan_recurringsettings_extractrecurringsettings"
     },
@@ -2825,7 +2825,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts",
       "source_location": "L343",
-      "community": 3,
+      "community": 2,
       "norm_label": "extractremindersettings()",
       "id": "modalplan_recurringsettings_extractremindersettings"
     },
@@ -2843,7 +2843,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/stateManager.ts",
       "source_location": "L1",
-      "community": 10,
+      "community": 9,
       "norm_label": "statemanager.ts",
       "id": "frontend_web_static_js_dashboard_core_statemanager_ts"
     },
@@ -2852,7 +2852,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/stateManager.ts",
       "source_location": "L27",
-      "community": 10,
+      "community": 9,
       "norm_label": "initializestatefromglobals()",
       "id": "core_statemanager_initializestatefromglobals"
     },
@@ -2861,7 +2861,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/stateManager.ts",
       "source_location": "L54",
-      "community": 10,
+      "community": 9,
       "norm_label": "syncstatetoglobals()",
       "id": "core_statemanager_syncstatetoglobals"
     },
@@ -2870,7 +2870,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/stateManager.ts",
       "source_location": "L76",
-      "community": 20,
+      "community": 22,
       "norm_label": "definereactiveproperties()",
       "id": "core_statemanager_definereactiveproperties"
     },
@@ -2879,7 +2879,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/stateManager.ts",
       "source_location": "L145",
-      "community": 10,
+      "community": 9,
       "norm_label": "isinitialized()",
       "id": "core_statemanager_isinitialized"
     },
@@ -2897,7 +2897,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L1",
-      "community": 10,
+      "community": 9,
       "norm_label": "dashboardstate.ts",
       "id": "frontend_web_static_js_dashboard_core_dashboardstate_ts"
     },
@@ -2906,7 +2906,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L29",
-      "community": 10,
+      "community": 9,
       "norm_label": "dashboardstate",
       "id": "core_dashboardstate_dashboardstate"
     },
@@ -2915,7 +2915,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L80",
-      "community": 10,
+      "community": 9,
       "norm_label": "createdefaultstate()",
       "id": "core_dashboardstate_createdefaultstate"
     },
@@ -2924,7 +2924,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L135",
-      "community": 10,
+      "community": 9,
       "norm_label": "state",
       "id": "core_dashboardstate_state"
     },
@@ -2933,7 +2933,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L145",
-      "community": 10,
+      "community": 20,
       "norm_label": "getstate()",
       "id": "core_dashboardstate_getstate"
     },
@@ -2942,7 +2942,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L153",
-      "community": 9,
+      "community": 20,
       "norm_label": "updatestate()",
       "id": "core_dashboardstate_updatestate"
     },
@@ -2951,7 +2951,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L164",
-      "community": 10,
+      "community": 9,
       "norm_label": "resetstate()",
       "id": "core_dashboardstate_resetstate"
     },
@@ -2960,7 +2960,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L262",
-      "community": 18,
+      "community": 17,
       "norm_label": "iscachevalid()",
       "id": "core_dashboardstate_iscachevalid"
     },
@@ -2978,7 +2978,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L278",
-      "community": 8,
+      "community": 3,
       "norm_label": "setcachedata()",
       "id": "core_dashboardstate_setcachedata"
     },
@@ -2987,7 +2987,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L297",
-      "community": 10,
+      "community": 9,
       "norm_label": "settransactioncategorytreeselect()",
       "id": "core_dashboardstate_settransactioncategorytreeselect"
     },
@@ -2996,7 +2996,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L304",
-      "community": 18,
+      "community": 9,
       "norm_label": "setplancategorytreeselect()",
       "id": "core_dashboardstate_setplancategorytreeselect"
     },
@@ -3005,7 +3005,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L311",
-      "community": 10,
+      "community": 9,
       "norm_label": "seteditcategorytreeselect()",
       "id": "core_dashboardstate_seteditcategorytreeselect"
     },
@@ -3014,7 +3014,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L322",
-      "community": 2,
+      "community": 4,
       "norm_label": "incrementpendingcallcount()",
       "id": "core_dashboardstate_incrementpendingcallcount"
     },
@@ -3023,7 +3023,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L330",
-      "community": 2,
+      "community": 4,
       "norm_label": "setpendinglock()",
       "id": "core_dashboardstate_setpendinglock"
     },
@@ -3032,7 +3032,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/core/DashboardState.ts",
       "source_location": "L337",
-      "community": 2,
+      "community": 4,
       "norm_label": "getpendinglock()",
       "id": "core_dashboardstate_getpendinglock"
     },
@@ -3176,7 +3176,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/buttonState.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "buttonstate.ts",
       "id": "frontend_web_static_js_dashboard_shared_utils_buttonstate_ts"
     },
@@ -3185,7 +3185,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/buttonState.ts",
       "source_location": "L13",
-      "community": 3,
+      "community": 2,
       "norm_label": "setbuttonloading()",
       "id": "utils_buttonstate_setbuttonloading"
     },
@@ -3194,7 +3194,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/buttonState.ts",
       "source_location": "L43",
-      "community": 3,
+      "community": 2,
       "norm_label": "setbuttonsloading()",
       "id": "utils_buttonstate_setbuttonsloading"
     },
@@ -3203,7 +3203,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/buttonState.ts",
       "source_location": "L51",
-      "community": 3,
+      "community": 2,
       "norm_label": "disablebutton()",
       "id": "utils_buttonstate_disablebutton"
     },
@@ -3212,7 +3212,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/buttonState.ts",
       "source_location": "L60",
-      "community": 3,
+      "community": 2,
       "norm_label": "enablebutton()",
       "id": "utils_buttonstate_enablebutton"
     },
@@ -3275,7 +3275,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "tabvalidation.ts",
       "id": "frontend_web_static_js_dashboard_shared_utils_tabvalidation_ts"
     },
@@ -3284,7 +3284,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts",
       "source_location": "L32",
-      "community": 3,
+      "community": 2,
       "norm_label": "disableinactivetabvalidation()",
       "id": "utils_tabvalidation_disableinactivetabvalidation"
     },
@@ -3293,7 +3293,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts",
       "source_location": "L53",
-      "community": 3,
+      "community": 2,
       "norm_label": "restorerequiredvalidation()",
       "id": "utils_tabvalidation_restorerequiredvalidation"
     },
@@ -3302,7 +3302,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts",
       "source_location": "L76",
-      "community": 3,
+      "community": 2,
       "norm_label": "disableinactivetabinputs()",
       "id": "utils_tabvalidation_disableinactivetabinputs"
     },
@@ -3311,7 +3311,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts",
       "source_location": "L96",
-      "community": 3,
+      "community": 2,
       "norm_label": "restoreinactivetabinputs()",
       "id": "utils_tabvalidation_restoreinactivetabinputs"
     },
@@ -3320,7 +3320,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "apihelpers.ts",
       "id": "frontend_web_static_js_dashboard_shared_utils_apihelpers_ts"
     },
@@ -3329,7 +3329,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L15",
-      "community": 3,
+      "community": 2,
       "norm_label": "parseintornull()",
       "id": "utils_apihelpers_parseintornull"
     },
@@ -3338,7 +3338,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L26",
-      "community": 3,
+      "community": 2,
       "norm_label": "parsefloatornull()",
       "id": "utils_apihelpers_parsefloatornull"
     },
@@ -3347,7 +3347,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L35",
-      "community": 3,
+      "community": 2,
       "norm_label": "apierror",
       "id": "utils_apihelpers_apierror"
     },
@@ -3356,7 +3356,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L36",
-      "community": 3,
+      "community": 2,
       "norm_label": ".constructor()",
       "id": "utils_apihelpers_apierror_constructor"
     },
@@ -3365,7 +3365,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L46",
-      "community": 3,
+      "community": 2,
       "norm_label": "parseapierrordetail()",
       "id": "utils_apihelpers_parseapierrordetail"
     },
@@ -3374,7 +3374,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts",
       "source_location": "L77",
-      "community": 3,
+      "community": 2,
       "norm_label": "postapi()",
       "id": "utils_apihelpers_postapi"
     },
@@ -3383,7 +3383,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L1",
-      "community": 3,
+      "community": 2,
       "norm_label": "uirefresh.ts",
       "id": "frontend_web_static_js_dashboard_shared_utils_uirefresh_ts"
     },
@@ -3392,7 +3392,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L14",
-      "community": 3,
+      "community": 2,
       "norm_label": "logger",
       "id": "utils_uirefresh_logger"
     },
@@ -3401,7 +3401,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L32",
-      "community": 3,
+      "community": 2,
       "norm_label": "refreshconfig",
       "id": "utils_uirefresh_refreshconfig"
     },
@@ -3410,7 +3410,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L47",
-      "community": 3,
+      "community": 2,
       "norm_label": "refreshuiaftersave()",
       "id": "utils_uirefresh_refreshuiaftersave"
     },
@@ -3419,7 +3419,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L108",
-      "community": 3,
+      "community": 2,
       "norm_label": "refreshuiafterfactsave()",
       "id": "utils_uirefresh_refreshuiafterfactsave"
     },
@@ -3428,7 +3428,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts",
       "source_location": "L119",
-      "community": 3,
+      "community": 2,
       "norm_label": "refreshuiafterplansave()",
       "id": "utils_uirefresh_refreshuiafterplansave"
     },
@@ -3509,7 +3509,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L1",
-      "community": 9,
+      "community": 11,
       "norm_label": "dashboard.d.ts",
       "id": "frontend_web_static_js_dashboard_types_dashboard_d_ts"
     },
@@ -3518,7 +3518,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L15",
-      "community": 9,
+      "community": 17,
       "norm_label": "category",
       "id": "types_dashboard_d_category"
     },
@@ -3527,7 +3527,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L26",
-      "community": 9,
+      "community": 11,
       "norm_label": "article",
       "id": "types_dashboard_d_article"
     },
@@ -3536,7 +3536,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L34",
-      "community": 9,
+      "community": 11,
       "norm_label": "financialcenter",
       "id": "types_dashboard_d_financialcenter"
     },
@@ -3545,7 +3545,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L40",
-      "community": 17,
+      "community": 18,
       "norm_label": "costcenter",
       "id": "types_dashboard_d_costcenter"
     },
@@ -3554,7 +3554,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L50",
-      "community": 9,
+      "community": 11,
       "norm_label": "cacheentry",
       "id": "types_dashboard_d_cacheentry"
     },
@@ -3563,7 +3563,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L56",
-      "community": 10,
+      "community": 9,
       "norm_label": "dropdowncache",
       "id": "types_dashboard_d_dropdowncache"
     },
@@ -3572,7 +3572,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L66",
-      "community": 9,
+      "community": 11,
       "norm_label": "pendingrecordentity",
       "id": "types_dashboard_d_pendingrecordentity"
     },
@@ -3581,7 +3581,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L67",
-      "community": 9,
+      "community": 11,
       "norm_label": "pendingrecordstatus",
       "id": "types_dashboard_d_pendingrecordstatus"
     },
@@ -3590,7 +3590,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L68",
-      "community": 9,
+      "community": 11,
       "norm_label": "recordtype",
       "id": "types_dashboard_d_recordtype"
     },
@@ -3599,7 +3599,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L69",
-      "community": 9,
+      "community": 11,
       "norm_label": "facttype",
       "id": "types_dashboard_d_facttype"
     },
@@ -3608,7 +3608,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L71",
-      "community": 9,
+      "community": 11,
       "norm_label": "pendingrecorddata",
       "id": "types_dashboard_d_pendingrecorddata"
     },
@@ -3617,7 +3617,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L108",
-      "community": 2,
+      "community": 4,
       "norm_label": "pendingrecord",
       "id": "types_dashboard_d_pendingrecord"
     },
@@ -3626,7 +3626,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L120",
-      "community": 2,
+      "community": 4,
       "norm_label": "pendingrecordsrenderresult",
       "id": "types_dashboard_d_pendingrecordsrenderresult"
     },
@@ -3635,7 +3635,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L126",
-      "community": 9,
+      "community": 10,
       "norm_label": "unsynceditemsresult",
       "id": "types_dashboard_d_unsynceditemsresult"
     },
@@ -3644,7 +3644,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L136",
-      "community": 10,
+      "community": 9,
       "norm_label": "editrecordtype",
       "id": "types_dashboard_d_editrecordtype"
     },
@@ -3653,7 +3653,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L138",
-      "community": 9,
+      "community": 11,
       "norm_label": "editfactdata",
       "id": "types_dashboard_d_editfactdata"
     },
@@ -3662,7 +3662,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L149",
-      "community": 9,
+      "community": 11,
       "norm_label": "editplandata",
       "id": "types_dashboard_d_editplandata"
     },
@@ -3671,7 +3671,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L164",
-      "community": 6,
+      "community": 11,
       "norm_label": "transactionformdata",
       "id": "types_dashboard_d_transactionformdata"
     },
@@ -3680,7 +3680,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L178",
-      "community": 18,
+      "community": 17,
       "norm_label": "planformdata",
       "id": "types_dashboard_d_planformdata"
     },
@@ -3689,7 +3689,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L193",
-      "community": 9,
+      "community": 11,
       "norm_label": "transferformdata",
       "id": "types_dashboard_d_transferformdata"
     },
@@ -3716,7 +3716,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L216",
-      "community": 11,
+      "community": 8,
       "norm_label": "planmode",
       "id": "types_dashboard_d_planmode"
     },
@@ -3734,7 +3734,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L229",
-      "community": 9,
+      "community": 17,
       "norm_label": "planhintsdata",
       "id": "types_dashboard_d_planhintsdata"
     },
@@ -3743,7 +3743,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L235",
-      "community": 9,
+      "community": 20,
       "norm_label": "facthintsdata",
       "id": "types_dashboard_d_facthintsdata"
     },
@@ -3752,7 +3752,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/dashboard.d.ts",
       "source_location": "L245",
-      "community": 2,
+      "community": 4,
       "norm_label": "syncresults",
       "id": "types_dashboard_d_syncresults"
     },
@@ -3761,7 +3761,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/analytics.d.ts",
       "source_location": "L1",
-      "community": 22,
+      "community": 23,
       "norm_label": "analytics.d.ts",
       "id": "frontend_web_static_js_dashboard_types_analytics_d_ts"
     },
@@ -3770,7 +3770,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/analytics.d.ts",
       "source_location": "L6",
-      "community": 22,
+      "community": 23,
       "norm_label": "quickstats",
       "id": "types_analytics_d_quickstats"
     },
@@ -3779,7 +3779,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/analytics.d.ts",
       "source_location": "L33",
-      "community": 22,
+      "community": 23,
       "norm_label": "accountbalance",
       "id": "types_analytics_d_accountbalance"
     },
@@ -3788,7 +3788,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/analytics.d.ts",
       "source_location": "L44",
-      "community": 22,
+      "community": 23,
       "norm_label": "recentfact",
       "id": "types_analytics_d_recentfact"
     },
@@ -3797,7 +3797,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L1",
-      "community": 13,
+      "community": 10,
       "norm_label": "globals.d.ts",
       "id": "frontend_web_static_js_dashboard_types_globals_d_ts"
     },
@@ -3806,7 +3806,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L24",
-      "community": 13,
+      "community": 10,
       "norm_label": "categorytreeselectoptions",
       "id": "types_globals_d_categorytreeselectoptions"
     },
@@ -3815,7 +3815,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L32",
-      "community": 10,
+      "community": 9,
       "norm_label": "categorytreeselectinstance",
       "id": "types_globals_d_categorytreeselectinstance"
     },
@@ -3824,7 +3824,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L48",
-      "community": 13,
+      "community": 10,
       "norm_label": "calendarwidgetoptions",
       "id": "types_globals_d_calendarwidgetoptions"
     },
@@ -3833,7 +3833,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L56",
-      "community": 10,
+      "community": 9,
       "norm_label": "calendarwidgetinstance",
       "id": "types_globals_d_calendarwidgetinstance"
     },
@@ -3842,7 +3842,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L66",
-      "community": 13,
+      "community": 10,
       "norm_label": "offlinemanagerdb",
       "id": "types_globals_d_offlinemanagerdb"
     },
@@ -3851,7 +3851,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L76",
-      "community": 13,
+      "community": 10,
       "norm_label": "networkdetector",
       "id": "types_globals_d_networkdetector"
     },
@@ -3860,7 +3860,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L80",
-      "community": 13,
+      "community": 10,
       "norm_label": "offlinemanager",
       "id": "types_globals_d_offlinemanager"
     },
@@ -3869,7 +3869,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L99",
-      "community": 13,
+      "community": 10,
       "norm_label": "budgetwsclient",
       "id": "types_globals_d_budgetwsclient"
     },
@@ -3878,7 +3878,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L109",
-      "community": 13,
+      "community": 10,
       "norm_label": "dateformatterstatic",
       "id": "types_globals_d_dateformatterstatic"
     },
@@ -3887,7 +3887,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L116",
-      "community": 13,
+      "community": 10,
       "norm_label": "remindersstatic",
       "id": "types_globals_d_remindersstatic"
     },
@@ -3896,7 +3896,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L123",
-      "community": 13,
+      "community": 10,
       "norm_label": "budgetsharednamespace",
       "id": "types_globals_d_budgetsharednamespace"
     },
@@ -3905,7 +3905,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L134",
-      "community": 13,
+      "community": 10,
       "norm_label": "incrementalupdates",
       "id": "types_globals_d_incrementalupdates"
     },
@@ -3914,7 +3914,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L149",
-      "community": 13,
+      "community": 10,
       "norm_label": "workerwrapperoptions",
       "id": "types_globals_d_workerwrapperoptions"
     },
@@ -3923,7 +3923,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L154",
-      "community": 2,
+      "community": 4,
       "norm_label": "workerwrapper",
       "id": "types_globals_d_workerwrapper"
     },
@@ -3932,7 +3932,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L159",
-      "community": 13,
+      "community": 10,
       "norm_label": "workerwrapperconstructor",
       "id": "types_globals_d_workerwrapperconstructor"
     },
@@ -3941,7 +3941,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L167",
-      "community": 13,
+      "community": 10,
       "norm_label": "htmxajaxoptions",
       "id": "types_globals_d_htmxajaxoptions"
     },
@@ -3950,7 +3950,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L172",
-      "community": 13,
+      "community": 10,
       "norm_label": "htmx",
       "id": "types_globals_d_htmx"
     },
@@ -3959,7 +3959,7 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/types/globals.d.ts",
       "source_location": "L324",
-      "community": 13,
+      "community": 10,
       "norm_label": "dashboardexports",
       "id": "types_globals_d_dashboardexports"
     },
@@ -3968,7 +3968,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 23,
+      "community": 24,
       "norm_label": "basemodel",
       "id": "basemodel"
     },
@@ -3977,7 +3977,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 24,
+      "community": 25,
       "norm_label": "sqlmodel",
       "id": "sqlmodel"
     },
@@ -3986,7 +3986,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 25,
+      "community": 26,
       "norm_label": "basehttpmiddleware",
       "id": "basehttpmiddleware"
     },
@@ -3995,7 +3995,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 26,
+      "community": 27,
       "norm_label": "exception",
       "id": "exception"
     },
@@ -4004,7 +4004,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 27,
+      "community": 28,
       "norm_label": "response",
       "id": "response"
     },
@@ -4013,7 +4013,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 28,
+      "community": 29,
       "norm_label": "basesettings",
       "id": "basesettings"
     },
@@ -4022,7 +4022,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 29,
+      "community": 30,
       "norm_label": "str",
       "id": "str"
     },
@@ -4031,7 +4031,7 @@
       "file_type": "code",
       "source_file": "",
       "source_location": "",
-      "community": 30,
+      "community": 31,
       "norm_label": "enum",
       "id": "enum"
     },
@@ -4051,7 +4051,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "dexie rollback documentation",
       "id": "dexie_rollback_doc"
     },
@@ -4072,7 +4072,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "ci/cd setup documentation",
       "id": "ci_cd_setup_doc"
     },
@@ -4095,7 +4095,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "security advisories documentation",
       "id": "security_advisories_doc"
     },
@@ -4118,7 +4118,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "backup operations documentation",
       "id": "backup_operations_doc"
     },
@@ -4139,7 +4139,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "testing phases summary documentation",
       "id": "testing_phases_doc"
     },
@@ -4164,7 +4164,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "redis alternatives comparison documentation",
       "id": "redis_alternatives_doc"
     },
@@ -4185,7 +4185,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "disaster recovery documentation",
       "id": "disaster_recovery_doc"
     },
@@ -4208,7 +4208,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "ci/cd build and deploy documentation",
       "id": "ci_cd_build_deploy_doc"
     },
@@ -4229,7 +4229,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "deployment troubleshooting documentation",
       "id": "deployment_troubleshooting_doc"
     },
@@ -4251,7 +4251,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "ci/cd optimization documentation",
       "id": "ci_cd_optimization_doc"
     },
@@ -4272,7 +4272,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "browser testing workarounds documentation",
       "id": "browser_testing_workarounds_doc"
     },
@@ -4294,7 +4294,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "versioning documentation",
       "id": "versioning_doc"
     },
@@ -4316,7 +4316,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "installation resilience documentation",
       "id": "installation_resilience_doc"
     },
@@ -4337,7 +4337,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "cache busting documentation",
       "id": "cache_busting_doc"
     },
@@ -4358,7 +4358,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "caching strategy documentation",
       "id": "caching_strategy_doc"
     },
@@ -4382,7 +4382,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "retry pattern documentation",
       "id": "retry_pattern_doc"
     },
@@ -4404,7 +4404,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "logging best practices documentation",
       "id": "logging_best_practices_doc"
     },
@@ -4430,7 +4430,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "web frontend index documentation",
       "id": "web_index_doc"
     },
@@ -4452,7 +4452,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "web workers documentation",
       "id": "web_workers_doc"
     },
@@ -4476,7 +4476,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "css documentation",
       "id": "css_doc"
     },
@@ -4501,7 +4501,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "js modules documentation",
       "id": "js_modules_doc"
     },
@@ -4529,7 +4529,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "jinja2 templates documentation",
       "id": "templates_doc"
     },
@@ -4551,7 +4551,7 @@
         "version_file": "IMAGE_VERSIONS.json"
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "registry-first ci/cd architecture",
       "id": "registry_first_architecture"
     },
@@ -4568,7 +4568,7 @@
         ]
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "exponential backoff pattern",
       "id": "exponential_backoff_concept"
     },
@@ -4583,7 +4583,7 @@
         "gdpr_retention": "30 days"
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "pii protection in logging",
       "id": "pii_protection_concept"
     },
@@ -4599,7 +4599,7 @@
         "timing": "after minification"
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "cache busting via placeholder",
       "id": "cache_busting_concept"
     },
@@ -4622,7 +4622,7 @@
         }
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "multi-layer caching strategy",
       "id": "multi_layer_caching_concept"
     },
@@ -4637,7 +4637,7 @@
         "code_changes_required": 0
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "dragonfly as redis alternative",
       "id": "dragonfly_redis_alternative"
     },
@@ -4652,7 +4652,7 @@
         "best_rto": "1-2min (PostgreSQL container)"
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "disaster recovery scenarios",
       "id": "disaster_recovery_scenarios"
     },
@@ -4671,7 +4671,7 @@
         }
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "playwright viewport control workaround",
       "id": "playwright_viewport_workaround"
     },
@@ -4690,7 +4690,7 @@
         "format": "semver X.Y.Z"
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "version file as single source of truth",
       "id": "version_file_single_source"
     },
@@ -4710,7 +4710,7 @@
         "deduplication": "content_hash in syncWorker"
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "web workers in frontend",
       "id": "web_workers_concept"
     },
@@ -4728,7 +4728,7 @@
         "pwa": true
       },
       "file_type": "concept",
-      "community": 4,
+      "community": 5,
       "norm_label": "htmx + jinja2 frontend stack",
       "id": "htmx_jinja2_frontend"
     },
@@ -4737,270 +4737,465 @@
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L1",
-      "id": "recenttransactions_ts",
-      "community": 5,
-      "norm_label": "recenttransactions.ts"
+      "community": 6,
+      "norm_label": "recenttransactions.ts",
+      "id": "recenttransactions_ts"
     },
     {
       "label": "index.ts",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/index.ts",
       "source_location": "L1",
-      "id": "index_ts",
-      "community": 5,
-      "norm_label": "index.ts"
+      "community": 6,
+      "norm_label": "index.ts",
+      "id": "index_ts"
     },
     {
       "label": "offlineDashboard.ts",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L1",
-      "id": "features_offlinedashboard_ts",
-      "community": 5,
-      "norm_label": "offlinedashboard.ts"
+      "community": 6,
+      "norm_label": "offlinedashboard.ts",
+      "id": "features_offlinedashboard_ts"
     },
     {
       "label": "RecentTransaction",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L18",
-      "id": "features_offlinedashboard_recenttransaction",
-      "community": 5,
-      "norm_label": "recenttransaction"
+      "community": 6,
+      "norm_label": "recenttransaction",
+      "id": "features_offlinedashboard_recenttransaction"
     },
     {
       "label": "formatMoneyMobile()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L67",
-      "id": "features_offlinedashboard_formatmoneymobile",
-      "community": 5,
-      "norm_label": "formatmoneymobile()"
+      "community": 6,
+      "norm_label": "formatmoneymobile()",
+      "id": "features_offlinedashboard_formatmoneymobile"
     },
     {
       "label": "formatMoneyDesktop()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L75",
-      "id": "features_offlinedashboard_formatmoneydesktop",
-      "community": 5,
-      "norm_label": "formatmoneydesktop()"
+      "community": 6,
+      "norm_label": "formatmoneydesktop()",
+      "id": "features_offlinedashboard_formatmoneydesktop"
     },
     {
       "label": "getBalanceColor()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L81",
-      "id": "features_offlinedashboard_getbalancecolor",
-      "community": 5,
-      "norm_label": "getbalancecolor()"
+      "community": 6,
+      "norm_label": "getbalancecolor()",
+      "id": "features_offlinedashboard_getbalancecolor"
     },
     {
       "label": "getPctColor()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L87",
-      "id": "features_offlinedashboard_getpctcolor",
-      "community": 5,
-      "norm_label": "getpctcolor()"
+      "community": 6,
+      "norm_label": "getpctcolor()",
+      "id": "features_offlinedashboard_getpctcolor"
     },
     {
       "label": "moneySpan()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L93",
-      "id": "features_offlinedashboard_moneyspan",
-      "community": 5,
-      "norm_label": "moneyspan()"
+      "community": 6,
+      "norm_label": "moneyspan()",
+      "id": "features_offlinedashboard_moneyspan"
     },
     {
       "label": "buildQuickStatsHTML()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L97",
-      "id": "features_offlinedashboard_buildquickstatshtml",
-      "community": 5,
-      "norm_label": "buildquickstatshtml()"
+      "community": 6,
+      "norm_label": "buildquickstatshtml()",
+      "id": "features_offlinedashboard_buildquickstatshtml"
     },
     {
       "label": "buildAccountBalancesHTML()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L122",
-      "id": "features_offlinedashboard_buildaccountbalanceshtml",
-      "community": 5,
-      "norm_label": "buildaccountbalanceshtml()"
+      "community": 6,
+      "norm_label": "buildaccountbalanceshtml()",
+      "id": "features_offlinedashboard_buildaccountbalanceshtml"
     },
     {
       "label": "isOfflineMode()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L144",
-      "id": "features_offlinedashboard_isofflinemode",
-      "community": 5,
-      "norm_label": "isofflinemode()"
+      "community": 6,
+      "norm_label": "isofflinemode()",
+      "id": "features_offlinedashboard_isofflinemode"
     },
     {
       "label": "OfflineDashboardCoordinator",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L148",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator",
-      "community": 5,
-      "norm_label": "offlinedashboardcoordinator"
+      "community": 6,
+      "norm_label": "offlinedashboardcoordinator",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator"
     },
     {
       "label": ".init()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L152",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator_init",
-      "community": 5,
-      "norm_label": ".init()"
+      "community": 6,
+      "norm_label": ".init()",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator_init"
     },
     {
       "label": ".onHtmxBeforeRequest()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L171",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator_onhtmxbeforerequest",
-      "community": 5,
-      "norm_label": ".onhtmxbeforerequest()"
+      "community": 6,
+      "norm_label": ".onhtmxbeforerequest()",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator_onhtmxbeforerequest"
     },
     {
       "label": ".onOfflineStatusChange()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L181",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator_onofflinestatuschange",
-      "community": 5,
-      "norm_label": ".onofflinestatuschange()"
+      "community": 6,
+      "norm_label": ".onofflinestatuschange()",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator_onofflinestatuschange"
     },
     {
       "label": ".renderAll()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L189",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator_renderall",
-      "community": 5,
-      "norm_label": ".renderall()"
+      "community": 6,
+      "norm_label": ".renderall()",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator_renderall"
     },
     {
       "label": ".renderSection()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L212",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator_rendersection",
-      "community": 5,
-      "norm_label": ".rendersection()"
+      "community": 6,
+      "norm_label": ".rendersection()",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator_rendersection"
     },
     {
       "label": ".renderQuickStats()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L226",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats",
-      "community": 5,
-      "norm_label": ".renderquickstats()"
+      "community": 6,
+      "norm_label": ".renderquickstats()",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats"
     },
     {
       "label": ".renderAccountBalances()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L232",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances",
-      "community": 5,
-      "norm_label": ".renderaccountbalances()"
+      "community": 6,
+      "norm_label": ".renderaccountbalances()",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances"
     },
     {
       "label": ".renderRecentFacts()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L238",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator_renderrecentfacts",
-      "community": 5,
-      "norm_label": ".renderrecentfacts()"
+      "community": 6,
+      "norm_label": ".renderrecentfacts()",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator_renderrecentfacts"
     },
     {
       "label": ".clearAll()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L261",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator_clearall",
-      "community": 5,
-      "norm_label": ".clearall()"
+      "community": 6,
+      "norm_label": ".clearall()",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator_clearall"
     },
     {
       "label": ".showUnavailable()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L277",
-      "id": "features_offlinedashboard_offlinedashboardcoordinator_showunavailable",
-      "community": 5,
-      "norm_label": ".showunavailable()"
+      "community": 6,
+      "norm_label": ".showunavailable()",
+      "id": "features_offlinedashboard_offlinedashboardcoordinator_showunavailable"
     },
     {
       "label": "offlineDashboard",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L285",
-      "id": "features_offlinedashboard_offlinedashboard",
-      "community": 5,
-      "norm_label": "offlinedashboard"
+      "community": 6,
+      "norm_label": "offlinedashboard",
+      "id": "features_offlinedashboard_offlinedashboard"
     },
     {
       "label": "factsManager.ts",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L1",
-      "id": "features_factsmanager_ts",
       "community": 7,
-      "norm_label": "factsmanager.ts"
+      "norm_label": "factsmanager.ts",
+      "id": "features_factsmanager_ts"
     },
     {
       "label": ".getDexie()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L61",
-      "id": "features_factsmanager_dashboardfactsmanager_getdexie",
       "community": 7,
-      "norm_label": ".getdexie()"
+      "norm_label": ".getdexie()",
+      "id": "features_factsmanager_dashboardfactsmanager_getdexie"
     },
     {
       "label": ".fetchRecentFactsFromDexie()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L67",
-      "id": "features_factsmanager_dashboardfactsmanager_fetchrecentfactsfromdexie",
       "community": 7,
-      "norm_label": ".fetchrecentfactsfromdexie()"
+      "norm_label": ".fetchrecentfactsfromdexie()",
+      "id": "features_factsmanager_dashboardfactsmanager_fetchrecentfactsfromdexie"
     },
     {
       "label": ".fetchQuickStatsFromDexie()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L92",
-      "id": "features_factsmanager_dashboardfactsmanager_fetchquickstatsfromdexie",
       "community": 7,
-      "norm_label": ".fetchquickstatsfromdexie()"
+      "norm_label": ".fetchquickstatsfromdexie()",
+      "id": "features_factsmanager_dashboardfactsmanager_fetchquickstatsfromdexie"
     },
     {
       "label": ".fetchAccountBalancesFromDexie()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L141",
-      "id": "features_factsmanager_dashboardfactsmanager_fetchaccountbalancesfromdexie",
       "community": 7,
-      "norm_label": ".fetchaccountbalancesfromdexie()"
+      "norm_label": ".fetchaccountbalancesfromdexie()",
+      "id": "features_factsmanager_dashboardfactsmanager_fetchaccountbalancesfromdexie"
     },
     {
       "label": ".mapFactToRecentFact()",
       "file_type": "code",
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L199",
-      "id": "features_factsmanager_dashboardfactsmanager_mapfacttorecentfact",
       "community": 7,
-      "norm_label": ".mapfacttorecentfact()"
+      "norm_label": ".mapfacttorecentfact()",
+      "id": "features_factsmanager_dashboardfactsmanager_mapfacttorecentfact"
+    },
+    {
+      "label": "fact_transaction_tab.html",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_template",
+      "community": 13,
+      "norm_label": "fact_transaction_tab.html"
+    },
+    {
+      "label": "fact_date input field",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 12",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_fact_date_field",
+      "community": 13,
+      "norm_label": "fact_date input field"
+    },
+    {
+      "label": "setFactDate() window function",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "lines 8-10",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_set_fact_date_fn",
+      "community": 13,
+      "norm_label": "setfactdate() window function"
+    },
+    {
+      "label": "financial_center_id select (\u0421\u0447\u0435\u0442)",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 24",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_financial_center_id_field",
+      "community": 13,
+      "norm_label": "financial_center_id select (\u0441\u0447\u0435\u0442)"
+    },
+    {
+      "label": "record_type radio (expense/income)",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "lines 36-42",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_record_type_field",
+      "community": 13,
+      "norm_label": "record_type radio (expense/income)"
+    },
+    {
+      "label": "fact_type hidden input (synced with record_type)",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 47",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_fact_type_hidden",
+      "community": 13,
+      "norm_label": "fact_type hidden input (synced with record_type)"
+    },
+    {
+      "label": "article_id select (\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f, filtered by financial_center_id)",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 54",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_article_id_field",
+      "community": 13,
+      "norm_label": "article_id select (\u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f, filtered by financial_center_id)"
+    },
+    {
+      "label": "cost_center_id select (\u041c\u0435\u0441\u0442\u043e \u0437\u0430\u0442\u0440\u0430\u0442)",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 64",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_cost_center_id_field",
+      "community": 13,
+      "norm_label": "cost_center_id select (\u043c\u0435\u0441\u0442\u043e \u0437\u0430\u0442\u0440\u0430\u0442)"
+    },
+    {
+      "label": "fact-hints-container (\u041f\u043b\u0430\u043d/\u0424\u0430\u043a\u0442 \u0437\u0430 \u043c\u0435\u0441\u044f\u0446)",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "lines 70-77",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_fact_hints_container",
+      "community": 13,
+      "norm_label": "fact-hints-container (\u043f\u043b\u0430\u043d/\u0444\u0430\u043a\u0442 \u0437\u0430 \u043c\u0435\u0441\u044f\u0446)"
+    },
+    {
+      "label": "hint-period-plan button",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 71",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_hint_period_plan",
+      "community": 13,
+      "norm_label": "hint-period-plan button"
+    },
+    {
+      "label": "hint-period-fact button",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 74",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_hint_period_fact",
+      "community": 13,
+      "norm_label": "hint-period-fact button"
+    },
+    {
+      "label": "amount input (\u0421\u0443\u043c\u043c\u0430)",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 84",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_amount_field",
+      "community": 13,
+      "norm_label": "amount input (\u0441\u0443\u043c\u043c\u0430)"
+    },
+    {
+      "label": "description textarea (\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435/\u041a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0439)",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 93",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_description_field",
+      "community": 13,
+      "norm_label": "description textarea (\u043e\u043f\u0438\u0441\u0430\u043d\u0438\u0435/\u043a\u043e\u043c\u043c\u0435\u043d\u0442\u0430\u0440\u0438\u0438)"
+    },
+    {
+      "label": "categoryWidget.ts (syncFactTypeHidden)",
+      "file_type": "code",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 46",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "category_widget_ts",
+      "community": 13,
+      "norm_label": "categorywidget.ts (syncfacttypehidden)"
+    },
+    {
+      "label": "fact_type is kept in sync with record_type via syncFactTypeHidden() in categoryWidget.ts to support form submission with the correct transaction type",
+      "file_type": "rationale",
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 46",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "fact_transaction_tab_sync_fact_type_rationale",
+      "community": 13,
+      "norm_label": "fact_type is kept in sync with record_type via syncfacttypehidden() in categorywidget.ts to support form submission with the correct transaction type"
     }
   ],
   "links": [
@@ -5051,9 +5246,9 @@
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "dashboard_recenttransactions_recenttransaction",
-      "target": "recenttransactions_ts",
-      "confidence_score": 1.0
+      "target": "recenttransactions_ts"
     },
     {
       "relation": "calls",
@@ -5083,9 +5278,9 @@
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L27",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "dashboard_recenttransactions_loadrecenttransactions",
-      "target": "recenttransactions_ts",
-      "confidence_score": 1.0
+      "target": "recenttransactions_ts"
     },
     {
       "relation": "imports",
@@ -5094,9 +5289,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L11",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "dashboard_recenttransactions_loadrecenttransactions",
-      "target": "features_offlinedashboard_ts",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_ts"
     },
     {
       "relation": "calls",
@@ -5115,9 +5310,9 @@
       "source_file": "frontend/web/static/js/dashboard/recentTransactions.ts",
       "source_location": "L65",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "dashboard_recenttransactions_buildrecenttransactionshtml",
-      "target": "recenttransactions_ts",
-      "confidence_score": 1.0
+      "target": "recenttransactions_ts"
     },
     {
       "relation": "imports",
@@ -5126,9 +5321,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L11",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "dashboard_recenttransactions_buildrecenttransactionshtml",
-      "target": "features_offlinedashboard_ts",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_ts"
     },
     {
       "relation": "calls",
@@ -5234,9 +5429,9 @@
       "source_file": "frontend/web/static/js/dashboard/index.ts",
       "source_location": "L251",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "dashboard_index_initmodule",
-      "target": "index_ts",
-      "confidence_score": 1.0
+      "target": "index_ts"
     },
     {
       "relation": "imports_from",
@@ -6719,9 +6914,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L19",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager",
-      "target": "features_factsmanager_ts",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_ts"
     },
     {
       "relation": "method",
@@ -6729,9 +6924,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L61",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager",
-      "target": "features_factsmanager_dashboardfactsmanager_getdexie",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_getdexie"
     },
     {
       "relation": "method",
@@ -6739,9 +6934,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L67",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager",
-      "target": "features_factsmanager_dashboardfactsmanager_fetchrecentfactsfromdexie",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_fetchrecentfactsfromdexie"
     },
     {
       "relation": "method",
@@ -6749,9 +6944,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L92",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager",
-      "target": "features_factsmanager_dashboardfactsmanager_fetchquickstatsfromdexie",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_fetchquickstatsfromdexie"
     },
     {
       "relation": "method",
@@ -6759,9 +6954,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L141",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager",
-      "target": "features_factsmanager_dashboardfactsmanager_fetchaccountbalancesfromdexie",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_fetchaccountbalancesfromdexie"
     },
     {
       "relation": "method",
@@ -6769,9 +6964,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L199",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager",
-      "target": "features_factsmanager_dashboardfactsmanager_mapfacttorecentfact",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_mapfacttorecentfact"
     },
     {
       "relation": "calls",
@@ -6846,9 +7041,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L22",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager_loadrecentfacts",
-      "target": "features_factsmanager_dashboardfactsmanager_fetchrecentfactsfromdexie",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_fetchrecentfactsfromdexie"
     },
     {
       "relation": "calls",
@@ -6890,9 +7085,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L29",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager_calculatequickstats",
-      "target": "features_factsmanager_dashboardfactsmanager_fetchquickstatsfromdexie",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_fetchquickstatsfromdexie"
     },
     {
       "relation": "calls",
@@ -6934,9 +7129,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L36",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager_loadaccountbalances",
-      "target": "features_factsmanager_dashboardfactsmanager_fetchaccountbalancesfromdexie",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_fetchaccountbalancesfromdexie"
     },
     {
       "relation": "calls",
@@ -6956,9 +7151,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_factsmanager",
-      "target": "features_offlinedashboard_ts",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_ts"
     },
     {
       "relation": "contains",
@@ -6966,9 +7161,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L230",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_factsmanager",
-      "target": "features_factsmanager_ts",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_ts"
     },
     {
       "relation": "imports_from",
@@ -15244,9 +15439,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L11",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "recenttransactions_ts",
-      "target": "features_offlinedashboard_ts",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_ts"
     },
     {
       "relation": "imports_from",
@@ -15255,9 +15450,9 @@
       "source_file": "frontend/web/static/js/dashboard/index.ts",
       "source_location": "L241",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "index_ts",
-      "target": "features_offlinedashboard_ts",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_ts"
     },
     {
       "relation": "imports",
@@ -15266,9 +15461,9 @@
       "source_file": "frontend/web/static/js/dashboard/index.ts",
       "source_location": "L241",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "index_ts",
-      "target": "features_offlinedashboard_offlinedashboard",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboard"
     },
     {
       "relation": "imports_from",
@@ -15277,9 +15472,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L10",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_factsmanager_ts",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_ts"
     },
     {
       "relation": "contains",
@@ -15287,9 +15482,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L18",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_recenttransaction",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_recenttransaction"
     },
     {
       "relation": "contains",
@@ -15297,9 +15492,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L67",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_formatmoneymobile",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_formatmoneymobile"
     },
     {
       "relation": "contains",
@@ -15307,9 +15502,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L75",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_formatmoneydesktop",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_formatmoneydesktop"
     },
     {
       "relation": "contains",
@@ -15317,9 +15512,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L81",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_getbalancecolor",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_getbalancecolor"
     },
     {
       "relation": "contains",
@@ -15327,9 +15522,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L87",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_getpctcolor",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_getpctcolor"
     },
     {
       "relation": "contains",
@@ -15337,9 +15532,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L93",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_moneyspan",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_moneyspan"
     },
     {
       "relation": "contains",
@@ -15347,9 +15542,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L97",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_buildquickstatshtml",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_buildquickstatshtml"
     },
     {
       "relation": "contains",
@@ -15357,9 +15552,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L122",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_buildaccountbalanceshtml",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_buildaccountbalanceshtml"
     },
     {
       "relation": "contains",
@@ -15367,9 +15562,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L144",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_isofflinemode",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_isofflinemode"
     },
     {
       "relation": "contains",
@@ -15377,9 +15572,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L148",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator"
     },
     {
       "relation": "contains",
@@ -15387,9 +15582,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L285",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_ts",
-      "target": "features_offlinedashboard_offlinedashboard",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboard"
     },
     {
       "relation": "calls",
@@ -15398,9 +15593,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L94",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_formatmoneymobile",
-      "target": "features_offlinedashboard_moneyspan",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_moneyspan"
     },
     {
       "relation": "calls",
@@ -15409,9 +15604,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L94",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_formatmoneydesktop",
-      "target": "features_offlinedashboard_moneyspan",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_moneyspan"
     },
     {
       "relation": "calls",
@@ -15420,9 +15615,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L229",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_buildquickstatshtml",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats"
     },
     {
       "relation": "calls",
@@ -15431,9 +15626,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L235",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_buildaccountbalanceshtml",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances"
     },
     {
       "relation": "calls",
@@ -15442,9 +15637,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L157",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_isofflinemode",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_init",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_init"
     },
     {
       "relation": "calls",
@@ -15453,9 +15648,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L172",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_isofflinemode",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_onhtmxbeforerequest",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_onhtmxbeforerequest"
     },
     {
       "relation": "method",
@@ -15463,9 +15658,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L152",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_init",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_init"
     },
     {
       "relation": "method",
@@ -15473,9 +15668,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L171",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_onhtmxbeforerequest",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_onhtmxbeforerequest"
     },
     {
       "relation": "method",
@@ -15483,9 +15678,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L181",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_onofflinestatuschange",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_onofflinestatuschange"
     },
     {
       "relation": "method",
@@ -15493,9 +15688,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L189",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderall",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderall"
     },
     {
       "relation": "method",
@@ -15503,9 +15698,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L212",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_rendersection",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_rendersection"
     },
     {
       "relation": "method",
@@ -15513,9 +15708,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L226",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats"
     },
     {
       "relation": "method",
@@ -15523,9 +15718,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L232",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances"
     },
     {
       "relation": "method",
@@ -15533,9 +15728,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L238",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderrecentfacts",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderrecentfacts"
     },
     {
       "relation": "method",
@@ -15543,9 +15738,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L261",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_clearall",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_clearall"
     },
     {
       "relation": "method",
@@ -15553,9 +15748,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L277",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_showunavailable",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_showunavailable"
     },
     {
       "relation": "calls",
@@ -15564,9 +15759,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L158",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator_init",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderall",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderall"
     },
     {
       "relation": "calls",
@@ -15575,9 +15770,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L177",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator_onhtmxbeforerequest",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_rendersection",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_rendersection"
     },
     {
       "relation": "calls",
@@ -15586,9 +15781,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L183",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator_onofflinestatuschange",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderall",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderall"
     },
     {
       "relation": "calls",
@@ -15597,9 +15792,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L185",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator_onofflinestatuschange",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_clearall",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_clearall"
     },
     {
       "relation": "calls",
@@ -15608,9 +15803,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L194",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator_renderall",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_showunavailable",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_showunavailable"
     },
     {
       "relation": "calls",
@@ -15619,9 +15814,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L198",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator_renderall",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats"
     },
     {
       "relation": "calls",
@@ -15630,9 +15825,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L199",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator_renderall",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances"
     },
     {
       "relation": "calls",
@@ -15641,9 +15836,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L200",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator_renderall",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderrecentfacts",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderrecentfacts"
     },
     {
       "relation": "calls",
@@ -15652,9 +15847,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L216",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator_rendersection",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderquickstats"
     },
     {
       "relation": "calls",
@@ -15663,9 +15858,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/offlineDashboard.ts",
       "source_location": "L219",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_offlinedashboard_offlinedashboardcoordinator_rendersection",
-      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances",
-      "confidence_score": 1.0
+      "target": "features_offlinedashboard_offlinedashboardcoordinator_renderaccountbalances"
     },
     {
       "relation": "calls",
@@ -15674,9 +15869,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L70",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager_getdexie",
-      "target": "features_factsmanager_dashboardfactsmanager_fetchrecentfactsfromdexie",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_fetchrecentfactsfromdexie"
     },
     {
       "relation": "calls",
@@ -15685,9 +15880,9 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L98",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager_getdexie",
-      "target": "features_factsmanager_dashboardfactsmanager_fetchquickstatsfromdexie",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_fetchquickstatsfromdexie"
     },
     {
       "relation": "calls",
@@ -15696,11 +15891,171 @@
       "source_file": "frontend/web/static/js/dashboard/features/factsManager.ts",
       "source_location": "L144",
       "weight": 1.0,
+      "confidence_score": 1.0,
       "source": "features_factsmanager_dashboardfactsmanager_getdexie",
-      "target": "features_factsmanager_dashboardfactsmanager_fetchaccountbalancesfromdexie",
-      "confidence_score": 1.0
+      "target": "features_factsmanager_dashboardfactsmanager_fetchaccountbalancesfromdexie"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 12",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_template",
+      "target": "fact_transaction_tab_fact_date_field"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "lines 8-10",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_template",
+      "target": "fact_transaction_tab_set_fact_date_fn"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 24",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_template",
+      "target": "fact_transaction_tab_financial_center_id_field"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "lines 36-42",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_template",
+      "target": "fact_transaction_tab_record_type_field"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 47",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_template",
+      "target": "fact_transaction_tab_fact_type_hidden"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 54",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_template",
+      "target": "fact_transaction_tab_article_id_field"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 64",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_template",
+      "target": "fact_transaction_tab_cost_center_id_field"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 70",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_template",
+      "target": "fact_transaction_tab_fact_hints_container"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 84",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_template",
+      "target": "fact_transaction_tab_amount_field"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 93",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_template",
+      "target": "fact_transaction_tab_description_field"
+    },
+    {
+      "relation": "filtered_by",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 49",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_financial_center_id_field",
+      "target": "fact_transaction_tab_article_id_field"
+    },
+    {
+      "relation": "synced_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 46",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_record_type_field",
+      "target": "fact_transaction_tab_fact_type_hidden"
+    },
+    {
+      "relation": "managed_by",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 46",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_fact_type_hidden",
+      "target": "category_widget_ts"
+    },
+    {
+      "relation": "has_rationale",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 46",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_fact_type_hidden",
+      "target": "fact_transaction_tab_sync_fact_type_rationale"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 71",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_fact_hints_container",
+      "target": "fact_transaction_tab_hint_period_plan"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "frontend/web/templates/components/tabs/fact_transaction_tab.html",
+      "source_location": "line 74",
+      "weight": 1.0,
+      "source": "fact_transaction_tab_fact_hints_container",
+      "target": "fact_transaction_tab_hint_period_fact"
     }
   ],
   "hyperedges": [],
-  "built_at_commit": "ac0e81a1f86603cea9773ba3343e256b114cf74d"
+  "built_at_commit": "f1d286c93744a040269d71506e00c0c00a45d15b"
 }
