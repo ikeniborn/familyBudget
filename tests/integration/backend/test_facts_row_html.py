@@ -20,10 +20,12 @@ from backend.app.models.user import User
 async def sample_fact(
     db_session: AsyncSession, test_user: User
 ) -> BudgetFact:
+    assert test_user.id is not None
     fc = FinancialCenter(user_id=test_user.id, name="FC", is_active=True)
     db_session.add(fc)
     await db_session.commit()
     await db_session.refresh(fc)
+    assert fc.id is not None
 
     article = Article(
         user_id=test_user.id, parent_id=None, name="Food",
@@ -32,6 +34,7 @@ async def sample_fact(
     db_session.add(article)
     await db_session.commit()
     await db_session.refresh(article)
+    assert article.id is not None
 
     fact = BudgetFact(
         user_id=test_user.id,
