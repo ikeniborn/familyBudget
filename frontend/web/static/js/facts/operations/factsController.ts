@@ -274,8 +274,6 @@ function removeRowFromTable(factId: number): boolean {
     setTotalFacts(newTotal);
     const statEl = document.getElementById('stat-total');
     if (statEl) statEl.textContent = String(newTotal);
-    statDecrementedIds.add(factId);
-    setTimeout(() => statDecrementedIds.delete(factId), 3000);
 
     return true;
 }
@@ -308,6 +306,7 @@ export async function deleteFact(factId: number): Promise<void> {
     }
     deletingFactIds.add(factId);
 
+    let guardAdded = false;
     try {
         const confirmed = await showConfirmDialog(
             'Вы уверены, что хотите удалить этот факт?',
@@ -318,10 +317,16 @@ export async function deleteFact(factId: number): Promise<void> {
             return;
         }
 
+        // Mark before the await: WS fact_deleted can arrive while deleteFn is in flight.
+        statDecrementedIds.add(factId);
+        guardAdded = true;
+
         // Import dynamically to avoid circular dependency
         const { deleteFact: deleteFn } = await import('../integration/factsAPI');
-
         await deleteFn(factId);
+
+        // Auto-expire so a stale guard never blocks a future legitimate decrement.
+        setTimeout(() => statDecrementedIds.delete(factId), 3000);
 
         showToast('Факт успешно удален', 'success');
 
@@ -331,6 +336,9 @@ export async function deleteFact(factId: number): Promise<void> {
             await loadFacts({ forceAPI: true });
         }
     } catch (error) {
+        if (guardAdded) {
+            statDecrementedIds.delete(factId);
+        }
         logger.error(' Error deleting fact:', error);
         const errorMessage = error instanceof Error ? error.message : String(error);
         showToast(`Ошибка удаления: ${errorMessage}`, 'error');
