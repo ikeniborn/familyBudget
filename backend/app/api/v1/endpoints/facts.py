@@ -1398,6 +1398,17 @@ async def get_fact_row_html(
     short_date = fact.fact_date.strftime("%d.%m")
     formatted_amount = _format_amount(fact.amount, article.type)
 
+    def _format_updated_at(value) -> str:
+        if value is None:
+            return "—"
+        try:
+            dt = value
+            return dt.strftime("%d.%m.%Y %H:%M")
+        except Exception:
+            return "—"
+
+    updated_at_formatted = _format_updated_at(fact.updated_at)
+
     # Reminder icon
     reminder_icon = '<span class="text-info" title="Напоминание установлено">🔔</span>' if reminder is not None else ""
 
@@ -1418,9 +1429,45 @@ async def get_fact_row_html(
         edit_onclick = f"window.FactsManager?.showEditModal?.({fact.id})"
         delete_onclick = f"event.stopPropagation(); window.FactsManager?.deleteFact?.({fact.id})"
         mobile_onclick = f"window.FactsManager?.showEditModal?.({fact.id})"
-        badge_html = f'<span class="badge badge-success badge-xs shrink-0">Факт</span>'
-        checkbox_onchange = "window.updateBatchDeleteButton?.()"
+        badge_html = '<span class="badge badge-primary badge-xs shrink-0">Факт</span>'
+
+        desktop_row = f"""
+<tr {data_attr}>
+  <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" data-fact-id="{fact.id}"></td>
+  <td class="text-base-content/50 text-xs">{fact.id}</td>
+  <td>{formatted_date}</td>
+  <td class="max-w-xs truncate" title="{fc_name}">{fc_name}</td>
+  <td class="max-w-xs truncate" title="{cc_name}">{cc_name}</td>
+  <td>{article_name}</td>
+  <td class="{article_color_class} font-bold">{formatted_amount}</td>
+  <td class="max-w-xs truncate" title="{description}">{description_truncated}</td>
+  <td class="text-xs whitespace-nowrap">{user_name}</td>
+  <td class="text-xs text-base-content/50 whitespace-nowrap">{updated_at_formatted}</td>
+  <td>
+    <div class="flex gap-1">
+      <button class="btn btn-xs btn-primary gap-1" onclick="{edit_onclick}">✏️</button>
+      <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" onclick="{delete_onclick}" title="Удалить">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+    </div>
+  </td>
+</tr>"""
+
+        mobile_row = f"""
+<div class="transaction-item py-2" {data_attr} onclick="{mobile_onclick}">
+  <div class="flex items-center gap-2">
+    {badge_html}
+    <span class="flex-1 font-medium truncate">{article_name}</span>
+    <span class="{article_color_class} font-bold whitespace-nowrap">{formatted_amount}</span>
+  </div>
+  <div class="text-xs text-base-content/60 mt-1 truncate">
+    {short_date} • {fc_name} • {description}
+  </div>
+</div>"""
     else:
+        # Plan branch — unchanged from prior implementation.
         data_attr = f'data-plan-id="{fact.id}"'
         edit_onclick = f"showEditModal({fact.id})"
         delete_onclick = f"event.stopPropagation(); deleteFact({fact.id})"
@@ -1428,8 +1475,7 @@ async def get_fact_row_html(
         badge_html = '<span class="badge badge-info badge-xs shrink-0">План</span>'
         checkbox_onchange = "window.PlanApp.FactsTable.updateBatchDeleteButton()"
 
-    # Desktop table row — matches factsTable.ts renderFactsTable() structure
-    desktop_row = f"""
+        desktop_row = f"""
 <tr {data_attr}>
   <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="{fact.id}" onchange="{checkbox_onchange}"></td>
   <td><code class="badge badge-ghost">{fact.id}</code></td>
@@ -1455,9 +1501,8 @@ async def get_fact_row_html(
   </td>
 </tr>"""
 
-    # Mobile list item — matches factsTable.ts renderFactsTable() structure
-    mobile_icons = " ".join(filter(None, [recurring_icon, reminder_icon, offline_icon]))
-    mobile_row = f"""
+        mobile_icons = " ".join(filter(None, [recurring_icon, reminder_icon, offline_icon]))
+        mobile_row = f"""
 <div class="transaction-item py-2" {data_attr} onclick="{mobile_onclick}">
   <div class="flex items-center gap-2">
     {badge_html}
