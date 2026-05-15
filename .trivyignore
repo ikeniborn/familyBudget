@@ -188,6 +188,24 @@ CVE-2026-6100
 # Review: Weekly (security patches)
 CVE-2026-26007
 
+# ============================================================================
+# New Vulnerabilities (Added 2026-05-15)
+# ============================================================================
+
+# CVE-2026-45186: libexpat DoS via attribute name collision complexity (HIGH)
+# Status: affected in Debian 12 (bookworm) - CVE published 2026-05-10, no DSA yet
+# Impact: DoS via algorithmic complexity in attribute name collision checks (CWE-407)
+# CVSS: 7.5 (NVD) AV:N/AC:L/PR:N/UI:N/C:N/I:N/A:H
+# Package: libexpat1 v2.5.0-1+deb12u2
+# Fixed in: libexpat 2.8.1 (not yet in Debian 12 bookworm)
+# Mitigation: Accept risk temporarily - application uses XML only as transitive dependency
+#   - No direct XML uploads accepted from users (whitelist: .xlsx, .csv, .json)
+#   - Rate limiting via SlowAPI (100 req/min per IP) reduces DoS exposure
+#   - Nginx body size limit 50 MB caps payload
+# Risk assessment: LOW (no user-controlled XML parsing paths)
+# Next review: 2026-06-15 (monthly check for Debian DSA)
+CVE-2026-45186
+
 # CVE-2025-69534: python-markdown DoS via malformed HTML-like sequences (HIGH)
 # Status: affected in Debian 12 (bookworm) - CVE published 2026-03-05, no DSA yet
 # Impact: AssertionError in html.parser.HTMLParser when parsing malformed Markdown → application crash (DoS)
