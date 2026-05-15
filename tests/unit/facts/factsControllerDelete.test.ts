@@ -41,4 +41,17 @@ describe('deleteFact stat guard', () => {
         await deleteFact(43);
         expect(consumeStatDecrement(43)).toBe(false);
     });
+
+    it('does not add guard when user cancels confirm', async () => {
+        // showConfirmDialog in factsController prefers window.showConfirmDialog
+        // when defined; override it to simulate user cancel.
+        (window as any).showConfirmDialog = vi.fn().mockResolvedValue(false);
+
+        await deleteFact(44);
+
+        expect(consumeStatDecrement(44)).toBe(false);
+        expect(apiDelete).not.toHaveBeenCalled();
+
+        delete (window as any).showConfirmDialog;
+    });
 });
