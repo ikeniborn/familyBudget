@@ -1,3 +1,23 @@
+---
+review:
+  spec_hash: f79bb4093f738775
+  last_run: 2026-05-15
+  phases:
+    structure:   { status: passed }
+    coverage:    { status: passed }
+    clarity:     { status: passed }
+    consistency: { status: passed }
+  findings:
+    - id: F-001
+      phase: clarity
+      severity: WARNING
+      section: "Solution / Bug 1 — Mark statDecrementedIds before the await"
+      section_hash: pending
+      text: "Ambiguous instruction: 'keep the 3s auto-expire timer scheduling there or move it to deleteFact — pick the path that keeps the set in one place.' Leaves implementation choice without DoD criterion."
+      verdict: fixed
+      verdict_at: 2026-05-15
+---
+
 # Facts Page: Delete Stat Double-Decrement & New-Row Render Mismatch
 
 **Date:** 2026-05-15
@@ -48,8 +68,9 @@ Fix `b66edf2e` is logically correct but inserts the guard flag **after** the awa
 In `deleteFact()` (`factsController.ts`):
 
 - After confirm passes and **before** `await deleteFn(factId)`: `statDecrementedIds.add(factId)`
-- On error in `catch`: `statDecrementedIds.delete(factId)` (rollback so the set doesn't leak)
-- `removeRowFromTable()` no longer needs to add the id (already added); keep the 3s auto-expire timer scheduling there or move it to `deleteFact` — pick the path that keeps the set in one place.
+- After successful `await deleteFn(factId)`: schedule `setTimeout(() => statDecrementedIds.delete(factId), 3000)` inside `deleteFact`
+- On error in `catch`: `statDecrementedIds.delete(factId)` immediately (rollback so the set doesn't leak)
+- Remove all `statDecrementedIds.add(...)` and 3s auto-expire timer logic from `removeRowFromTable()` — set is fully managed inside `deleteFact`
 
 Net effect: WS handler always sees the flag and skips its own decrement; `removeRowFromTable` decrements once on success.
 
