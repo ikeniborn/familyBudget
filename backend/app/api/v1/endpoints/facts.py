@@ -1317,6 +1317,15 @@ async def get_facts_count(
     return {"total": total}
 
 
+def _format_updated_at(value) -> str:
+    if value is None:
+        return "—"
+    try:
+        return value.strftime("%d.%m.%Y %H:%M")
+    except AttributeError:
+        return "—"
+
+
 @router.get("/{fact_id}/row-html", response_class=HTMLResponse)
 async def get_fact_row_html(
     fact_id: int,
@@ -1397,15 +1406,6 @@ async def get_fact_row_html(
     formatted_date = fact.fact_date.strftime("%d.%m.%Y")
     short_date = fact.fact_date.strftime("%d.%m")
     formatted_amount = _format_amount(fact.amount, article.type)
-
-    def _format_updated_at(value) -> str:
-        if value is None:
-            return "—"
-        try:
-            dt = value
-            return dt.strftime("%d.%m.%Y %H:%M")
-        except Exception:
-            return "—"
 
     updated_at_formatted = _format_updated_at(fact.updated_at)
 

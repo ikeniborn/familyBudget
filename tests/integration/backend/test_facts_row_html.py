@@ -59,6 +59,9 @@ async def test_row_html_fact_branch_matches_client(
 
     desktop, _, mobile = html.partition("|||")
 
+    assert "|||" in html
+    assert mobile, "mobile partition empty — separator missing or no mobile_row"
+
     assert desktop.count("<td") == 11, desktop
     assert f'<td class="text-base-content/50 text-xs">{sample_fact.id}</td>' in desktop
     assert "badge badge-ghost" not in desktop
@@ -69,6 +72,10 @@ async def test_row_html_fact_branch_matches_client(
     assert "Создано offline" not in desktop
     assert "Напоминание установлено" not in mobile
     assert "Регламентный платеж" not in mobile
+
+    # Positive coverage: mobile fact card must include primary badge + transaction-item wrapper
+    assert "transaction-item" in mobile
+    assert "badge-primary" in mobile
 
 
 @pytest.mark.asyncio
