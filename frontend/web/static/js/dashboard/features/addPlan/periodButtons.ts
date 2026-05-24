@@ -1,3 +1,5 @@
+import { loadPlanCategories } from './planForm';
+
 declare const debugLog: (...args: any[]) => void;
 
 /**
@@ -224,9 +226,7 @@ export function setupPlanTypeButtons(): void {
       // Reload only plan categories with new type
       debugLog('Plan type changed to:', this.dataset.type);
 
-      if ((window as any).Dashboard?.loadPlanCategories) {
-        (window as any).Dashboard.loadPlanCategories();
-      }
+      loadPlanCategories();
     });
 
     button.dataset.listenerAttached = 'true';

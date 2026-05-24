@@ -129,14 +129,9 @@ export {
   setupTransactionTypeButtons,
 } from './features/addTransaction';
 
-// Add Plan (Phase 3) - kept for backward compatibility with legacy inline JavaScript
+// Add Plan (Phase 3)
 export {
-  // Plan form operations
-  loadPlanCategories,
-  savePlan,
-  savePlanOffline,
-  // Plan hints
-  loadPlanHints,
+  // Legacy exports removed (v11.x+): loadPlanCategories, savePlan, savePlanOffline, loadPlanHints
   // Period buttons
   setupPlanPeriodButtons,
   setupPlanTypeButtons,
