@@ -1,0 +1,115 @@
+name: Deploy to Production
+
+# Delivers code/config changes to budget-prod without rebuilding Docker images.
+# Images are pulled from GHCR according to IMAGE_VERSIONS.json (versions set by build-and-push.yml).
+#
+# Required secrets:
+#   PROD_SERVER_HOST, PROD_SERVER_USER, PROD_SERVER_SSH_KEY, PROD_SERVER_SSH_PORT
+#   PROD_TELEGRAM_CHAT_ID, PROD_TELEGRAM_BOT_TOKEN
+
+on:
+  push:
+    branches: [prod]
+    paths:
+      - 'scripts/**'
+      - 'deploy.sh'
+      - 'docker-compose*.yml'
+      - 'IMAGE_VERSIONS.json'
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: 'Deployment profile'
+        required: false
+        type: choice
+        options: [full, basic]
+        default: full
+
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
+jobs:
+  deploy-prod:
+    name: Deploy to budget-prod
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Notify started (Telegram)
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.PROD_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.PROD_TELEGRAM_BOT_TOKEN }}
+          message: |
+            🚀 Deploy to prod started
+
+            Commit: ${{ github.event.head_commit.message }}
+            Author: ${{ github.actor }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SERVER_HOST }}
+          username: ${{ secrets.PROD_SERVER_USER }}
+          key: ${{ secrets.PROD_SERVER_SSH_KEY }}
+          port: ${{ secrets.PROD_SERVER_SSH_PORT }}
+          command_timeout: 30m
+          script: |
+            set -e
+
+            echo "📥 Pulling latest code..."
+            cd ~/familyBudget
+            git fetch origin
+            git pull origin prod
+
+            echo "🔄 Syncing deploy scripts to /opt/budget..."
+            # Sync scripts before running deploy.sh to avoid using stale scripts
+            rsync -a --delete scripts/ /opt/budget/scripts/
+            cp deploy.sh /opt/budget/deploy.sh
+            cp IMAGE_VERSIONS.json /opt/budget/IMAGE_VERSIONS.json
+            cp VERSION /opt/budget/VERSION
+            for f in docker-compose*.yml; do
+              [ -f "$f" ] && cp "$f" /opt/budget/
+            done
+
+            echo "🐳 Deploying with existing registry images..."
+            cd /opt/budget
+            ./deploy.sh --use-registry --sync-mode update --cleanup-mode smart --profile ${{ inputs.profile || 'full' }}
+
+            echo "⏳ Waiting for services to stabilize..."
+            sleep 15
+
+            echo "🏥 Health checks..."
+            curl -sf http://localhost:8000/health || { echo "❌ Backend health check failed"; exit 1; }
+            curl -sf -o /dev/null http://localhost:80 || { echo "❌ Nginx health check failed"; exit 1; }
+
+            echo "✅ Deploy complete!"
+            docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'
+
+      - name: Notify success (Telegram)
+        if: success()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.PROD_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.PROD_TELEGRAM_BOT_TOKEN }}
+          message: |
+            ✅ Deploy to prod completed
+
+            Version: ${{ github.ref_name }}
+            Commit: ${{ github.event.head_commit.message }}
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Notify failure (Telegram)
+        if: failure()
+        continue-on-error: true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.PROD_TELEGRAM_CHAT_ID }}
+          token: ${{ secrets.PROD_TELEGRAM_BOT_TOKEN }}
+          message: |
+            ❌ Deploy to prod FAILED
+
+            Commit: ${{ github.event.head_commit.message }}
+            Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
