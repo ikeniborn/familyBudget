@@ -1,3 +1,23 @@
+---
+review:
+  spec_hash: "d3b97977b5bce171"
+  last_run: "2026-05-24"
+  phases:
+    structure:   { status: passed }
+    coverage:    { status: passed }
+    clarity:     { status: passed }
+    consistency: { status: passed }
+  findings:
+    - id: F-001
+      phase: clarity
+      severity: WARNING
+      section: "Phase 1 — Pre-deploy Check"
+      section_hash: "c5e253b4f90240a8"
+      text: "'Variant C (manual migration step)' referenced but not defined in spec body — reader without brainstorm context cannot act on this"
+      verdict: fixed
+      verdict_at: "2026-05-24"
+---
+
 # Design: Deploy v0.6.165 to Production Server
 
 **Date:** 2026-05-24  
@@ -32,7 +52,15 @@ SELECT COUNT(*) FROM t_f_budget_fact WHERE amount != FLOOR(amount);
 ```
 
 - Result = 0 → proceed
-- Result > 0 → switch to Variant C (manual migration step), stop and notify user
+- Result > 0 → **stop, notify user, use Variant C** (see below)
+
+**Variant C (manual migration — only if fractional amounts found):**
+```bash
+./deploy.sh --profile full --no-migrate   # deploy without auto-migrations
+# Then manually inspect and migrate:
+docker exec familybudget-backend alembic upgrade head
+```
+User must decide how to handle fractional kopeck data before proceeding.
 
 ## Phase 2 — Database Backup
 
