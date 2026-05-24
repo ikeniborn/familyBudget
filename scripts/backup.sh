@@ -58,8 +58,8 @@ LOG_DIR="${LOG_DIR:-${BACKUP_DIR}/logs}"
 LOCK_FILE="/tmp/familybudget_backup.lock"
 
 # Backup settings
-LOCAL_RETENTION_DAYS=7
-S3_RETENTION_DAYS=28
+LOCAL_RETENTION_DAYS=3
+S3_RETENTION_DAYS=7
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 DATE_YMD=$(date +%Y%m%d)
 BACKUP_FILENAME="backup_${TIMESTAMP}.sql.gz"
