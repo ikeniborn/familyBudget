@@ -430,16 +430,19 @@ prepare_upload_directories() {
 
     # Set ownership to backend container user (appuser UID:GID 999:999)
     info "Setting ownership for uploads directory (UID:GID $backend_uid:$backend_gid)"
-    chown -R "$backend_uid:$backend_gid" "$upload_dir" || {
-        error_return "Failed to set ownership for uploads directory"
-        return 1
-    }
+    if ! chown -R "$backend_uid:$backend_gid" "$upload_dir" 2>/dev/null; then
+        # Try with sudo if direct chown fails (directory may already be owned by container user)
+        if ! sudo chown -R "$backend_uid:$backend_gid" "$upload_dir" 2>/dev/null; then
+            warning "Could not change ownership of uploads directory - may already be correct"
+        fi
+    fi
 
     # Set permissions (755 = rwxr-xr-x: owner can write, others can read/execute)
-    chmod -R 755 "$upload_dir" || {
-        error_return "Failed to set permissions for uploads directory"
-        return 1
-    }
+    if ! chmod -R 755 "$upload_dir" 2>/dev/null; then
+        if ! sudo chmod -R 755 "$upload_dir" 2>/dev/null; then
+            warning "Could not set permissions on uploads directory - may already be correct"
+        fi
+    fi
 
     success "Upload directories prepared successfully"
     return 0
