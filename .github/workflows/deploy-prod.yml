@@ -8,13 +8,6 @@ name: Deploy to Production
 #   PROD_TELEGRAM_CHAT_ID, PROD_TELEGRAM_BOT_TOKEN
 
 on:
-  push:
-    branches: [prod]
-    paths:
-      - 'scripts/**'
-      - 'deploy.sh'
-      - 'docker-compose*.yml'
-      - 'IMAGE_VERSIONS.json'
   workflow_dispatch:
     inputs:
       profile:
