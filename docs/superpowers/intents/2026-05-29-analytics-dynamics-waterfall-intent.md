@@ -1,7 +1,7 @@
 # Intent: Analytics — Dynamics chart filter & Waterfall opening balance
 
 **Date:** 2026-05-29
-**Status:** draft
+**Status:** approved
 
 ## Objective
 
