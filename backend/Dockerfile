@@ -3,12 +3,16 @@
 FROM python:3.11-slim-bookworm as python-builder
 
 ARG PYTHON_VERSION=3.11
+# BUILD_DATE invalidates apt layer cache each CI run so security patches
+# (e.g. krb5 u4 -> u5 for CVE-2026-40356) are picked up promptly.
+ARG BUILD_DATE=unknown
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN apt-get update && \
+RUN echo "apt refresh: ${BUILD_DATE}" && \
+    apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install -y --no-install-recommends \
     build-essential \

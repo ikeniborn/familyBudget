@@ -219,3 +219,19 @@ CVE-2026-45186
 # Risk assessment: NEGLIGIBLE (vulnerable library not installed)
 # Next review: 2026-06-09 (quarterly)
 CVE-2025-69534
+
+# ============================================================================
+# New Vulnerabilities (Added 2026-05-29)
+# ============================================================================
+
+# CVE-2026-7210: Python xml.parsers.expat / xml.etree.ElementTree insufficient entropy (CRITICAL)
+# Status: affected in Debian 12 (bookworm) - no fix available in 3.11.2-6+deb12u6 (FixedVersion=null in Trivy DB)
+# Impact: Insufficient entropy in XML parser state → potential XML hash collision / DoS
+# Package: libpython3.11-minimal, libpython3.11-stdlib, python3.11-minimal v3.11.2-6+deb12u6
+# Mitigation: Accept risk - distroless base image, no apt access for patching
+#   - No untrusted XML parsed from external users (whitelist: .xlsx via openpyxl, .csv, .json)
+#   - openpyxl handles XLSX XML internally with size limits enforced by FastAPI (50 MB)
+#   - SlowAPI rate limiting (100 req/min per IP) caps abuse
+# Risk assessment: MEDIUM (controlled XML paths only; await Debian DSA or Python 3.12+ migration)
+# Next review: 2026-06-29 (monthly check for Debian DSA on python3.11)
+CVE-2026-7210
