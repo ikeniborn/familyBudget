@@ -7,6 +7,7 @@ import asyncio
 import calendar as cal_module
 import logging
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -25,6 +26,10 @@ from backend.app.schemas.analytics import (
     PlanFilterOptionsResponse,
     PlanHintsResponse,
     TransactionFilterEnum,
+)
+from backend.app.services.balance_aggregation_service import (
+    get_opening_balance,
+    get_opening_balances_bulk,
 )
 from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
 from backend.app.utils.analytics_rendering import (
@@ -372,6 +377,65 @@ def _normalize_period_key(period_key_raw):
     if isinstance(period_key_raw, date) and not isinstance(period_key_raw, datetime):
         return period_key_raw
     return period_key_raw.date() if hasattr(period_key_raw, "date") else period_key_raw
+
+
+async def _compute_initial_balance(
+    session: AsyncSession,
+    start_date: date,
+    cfo_id: int | None,
+) -> Decimal:
+    """Cumulative balance at end of (start_date - 1).
+
+    Why: /waterfall used previous calendar period as opening balance.
+    This pulls the closing snapshot of the previous month from t_agg_financial_center_balance_monthly
+    via balance_aggregation_service (built-in fallback to full-scan if missing).
+    If start_date is mid-month, adds delta for the partial current month.
+    Snapshot semantics: aggregate INCLUDES credit/debit (real account balance).
+    """
+    if start_date.month == 1:
+        prev_year, prev_month = start_date.year - 1, 12
+    else:
+        prev_year, prev_month = start_date.year, start_date.month - 1
+    if prev_month == 12:
+        next_year, next_month = prev_year + 1, 1
+    else:
+        next_year, next_month = prev_year, prev_month + 1
+
+    if cfo_id is not None:
+        snapshot = await get_opening_balance(
+            session, financial_center_id=cfo_id,
+            year=next_year, month=next_month,
+        )
+    else:
+        balances = await get_opening_balances_bulk(
+            session, year=next_year, month=next_month,
+        )
+        snapshot = sum(balances.values(), Decimal("0.00"))
+
+    if start_date.day == 1:
+        return snapshot
+
+    delta_start = date(start_date.year, start_date.month, 1)
+    delta_end = start_date - timedelta(days=1)
+
+    delta_query = select(
+        func.sum(case(
+            (Article.type.in_(["income", "credit"]), Fact.amount), else_=0,
+        ))
+        - func.sum(case(
+            (Article.type.in_(["expense", "debit"]), Fact.amount), else_=0,
+        ))
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.fact_date >= delta_start,
+        Fact.fact_date <= delta_end,
+        Fact.record_type == "fact",
+    )
+    if cfo_id is not None:
+        delta_query = delta_query.where(Fact.financial_center_id == cfo_id)
+
+    delta_result = await session.execute(delta_query)
+    delta = delta_result.scalar() or Decimal("0.00")
+    return snapshot + Decimal(str(delta))
 
 
 # ==================== Analytics Endpoints ====================
