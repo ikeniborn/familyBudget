@@ -924,11 +924,12 @@ async def get_trends_data(
         query = select(
             Fact.fact_date,
             Article.type,
-            func.sum(Fact.amount).label("total")
+            func.sum(Fact.amount).label("total"),
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Fact.record_type == record_type
+            Fact.record_type == record_type,
+            Article.type.in_(["income", "expense"]),
         )
 
         # Apply CFO filter if specified (v5.1.3)
@@ -940,16 +941,14 @@ async def get_trends_data(
         result = await session.execute(query)
         rows = result.all()
 
-        # Build data structure by date (map credit→income, debit→expense)
+        # Build data structure by date (income/expense only; credit/debit excluded at SQL layer)
         data_by_date = {}
         for row in rows:
             if row.fact_date not in data_by_date:
                 data_by_date[row.fact_date] = {"income": 0.0, "expense": 0.0}
-
-            # Map article types to income/expense categories
-            if row.type in ["income", "credit"]:
+            if row.type == "income":
                 data_by_date[row.fact_date]["income"] += float(row.total)
-            elif row.type in ["expense", "debit"]:
+            elif row.type == "expense":
                 data_by_date[row.fact_date]["expense"] += float(row.total)
 
         # Aggregate data by period and generate labels
