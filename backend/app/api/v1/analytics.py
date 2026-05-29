@@ -362,6 +362,18 @@ def get_previous_period(start_date: date, end_date: date, period: str | None = N
         return prev_start, prev_end
 
 
+def _normalize_period_key(period_key_raw):
+    """Convert SQL date_trunc result (datetime/timestamp) to date object.
+
+    Mirrors inline logic previously embedded in /waterfall.
+    """
+    if period_key_raw == 0 or period_key_raw is None:
+        return 0
+    if isinstance(period_key_raw, date) and not isinstance(period_key_raw, datetime):
+        return period_key_raw
+    return period_key_raw.date() if hasattr(period_key_raw, "date") else period_key_raw
+
+
 # ==================== Analytics Endpoints ====================
 
 
@@ -1309,18 +1321,7 @@ async def get_waterfall_data(
         articles_info = {}  # Track articles for drill-down
 
         for row in rows:
-            # Convert period_key to date object (v5.1.3 critical fix for date_trunc)
-            # date_trunc returns timestamp/datetime, we need date for period_data keys
-            period_key_raw = row.period_key if row.period_key else 0
-
-            if period_key_raw == 0:
-                period_key = 0
-            elif isinstance(period_key_raw, date) and not isinstance(period_key_raw, datetime):
-                # Already a date object
-                period_key = period_key_raw
-            else:
-                # datetime or timestamp - convert to date
-                period_key = period_key_raw.date() if hasattr(period_key_raw, 'date') else period_key_raw
+            period_key = _normalize_period_key(row.period_key)
 
             if period_key not in period_data:
                 period_data[period_key] = {"income": 0.0, "expense": 0.0, "articles": []}
