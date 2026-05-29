@@ -438,6 +438,37 @@ async def _compute_initial_balance(
     return snapshot + Decimal(str(delta))
 
 
+async def _query_period_split(
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    group_by_expr,
+    cfo_id: int | None,
+    article_id: int | None,
+):
+    """Return rows grouped by (period_key, Article.type, Article.id, Article.name) for fact records.
+
+    Does NOT filter by Article.type — caller buckets income / expense / credit / debit downstream.
+    """
+    query = select(
+        group_by_expr.label("period_key"),
+        Article.type,
+        Article.id.label("article_id"),
+        Article.name.label("article_name"),
+        func.sum(Fact.amount).label("total"),
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.fact_date >= start_date,
+        Fact.fact_date <= end_date,
+        Fact.record_type == "fact",
+    )
+    if cfo_id is not None:
+        query = query.where(Fact.financial_center_id == cfo_id)
+    if article_id is not None:
+        query = query.where(Article.id == article_id)
+    query = query.group_by(group_by_expr, Article.type, Article.id, Article.name).order_by(group_by_expr)
+    return (await session.execute(query)).all()
+
+
 # ==================== Analytics Endpoints ====================
 
 
