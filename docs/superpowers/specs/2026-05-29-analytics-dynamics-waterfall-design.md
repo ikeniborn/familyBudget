@@ -1,3 +1,38 @@
+---
+chain:
+  intent: docs/superpowers/intents/2026-05-29-analytics-dynamics-waterfall-intent.md
+review:
+  spec_hash: 3cdbfead32555987
+  last_run: 2026-05-29
+  phases:
+    structure:   { status: passed }
+    coverage:    { status: passed }
+    clarity:     { status: passed }
+    consistency: { status: passed }
+  findings:
+    - id: F-001
+      phase: coverage
+      severity: WARNING
+      section: Deploy
+      text: Health metric "load time does not regress" not addressed — no perf check/baseline step.
+      verdict: accepted
+      verdict_at: 2026-05-29
+    - id: F-002
+      phase: coverage
+      severity: WARNING
+      section: Deploy
+      text: Health metric "aggregate refresh triggers/jobs continue to work" not addressed in post-deploy verification.
+      verdict: accepted
+      verdict_at: 2026-05-29
+    - id: F-003
+      phase: clarity
+      severity: INFO
+      section: Backend changes / `/waterfall`
+      text: Helper `_normalize_period_key` referenced (line 145) but not defined in spec — only points to "Existing logic from analytics.py:1311-1323".
+      verdict: accepted
+      verdict_at: 2026-05-29
+---
+
 # Design: Analytics — Dynamics chart filter & Waterfall opening balance
 
 **Date:** 2026-05-29
