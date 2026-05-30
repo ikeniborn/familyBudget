@@ -314,11 +314,8 @@ export async function loadShoppingLists(): Promise<void> {
     if (!bootstrapPullDone) {
       bootstrapPullDone = true;
       try {
-        const userId = (window as any).userData?.id;
-        if (userId) {
-          const { downloadShoppingLists } = await import('@db/dexie');
-          await downloadShoppingLists(userId);
-        }
+        const { downloadShoppingLists } = await import('@db/dexie');
+        await downloadShoppingLists();
       } catch (pullError) {
         debugLog('[ListsManager] Bootstrap forced pull failed (non-fatal)', pullError);
       }

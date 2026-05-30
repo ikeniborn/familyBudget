@@ -8,7 +8,8 @@ import { logger } from '../utils/logger';
 import { fetchWithTimeout } from '../utils/fetchWithTimeout';
 import type {
   LocalShoppingList,
-  LocalShoppingListItem
+  LocalShoppingListItem,
+  ServerShoppingListCard
 } from '../types/shopping';
 
 /**
@@ -157,113 +158,60 @@ async function uploadShoppingItem(item: LocalShoppingListItem): Promise<void> {
 }
 
 /**
- * Download shopping lists from server
+ * Download shopping lists from server.
+ *
+ * Shared-references model: returns ALL lists (no user_id filtering).
+ * Replaces only rows with sync_status='synced'; pending and deleted
+ * local edits are preserved for the next upload pass.
  */
-export async function downloadShoppingLists(userId: number): Promise<{
+export async function downloadShoppingLists(): Promise<{
   success: boolean;
   count: number;
 }> {
-  logger.info('[shoppingSync] Downloading shopping lists...', { userId });
+  logger.info('[shoppingSync] Downloading shopping lists...');
 
   try {
-    const response = await fetchWithTimeout(
-      `/api/v1/shopping-lists?user_id=${userId}`,
-      {
-        method: 'GET',
-        credentials: 'include'
-      }
-    );
+    const response = await fetchWithTimeout('/api/v1/shopping-lists', {
+      method: 'GET',
+      credentials: 'include'
+    });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch shopping lists: ${response.status}`);
     }
 
-    const lists: LocalShoppingList[] = await response.json();
+    const payload = await response.json();
+    const serverLists: ServerShoppingListCard[] = payload.shopping_lists ?? [];
 
-    // Clear existing lists
-    await db.shoppingLists.where('user_id').equals(userId).delete();
+    const now = new Date();
+    const localLists: LocalShoppingList[] = serverLists.map(card => ({
+      id: card.id,
+      temp_id: card.temp_id ?? `server-${card.id}`,
+      creator_id: card.creator_id,
+      name: card.name,
+      description: card.description,
+      is_active: card.is_active,
+      sync_status: 'synced',
+      sync_hash: null,
+      content_hash: null,
+      created_at: new Date(card.created_at),
+      updated_at: new Date(card.updated_at),
+      synced_at: now,
+      total_items: card.total_items,
+      completed_items: card.completed_items,
+      completion_percentage: card.completion_percentage,
+    }));
 
-    // Bulk insert
-    await db.shoppingLists.bulkPut(lists);
+    // Shared model: replace only synced rows; preserve pending/deleted local edits.
+    await db.shoppingLists.where('sync_status').equals('synced').delete();
+    await db.shoppingLists.bulkPut(localLists);
 
-    logger.info('[shoppingSync] ✅ Shopping lists downloaded', { count: lists.length });
-    return { success: true, count: lists.length };
+    logger.info('[shoppingSync] ✅ Shopping lists downloaded', { count: localLists.length });
+    return { success: true, count: localLists.length };
   } catch (error) {
     logger.error('[shoppingSync] ❌ Shopping lists download failed:', error);
     return { success: false, count: 0 };
   }
-}
-
-/**
- * Download shopping list items from server
- */
-export async function downloadShoppingListItems(
-  shopping_list_temp_id: string
-): Promise<{ success: boolean; count: number }> {
-  logger.info('[shoppingSync] Downloading shopping items...', { shopping_list_temp_id });
-
-  try {
-    const response = await fetchWithTimeout(
-      `/api/v1/shopping-items?shopping_list_temp_id=${shopping_list_temp_id}`,
-      {
-        method: 'GET',
-        credentials: 'include'
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch shopping items: ${response.status}`);
-    }
-
-    const items: LocalShoppingListItem[] = await response.json();
-
-    // Clear existing items for this list
-    await db.shoppingListItems
-      .where('shopping_list_temp_id')
-      .equals(shopping_list_temp_id)
-      .delete();
-
-    // Bulk insert
-    await db.shoppingListItems.bulkPut(items);
-
-    logger.info('[shoppingSync] ✅ Shopping items downloaded', { count: items.length });
-    return { success: true, count: items.length };
-  } catch (error) {
-    logger.error('[shoppingSync] ❌ Shopping items download failed:', error);
-    return { success: false, count: 0 };
-  }
-}
-
-/**
- * Full sync - upload pending + download server data
- */
-export async function fullShoppingSync(userId: number): Promise<{
-  success: boolean;
-  uploaded: number;
-  downloaded: number;
-  failed: number;
-}> {
-  logger.info('[shoppingSync] Starting full sync...', { userId });
-
-  // 1. Upload pending lists (headers)
-  const uploadListsResult = await uploadPendingShoppingLists();
-
-  // 2. Upload pending items
-  const uploadItemsResult = await uploadPendingShoppingOperations();
-
-  // 3. Download lists from server
-  const downloadResult = await downloadShoppingLists(userId);
-
-  const result = {
-    success: uploadListsResult.success && uploadItemsResult.success && downloadResult.success,
-    uploaded: uploadListsResult.uploaded + uploadItemsResult.uploaded,
-    downloaded: downloadResult.count,
-    failed: uploadListsResult.failed + uploadItemsResult.failed
-  };
-
-  logger.info('[shoppingSync] Full sync complete', result);
-
-  return result;
 }
 
 // ============================================================================

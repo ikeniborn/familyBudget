@@ -199,7 +199,8 @@ class ShoppingListCardResponse(BaseModel):
     Schema for shopping list card responses (landing page grid).
 
     Includes shopping list data plus item count and completion statistics.
-    Used for grid of cards on landing page.
+    Used for grid of cards on landing page AND for Dexie offline sync
+    (LocalShoppingList in frontend).
     """
 
     id: int = Field(
@@ -212,6 +213,11 @@ class ShoppingListCardResponse(BaseModel):
         description="Client-side UUID for offline sync"
     )
 
+    creator_id: int = Field(
+        description="Creator user ID (owner — used for delete permission)",
+        examples=[123]
+    )
+
     name: str = Field(
         description="Shopping list name",
         examples=["Weekly Groceries"]
@@ -220,6 +226,11 @@ class ShoppingListCardResponse(BaseModel):
     description: str | None = Field(
         description="Optional description",
         examples=["Shopping list for week of 2025-01-10"]
+    )
+
+    is_active: bool = Field(
+        description="Active status (True = visible in UI, False = archived)",
+        examples=[True]
     )
 
     # Statistics
