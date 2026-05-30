@@ -235,3 +235,20 @@ CVE-2025-69534
 # Risk assessment: MEDIUM (controlled XML paths only; await Debian DSA or Python 3.12+ migration)
 # Next review: 2026-06-29 (monthly check for Debian DSA on python3.11)
 CVE-2026-7210
+
+# ============================================================================
+# New Vulnerabilities (Added 2026-05-30)
+# ============================================================================
+
+# CVE-2025-59375: libexpat large dynamic memory allocation via small XML document (HIGH)
+# Status: affected in Debian 12 (bookworm) - no fix available (FixedVersion=null in Trivy DB)
+# Impact: Attacker-triggered large dynamic memory allocations from small input → DoS / OOM
+# Package: libexpat1 v2.5.0-1+deb12u2
+# Mitigation: Accept risk temporarily - same package as CVE-2026-24515 / CVE-2026-25210 / CVE-2026-45186
+#   - Application uses XML only transitively (openpyxl XLSX parsing)
+#   - No direct XML uploads accepted from users
+#   - FastAPI 50 MB body limit caps allocation surface
+#   - SlowAPI rate limiting (100 req/min per IP) caps abuse
+# Risk assessment: MEDIUM (controlled XML paths only)
+# Next review: 2026-06-30 (monthly check for Debian DSA on libexpat1)
+CVE-2025-59375
