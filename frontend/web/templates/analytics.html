@@ -1503,6 +1503,8 @@ function updateWaterfallChart(data) {
     const waterfallData = [];
     const labels = [];
     const initialBalance = data.initial_balance || 0;
+    const transfersIn = data.transfers_in ?? [];
+    const transfersOut = data.transfers_out ?? [];
 
     if (currentWaterfallMode === 'with_balance') {
         // Add starting point (from previous period balance)
@@ -1516,7 +1518,9 @@ function updateWaterfallChart(data) {
         data.labels.forEach((label, index) => {
             const income = data.income[index];
             const expense = data.expense[index];
-            const net = income - expense;
+            const tIn = transfersIn[index] ?? 0;
+            const tOut = transfersOut[index] ?? 0;
+            const net = income - expense + tIn - tOut;
 
             labels.push(label);
             waterfallData.push({
@@ -1538,7 +1542,9 @@ function updateWaterfallChart(data) {
         data.labels.forEach((label, index) => {
             const income = data.income[index];
             const expense = data.expense[index];
-            const net = income - expense;
+            const tIn = transfersIn[index] ?? 0;
+            const tOut = transfersOut[index] ?? 0;
+            const net = income - expense + tIn - tOut;
 
             labels.push(label);
             waterfallData.push({
@@ -1584,14 +1590,18 @@ function updateWaterfallChart(data) {
                     const label = data.labels[dataIndex];
                     const income = data.income[dataIndex];
                     const expense = data.expense[dataIndex];
-                    const net = income - expense;
+                    const tIn = (data.transfers_in ?? [])[dataIndex] ?? 0;
+                    const tOut = (data.transfers_out ?? [])[dataIndex] ?? 0;
+                    const net = income - expense + tIn - tOut;
                     const cumulative = data.balance[dataIndex];
 
                     let tooltip = `<strong>${label}</strong><br/>`;
                     tooltip += `Доходы: ${income.toFixed(2)} ₽<br/>`;
                     tooltip += `Расходы: ${expense.toFixed(2)} ₽<br/>`;
+                    tooltip += `Пополнение: ${tIn.toFixed(2)} ₽<br/>`;
+                    tooltip += `Списание: ${tOut.toFixed(2)} ₽<br/>`;
                     tooltip += `<hr style="margin: 5px 0"/>`;
-                    tooltip += `Чистый доход: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span><br/>`;
+                    tooltip += `Чистый поток: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span><br/>`;
                     tooltip += `Накопительный итог: ${cumulative.toFixed(2)} ₽`;
 
                     // Show categories for drill-down
@@ -1606,13 +1616,17 @@ function updateWaterfallChart(data) {
                     const label = data.labels[dataIndex];
                     const income = data.income[dataIndex];
                     const expense = data.expense[dataIndex];
-                    const net = income - expense;
+                    const tIn = (data.transfers_in ?? [])[dataIndex] ?? 0;
+                    const tOut = (data.transfers_out ?? [])[dataIndex] ?? 0;
+                    const net = income - expense + tIn - tOut;
 
                     let tooltip = `<strong>${label}</strong><br/>`;
                     tooltip += `Доходы: ${income.toFixed(2)} ₽<br/>`;
                     tooltip += `Расходы: ${expense.toFixed(2)} ₽<br/>`;
+                    tooltip += `Пополнение: ${tIn.toFixed(2)} ₽<br/>`;
+                    tooltip += `Списание: ${tOut.toFixed(2)} ₽<br/>`;
                     tooltip += `<hr style="margin: 5px 0"/>`;
-                    tooltip += `Чистый доход: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span>`;
+                    tooltip += `Чистый поток: <span style="color: ${net >= 0 ? '#4CAF50' : '#f44336'}">${net.toFixed(2)} ₽</span>`;
 
                     // Show categories for drill-down
                     if (!data.article_id && waterfallCategoriesData[dataIndex]?.length > 0) {
@@ -1652,6 +1666,7 @@ function updateWaterfallChart(data) {
             {
                 name: 'Waterfall',
                 type: 'bar',
+                stack: 'main',
                 data: waterfallData,
                 label: {
                     show: false
@@ -1663,7 +1678,23 @@ function updateWaterfallChart(data) {
                         shadowColor: 'rgba(0, 0, 0, 0.5)'
                     }
                 }
-            }
+            },
+            ...(currentWaterfallMode === 'with_balance' ? [
+                {
+                    name: 'Пополнение',
+                    type: 'bar',
+                    stack: 'flow',
+                    data: [0, ...transfersIn, 0],
+                    itemStyle: { color: '#60a5fa' }
+                },
+                {
+                    name: 'Списание',
+                    type: 'bar',
+                    stack: 'flow',
+                    data: [0, ...transfersOut.map(x => -x), 0],
+                    itemStyle: { color: '#fbbf24' }
+                }
+            ] : [])
         ]
     };
 

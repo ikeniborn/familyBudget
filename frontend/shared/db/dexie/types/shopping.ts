@@ -95,6 +95,29 @@ export interface ShoppingListWithStats extends Omit<LocalShoppingList, 'total_it
 }
 
 /**
+ * Raw shopping list card returned by GET /api/v1/shopping-lists.
+ *
+ * Mirrors backend ShoppingListCardResponse exactly. Used by downloadShoppingLists
+ * before mapping into LocalShoppingList (which adds sync_status metadata).
+ *
+ * Dates arrive as ISO strings over the wire — caller is responsible for
+ * `new Date()` parsing when writing into Dexie.
+ */
+export interface ServerShoppingListCard {
+  id: number;
+  temp_id: string | null;
+  creator_id: number;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  total_items: number;
+  completed_items: number;
+  completion_percentage: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/**
  * Shopping List Item (Line table) - client-side representation
  */
 export interface LocalShoppingListItem {

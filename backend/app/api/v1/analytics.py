@@ -7,6 +7,7 @@ import asyncio
 import calendar as cal_module
 import logging
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import HTMLResponse
@@ -25,6 +26,10 @@ from backend.app.schemas.analytics import (
     PlanFilterOptionsResponse,
     PlanHintsResponse,
     TransactionFilterEnum,
+)
+from backend.app.services.balance_aggregation_service import (
+    get_opening_balance,
+    get_opening_balances_bulk,
 )
 from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
 from backend.app.utils.analytics_rendering import (
@@ -281,85 +286,106 @@ def calculate_cumulative(data: list[float]) -> list[float]:
     return cumulative
 
 
-def get_previous_period(start_date: date, end_date: date, period: str | None = None) -> tuple[date, date]:
+def _normalize_period_key(period_key_raw):
+    """Convert SQL date_trunc result (datetime/timestamp) to date object.
+
+    Mirrors inline logic previously embedded in /waterfall.
     """
-    Calculate previous period boundaries.
+    if period_key_raw == 0 or period_key_raw is None:
+        return 0
+    if isinstance(period_key_raw, date) and not isinstance(period_key_raw, datetime):
+        return period_key_raw
+    return period_key_raw.date() if hasattr(period_key_raw, "date") else period_key_raw
 
-    For calendar periods (month, quarter, year): returns previous FULL calendar period.
-    For custom ranges: shifts backwards by period length.
 
-    Used for waterfall chart initial balance calculation.
+async def _compute_initial_balance(
+    session: AsyncSession,
+    start_date: date,
+    cfo_id: int | None,
+) -> Decimal:
+    """Cumulative balance at end of (start_date - 1).
 
-    Examples:
-        Calendar month:
-            Input:  01.11.2025 - 30.11.2025, period='month'
-            Output: 01.10.2025 - 31.10.2025 (full October)
-
-        Custom range:
-            Input:  15.10.2025 - 10.11.2025, period=None
-            Output: 18.09.2025 - 14.10.2025 (27 days before)
-
-    Args:
-        start_date: Start of current period
-        end_date: End of current period
-        period: Period type ('month', 'quarter', 'year') or None for custom
-
-    Returns:
-        Tuple of (prev_start_date, prev_end_date)
+    Why: /waterfall used previous calendar period as opening balance.
+    This pulls the closing snapshot of the previous month from t_agg_financial_center_balance_monthly
+    via balance_aggregation_service (built-in fallback to full-scan if missing).
+    If start_date is mid-month, adds delta for the partial current month.
+    Snapshot semantics: aggregate INCLUDES credit/debit (real account balance).
     """
-    if period == 'month':
-        # Previous calendar month
-        # Go back 1 month from start_date
-        if start_date.month == 1:
-            prev_year = start_date.year - 1
-            prev_month = 12
-        else:
-            prev_year = start_date.year
-            prev_month = start_date.month - 1
-
-        prev_start = date(prev_year, prev_month, 1)
-        _, last_day = cal_module.monthrange(prev_year, prev_month)
-        prev_end = date(prev_year, prev_month, last_day)
-
-        return prev_start, prev_end
-
-    elif period == 'quarter':
-        # Previous calendar quarter
-        # Determine current quarter
-        current_quarter = (start_date.month - 1) // 3 + 1
-
-        # Previous quarter
-        if current_quarter == 1:
-            prev_quarter = 4
-            prev_year = start_date.year - 1
-        else:
-            prev_quarter = current_quarter - 1
-            prev_year = start_date.year
-
-        # Quarter bounds
-        first_month = (prev_quarter - 1) * 3 + 1
-        last_month = first_month + 2
-
-        prev_start = date(prev_year, first_month, 1)
-        _, last_day = cal_module.monthrange(prev_year, last_month)
-        prev_end = date(prev_year, last_month, last_day)
-
-        return prev_start, prev_end
-
-    elif period == 'year':
-        # Previous calendar year
-        prev_year = start_date.year - 1
-        prev_start = date(prev_year, 1, 1)
-        prev_end = date(prev_year, 12, 31)
-
-        return prev_start, prev_end
-
+    if start_date.month == 1:
+        prev_year, prev_month = start_date.year - 1, 12
     else:
-        # Custom range: shift backwards by period length
-        period_length = (end_date - start_date).days + 1
-        prev_end = start_date - timedelta(days=1)
-        prev_start = prev_end - timedelta(days=period_length - 1)
-        return prev_start, prev_end
+        prev_year, prev_month = start_date.year, start_date.month - 1
+    if prev_month == 12:
+        next_year, next_month = prev_year + 1, 1
+    else:
+        next_year, next_month = prev_year, prev_month + 1
+
+    if cfo_id is not None:
+        snapshot = await get_opening_balance(
+            session, financial_center_id=cfo_id,
+            year=next_year, month=next_month,
+        )
+    else:
+        balances = await get_opening_balances_bulk(
+            session, year=next_year, month=next_month,
+        )
+        snapshot = sum(balances.values(), Decimal("0.00"))
+
+    if start_date.day == 1:
+        return snapshot
+
+    delta_start = date(start_date.year, start_date.month, 1)
+    delta_end = start_date - timedelta(days=1)
+
+    delta_query = select(
+        func.sum(case(
+            (Article.type.in_(["income", "credit"]), Fact.amount), else_=0,
+        ))
+        - func.sum(case(
+            (Article.type.in_(["expense", "debit"]), Fact.amount), else_=0,
+        ))
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.fact_date >= delta_start,
+        Fact.fact_date <= delta_end,
+        Fact.record_type == "fact",
+    )
+    if cfo_id is not None:
+        delta_query = delta_query.where(Fact.financial_center_id == cfo_id)
+
+    delta_result = await session.execute(delta_query)
+    delta = delta_result.scalar() or Decimal("0.00")
+    return snapshot + Decimal(str(delta))
+
+
+async def _query_period_split(
+    session: AsyncSession,
+    start_date: date,
+    end_date: date,
+    group_by_expr,
+    cfo_id: int | None,
+    article_id: int | None,
+):
+    """Return rows grouped by (period_key, Article.type, Article.id, Article.name) for fact records.
+
+    Does NOT filter by Article.type — caller buckets income / expense / credit / debit downstream.
+    """
+    query = select(
+        group_by_expr.label("period_key"),
+        Article.type,
+        Article.id.label("article_id"),
+        Article.name.label("article_name"),
+        func.sum(Fact.amount).label("total"),
+    ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
+        Fact.fact_date >= start_date,
+        Fact.fact_date <= end_date,
+        Fact.record_type == "fact",
+    )
+    if cfo_id is not None:
+        query = query.where(Fact.financial_center_id == cfo_id)
+    if article_id is not None:
+        query = query.where(Article.id == article_id)
+    query = query.group_by(group_by_expr, Article.type, Article.id, Article.name).order_by(group_by_expr)
+    return (await session.execute(query)).all()
 
 
 # ==================== Analytics Endpoints ====================
@@ -912,11 +938,12 @@ async def get_trends_data(
         query = select(
             Fact.fact_date,
             Article.type,
-            func.sum(Fact.amount).label("total")
+            func.sum(Fact.amount).label("total"),
         ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
             Fact.fact_date >= start_date,
             Fact.fact_date <= end_date,
-            Fact.record_type == record_type
+            Fact.record_type == record_type,
+            Article.type.in_(["income", "expense"]),
         )
 
         # Apply CFO filter if specified (v5.1.3)
@@ -928,16 +955,14 @@ async def get_trends_data(
         result = await session.execute(query)
         rows = result.all()
 
-        # Build data structure by date (map credit→income, debit→expense)
+        # Build data structure by date (income/expense only; credit/debit excluded at SQL layer)
         data_by_date = {}
         for row in rows:
             if row.fact_date not in data_by_date:
                 data_by_date[row.fact_date] = {"income": 0.0, "expense": 0.0}
-
-            # Map article types to income/expense categories
-            if row.type in ["income", "credit"]:
+            if row.type == "income":
                 data_by_date[row.fact_date]["income"] += float(row.total)
-            elif row.type in ["expense", "debit"]:
+            elif row.type == "expense":
                 data_by_date[row.fact_date]["expense"] += float(row.total)
 
         # Aggregate data by period and generate labels
@@ -1277,115 +1302,54 @@ async def get_waterfall_data(
         else:
             raise HTTPException(400, "Укажите period или date_from/date_to")
 
-        # Build base query
-        # Shared family budget - NO user_id filter
-        query = select(
-            group_by_expr.label("period_key"),
-            Article.type,
-            Article.id.label("article_id"),
-            Article.name.label("article_name"),
-            func.sum(Fact.amount).label("total")
-        ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-            Fact.fact_date >= start_date,
-            Fact.fact_date <= end_date,
-            Fact.record_type == "fact"  # Only actual transactions, not plans
+        rows = await _query_period_split(
+            session=session,
+            start_date=start_date,
+            end_date=end_date,
+            group_by_expr=group_by_expr,
+            cfo_id=cfo_id,
+            article_id=article_id,
         )
 
-        # Add article filter if specified (for drill-down)
-        if article_id:
-            query = query.where(Article.id == article_id)
-
-        # Apply CFO filter if specified (v5.1.3)
-        if cfo_id is not None:
-            query = query.where(Fact.financial_center_id == cfo_id)
-
-        query = query.group_by(group_by_expr, Article.type, Article.id, Article.name).order_by(group_by_expr)
-
-        result = await session.execute(query)
-        rows = result.all()
-
-        # Build data structure
-        period_data = {}
-        articles_info = {}  # Track articles for drill-down
-
+        period_data: dict = {}
+        articles_info: dict = {}
         for row in rows:
-            # Convert period_key to date object (v5.1.3 critical fix for date_trunc)
-            # date_trunc returns timestamp/datetime, we need date for period_data keys
-            period_key_raw = row.period_key if row.period_key else 0
-
-            if period_key_raw == 0:
-                period_key = 0
-            elif isinstance(period_key_raw, date) and not isinstance(period_key_raw, datetime):
-                # Already a date object
-                period_key = period_key_raw
-            else:
-                # datetime or timestamp - convert to date
-                period_key = period_key_raw.date() if hasattr(period_key_raw, 'date') else period_key_raw
-
-            if period_key not in period_data:
-                period_data[period_key] = {"income": 0.0, "expense": 0.0, "articles": []}
-
+            period_key = _normalize_period_key(row.period_key)
+            bucket = period_data.setdefault(period_key, {
+                "income": 0.0,
+                "expense": 0.0,
+                "transfers_in": 0.0,
+                "transfers_out": 0.0,
+                "articles": [],
+            })
             amount = float(row.total)
+            if row.type == "income":
+                bucket["income"] += amount
+            elif row.type == "expense":
+                bucket["expense"] += amount
+            elif row.type == "credit":
+                bucket["transfers_in"] += amount
+            elif row.type == "debit":
+                bucket["transfers_out"] += amount
 
-            # Map transfer types to income/expense for aggregation
-            type_mapping = {
-                'income': 'income',
-                'expense': 'expense',
-                'credit': 'income',   # Пополнение = доход
-                'debit': 'expense'    # Списание = расход
-            }
-            mapped_type = type_mapping.get(row.type, 'expense')
-            period_data[period_key][mapped_type] += amount
-
-            # Store article info for potential drill-down
-            if not article_id:  # Only track articles when not in drill-down mode
-                articles_info[row.article_id] = row.article_name
-                period_data[period_key]["articles"].append({
+            articles_info[row.article_id] = row.article_name
+            if article_id is None:
+                bucket["articles"].append({
                     "id": row.article_id,
                     "name": row.article_name,
                     "type": row.type,
-                    "amount": amount
+                    "amount": amount,
                 })
 
-        # Calculate initial balance from previous period
-        # Pass period parameter to get correct calendar period (month/quarter/year)
-        prev_start, prev_end = get_previous_period(start_date, end_date, period)
-
-        initial_balance_query = select(
-            func.sum(
-                case(
-                    (Article.type.in_(["income", "credit"]), Fact.amount),
-                    else_=0
-                )
-            ) -
-            func.sum(
-                case(
-                    (Article.type.in_(["expense", "debit"]), Fact.amount),
-                    else_=0
-                )
-            )
-        ).select_from(Fact).join(Article, Fact.article_id == Article.id).where(
-            Fact.fact_date >= prev_start,
-            Fact.fact_date <= prev_end,
-            Fact.record_type == "fact"  # Only actual transactions, not plans
-        )
-
-        # Add article filter if specified (for drill-down)
-        if article_id:
-            initial_balance_query = initial_balance_query.where(Article.id == article_id)
-
-        # Apply CFO filter if specified (v5.1.3)
-        if cfo_id is not None:
-            initial_balance_query = initial_balance_query.where(Fact.financial_center_id == cfo_id)
-
-        initial_balance_result = await session.execute(initial_balance_query)
-        initial_balance = initial_balance_result.scalar()
-        initial_balance = float(initial_balance) if initial_balance is not None else 0.0
+        initial_balance_decimal = await _compute_initial_balance(session, start_date, cfo_id)
+        initial_balance = float(initial_balance_decimal)
 
         # Generate arrays based on period type
         labels = []
         income_data = []
         expense_data = []
+        transfers_in_data = []
+        transfers_out_data = []
         balance_data = []
         categories_data = []  # For drill-down links
 
@@ -1409,15 +1373,18 @@ async def get_waterfall_data(
                 else:
                     day_label = str(current_date.day)
 
-                day_info = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
+                day_info = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "transfers_in": 0.0, "transfers_out": 0.0, "articles": []})
                 income = day_info["income"]
                 expense = day_info["expense"]
-                day_balance = income - expense
-                cumulative_balance += day_balance
+                t_in = day_info["transfers_in"]
+                t_out = day_info["transfers_out"]
+                cumulative_balance += income - expense + t_in - t_out
 
                 labels.append(day_label)
                 income_data.append(income)
                 expense_data.append(expense)
+                transfers_in_data.append(t_in)
+                transfers_out_data.append(t_out)
                 balance_data.append(cumulative_balance)
                 categories_data.append(day_info.get("articles", []))
 
@@ -1434,13 +1401,14 @@ async def get_waterfall_data(
             while week_start <= end_date:
                 # With date_trunc("week"), data is already aggregated by week in SQL
                 # period_data keys are Mondays (week start dates)
-                week_data = period_data.get(week_start, {"income": 0.0, "expense": 0.0, "articles": []})
+                week_data = period_data.get(week_start, {"income": 0.0, "expense": 0.0, "transfers_in": 0.0, "transfers_out": 0.0, "articles": []})
                 week_income = week_data["income"]
                 week_expense = week_data["expense"]
+                t_in = week_data["transfers_in"]
+                t_out = week_data["transfers_out"]
                 week_articles = week_data.get("articles", [])
 
-                week_balance = week_income - week_expense
-                cumulative_balance += week_balance
+                cumulative_balance += week_income - week_expense + t_in - t_out
 
                 # Get ISO week number for label
                 iso_label = get_iso_week_number(week_start)
@@ -1448,6 +1416,8 @@ async def get_waterfall_data(
                 labels.append(iso_label)
                 income_data.append(week_income)
                 expense_data.append(week_expense)
+                transfers_in_data.append(t_in)
+                transfers_out_data.append(t_out)
                 balance_data.append(cumulative_balance)
                 categories_data.append(week_articles)
 
@@ -1467,18 +1437,21 @@ async def get_waterfall_data(
             while current_date <= end_date:
                 # Find month start from date_trunc result (if exists in period_data)
                 # period_data keys are month start dates (1st of month) from date_trunc('month')
-                month_data = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
+                month_data = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "transfers_in": 0.0, "transfers_out": 0.0, "articles": []})
 
                 month_income = month_data["income"]
                 month_expense = month_data["expense"]
-                month_balance = month_income - month_expense
-                cumulative_balance += month_balance
+                t_in = month_data["transfers_in"]
+                t_out = month_data["transfers_out"]
+                cumulative_balance += month_income - month_expense + t_in - t_out
 
                 # Label: "Янв 2025"
                 month_label = f"{month_names_ru[current_date.month - 1]} {current_date.year}"
                 labels.append(month_label)
                 income_data.append(month_income)
                 expense_data.append(month_expense)
+                transfers_in_data.append(t_in)
+                transfers_out_data.append(t_out)
                 balance_data.append(cumulative_balance)
                 categories_data.append(month_data.get("articles", []))
 
@@ -1492,15 +1465,18 @@ async def get_waterfall_data(
             # Custom range или старая логика: group by day
             current_date = start_date
             while current_date <= end_date:
-                period_info = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "articles": []})
+                period_info = period_data.get(current_date, {"income": 0.0, "expense": 0.0, "transfers_in": 0.0, "transfers_out": 0.0, "articles": []})
                 income = period_info["income"]
                 expense = period_info["expense"]
-                day_balance = income - expense
-                cumulative_balance += day_balance
+                t_in = period_info["transfers_in"]
+                t_out = period_info["transfers_out"]
+                cumulative_balance += income - expense + t_in - t_out
 
                 labels.append(current_date.strftime("%d.%m"))
                 income_data.append(income)
                 expense_data.append(expense)
+                transfers_in_data.append(t_in)
+                transfers_out_data.append(t_out)
                 balance_data.append(cumulative_balance)
                 categories_data.append(period_info.get("articles", []))
 
@@ -1511,13 +1487,15 @@ async def get_waterfall_data(
             "labels": labels,
             "income": income_data,
             "expense": expense_data,
+            "transfers_in": transfers_in_data,
+            "transfers_out": transfers_out_data,
             "balance": balance_data,
             "categories": categories_data,  # For drill-down
-            "initial_balance": initial_balance,  # Starting balance from previous period
+            "initial_balance": initial_balance,
             "period": period,
             "year": today.year,
             "article_id": article_id,
-            "article_name": articles_info.get(article_id) if article_id else None
+            "article_name": articles_info.get(article_id) if article_id else None,
         }
 
         return result
@@ -1528,13 +1506,15 @@ async def get_waterfall_data(
             "labels": [],
             "income": [],
             "expense": [],
+            "transfers_in": [],
+            "transfers_out": [],
             "balance": [],
             "categories": [],
-            "initial_balance": 0.0,  # CRITICAL: Must be present for frontend
+            "initial_balance": 0.0,
             "period": period or "month",
             "year": date.today().year,
             "article_id": article_id,
-            "article_name": None
+            "article_name": None,
         }
 
 

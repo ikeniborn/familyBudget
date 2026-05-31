@@ -115,6 +115,7 @@ async def get_shopping_lists_with_stats(
             "name": shopping_list.name,
             "description": shopping_list.description,
             "creator_id": shopping_list.creator_id,
+            "is_active": shopping_list.is_active,
             "total_items": total_items,
             "completed_items": completed_items,
             "completion_percentage": round(completion_percentage, 1),

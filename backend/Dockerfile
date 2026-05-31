@@ -3,12 +3,16 @@
 FROM python:3.11-slim-bookworm as python-builder
 
 ARG PYTHON_VERSION=3.11
+# BUILD_DATE invalidates apt layer cache each CI run so security patches
+# (e.g. krb5 u4 -> u5 for CVE-2026-40356) are picked up promptly.
+ARG BUILD_DATE=unknown
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-RUN apt-get update && \
+RUN echo "apt refresh: ${BUILD_DATE}" && \
+    apt-get update && \
     apt-get dist-upgrade -y && \
     apt-get install -y --no-install-recommends \
     build-essential \
@@ -16,6 +20,19 @@ RUN apt-get update && \
     libpq5 \
     curl \
     && rm -rf /var/lib/apt/lists/*
+
+# Regenerate distroless-format dpkg metadata for packages whose .so files we
+# copy into the runtime image. Distroless ships stale /var/lib/dpkg/status.d/*
+# files that mismatch the upgraded libraries we copy, producing false-positive
+# Trivy reports (e.g. CVE-2026-40356 krb5 u4→u5).
+RUN mkdir -p /opt/dpkg-status && \
+    for pkg in libgssapi-krb5-2 libk5crypto3 libkrb5-3 libkrb5support0 \
+               libldap-2.5-0 liblber-2.5-0 libsasl2-2 \
+               libgnutls30 libcom-err2 libkeyutils1 \
+               libp11-kit0 libidn2-0 libunistring2 libtasn1-6 \
+               libnettle8 libhogweed6 libgmp10 libffi8 libpq5; do \
+        dpkg-query -W -f='Package: ${Package}\nStatus: ${Status}\nPriority: ${Priority}\nSection: ${Section}\nInstalled-Size: ${Installed-Size}\nMaintainer: ${Maintainer}\nArchitecture: ${Architecture}\nMulti-Arch: ${Multi-Arch}\nSource: ${Source}\nVersion: ${Version}\nDepends: ${Depends}\nDescription: ${Description}\n' "$pkg" > "/opt/dpkg-status/$pkg" 2>/dev/null || true ; \
+    done
 
 # Remove vulnerable system Python packages before creating venv
 RUN pip uninstall -y wheel jaraco.context setuptools 2>/dev/null || true
@@ -122,6 +139,10 @@ COPY --from=python-builder /lib/x86_64-linux-gnu/libssl.so.3* /lib/x86_64-linux-
 COPY --from=python-builder /lib/x86_64-linux-gnu/libcrypto.so.3* /lib/x86_64-linux-gnu/
 # CA certificates (required for TLS verification)
 COPY --from=python-builder /etc/ssl/certs /etc/ssl/certs
+
+# Refresh dpkg metadata for upgraded libraries so Trivy reports match the
+# actual binaries we just copied (overrides stale distroless status.d).
+COPY --from=python-builder /opt/dpkg-status/ /var/lib/dpkg/status.d/
 
 # Copy Python venv from builder (changes when dependencies change)
 COPY --from=python-builder /opt/venv /opt/venv
