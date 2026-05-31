@@ -1,7 +1,7 @@
 # Intent: WebSocket Sync Fix
 
 **Date:** 2026-05-31
-**Status:** draft
+**Status:** approved
 
 ## Objective
 
