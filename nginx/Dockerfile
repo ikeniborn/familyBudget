@@ -1,6 +1,6 @@
 FROM nginx:alpine
 
-# Force rebuild: image deleted from GHCR (0.6.98 missing)
+# Force rebuild: image corrupted in GHCR (0.6.120 was plain nginx:alpine, missing custom layers)
 
 # Копируем nginx конфигурацию
 # Context: ./nginx (paths relative to nginx/ directory)
