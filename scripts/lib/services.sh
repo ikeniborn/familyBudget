@@ -695,14 +695,6 @@ start_application_services() {
         fi
         success "Services recreated successfully"
 
-        # Save HTML templates checksum if backend was recreated
-        # This enables future detection of template changes for Jinja2 cache invalidation
-        if [[ " ${services_to_recreate[*]} " =~ " backend " ]]; then
-            info "Saving HTML templates checksum (backend recreated)..."
-            if save_html_templates_checksum "$SCRIPT_DIR"; then
-                success "HTML templates checksum saved"
-            fi
-        fi
     else
         info "No services need recreation (code unchanged)"
         start_result=0
