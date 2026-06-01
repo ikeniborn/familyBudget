@@ -1693,7 +1693,7 @@ function updateWaterfallChart(data) {
                 name: 'Списание',
                 type: 'line',
                 smooth: true,
-                data: currentWaterfallMode === 'with_balance' ? [0, ...transfersOut, 0] : transfersOut,
+                data: currentWaterfallMode === 'with_balance' ? [0, ...transfersOut.map(x => -x), 0] : transfersOut.map(x => -x),
                 lineStyle: { color: '#fbbf24', width: 2 },
                 itemStyle: { color: '#fbbf24' },
                 symbol: 'circle',
