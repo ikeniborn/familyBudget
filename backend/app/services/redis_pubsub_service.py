@@ -55,9 +55,10 @@ EVENT_BUFFER_MAX_SIZE = 1000  # Maximum events in buffer
 # Subscriber task reference
 _subscriber_task: asyncio.Task | None = None
 _local_broadcast_callback: Callable[[str, dict], Coroutine] | None = None
+_this_worker_id: str | None = None
 
 
-async def publish_event(event_type: str, data: dict[str, Any]) -> bool:
+async def publish_event(event_type: str, data: dict[str, Any], source_worker_id: str | None = None) -> bool:
     """
     Publish event to Redis Pub/Sub channel and add to event buffer.
 
@@ -67,6 +68,8 @@ async def publish_event(event_type: str, data: dict[str, Any]) -> bool:
     Args:
         event_type: Event type (fact_created, fact_updated, etc.)
         data: Event data
+        source_worker_id: Worker ID that originated the event. Subscribers with
+            the same worker ID will skip the event to avoid double-delivery.
 
     Returns:
         True if published successfully, False otherwise
@@ -80,6 +83,7 @@ async def publish_event(event_type: str, data: dict[str, Any]) -> bool:
         "data": data,
         "timestamp": datetime.utcnow().isoformat(),
         "ts": time.time(),  # Unix timestamp for sorting
+        "source_worker_id": source_worker_id,
     }
     message = json_dumps(event)
 
@@ -164,7 +168,7 @@ async def _subscriber_loop():
     This runs in each worker and forwards received events to local
     WebSocket connections via the registered callback.
     """
-    global _local_broadcast_callback
+    global _local_broadcast_callback, _this_worker_id
 
     logger.info("Starting Redis Pub/Sub subscriber...")
 
@@ -195,6 +199,11 @@ async def _subscriber_loop():
                                 event = json_loads(message["data"])
                                 event_type = event.get("type")
                                 event_data = event.get("data", {})
+
+                                source_worker_id = event.get("source_worker_id")
+                                if source_worker_id and source_worker_id == _this_worker_id:
+                                    logger.debug("Skipping own-worker event: %s", event_type)
+                                    continue
 
                                 logger.debug("Received Pub/Sub event: %s", event_type)
 
@@ -230,7 +239,8 @@ async def _subscriber_loop():
 
 
 async def start_pubsub_listener(
-    local_broadcast_callback: Callable[[str, dict], Coroutine]
+    local_broadcast_callback: Callable[[str, dict], Coroutine],
+    worker_id: str | None = None,
 ) -> bool:
     """
     Start the Redis Pub/Sub subscriber background task.
@@ -238,11 +248,13 @@ async def start_pubsub_listener(
     Args:
         local_broadcast_callback: Async function to call when event received.
             Signature: async def callback(event_type: str, data: dict)
+        worker_id: Unique ID for this worker. Events published with this
+            source_worker_id will be skipped to avoid double-delivery.
 
     Returns:
         True if started successfully, False otherwise
     """
-    global _subscriber_task, _local_broadcast_callback
+    global _subscriber_task, _local_broadcast_callback, _this_worker_id
 
     if not is_redis_available():
         logger.warning("Redis not available, Pub/Sub listener not started")
@@ -253,6 +265,7 @@ async def start_pubsub_listener(
         return True
 
     _local_broadcast_callback = local_broadcast_callback
+    _this_worker_id = worker_id
     _subscriber_task = asyncio.create_task(_subscriber_loop())
 
     logger.info("Redis Pub/Sub listener started")
