@@ -100,6 +100,7 @@ class BotApplication:
         from bot.handlers.delete import delete_conversation_handler
         from bot.handlers.search import search_conversation_handler
         from bot.handlers.edit import edit_conversation_handler
+        from bot.handlers.balance import balance_handler
 
         # Register command handlers
         self.application.add_handler(CommandHandler("start", start_handler))
@@ -117,6 +118,9 @@ class BotApplication:
 
         self.application.add_handler(CommandHandler("export", export_handler))
         logger.info("Registered /export handler")
+
+        self.application.add_handler(CommandHandler("balance", balance_handler))
+        logger.info("Registered /balance handler")
 
         # Register conversation handlers
         self.application.add_handler(addplan_conversation_handler)
