@@ -22,26 +22,32 @@ async function navigateToAnalytics(page: import('@playwright/test').Page): Promi
 }
 
 test.describe('Analytics Waterfall - transfers series', () => {
-    test('legend contains Пополнение and Списание (with_balance mode)', async ({ page }) => {
+    test('legend contains Пополнение and Списание as lines (with_balance mode)', async ({ page }) => {
         await page.setViewportSize(VIEWPORTS.desktop);
         await navigateToAnalytics(page);
 
         const chart = page.locator('#chart-waterfall canvas').first();
         await chart.waitFor({ state: 'visible', timeout: 10000 });
 
-        const legendNames: string[] = await page.evaluate(() => {
+        const seriesInfo: Array<{ name: string; type: string }> = await page.evaluate(() => {
             const dom = document.getElementById('chart-waterfall');
             // @ts-expect-error global echarts
             const inst = window.echarts.getInstanceByDom(dom);
             const opt = inst.getOption();
-            return (opt.series || []).map((s: { name: string }) => s.name);
+            return (opt.series || []).map((s: { name: string; type: string }) => ({ name: s.name, type: s.type }));
         });
 
-        expect(legendNames).toContain('Пополнение');
-        expect(legendNames).toContain('Списание');
+        const names = seriesInfo.map(s => s.name);
+        expect(names).toContain('Пополнение');
+        expect(names).toContain('Списание');
+
+        const transfers = seriesInfo.filter(s => s.name === 'Пополнение' || s.name === 'Списание');
+        for (const s of transfers) {
+            expect(s.type).toBe('line');
+        }
     });
 
-    test('without_balance mode hides transfer series', async ({ page }) => {
+    test('without_balance mode shows transfer series as lines', async ({ page }) => {
         await page.setViewportSize(VIEWPORTS.desktop);
         await navigateToAnalytics(page);
 
@@ -49,16 +55,22 @@ test.describe('Analytics Waterfall - transfers series', () => {
         await page.locator('#waterfall-mode-without-balance').click();
         await page.waitForTimeout(500);
 
-        const legendNames: string[] = await page.evaluate(() => {
+        const seriesInfo: Array<{ name: string; type: string }> = await page.evaluate(() => {
             const dom = document.getElementById('chart-waterfall');
             // @ts-expect-error global echarts
             const inst = window.echarts.getInstanceByDom(dom);
             const opt = inst.getOption();
-            return (opt.series || []).map((s: { name: string }) => s.name);
+            return (opt.series || []).map((s: { name: string; type: string }) => ({ name: s.name, type: s.type }));
         });
 
-        expect(legendNames).not.toContain('Пополнение');
-        expect(legendNames).not.toContain('Списание');
+        const names = seriesInfo.map(s => s.name);
+        expect(names).toContain('Пополнение');
+        expect(names).toContain('Списание');
+
+        const transfers = seriesInfo.filter(s => s.name === 'Пополнение' || s.name === 'Списание');
+        for (const s of transfers) {
+            expect(s.type).toBe('line');
+        }
     });
 
     test('renders at mobile breakpoint', async ({ page }) => {
