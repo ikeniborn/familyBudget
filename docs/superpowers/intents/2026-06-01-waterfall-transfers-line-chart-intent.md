@@ -1,7 +1,7 @@
 # Intent: Waterfall Chart — Transfers as Line Chart
 
 **Date:** 2026-06-01
-**Status:** draft
+**Status:** approved
 
 ## Objective
 
