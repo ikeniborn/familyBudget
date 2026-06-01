@@ -33,12 +33,10 @@ WORKDIR /build
 COPY bot/requirements.txt .
 
 # pip pinned explicitly: CVE-2025-8869, CVE-2026-1703, CVE-2026-3219, CVE-2026-6357 fixed in 26.1
-# jaraco.context>=6.1.0: CVE-2026-23949 (path traversal in setuptools vendor)
-# wheel>=0.46.2: CVE-2026-24049 (privilege escalation in setuptools vendor)
+# setuptools>=80.0.0: vendors jaraco.context>=6.1.0 (CVE-2026-23949) and wheel>=0.46.2 (CVE-2026-24049)
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install "pip==26.1.2" setuptools wheel && \
-    pip install -r requirements.txt && \
-    pip install --upgrade 'jaraco.context>=6.1.0' 'wheel>=0.46.2'
+    pip install "pip==26.1.2" "setuptools>=80.0.0" wheel && \
+    pip install -r requirements.txt
 
 # Stage 2: Runtime (Distroless for security and size optimization)
 FROM gcr.io/distroless/python3-debian12:latest
