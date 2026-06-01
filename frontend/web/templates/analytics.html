@@ -1679,22 +1679,26 @@ function updateWaterfallChart(data) {
                     }
                 }
             },
-            ...(currentWaterfallMode === 'with_balance' ? [
-                {
-                    name: 'Пополнение',
-                    type: 'bar',
-                    stack: 'flow',
-                    data: [0, ...transfersIn, 0],
-                    itemStyle: { color: '#60a5fa' }
-                },
-                {
-                    name: 'Списание',
-                    type: 'bar',
-                    stack: 'flow',
-                    data: [0, ...transfersOut.map(x => -x), 0],
-                    itemStyle: { color: '#fbbf24' }
-                }
-            ] : [])
+            {
+                name: 'Пополнение',
+                type: 'line',
+                smooth: true,
+                data: currentWaterfallMode === 'with_balance' ? [0, ...transfersIn, 0] : transfersIn,
+                lineStyle: { color: '#60a5fa', width: 2 },
+                itemStyle: { color: '#60a5fa' },
+                symbol: 'circle',
+                symbolSize: 5
+            },
+            {
+                name: 'Списание',
+                type: 'line',
+                smooth: true,
+                data: currentWaterfallMode === 'with_balance' ? [0, ...transfersOut, 0] : transfersOut,
+                lineStyle: { color: '#fbbf24', width: 2 },
+                itemStyle: { color: '#fbbf24' },
+                symbol: 'circle',
+                symbolSize: 5
+            }
         ]
     };
 
