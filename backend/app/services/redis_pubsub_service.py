@@ -179,6 +179,8 @@ async def _subscriber_loop():
                 pubsub = redis.pubsub()
                 await pubsub.subscribe(BUDGET_EVENTS_CHANNEL)
                 logger.info("Subscribed to Redis channel: %s", BUDGET_EVENTS_CHANNEL)
+                # Use get_message() in a loop instead of listen() — prevents blocking
+                # and allows proper context manager handling with timeout control
                 try:
                     while True:
                         message = await pubsub.get_message(ignore_subscribe_messages=False, timeout=1.0)
