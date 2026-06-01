@@ -23,13 +23,17 @@ manager = get_ws_manager()
 await manager.broadcast("fact_created", {"id": fact.id, ...})
 ```
 
-`broadcast()` publishes to Redis; each worker's Pub/Sub listener receives and pushes to local connections for the target user.
+`broadcast()` delivers directly to local connections first, then publishes to Redis for other workers. Direct delivery is always attempted regardless of Pub/Sub state — events are never silently dropped if Redis is unavailable.
+
+Redis envelope includes `source_worker_id`. Pub/Sub subscribers skip events originating from their own worker to prevent double delivery to local connections.
+
+Event types: `fact_created`, `fact_updated`, `fact_deleted`, `plan_created`, `plan_updated`, `plan_deleted`, `transfer_created`, `transfer_deleted`, `item_created`, `item_updated`, `item_deleted`, `item_completed`, `shopping_list_created`, `shopping_list_updated`, `shopping_list_deleted`, `recurring_plan_*`, `facts_batch_deleted`.
 
 ## Write-Behind Cache
 
 High-frequency writes buffer in Redis, flushed to PostgreSQL asynchronously. Reduces DB write pressure for sync batches and real-time updates. Service: `backend/app/services/write_behind_service.py`.
 
-Invariant: data in Redis is authoritative until flushed. Flush failures must be retried — not silently dropped.
+Invariant: `session.commit()` must complete before `_broadcast_event()` is called. This ensures the row is readable in PostgreSQL when the client fetches row-html in response to the WebSocket event. Swapping the order causes a race where the client fetches stale or missing data.
 
 ## SSE Broadcasting
 
