@@ -1,18 +1,29 @@
 # Multi-stage build for Family Budget Bot
 # Stage 1: Builder
-# Force rebuild: v11.4.51 - healthcheck fix deployed
 FROM python:3.11-slim-bookworm as builder
 
 ARG PYTHON_VERSION=3.11
+# BUILD_DATE invalidates apt layer cache each CI run so security patches are picked up promptly.
+ARG BUILD_DATE=unknown
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install build dependencies (may be needed for some packages)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN echo "apt refresh: ${BUILD_DATE}" && \
+    apt-get update && \
+    apt-get dist-upgrade -y && \
+    apt-get install -y --no-install-recommends \
     build-essential \
+    libgssapi-krb5-2 libk5crypto3 libkrb5-3 libkrb5support0 libcom-err2 libkeyutils1 \
     && rm -rf /var/lib/apt/lists/*
+
+# Regenerate distroless-format dpkg metadata for krb5 packages we copy into the runtime image.
+# Distroless ships stale status.d files that mismatch upgraded libraries, producing false-positive Trivy reports.
+RUN mkdir -p /opt/dpkg-status && \
+    for pkg in libgssapi-krb5-2 libk5crypto3 libkrb5-3 libkrb5support0 libcom-err2 libkeyutils1; do \
+        dpkg-query -W -f='Package: ${Package}\nStatus: ${Status}\nPriority: ${Priority}\nSection: ${Section}\nInstalled-Size: ${Installed-Size}\nMaintainer: ${Maintainer}\nArchitecture: ${Architecture}\nMulti-Arch: ${Multi-Arch}\nSource: ${Source}\nVersion: ${Version}\nDepends: ${Depends}\nDescription: ${Description}\n' "$pkg" > "/opt/dpkg-status/$pkg" 2>/dev/null || true ; \
+    done
 
 # Create venv
 RUN python -m venv /opt/venv
@@ -21,11 +32,13 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /build
 COPY bot/requirements.txt .
 
-# Install dependencies with BuildKit cache mount
 # pip pinned explicitly: CVE-2025-8869, CVE-2026-1703, CVE-2026-3219, CVE-2026-6357 fixed in 26.1
+# jaraco.context>=6.1.0: CVE-2026-23949 (path traversal in setuptools vendor)
+# wheel>=0.46.2: CVE-2026-24049 (privilege escalation in setuptools vendor)
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install "pip==26.1.2" setuptools wheel && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    pip install --upgrade 'jaraco.context>=6.1.0' 'wheel>=0.46.2'
 
 # Stage 2: Runtime (Distroless for security and size optimization)
 FROM gcr.io/distroless/python3-debian12:latest
@@ -38,8 +51,18 @@ ENV PYTHONUNBUFFERED=1 \
 # Copy SSL/TLS libraries from builder (required for Telegram API HTTPS connections)
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libssl.so.3* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libcrypto.so.3* /usr/lib/x86_64-linux-gnu/
+# Copy upgraded krb5 libraries (CVE-2026-40356: u4→u5)
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libgssapi_krb5.so.2* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libkrb5.so.3* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libk5crypto.so.3* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libkrb5support.so.0* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libcom_err.so.2* /usr/lib/x86_64-linux-gnu/
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libkeyutils.so.1* /usr/lib/x86_64-linux-gnu/
 # CA certificates (required for TLS verification)
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
+
+# Refresh dpkg metadata so Trivy reports match the actual binaries we copied (overrides stale distroless status.d)
+COPY --from=builder /opt/dpkg-status/ /var/lib/dpkg/status.d/
 
 # Copy venv from builder
 COPY --from=builder /opt/venv /opt/venv
