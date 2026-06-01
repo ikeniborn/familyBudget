@@ -77,6 +77,7 @@ class RedisBudgetWebSocketManager:
         self.connections: list[tuple[int, WebSocket, str, float]] = []
         self._lock = asyncio.Lock()
         self._pubsub_started = False
+        self._worker_id = str(uuid.uuid4())
 
     def _count_user_connections(self, user_id: int) -> int:
         """Count LOCAL connections for a user (this worker only)."""
@@ -210,22 +211,20 @@ class RedisBudgetWebSocketManager:
 
     async def broadcast(self, event_type: str, data: dict[str, Any]):
         """
-        Broadcast event to ALL workers via Redis Pub/Sub.
-
-        If Redis is not available, falls back to local broadcast only.
+        Broadcast event to local connections directly, then publish to Redis
+        for other workers. Direct delivery is always attempted regardless of
+        Pub/Sub state, so events are never silently dropped.
         """
-        # Try Redis Pub/Sub first
-        if is_redis_available():
-            published = await publish_event(event_type, data)
-            if published:
-                # Event will be received by all workers (including this one)
-                # via the Pub/Sub subscriber, so we don't need to broadcast locally
-                logger.debug("Event published to Redis: %s", event_type)
-                return
-
-        # Fallback: local broadcast only (single worker mode)
-        logger.debug("Redis unavailable, local broadcast only: %s", event_type)
+        # Always deliver to local connections immediately
         await self._local_broadcast(event_type, data)
+
+        # Publish to Redis for other workers; include worker_id so subscriber skips self
+        if is_redis_available():
+            published = await publish_event(event_type, data, source_worker_id=self._worker_id)
+            if published:
+                logger.debug("Event published to Redis: %s", event_type)
+            else:
+                logger.debug("Redis publish failed (local delivery already done): %s", event_type)
 
     async def _local_broadcast(self, event_type: str, data: dict[str, Any]):
         """
@@ -299,10 +298,10 @@ class RedisBudgetWebSocketManager:
             return
 
         if is_redis_available():
-            success = await start_pubsub_listener(self._local_broadcast)
+            success = await start_pubsub_listener(self._local_broadcast, worker_id=self._worker_id)
             self._pubsub_started = success
             if success:
-                logger.info("Redis Pub/Sub started for WebSocket manager")
+                logger.info("Redis Pub/Sub started for WebSocket manager (worker_id=%s)", self._worker_id[:8])
         else:
             logger.warning("Redis not available, WebSocket will work in single-worker mode")
 
