@@ -22,8 +22,9 @@ WORKDIR /build
 COPY bot/requirements.txt .
 
 # Install dependencies with BuildKit cache mount
+# pip pinned explicitly: CVE-2025-8869, CVE-2026-1703, CVE-2026-3219, CVE-2026-6357 fixed in 26.1
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip setuptools wheel && \
+    pip install "pip==26.1.2" setuptools wheel && \
     pip install -r requirements.txt
 
 # Stage 2: Runtime (Distroless for security and size optimization)
