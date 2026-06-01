@@ -30,6 +30,8 @@ IndexedDB via Dexie.js 4.0+ for offline-first operations. Shopping lists and fac
 
 Schema defined in TypeScript `frontend/web/static/js/data/`. Delete sync uses soft-delete flags, not physical removal, to avoid sync conflicts. Edit persistence requires re-fetching from IndexedDB after save — not from DOM.
 
+Shopping list item upload (`shoppingSync.ts`): if PUT returns 404 (item deleted server-side), the sync falls back to POST to recreate it. This preserves offline edits that would otherwise be silently lost.
+
 ## CSS
 
 Tailwind CSS + DaisyUI component library. Source → minified via PostCSS + cssnano (`npm run build:css`). `.min.css` not committed. Config: `config/tailwind.config.js`.

@@ -305,10 +305,11 @@ class WriteBehindService:
                 # Invalidate cache
                 await cache_service.invalidate_dashboard()
 
-                # Broadcast WebSocket event
-                await self._broadcast_event(item)
-
+                # Commit first — client fetches row-html after receiving WS event
                 await session.commit()
+
+                # Broadcast WebSocket event after commit
+                await self._broadcast_event(item)
                 self._stats["processed"] += 1
                 logger.info(
                     "Write-behind processed: %s %s request_id=%s",

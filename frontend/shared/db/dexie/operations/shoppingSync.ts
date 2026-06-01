@@ -136,6 +136,25 @@ async function uploadShoppingItem(item: LocalShoppingListItem): Promise<void> {
   });
 
   if (!response.ok) {
+    if (response.status === 404 && method === 'PUT') {
+      // Item was deleted server-side — recreate via POST
+      const createResp = await fetchWithTimeout('/api/v1/shopping-list-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...apiPayload, shopping_list_id: item.shopping_list_id ?? shoppingListServerId }),
+        credentials: 'include'
+      });
+      if (createResp.ok) {
+        const result = await createResp.json();
+        await db.shoppingListItems.where('temp_id').equals(item.temp_id).modify({
+          id: result.id,
+          sync_status: 'synced'
+        });
+        logger.info('[shoppingSync] Item recreated via POST after 404', { temp_id: item.temp_id, new_id: result.id });
+        return;
+      }
+      throw new Error(`Server error on recreate: ${createResp.status}`);
+    }
     throw new Error(`Server error: ${response.status}`);
   }
 

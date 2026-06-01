@@ -1,250 +1,34 @@
 {
-  "frontend/web/static/js/dashboard/recentTransactions.ts": {
-    "mtime": 1778679781.1366646,
-    "hash": "bb9faa9f6c9ad78991784879a817e756"
+  "backend/app/services/redis_pubsub_service.py": {
+    "mtime": 1780294531.326733,
+    "hash": "1ebdb3596079186ad6bc489c1a6e9602"
   },
-  "frontend/web/static/js/dashboard/index.ts": {
-    "mtime": 1778679781.1365721,
-    "hash": "9dc1d4172b26a07ea1ddb3cb37c1e889"
+  "backend/app/services/redis_ws_manager.py": {
+    "mtime": 1780295086.4951668,
+    "hash": "74fa4aa1beb94e3d723186d84d756896"
   },
-  "frontend/web/static/js/dashboard/adapters/windowExports.ts": {
-    "mtime": 1776515657.8237607,
-    "hash": "8dcee56ae95730863d2f3fa6ddf615b0"
+  "backend/app/services/write_behind_service.py": {
+    "mtime": 1780295445.1141696,
+    "hash": "354576e6e29b43fe9a77b6da5595e4eb"
   },
-  "frontend/web/static/js/dashboard/utils/modalHelpers.ts": {
-    "mtime": 1771299773.5052757,
-    "hash": "dd6564a4441bdfd03a37d69028f9a7b4"
+  "frontend/shared/db/dexie/operations/shoppingSync.ts": {
+    "mtime": 1780299950.9301,
+    "hash": "a4abe08f7949f9e34c74919bc12d75fe"
   },
-  "frontend/web/static/js/dashboard/integration/index.ts": {
-    "mtime": 1771299773.5047853,
-    "hash": "27974793662677f95e737021b15300b4"
+  "tests/unit/backend/test_redis_pubsub.py": {
+    "mtime": 1780294910.3556597,
+    "hash": "a5db28f2f883a534a42093680bbf99bc"
   },
-  "frontend/web/static/js/dashboard/integration/htmxRefresh.ts": {
-    "mtime": 1771299773.5045257,
-    "hash": "60e2fe0658ad1634bb0aa16a61e1b70d"
+  "tests/unit/backend/test_redis_ws_manager.py": {
+    "mtime": 1780295120.5600717,
+    "hash": "bd7f018878a43abbda927ffb3db58c35"
   },
-  "frontend/web/static/js/dashboard/integration/wsEventHandlers.ts": {
-    "mtime": 1776515657.8257606,
-    "hash": "aa1dc794579a1033c71e0e1feffcdcf8"
+  "tests/unit/backend/test_write_behind_order.py": {
+    "mtime": 1780295395.308308,
+    "hash": "3315aec1ec46840c9171481f38d33c9b"
   },
-  "frontend/web/static/js/dashboard/features/offlineDashboard.ts": {
-    "mtime": 1778679781.1364598,
-    "hash": "2e7ba221e124971eebbd02ab1414d2ef"
-  },
-  "frontend/web/static/js/dashboard/features/factsManager.ts": {
-    "mtime": 1778679781.136361,
-    "hash": "f5ccf0e37c35db0d513677a009571338"
-  },
-  "frontend/web/static/js/dashboard/features/modalFact/index.ts": {
-    "mtime": 1776515657.8247607,
-    "hash": "7b172eac2eb4d79780179dde97ff004e"
-  },
-  "frontend/web/static/js/dashboard/features/modalFact/saveTransfer.ts": {
-    "mtime": 1777202462.6297817,
-    "hash": "b754ee02f7a80c0a2f8160bb2bd4518a"
-  },
-  "frontend/web/static/js/dashboard/features/modalFact/typeToggle.ts": {
-    "mtime": 1776849678.8495817,
-    "hash": "fd1f9a0ef37e88430fdf98db723d6b62"
-  },
-  "frontend/web/static/js/dashboard/features/modalFact/saveOperations.ts": {
-    "mtime": 1776849678.8495147,
-    "hash": "734e747190b0ad10f0ccd23db6ea495c"
-  },
-  "frontend/web/static/js/dashboard/features/modalFact/dateHelpers.ts": {
-    "mtime": 1771299773.5034873,
-    "hash": "98d08b2193e67e4ecfd5e2b512493aae"
-  },
-  "frontend/web/static/js/dashboard/features/modalFact/saveTransaction.ts": {
-    "mtime": 1778104511.3058674,
-    "hash": "a22b1d004065adb826f1f3f6c4f56dee"
-  },
-  "frontend/web/static/js/dashboard/features/modalFact/tabManager.ts": {
-    "mtime": 1771299773.503822,
-    "hash": "3e1d12a81bcdb2c802b362a703b6dc65"
-  },
-  "frontend/web/static/js/dashboard/features/pendingRecords/index.ts": {
-    "mtime": 1771299773.5041685,
-    "hash": "24708cd8d5b700c25d2c9475e269c309"
-  },
-  "frontend/web/static/js/dashboard/features/pendingRecords/transferSplit.ts": {
-    "mtime": 1771299773.5045257,
-    "hash": "e9814573aa6bb140ea104fd2f93082b2"
-  },
-  "frontend/web/static/js/dashboard/features/pendingRecords/pendingState.ts": {
-    "mtime": 1771299773.5045257,
-    "hash": "af101624f9b590c38117c544786a76d6"
-  },
-  "frontend/web/static/js/dashboard/features/pendingRecords/pendingRenderer.ts": {
-    "mtime": 1771299773.5045257,
-    "hash": "3173b56d9b4c5dd1a19e0d58d4129f14"
-  },
-  "frontend/web/static/js/dashboard/features/pendingRecords/syncOperations.ts": {
-    "mtime": 1771299773.5045257,
-    "hash": "74e2be30cb731a7640c82e294b12ed59"
-  },
-  "frontend/web/static/js/dashboard/features/editModal/index.ts": {
-    "mtime": 1771299773.5034873,
-    "hash": "70befb08497085f4a65e3cd100c13296"
-  },
-  "frontend/web/static/js/dashboard/features/editModal/helpers.ts": {
-    "mtime": 1777202462.6296315,
-    "hash": "33d797a1b91886a575f24388fdd85fba"
-  },
-  "frontend/web/static/js/dashboard/features/editModal/deleteOperations.ts": {
-    "mtime": 1776515657.8247607,
-    "hash": "2be21e7fca66e08d4f6f2620ea956087"
-  },
-  "frontend/web/static/js/dashboard/features/editModal/saveOperations.ts": {
-    "mtime": 1771299773.5034873,
-    "hash": "da8e06e5cf9d2772733b256d4600cea7"
-  },
-  "frontend/web/static/js/dashboard/features/editModal/formPopulation.ts": {
-    "mtime": 1777202462.629545,
-    "hash": "52466e2c63cb6ab3e866a384ba02d64f"
-  },
-  "frontend/web/static/js/dashboard/features/editModal/dropdownCache.ts": {
-    "mtime": 1771299773.5034406,
-    "hash": "3b00aabddc951796d7a6e6f0c121a7a9"
-  },
-  "frontend/web/static/js/dashboard/features/editModal/reminderHelpers.ts": {
-    "mtime": 1771299773.5034873,
-    "hash": "dfc6e46dd9cad36f7923daf234cda27b"
-  },
-  "frontend/web/static/js/dashboard/features/addPlan/index.ts": {
-    "mtime": 1776515657.8237607,
-    "hash": "3b122700acc9524614b9a1d8b621d61d"
-  },
-  "frontend/web/static/js/dashboard/features/addPlan/planForm.ts": {
-    "mtime": 1777202462.629357,
-    "hash": "33efb7d83bf03033144dad03f43ee8ae"
-  },
-  "frontend/web/static/js/dashboard/features/addPlan/reminderSettings.ts": {
-    "mtime": 1771299773.50302,
-    "hash": "91153962b113893c73078d4df5c88b08"
-  },
-  "frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts": {
-    "mtime": 1777059652.2166321,
-    "hash": "b4970aa638867e54538969351350d2e5"
-  },
-  "frontend/web/static/js/dashboard/features/addPlan/planHints.ts": {
-    "mtime": 1776515657.8247607,
-    "hash": "9e7e9c4c54a2acad356e34cbadc3377c"
-  },
-  "frontend/web/static/js/dashboard/features/addPlan/recurringSettings.ts": {
-    "mtime": 1771299773.50302,
-    "hash": "75e60e00d49ca35e96788139f3c22228"
-  },
-  "frontend/web/static/js/dashboard/features/fab/contextModal.ts": {
-    "mtime": 1771299773.5034873,
-    "hash": "a0e866820227b94575b861e4d3b97396"
-  },
-  "frontend/web/static/js/dashboard/features/addTransaction/index.ts": {
-    "mtime": 1771299773.5032356,
-    "hash": "cfe2a57aa78f1c05ed0daab9befb2acb"
-  },
-  "frontend/web/static/js/dashboard/features/addTransaction/factHints.ts": {
-    "mtime": 1776515657.8247607,
-    "hash": "186f6c39e4ae9b4ce389666e0bba9e21"
-  },
-  "frontend/web/static/js/dashboard/features/addTransaction/categoryLoader.ts": {
-    "mtime": 1776515657.8247607,
-    "hash": "e60653d1e3364c3ce2a6ed02e6620357"
-  },
-  "frontend/web/static/js/dashboard/features/addTransaction/transactionForm.ts": {
-    "mtime": 1777202462.6294441,
-    "hash": "c6427989c909fd8eec1467da82761d6d"
-  },
-  "frontend/web/static/js/dashboard/features/modalPlan/index.ts": {
-    "mtime": 1776515657.8257606,
-    "hash": "117d194b57178d08079a7c6d11026b9e"
-  },
-  "frontend/web/static/js/dashboard/features/modalPlan/saveTransfer.ts": {
-    "mtime": 1777202462.6299288,
-    "hash": "54931951fcf960ec5d4c53229be9cdef"
-  },
-  "frontend/web/static/js/dashboard/features/modalPlan/typeToggle.ts": {
-    "mtime": 1776515657.8257606,
-    "hash": "86a3d8af8ec2b3b8c67b543fd1508295"
-  },
-  "frontend/web/static/js/dashboard/features/modalPlan/saveOperations.ts": {
-    "mtime": 1777059666.144487,
-    "hash": "162d70320198370cf9c681e348fc927f"
-  },
-  "frontend/web/static/js/dashboard/features/modalPlan/dateHelpers.ts": {
-    "mtime": 1776515657.8247607,
-    "hash": "f6f53597c94d898d635b9878759486fe"
-  },
-  "frontend/web/static/js/dashboard/features/modalPlan/saveTransaction.ts": {
-    "mtime": 1777202462.6298616,
-    "hash": "7daaae77ed9987277a6a26824f1dc9bc"
-  },
-  "frontend/web/static/js/dashboard/features/modalPlan/tabManager.ts": {
-    "mtime": 1771299773.5041685,
-    "hash": "70a1dc772956a357ab8156095103ca83"
-  },
-  "frontend/web/static/js/dashboard/features/modalPlan/recurringSettings.ts": {
-    "mtime": 1776515657.8257606,
-    "hash": "9054a29cc69d09cfdbaa3a2f0389ec53"
-  },
-  "frontend/web/static/js/dashboard/core/stateManager.ts": {
-    "mtime": 1771299773.502906,
-    "hash": "188df69e1c59c0c6050297176276bef0"
-  },
-  "frontend/web/static/js/dashboard/core/DashboardState.ts": {
-    "mtime": 1776515657.8237607,
-    "hash": "379b2dec744f0fae713268b547c4597a"
-  },
-  "frontend/web/static/js/dashboard/ui/index.ts": {
-    "mtime": 1771299773.5052757,
-    "hash": "d37792dc312e4a75a5c34fc64a14368e"
-  },
-  "frontend/web/static/js/dashboard/ui/collapsibleSections.ts": {
-    "mtime": 1771299773.5051215,
-    "hash": "3feda73270cc822e7ed32b243037c9af"
-  },
-  "frontend/web/static/js/dashboard/shared/tabManagerFactory.ts": {
-    "mtime": 1776515657.8257606,
-    "hash": "c179c05f583fd94af74fe04baddb57ea"
-  },
-  "frontend/web/static/js/dashboard/shared/utils/buttonState.ts": {
-    "mtime": 1771299773.5049934,
-    "hash": "95ee49ee3ce1ecdee32e7d8633e8f8da"
-  },
-  "frontend/web/static/js/dashboard/shared/utils/dateHelpers.ts": {
-    "mtime": 1771299773.5049934,
-    "hash": "09867b039aae53a5b9cf8b57cc6188c7"
-  },
-  "frontend/web/static/js/dashboard/shared/utils/tabValidation.ts": {
-    "mtime": 1776849678.8497353,
-    "hash": "24789e6418669e74eb693f18a87736f9"
-  },
-  "frontend/web/static/js/dashboard/shared/utils/apiHelpers.ts": {
-    "mtime": 1778103803.6767917,
-    "hash": "c301b9cd467165b635a5695b63ab14e3"
-  },
-  "frontend/web/static/js/dashboard/shared/utils/uiRefresh.ts": {
-    "mtime": 1771299773.5049934,
-    "hash": "c665d10cd6014255d1eb331b2411850b"
-  },
-  "frontend/web/static/js/dashboard/shared/utils/keyboardShortcuts.ts": {
-    "mtime": 1771299773.5049934,
-    "hash": "0901a55f8c55c22dbc7012a4f55f2727"
-  },
-  "frontend/web/static/js/dashboard/shared/utils/transferFCExclusion.ts": {
-    "mtime": 1776515657.8257606,
-    "hash": "948fd69a2b9eb97dc8a9c9b7f668dbb9"
-  },
-  "frontend/web/static/js/dashboard/types/dashboard.d.ts": {
-    "mtime": 1771299773.5051215,
-    "hash": "bd19f0edf195943de8de9593d6e0adfb"
-  },
-  "frontend/web/static/js/dashboard/types/analytics.d.ts": {
-    "mtime": 1776515657.8257606,
-    "hash": "85372951339314f6d2471f6663dfefc4"
-  },
-  "frontend/web/static/js/dashboard/types/globals.d.ts": {
-    "mtime": 1776515657.8257606,
-    "hash": "674ae20cb559d7ba9efa1508e9135397"
+  "tests/unit/dashboard/shoppingSync404.test.ts": {
+    "mtime": 1780295823.4124877,
+    "hash": "a68fa101cc821321d9da2e3abb75970b"
   }
 }

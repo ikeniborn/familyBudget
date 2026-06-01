@@ -218,6 +218,7 @@ describe('factsManager — Dexie aggregations', () => {
 
     it('opening balance includes facts before current month', async () => {
       const prevMonthDay = new Date();
+      prevMonthDay.setDate(1);
       prevMonthDay.setMonth(prevMonthDay.getMonth() - 1);
       const prevMonthStr = prevMonthDay.toISOString().slice(0, 10);
       await manager.bulkInsertArticles([buildArticle({ id: 1, type: 'income' })]);
