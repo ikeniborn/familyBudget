@@ -283,6 +283,11 @@ export async function updateItem(itemId: number, data: Partial<ItemData>): Promi
       result = { tempId: item.temp_id, id: itemId };
       debugLog('[LIST_OPS] Item updated in Dexie', { temp_id: item.temp_id });
 
+      // Background upload: push update to server immediately (same pattern as createItem/deleteItem)
+      dexie.uploadPendingShoppingData().catch((err: unknown) => {
+        console.warn('[LIST_OPS] Background update upload failed:', err);
+      });
+
       // Reload items from Dexie
       if (state.currentListId) {
         await loadShoppingListItems(state.currentListId);
@@ -359,6 +364,11 @@ export async function toggleItemCompleted(itemId: number, isCompleted: boolean):
       // Toggle in Dexie (auto-adds to pending queue)
       await toggleItemCompletedDexie(item.temp_id, isCompleted);
       debugLog('[LIST_OPS] Item completion toggled in Dexie', { temp_id: item.temp_id, isCompleted });
+
+      // Background upload: push completion to server immediately (same pattern as createItem/deleteItem)
+      dexie.uploadPendingShoppingData().catch((err: unknown) => {
+        console.warn('[LIST_OPS] Background toggle upload failed:', err);
+      });
 
       // Reload items from Dexie
       if (state.currentListId) {
