@@ -17,8 +17,7 @@ def test_redis_exception_not_confused_with_builtin():
     assert RedisConnectionError is not ConnectionError
 
 
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 import pytest
 
 
@@ -27,7 +26,7 @@ async def test_publish_event_includes_source_worker_id():
     """publish_event() must include source_worker_id in the envelope sent to Redis."""
     captured = {}
 
-    async def fake_publish(channel, message):
+    async def fake_publish(_channel, message):
         import json
         captured["envelope"] = json.loads(message)
         return 1
@@ -55,7 +54,7 @@ async def test_publish_event_source_worker_id_defaults_none():
     """publish_event() without source_worker_id sends null in envelope."""
     captured = {}
 
-    async def fake_publish(channel, message):
+    async def fake_publish(_channel, message):
         import json
         captured["envelope"] = json.loads(message)
         return 1
