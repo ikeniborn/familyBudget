@@ -1,10 +1,9 @@
 ---
 name: fb-backend
 description: >
-  Backend development guide for the Family Budget project. Use this skill whenever you're writing, editing,
-  or debugging Python backend code — adding new API endpoints, creating or modifying SQLModel models, writing
-  Alembic migrations, implementing service logic, fixing bugs in authentication/authorization, working with
-  WebSocket/Redis pub-sub, or writing backend tests.
+  Use when writing, editing, or debugging backend Python code in the Family Budget project — adding API
+  endpoints, creating or modifying SQLModel models, writing Alembic migrations, implementing service logic,
+  fixing auth bugs, working with WebSocket/Redis pub-sub, or writing backend tests.
   Trigger on: "add endpoint", "new model", "create migration", "fix API", "add service", "backend bug",
   "authentication issue", "database query", "WebSocket event", "Redis cache", "write test", "pytest",
   "SQLModel", "FastAPI route", "Pydantic schema", "alembic", "background job", "scheduler".

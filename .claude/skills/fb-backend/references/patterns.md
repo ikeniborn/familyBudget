@@ -198,8 +198,8 @@ from app.core.user_isolation import apply_user_filter, ensure_user_owns_resource
 # Filter list queries:
 stmt = apply_user_filter(select(Fact), current_user)
 
-# Validate ownership before update/delete:
-ensure_user_owns_resource(fact, current_user)  # raises ForbiddenException
+# Validate ownership before update/delete (pass user_id, not the object):
+ensure_user_owns_resource(fact.user_id, current_user)  # raises ForbiddenException
 ```
 
 **JWT flow**:
@@ -253,11 +253,12 @@ alembic upgrade head
 **Broadcast after a write:**
 
 ```python
-# Import from budget_ws.py (already available as global)
+# Direct import from budget_ws.py
 from app.api.v1.endpoints.budget_ws import broadcast_fact_created
 
-# After session.flush() / commit:
-await broadcast_fact_created(fact)
+# Pass response schema dict (model_dump), not the ORM object:
+response = FactResponse.model_validate(fact)
+await broadcast_fact_created(response.model_dump(mode="json"))
 ```
 
 Available broadcast functions (see `budget_ws.py` lines 915+):

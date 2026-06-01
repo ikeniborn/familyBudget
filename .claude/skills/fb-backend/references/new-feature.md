@@ -129,7 +129,7 @@ async def get_tag(
     tag = await session.get(Tag, tag_id)
     if not tag or not tag.is_active:
         raise NotFoundException("Tag not found")
-    ensure_user_owns_resource(tag, current_user)
+    ensure_user_owns_resource(tag.user_id, current_user)
     return tag
 
 
@@ -143,7 +143,7 @@ async def update_tag(
     tag = await session.get(Tag, tag_id)
     if not tag or not tag.is_active:
         raise NotFoundException("Tag not found")
-    ensure_user_owns_resource(tag, current_user)
+    ensure_user_owns_resource(tag.user_id, current_user)
 
     for field, value in tag_data.model_dump(exclude_unset=True).items():
         setattr(tag, field, value)
@@ -161,7 +161,7 @@ async def delete_tag(
     tag = await session.get(Tag, tag_id)
     if not tag or not tag.is_active:
         raise NotFoundException("Tag not found")
-    ensure_user_owns_resource(tag, current_user)
+    ensure_user_owns_resource(tag.user_id, current_user)
     tag.is_active = False
     await session.flush()
 ```
