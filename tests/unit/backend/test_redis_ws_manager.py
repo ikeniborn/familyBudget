@@ -1,6 +1,5 @@
 """Unit tests for RedisBudgetWebSocketManager.broadcast() direct-first behavior."""
 
-import asyncio
 import pytest
 from unittest.mock import AsyncMock, patch
 
@@ -19,7 +18,7 @@ async def test_broadcast_calls_local_broadcast_even_when_redis_available():
 
         local_called = []
 
-        async def fake_local_broadcast(event_type, data):
+        async def fake_local_broadcast(event_type, data):  # noqa: ARG001
             local_called.append(event_type)
 
         manager._local_broadcast = fake_local_broadcast
@@ -62,7 +61,7 @@ async def test_broadcast_local_only_when_redis_unavailable():
         manager = RedisBudgetWebSocketManager()
 
         local_called = []
-        async def fake_local_broadcast(event_type, data):
+        async def fake_local_broadcast(event_type, data):  # noqa: ARG001
             local_called.append(event_type)
         manager._local_broadcast = fake_local_broadcast
 

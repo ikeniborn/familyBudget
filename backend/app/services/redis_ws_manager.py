@@ -72,6 +72,8 @@ class RedisBudgetWebSocketManager:
     Local connections: [(user_id, websocket, connection_id, last_activity), ...]
     """
 
+    _worker_id: str
+
     def __init__(self):
         # Local connections for this worker only
         self.connections: list[tuple[int, WebSocket, str, float]] = []
