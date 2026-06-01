@@ -150,9 +150,10 @@ async function uploadShoppingItem(item: LocalShoppingListItem): Promise<void> {
           id: result.id,
           sync_status: 'synced'
         });
-        logger.info('[shoppingSync] ✅ Item recreated via POST after 404', { temp_id: item.temp_id, new_id: result.id });
+        logger.info('[shoppingSync] Item recreated via POST after 404', { temp_id: item.temp_id, new_id: result.id });
         return;
       }
+      throw new Error(`Server error on recreate: ${createResp.status}`);
     }
     throw new Error(`Server error: ${response.status}`);
   }
