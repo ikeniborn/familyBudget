@@ -1,3 +1,16 @@
+---
+review:
+  spec_hash: 393d583e8ed93c4a
+  last_run: 2026-05-31
+  phases:
+    structure: { status: passed }
+    coverage: { status: passed }
+    clarity: { status: passed }
+    consistency: { status: passed }
+  findings: []
+chain:
+  intent: docs/superpowers/intents/2026-05-31-websocket-sync-fix-intent.md
+---
 # Design: WebSocket Sync Fix
 
 **Date:** 2026-05-31  
