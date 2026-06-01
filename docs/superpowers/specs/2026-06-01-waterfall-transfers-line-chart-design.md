@@ -1,3 +1,25 @@
+---
+chain:
+  intent: docs/superpowers/intents/2026-06-01-waterfall-transfers-line-chart-intent.md
+review:
+  spec_hash: 9026336ff3f17679
+  last_run: 2026-06-01
+  phases:
+    structure:   { status: passed }
+    coverage:    { status: passed }
+    clarity:     { status: passed }
+    consistency: { status: passed }
+  sections:
+    "## Problem":              { hash: 42ab8d1ba7a1902e }
+    "## Solution":             { hash: ab6360faab9c7cbe }
+    "## Change":               { hash: 6b823c08b872881f }
+    "### Before":              { hash: 6e937c6cc460106a }
+    "### After":               { hash: a8cdc86c8f166884 }
+    "## Key Decisions":        { hash: f3c665c3952c5259 }
+    "## Invariants Preserved": { hash: 52c61d5b96c6a70c }
+    "## Scope":                { hash: 4ce108759380e9af }
+  findings: []
+---
 # Design: Waterfall Chart — Transfers as Line Chart
 
 **Date:** 2026-06-01
