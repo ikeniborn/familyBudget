@@ -215,9 +215,10 @@ export async function selectAnalyticsMonth(month: string, clickedBtn: HTMLButton
   // Reload analytics
   await loadPlanAnalytics();
 
-  // Sync to filters section via PlanApp (avoids circular dependency)
+  // Sync only date range to facts table — article/type/FC filters must NOT carry over
+  // when switching months (they are synced separately via onAnalytics*Change handlers)
   if (typeof window.PlanApp?.syncAnalyticsToFilters === 'function') {
-    await window.PlanApp.syncAnalyticsToFilters();
+    await window.PlanApp.syncAnalyticsToFilters({ skipFiltersSync: true });
   }
 }
 
