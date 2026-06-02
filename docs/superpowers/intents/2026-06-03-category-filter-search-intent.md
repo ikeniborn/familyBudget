@@ -1,7 +1,7 @@
 # Intent: Category Filter Search (facts & plan)
 
 **Date:** 2026-06-03
-**Status:** draft
+**Status:** approved
 
 ## Objective
 
