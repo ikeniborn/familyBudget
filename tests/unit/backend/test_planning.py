@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, timedelta
 from backend.app.utils.planning import get_planning_month
 
 
@@ -19,5 +19,6 @@ def test_december_wraps_to_january():
 
 
 def test_no_arg_uses_today():
-    result = get_planning_month()
-    assert result.day == 1
+    today = date.today()
+    expected = (today.replace(day=1) + timedelta(days=32)).replace(day=1) if today.day >= 20 else today.replace(day=1)
+    assert get_planning_month() == expected

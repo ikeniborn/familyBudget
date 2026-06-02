@@ -18,6 +18,9 @@ declare const debugLog: (...args: any[]) => void;
 export function updatePlanPeriodButtons(): void {
   const monthNamesShort = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
   const now = new Date();
+  const planningBase = now.getDate() >= 20
+    ? new Date(now.getFullYear(), now.getMonth() + 1, 1)
+    : new Date(now.getFullYear(), now.getMonth(), 1);
 
   const buttons = [
     { id: 'plan_period_btn_1', offset: 0 },
@@ -29,7 +32,7 @@ export function updatePlanPeriodButtons(): void {
     const button = document.getElementById(btn.id) as HTMLButtonElement | null;
     if (!button) return;
 
-    const targetDate = new Date(now.getFullYear(), now.getMonth() + btn.offset, 1);
+    const targetDate = new Date(planningBase.getFullYear(), planningBase.getMonth() + btn.offset, 1);
     const monthIndex = targetDate.getMonth();
     const year = targetDate.getFullYear();
 

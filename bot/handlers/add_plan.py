@@ -32,6 +32,7 @@ from telegram.ext import (
     filters,
 )
 
+from backend.app.utils.planning import get_planning_month
 from bot.utils.api_client import get_api_client
 from bot.utils.logger import get_logger
 from bot.utils.session import SessionManager
@@ -368,13 +369,7 @@ async def amount_entered(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Ask for date
         article_name = context.user_data.get(KEY_ARTICLE_NAME, "категория")
 
-        today = date.today()
-        planning_month = (
-            (today.replace(day=1) + timedelta(days=32)).replace(day=1)
-            if today.day >= 20
-            else today.replace(day=1)
-        )
-        hint = planning_month.strftime("01.%m.%Y")
+        hint = get_planning_month().strftime("01.%m.%Y")
 
         await update.message.reply_text(
             f"📊 **Планирование бюджета**\n\n"
