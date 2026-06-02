@@ -141,17 +141,6 @@ async function ensureDexieReady(): Promise<void> {
 }
 
 function initFilterCalendar(): void {
-  const triggerContainer = document.getElementById('date-range-calendar-trigger');
-  if (!triggerContainer) return;
-
-  const triggerBtn = document.createElement('button');
-  triggerBtn.type = 'button';
-  triggerBtn.className = 'btn btn-sm btn-ghost btn-square';
-  triggerBtn.innerHTML = '📅';
-  triggerBtn.title = 'Выбрать период';
-  triggerBtn.id = 'date-range-calendar-btn';
-  triggerContainer.appendChild(triggerBtn);
-
   const startInputElement = document.getElementById('filter-date-from') as HTMLInputElement | null;
   const endInputElement = document.getElementById('filter-date-to') as HTMLInputElement | null;
   if (!startInputElement || !endInputElement) return;

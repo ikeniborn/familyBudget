@@ -142,25 +142,13 @@ function initDateRangeCalendar(): void {
         return;
     }
 
-    // Create calendar widget for date range
-    const triggerContainer = document.getElementById('date-range-calendar-trigger');
-    if (!triggerContainer) return;
-
-    // Create trigger button
-    const triggerBtn = document.createElement('button');
-    triggerBtn.type = 'button';
-    triggerBtn.className = 'btn btn-sm btn-ghost btn-square';
-    triggerBtn.innerHTML = '📅';
-    triggerBtn.title = 'Выбрать период';
-    triggerBtn.id = 'date-range-calendar-btn';
-    triggerContainer.appendChild(triggerBtn);
-
     // Get input elements (required by CalendarWidget API)
     const startInputElement = document.getElementById('filter-date-from') as HTMLInputElement;
     const endInputElement = document.getElementById('filter-date-to') as HTMLInputElement;
 
-    if (!startInputElement || !endInputElement) {
-        logger.warn(' Date inputs not found, skipping CalendarWidget initialization');
+    const triggerContainer = document.getElementById('date-range-calendar-trigger');
+    if (!startInputElement || !endInputElement || !triggerContainer) {
+        logger.warn(' Date inputs or trigger container not found, skipping CalendarWidget initialization');
         return;
     }
 
