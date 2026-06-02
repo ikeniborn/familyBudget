@@ -1,5 +1,3 @@
-import { onAnalyticsArticleChange } from './analytics';
-
 let articleChoicesInstance: any = null;
 
 export function initAnalyticsArticleChoices(
@@ -9,19 +7,25 @@ export function initAnalyticsArticleChoices(
   const ChoicesCategoryTree = (window as any).BudgetShared?.ChoicesCategoryTree;
   if (!ChoicesCategoryTree) return;
 
+  if (!articleType) {
+    // No type selected — leave plain <select> as-is; destroy any previous widget
+    if (articleChoicesInstance?.destroy) {
+      articleChoicesInstance.destroy();
+      articleChoicesInstance = null;
+    }
+    return;
+  }
+
   if (articleChoicesInstance?.destroy) {
     articleChoicesInstance.destroy();
     articleChoicesInstance = null;
   }
 
   articleChoicesInstance = new ChoicesCategoryTree('#analytics-article', {
-    type: articleType || undefined,
+    type: articleType,
     multiple: false,
     showPath: false,
     showClearButton: true,
     mode: 'create',
-    onChange: (_selected: any[]) => {
-      onAnalyticsArticleChange();
-    }
   });
 }
