@@ -369,3 +369,4 @@ backend/.env.test
 docs/sphinx/_build/.doctrees/
 .claude/worktrees
 .playwright-mcp
+.superpowers

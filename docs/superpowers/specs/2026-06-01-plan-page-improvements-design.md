@@ -1,3 +1,60 @@
+---
+title: "Design: Plan Page Improvements"
+date: 2026-06-01
+status: approved
+chain:
+  intent: docs/superpowers/intents/2026-06-01-plan-page-improvements-intent.md
+review:
+  spec_hash: "2c0cbdeb5e88d2a2"
+  last_run: 2026-06-02
+  phases:
+    structure: { status: passed }
+    coverage: { status: passed }
+    clarity: { status: passed }
+    consistency: { status: passed }
+  findings:
+    - id: F-001
+      phase: structure
+      severity: INFO
+      section: "Task 1: Planning Period Offset"
+      section_hash: "9addc7c5e5c72f55"
+      text: "Duplicate subheadings: ### Affected files (x4), ### Change (x2), ### Current state (x2) under different parent Task sections — intentional pattern"
+      verdict: wontfix
+      verdict_at: 2026-06-02
+    - id: F-002
+      phase: clarity
+      severity: WARNING
+      section: "Frontend (planModal.ts — setupCreatePlanPeriodButtons)"
+      section_hash: "29a37006adf5d4a6"
+      text: "\"if it exists, or inline in template\" — two alternatives without selection criterion; no explicit DoD for transfer-period-btn change"
+      verdict: fixed
+      verdict_at: 2026-06-02
+    - id: F-003
+      phase: clarity
+      severity: WARNING
+      section: "Bot (add_plan.py)"
+      section_hash: "721da565e0b43320"
+      text: "Comment '# or duplicate the 3-line rule locally' — import vs duplicate decision left unresolved"
+      verdict: fixed
+      verdict_at: 2026-06-02
+    - id: F-004
+      phase: clarity
+      severity: INFO
+      section: "Task 1: Planning Period Offset"
+      section_hash: "9addc7c5e5c72f55"
+      text: "Terminology: 'planning period' (task title/description) vs 'planning month' (function names get_planning_month, getPlanningMonthStart) — same concept, two names"
+      verdict: wontfix
+      verdict_at: 2026-06-02
+    - id: F-005
+      phase: clarity
+      severity: INFO
+      section: "Task 2: Category Typeahead in Analytics"
+      section_hash: "a5d49adee530a330"
+      text: "Terminology: section titled 'Category Typeahead' but module/function names use 'article' (analyticsArticleChoices, initAnalyticsArticleChoices) — intentional domain distinction (статья = budget article)"
+      verdict: wontfix
+      verdict_at: 2026-06-02
+---
+
 # Design: Plan Page Improvements
 
 **Date:** 2026-06-01
@@ -86,16 +143,21 @@ const planningBase = new Date(
 const d = new Date(planningBase.getFullYear(), planningBase.getMonth() + offset, 1);
 ```
 
-Same change applies to `transfer-period-btn` in `plan_transfer_tab.html` (same JS pattern in a corresponding setup function if it exists, or inline in template).
+Same change applies to `setupTransferPeriodButtons()` in `frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts` — replace `today.getMonth()` base with the same planning month base.
 
 ### Bot (add_plan.py)
 
 In `amount_entered()`, add a planning period hint to the date-prompt message:
 
 ```python
-from backend.app.utils.planning import get_planning_month  # or duplicate the 3-line rule locally
-
-planning_month = get_planning_month()
+# Bot runs in a separate container — cannot import from backend.
+# Duplicate the rule inline:
+today = date.today()
+planning_month = (
+    (today.replace(day=1) + timedelta(days=32)).replace(day=1)
+    if today.day >= 20
+    else today.replace(day=1)
+)
 hint = planning_month.strftime("01.%m.%Y")
 
 # Prompt text addition:
@@ -111,7 +173,8 @@ Bot API contracts unchanged — user still enters date manually; hint is informa
 | `backend/app/utils/planning.py` | NEW — utility function |
 | `frontend/web/static/js/plan/filters.ts` | `DEFAULT_DATE_FROM` / `DEFAULT_DATE_TO` use `getPlanningMonthStart()` |
 | `frontend/web/static/js/plan/planModal.ts` | `setupCreatePlanPeriodButtons()` — planning base |
-| `bot/handlers/add_plan.py` | Add hint to date prompt |
+| `frontend/web/static/js/dashboard/features/addPlan/periodButtons.ts` | `setupTransferPeriodButtons()` — planning base |
+| `bot/handlers/add_plan.py` | Add hint to date prompt (inline rule, no backend import) |
 
 ---
 
