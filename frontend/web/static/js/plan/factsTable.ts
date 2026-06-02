@@ -254,7 +254,7 @@ export async function loadFacts(): Promise<void> {
     const items: PlanHelpers.BudgetFact[] = (data.items ?? []).map(toUIFactFromAPI);
     totalFacts = data.total ?? 0;
     loadedCount = items.length;
-    hasMoreFacts = PAGE_SIZE < totalFacts;
+    hasMoreFacts = (currentOffset + PAGE_SIZE) < totalFacts;
     factsData = items;
 
     remindersMap.clear();
@@ -751,7 +751,9 @@ export async function fetchAndInjectPlanRow(
       }
     }
     totalFacts++;
-    loadedCount = Math.min(loadedCount + 1, PAGE_SIZE);
+    loadedCount = desktopTbody
+      ? desktopTbody.querySelectorAll('tr').length
+      : loadedCount + 1;
     updateStats();
     updateLoadMoreButton();
     return true;
