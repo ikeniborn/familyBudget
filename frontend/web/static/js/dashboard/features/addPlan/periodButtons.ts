@@ -98,10 +98,13 @@ export function setupPlanPeriodButtons(): void {
 
   // Initialize button labels and data attributes (current month +0, +1, +2)
   const today = new Date();
+  const planningBase = today.getDate() >= 20
+    ? new Date(today.getFullYear(), today.getMonth() + 1, 1)
+    : new Date(today.getFullYear(), today.getMonth(), 1);
 
   periodButtons.forEach((btn) => {
     const offset = parseInt(btn.dataset.offset || '0');
-    const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+    const date = new Date(planningBase.getFullYear(), planningBase.getMonth() + offset, 1);
     const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
     const label = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
     btn.textContent = label;
@@ -163,11 +166,14 @@ export function setupTransferPeriodButtons(): void {
 
   // Initialize button labels and data attributes (current month +0, +1, +2)
   const today = new Date();
+  const planningBase = today.getDate() >= 20
+    ? new Date(today.getFullYear(), today.getMonth() + 1, 1)
+    : new Date(today.getFullYear(), today.getMonth(), 1);
   const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
   periodButtons.forEach((btn) => {
     const offset = parseInt(btn.dataset.offset || '0');
-    const date = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+    const date = new Date(planningBase.getFullYear(), planningBase.getMonth() + offset, 1);
     const label = `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
     btn.textContent = label;
     btn.dataset.year = String(date.getFullYear());
