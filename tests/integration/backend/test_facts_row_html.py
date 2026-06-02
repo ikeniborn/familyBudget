@@ -82,15 +82,17 @@ async def test_row_html_fact_branch_matches_client(
 
 
 @pytest.mark.asyncio
-async def test_row_html_plan_branch_unchanged(
+async def test_row_html_plan_branch_structure(
     authenticated_client: AsyncClient, sample_fact: BudgetFact
 ):
-    """Plan branch keeps original 13-column structure."""
+    """Plan branch has 14-column structure matching TypeScript renderFactsTable."""
     resp = await authenticated_client.get(
         f"/api/v1/facts/{sample_fact.id}/row-html?record_type=plan"
     )
     assert resp.status_code == 200
     html = resp.text
     desktop, _, _ = html.partition("|||")
-    assert desktop.count("<td") == 13
-    assert "badge badge-ghost" in desktop
+    assert desktop.count("<td") == 14
+    assert "badge-ghost" not in desktop
+    assert 'text-base-content/50 text-xs' in desktop
+    assert 'text-base-content/60' in desktop
