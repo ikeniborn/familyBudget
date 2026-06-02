@@ -34,6 +34,10 @@ declare class Logger {
 
 const log = new Logger('[PLAN]', 'PLAN');
 
+declare const BudgetShared: {
+  CalendarWidget: any;
+};
+
 // Re-export modules for external use
 export { PlanHelpers, PlanFilters, PlanFactsTable, PlanAnalytics, FilterAnalyticsSync, PlanCRUD };
 
@@ -136,6 +140,37 @@ async function ensureDexieReady(): Promise<void> {
   }
 }
 
+function initFilterCalendar(): void {
+  const triggerContainer = document.getElementById('date-range-calendar-trigger');
+  if (!triggerContainer) return;
+
+  const triggerBtn = document.createElement('button');
+  triggerBtn.type = 'button';
+  triggerBtn.className = 'btn btn-sm btn-ghost btn-square';
+  triggerBtn.innerHTML = '📅';
+  triggerBtn.title = 'Выбрать период';
+  triggerBtn.id = 'date-range-calendar-btn';
+  triggerContainer.appendChild(triggerBtn);
+
+  const startInputElement = document.getElementById('filter-date-from') as HTMLInputElement | null;
+  const endInputElement = document.getElementById('filter-date-to') as HTMLInputElement | null;
+  if (!startInputElement || !endInputElement) return;
+
+  try {
+    new BudgetShared.CalendarWidget({
+      mode: 'range',
+      startInputElement,
+      endInputElement,
+      triggerContainer: '#date-range-calendar-trigger',
+      onSelect: async () => {
+        await applyFiltersAndLoadData();
+      }
+    });
+  } catch (err) {
+    log.warn('CalendarWidget init failed (non-critical):', err);
+  }
+}
+
 export async function initialize(): Promise<void> {
   log.info('Initializing plan page...');
 
@@ -145,6 +180,9 @@ export async function initialize(): Promise<void> {
 
     // Initialize default period filter UI
     PlanFilters.initDefaultPeriodFilter();
+
+    // Initialize CalendarWidget for filter date range
+    initFilterCalendar();
 
     // Initialize analytics month buttons
     PlanAnalytics.initAnalyticsMonthButtons();

@@ -251,7 +251,7 @@ export async function loadFacts(): Promise<void> {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
-    const items: PlanHelpers.BudgetFact[] = (data.items ?? []).map(toUIFactFromAPI);
+    const items: PlanHelpers.BudgetFact[] = (data.facts ?? []).map(toUIFactFromAPI);
     totalFacts = data.total ?? 0;
     loadedCount = items.length;
     hasMoreFacts = (currentOffset + PAGE_SIZE) < totalFacts;
@@ -306,7 +306,7 @@ export async function loadMoreFacts(): Promise<void> {
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
 
-    const items: PlanHelpers.BudgetFact[] = (data.items ?? []).map(toUIFactFromAPI);
+    const items: PlanHelpers.BudgetFact[] = (data.facts ?? []).map(toUIFactFromAPI);
     loadedCount += items.length;
     hasMoreFacts = (currentOffset + PAGE_SIZE) < totalFacts;
     factsData = factsData.concat(items);
