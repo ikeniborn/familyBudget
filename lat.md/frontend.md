@@ -40,6 +40,18 @@ Tailwind CSS + DaisyUI component library. Source → minified via PostCSS + cssn
 
 All features must work at 375px (mobile), 768px (tablet), 1280px (desktop) before marking as done. PWA manifest enables install on iOS/Android. Browser targets: Chrome, Safari 14+, Yandex Browser.
 
+## Plan Page Analytics Sync
+
+Bidirectional filter↔analytics sync on the plan page. Module: `frontend/web/static/js/plan/filterAnalyticsSync.ts`.
+
+**Filters → Analytics** (`syncFiltersToAnalytics`): propagates date range, article type, article, financial center from the filter section to the analytics section, then reloads charts.
+
+**Analytics → Filters** (`syncAnalyticsToFilters`): propagates analytics UI state back to the filter section, then reloads the facts table.
+
+**Mutex**: `isSyncInProgress` flag prevents cascading loops. **Debounce**: `debouncedSyncFiltersToAnalytics` delays 300ms.
+
+**`SyncOptions.skipFiltersSync`**: when `true`, `syncAnalyticsToFilters` only updates the date range — article type, article, and financial center are NOT carried over. Used by `selectAnalyticsMonth` so switching a month doesn't silently apply analytics filters to the facts table. Without this guard, selecting June 2026 would propagate e.g. `article_id=484` and reduce visible plan records.
+
 ## Admin UI
 
 Admin pages (`templates/admin_*.html`) use same HTMX + DaisyUI stack. Separate JS bundles per admin section.

@@ -1,0 +1,28 @@
+{
+  "files": {
+    "code": [
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/index.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/helpers.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/planModal.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/analytics.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/filterAnalyticsSync.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/filters.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/crud.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/wsEventHandlers.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/factsTable.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/analyticsArticleChoices.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/adapters/windowExports.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/adapters/eventDelegation.ts"
+    ],
+    "document": [],
+    "paper": [],
+    "image": [],
+    "video": []
+  },
+  "total_files": 12,
+  "total_words": 22438,
+  "needs_graph": false,
+  "warning": "Corpus is ~22,438 words - fits in a single context window. You may not need a graph.",
+  "skipped_sensitive": [],
+  "graphifyignore_patterns": 39
+}

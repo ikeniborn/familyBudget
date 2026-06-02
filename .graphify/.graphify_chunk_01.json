@@ -1,0 +1,808 @@
+{
+  "nodes": [
+    {
+      "id": "plan_index",
+      "label": "plan/index.ts",
+      "file": "frontend/web/static/js/plan/index.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Entry point for the plan page; wires all sub-modules, exposes window.PlanApp, and auto-initializes on DOMContentLoaded."
+    },
+    {
+      "id": "plan_helpers",
+      "label": "plan/helpers.ts",
+      "file": "frontend/web/static/js/plan/helpers.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Pure utility module: data-loading helpers (users, articles, financial/cost centers), article tree builder, toast/notification functions, and shared TypeScript interfaces."
+    },
+    {
+      "id": "plan_analytics",
+      "label": "plan/analytics.ts",
+      "file": "frontend/web/static/js/plan/analytics.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "ECharts-based analytics module: loads monthly comparison data, manages filter dropdowns (CFO, article type, article), renders two charts, handles month-button navigation."
+    },
+    {
+      "id": "plan_filterAnalyticsSync",
+      "label": "plan/filterAnalyticsSync.ts",
+      "file": "frontend/web/static/js/plan/filterAnalyticsSync.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Bidirectional sync module between filter section and analytics section; uses isSyncInProgress mutex and debounced wrappers to prevent cascading loops."
+    },
+    {
+      "id": "plan_filters",
+      "label": "plan/filters.ts",
+      "file": "frontend/web/static/js/plan/filters.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Filter state manager: holds PlanFilters state, exposes getFilters/setFilters/resetFilterState, reads/writes UI form elements, dispatches filtersChanged events."
+    },
+    {
+      "id": "plan_factsTable",
+      "label": "plan/factsTable.ts",
+      "file": "frontend/web/static/js/plan/factsTable.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Facts table module: loads first page and subsequent pages of plan facts from API, renders desktop+mobile HTML, manages selection state (selectedFactIds) and remindersMap, supports incremental row injection."
+    },
+    {
+      "id": "plan_crud",
+      "label": "plan/crud.ts",
+      "file": "frontend/web/static/js/plan/crud.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "CRUD operations for budget plans: create/edit/delete single facts, batch delete, recurring plan management, edit modal management with ChoicesCategoryTree and CalendarWidget."
+    },
+    {
+      "id": "plan_wsEventHandlers",
+      "label": "plan/wsEventHandlers.ts",
+      "file": "frontend/web/static/js/plan/wsEventHandlers.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "WebSocket event handler registration for real-time plan table updates; uses incremental row injection for single-fact events and debounced full reload for batch/recurring events."
+    },
+    {
+      "id": "plan_planModal",
+      "label": "plan/planModal.ts",
+      "file": "frontend/web/static/js/plan/planModal.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Modal helper module: financial/cost center dropdowns for edit modal, recurring plan table rendering, reminder field population, CalendarWidget init for edit reminder, period buttons setup."
+    },
+    {
+      "id": "plan_analyticsArticleChoices",
+      "label": "plan/analyticsArticleChoices.ts",
+      "file": "frontend/web/static/js/plan/analyticsArticleChoices.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Thin wrapper that creates/re-creates a BudgetShared.ChoicesCategoryTree instance on the #analytics-article select element."
+    },
+    {
+      "id": "plan_windowExports",
+      "label": "plan/adapters/windowExports.ts",
+      "file": "frontend/web/static/js/plan/adapters/windowExports.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Adapter that assigns all plan module functions to window globals (window.PlanApp, window.showEditModal, window.deleteFact, etc.) so inline onclick handlers can resolve them."
+    },
+    {
+      "id": "plan_eventDelegation",
+      "label": "plan/adapters/eventDelegation.ts",
+      "file": "frontend/web/static/js/plan/adapters/eventDelegation.ts",
+      "type": "module",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Event delegation adapter: single document click listener dispatching data-action values (apply-filters, reset-filters, collapse-filters, export-csv, batch-delete) to module functions."
+    },
+    {
+      "id": "fn_initialize",
+      "label": "initialize()",
+      "file": "frontend/web/static/js/plan/index.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Main page initialization: sets up event delegation, calendar, analytics buttons, Dexie, dropdowns, initial data load, analytics, and WS handlers in sequence."
+    },
+    {
+      "id": "fn_applyFiltersAndLoadData",
+      "label": "applyFiltersAndLoadData()",
+      "file": "frontend/web/static/js/plan/index.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Orchestrator: calls PlanFilters.applyFilters(), then PlanFactsTable.loadFacts(), then FilterAnalyticsSync.debouncedSyncFiltersToAnalytics()."
+    },
+    {
+      "id": "fn_syncFiltersToAnalytics",
+      "label": "syncFiltersToAnalytics(options?)",
+      "file": "frontend/web/static/js/plan/filterAnalyticsSync.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Reads filter state and pushes date range, article type, article, and FC values into analytics UI; reloads charts if any value changed; guarded by isSyncInProgress mutex."
+    },
+    {
+      "id": "fn_syncAnalyticsToFilters",
+      "label": "syncAnalyticsToFilters(options?)",
+      "file": "frontend/web/static/js/plan/filterAnalyticsSync.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Reads analytics state and pushes date range, article type, article, and FC values into filter UI; reloads facts table if any value changed; guarded by isSyncInProgress mutex."
+    },
+    {
+      "id": "fn_debouncedSyncFiltersToAnalytics",
+      "label": "debouncedSyncFiltersToAnalytics(options?,delay?)",
+      "file": "frontend/web/static/js/plan/filterAnalyticsSync.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "300ms debounce wrapper around syncFiltersToAnalytics to prevent cascading reloads during rapid filter changes."
+    },
+    {
+      "id": "iface_SyncOptions",
+      "label": "SyncOptions interface",
+      "file": "frontend/web/static/js/plan/filterAnalyticsSync.ts",
+      "type": "concept",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Options bag for sync functions: skipReload, updateMonth, updateDateRange, skipFiltersSync — controls which parts of the bidirectional sync execute."
+    },
+    {
+      "id": "field_skipFiltersSync",
+      "label": "skipFiltersSync option",
+      "file": "frontend/web/static/js/plan/filterAnalyticsSync.ts",
+      "type": "concept",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "When true in syncAnalyticsToFilters, skips steps 2-4 (article type, article, FC propagation to filter section); only date range is updated — used when switching analytics month."
+    },
+    {
+      "id": "fn_selectAnalyticsMonth",
+      "label": "selectAnalyticsMonth(month, btn)",
+      "file": "frontend/web/static/js/plan/analytics.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Handles month-button click: updates currentAnalyticsMonth, cascades filter-options reload (FC→type→article), calls loadPlanAnalytics(), then syncAnalyticsToFilters({skipFiltersSync:true})."
+    },
+    {
+      "id": "fn_loadPlanAnalytics",
+      "label": "loadPlanAnalytics()",
+      "file": "frontend/web/static/js/plan/analytics.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Fetches monthly-comparison data from /api/v1/analytics/plans/monthly-comparison, updates summary cards, initializes and updates both ECharts instances."
+    },
+    {
+      "id": "fn_loadAnalyticsFilterOptions",
+      "label": "loadAnalyticsFilterOptions(params?)",
+      "file": "frontend/web/static/js/plan/analytics.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Fetches or returns cached PlanFilterOptionsResponse from /api/v1/analytics/plans/filter-options; caches result only when called with no params."
+    },
+    {
+      "id": "fn_loadAnalyticsArticleFilter",
+      "label": "loadAnalyticsArticleFilter(articleType?, allArticles?)",
+      "file": "frontend/web/static/js/plan/analytics.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Populates the analytics article dropdown: fetches full hierarchy from API when articleType is set, uses pre-fetched articles otherwise, then calls initAnalyticsArticleChoices."
+    },
+    {
+      "id": "fn_initAnalyticsArticleChoices",
+      "label": "initAnalyticsArticleChoices(articles, articleType)",
+      "file": "frontend/web/static/js/plan/analyticsArticleChoices.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Destroys any existing ChoicesCategoryTree instance on #analytics-article and creates a new one with the given type filter."
+    },
+    {
+      "id": "fn_loadFacts",
+      "label": "loadFacts()",
+      "file": "frontend/web/static/js/plan/factsTable.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Resets pagination state, fetches first page of plan facts using current filter state, loads reminders, renders table, and updates stats/load-more button."
+    },
+    {
+      "id": "fn_fetchAndInjectPlanRow",
+      "label": "fetchAndInjectPlanRow(planId, operation)",
+      "file": "frontend/web/static/js/plan/factsTable.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Incremental update: fetches row HTML from /api/v1/facts/{id}/row-html and prepends (create) or replaces (update) the row without a full table reload; falls back to false if on filtered/non-first page."
+    },
+    {
+      "id": "fn_removePlanRow",
+      "label": "removePlanRow(planId)",
+      "file": "frontend/web/static/js/plan/factsTable.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Fade-removes desktop tr and mobile div for a plan row from the DOM; decrements totalFacts/loadedCount counters."
+    },
+    {
+      "id": "fn_registerWSHandlers",
+      "label": "registerWSHandlers()",
+      "file": "frontend/web/static/js/plan/wsEventHandlers.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Registers all plan-related WebSocket event handlers on window.budgetWSClient (plan_created, plan_updated, plan_deleted, recurring_plan_*, facts_batch_deleted, transfer_created)."
+    },
+    {
+      "id": "fn_setupWindowExports",
+      "label": "setupWindowExports(planApp)",
+      "file": "frontend/web/static/js/plan/adapters/windowExports.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Assigns entire PlanApp namespace plus individual function aliases (window.showEditModal, window.deleteFact, etc.) and state objects (ModalListenerManager, allCategories) to window."
+    },
+    {
+      "id": "fn_setupEventDelegation",
+      "label": "setupEventDelegation()",
+      "file": "frontend/web/static/js/plan/adapters/eventDelegation.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Attaches a single document-level click listener (idempotent) that dispatches data-action attribute values to corresponding plan module functions."
+    },
+    {
+      "id": "fn_onAnalyticsCFOChange",
+      "label": "onAnalyticsCFOChange()",
+      "file": "frontend/web/static/js/plan/analytics.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "CFO dropdown change handler: reloads filter-options for current month+FC, repopulates article type and article dropdowns, reloads full analytics, then syncs to filters (no date update)."
+    },
+    {
+      "id": "fn_onAnalyticsArticleTypeChange",
+      "label": "onAnalyticsArticleTypeChange()",
+      "file": "frontend/web/static/js/plan/analytics.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Article type dropdown change handler: reloads article filter for selected type or full plan-filtered list, loads categories chart data, then syncs to filters (no date update)."
+    },
+    {
+      "id": "fn_onAnalyticsArticleChange",
+      "label": "onAnalyticsArticleChange()",
+      "file": "frontend/web/static/js/plan/analytics.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Article dropdown change handler: reloads categories chart data, then syncs to filters (no date update)."
+    },
+    {
+      "id": "fn_loadCategoriesChartData",
+      "label": "loadCategoriesChartData()",
+      "file": "frontend/web/static/js/plan/analytics.ts",
+      "type": "function",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Loads monthly-comparison data filtered by article type and article ID, updates only the categories chart without touching the comparison chart."
+    },
+    {
+      "id": "state_isSyncInProgress",
+      "label": "isSyncInProgress mutex",
+      "file": "frontend/web/static/js/plan/filterAnalyticsSync.ts",
+      "type": "concept",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Module-level boolean flag shared by both syncFiltersToAnalytics and syncAnalyticsToFilters to prevent infinite mutual recursion during bidirectional sync."
+    },
+    {
+      "id": "state_selectedFactIds",
+      "label": "selectedFactIds (Set)",
+      "file": "frontend/web/static/js/plan/factsTable.ts",
+      "type": "concept",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Exported mutable Set of currently checked fact IDs; shared live binding consumed by crud.ts for batch delete operations."
+    },
+    {
+      "id": "state_remindersMap",
+      "label": "remindersMap (Map)",
+      "file": "frontend/web/static/js/plan/factsTable.ts",
+      "type": "concept",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Exported Map from fact ID to Reminder; populated after each loadFacts(); consumed by crud.ts to prefill edit modal reminder fields without extra API calls."
+    },
+    {
+      "id": "concept_windowPlanApp",
+      "label": "window.PlanApp",
+      "file": "frontend/web/static/js/plan/adapters/windowExports.ts",
+      "type": "concept",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "Global public API object assembled in index.ts and assigned to window by setupWindowExports; provides access to all plan modules and functions from inline onclick handlers and external scripts."
+    },
+    {
+      "id": "iface_PlanFilters",
+      "label": "PlanFilters interface",
+      "file": "frontend/web/static/js/plan/filters.ts",
+      "type": "concept",
+      "file_type": "code",
+      "confidence": "EXTRACTED",
+      "description": "TypeScript interface defining the filter state shape: user_id, article_id, article_type, date_from, date_to, financial_center_id, cost_center_id, search, has_recurring_plan, has_reminder."
+    }
+  ],
+  "edges": [
+    {
+      "source": "fn_initialize",
+      "target": "fn_setupEventDelegation",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "initialize() calls setupEventDelegation() as first setup step."
+    },
+    {
+      "source": "fn_initialize",
+      "target": "fn_registerWSHandlers",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "initialize() calls registerWSHandlers() after initial data load to set up real-time updates."
+    },
+    {
+      "source": "fn_initialize",
+      "target": "fn_loadPlanAnalytics",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "initialize() calls PlanAnalytics.loadPlanAnalytics() in the post-init parallel Promise.all."
+    },
+    {
+      "source": "fn_initialize",
+      "target": "fn_applyFiltersAndLoadData",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "initialize() calls applyFiltersAndLoadData() to load initial facts after dropdowns are ready."
+    },
+    {
+      "source": "fn_applyFiltersAndLoadData",
+      "target": "fn_loadFacts",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "applyFiltersAndLoadData() calls PlanFactsTable.loadFacts() after applying filters."
+    },
+    {
+      "source": "fn_applyFiltersAndLoadData",
+      "target": "fn_debouncedSyncFiltersToAnalytics",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "applyFiltersAndLoadData() triggers debouncedSyncFiltersToAnalytics() after reloading facts."
+    },
+    {
+      "source": "fn_debouncedSyncFiltersToAnalytics",
+      "target": "fn_syncFiltersToAnalytics",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "debouncedSyncFiltersToAnalytics() schedules and eventually calls syncFiltersToAnalytics() after 300ms."
+    },
+    {
+      "source": "fn_syncFiltersToAnalytics",
+      "target": "fn_loadPlanAnalytics",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "syncFiltersToAnalytics() calls loadPlanAnalytics() when needsReload is true and skipReload is false."
+    },
+    {
+      "source": "fn_syncAnalyticsToFilters",
+      "target": "fn_loadFacts",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "syncAnalyticsToFilters() calls PlanFactsTable.loadFacts() when needsReload is true and skipReload is false."
+    },
+    {
+      "source": "fn_syncFiltersToAnalytics",
+      "target": "state_isSyncInProgress",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "syncFiltersToAnalytics() checks and sets isSyncInProgress mutex to prevent re-entrant calls."
+    },
+    {
+      "source": "fn_syncAnalyticsToFilters",
+      "target": "state_isSyncInProgress",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "syncAnalyticsToFilters() checks and sets isSyncInProgress mutex to prevent re-entrant calls."
+    },
+    {
+      "source": "fn_syncAnalyticsToFilters",
+      "target": "field_skipFiltersSync",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "syncAnalyticsToFilters() reads skipFiltersSync from SyncOptions to decide whether to propagate article/type/FC values to filter section."
+    },
+    {
+      "source": "fn_selectAnalyticsMonth",
+      "target": "fn_syncAnalyticsToFilters",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "selectAnalyticsMonth() calls window.PlanApp.syncAnalyticsToFilters({skipFiltersSync: true}) after reloading analytics, syncing only the date range."
+    },
+    {
+      "source": "fn_selectAnalyticsMonth",
+      "target": "fn_loadPlanAnalytics",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "selectAnalyticsMonth() calls loadPlanAnalytics() after updating filter dropdowns for the new month."
+    },
+    {
+      "source": "fn_selectAnalyticsMonth",
+      "target": "fn_loadAnalyticsFilterOptions",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "selectAnalyticsMonth() calls loadAnalyticsFilterOptions({planning_month}) to get dynamic filter options for the newly selected month."
+    },
+    {
+      "source": "fn_selectAnalyticsMonth",
+      "target": "fn_loadAnalyticsArticleFilter",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "selectAnalyticsMonth() calls loadAnalyticsArticleFilter() to repopulate the article dropdown after month selection."
+    },
+    {
+      "source": "fn_loadAnalyticsArticleFilter",
+      "target": "fn_initAnalyticsArticleChoices",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "loadAnalyticsArticleFilter() always calls initAnalyticsArticleChoices() with the resolved articles list to create/recreate the ChoicesCategoryTree widget."
+    },
+    {
+      "source": "fn_onAnalyticsCFOChange",
+      "target": "fn_loadAnalyticsFilterOptions",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "onAnalyticsCFOChange() calls loadAnalyticsFilterOptions() with current month+FC to get updated article types and articles."
+    },
+    {
+      "source": "fn_onAnalyticsCFOChange",
+      "target": "fn_loadPlanAnalytics",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "onAnalyticsCFOChange() calls loadPlanAnalytics() after updating filter dropdowns."
+    },
+    {
+      "source": "fn_onAnalyticsCFOChange",
+      "target": "fn_syncAnalyticsToFilters",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "onAnalyticsCFOChange() calls syncAnalyticsToFilters({updateDateRange: false}) via syncToFiltersNoDateUpdate helper."
+    },
+    {
+      "source": "fn_onAnalyticsArticleTypeChange",
+      "target": "fn_loadAnalyticsArticleFilter",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "onAnalyticsArticleTypeChange() calls loadAnalyticsArticleFilter() with the selected type to refresh the article dropdown."
+    },
+    {
+      "source": "fn_onAnalyticsArticleTypeChange",
+      "target": "fn_loadCategoriesChartData",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "onAnalyticsArticleTypeChange() calls loadCategoriesChartData() to refresh categories chart with the new type filter."
+    },
+    {
+      "source": "fn_onAnalyticsArticleTypeChange",
+      "target": "fn_syncAnalyticsToFilters",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "onAnalyticsArticleTypeChange() calls syncAnalyticsToFilters({updateDateRange: false}) via syncToFiltersNoDateUpdate."
+    },
+    {
+      "source": "fn_onAnalyticsArticleChange",
+      "target": "fn_loadCategoriesChartData",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "onAnalyticsArticleChange() calls loadCategoriesChartData() to apply the article filter to categories chart."
+    },
+    {
+      "source": "fn_onAnalyticsArticleChange",
+      "target": "fn_syncAnalyticsToFilters",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "onAnalyticsArticleChange() calls syncAnalyticsToFilters({updateDateRange: false}) via syncToFiltersNoDateUpdate."
+    },
+    {
+      "source": "plan_wsEventHandlers",
+      "target": "fn_fetchAndInjectPlanRow",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "WS handlers for plan_created and plan_updated call fetchAndInjectPlanRow() to attempt incremental table update before falling back to full reload."
+    },
+    {
+      "source": "plan_wsEventHandlers",
+      "target": "fn_removePlanRow",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "WS handler for plan_deleted calls removePlanRow() to fade-remove the row without a full reload."
+    },
+    {
+      "source": "plan_wsEventHandlers",
+      "target": "fn_loadFacts",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "debouncedReloadFacts in wsEventHandlers calls loadFacts() as fallback when incremental injection fails or for batch/recurring events."
+    },
+    {
+      "source": "plan_eventDelegation",
+      "target": "fn_debouncedSyncFiltersToAnalytics",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "Event delegation's applyFilters/resetFilters local functions call debouncedSyncFiltersToAnalytics() after reloading facts."
+    },
+    {
+      "source": "plan_eventDelegation",
+      "target": "fn_loadFacts",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "Event delegation's local applyFilters and resetFilters call PlanFactsTable.loadFacts() after applying or resetting filters."
+    },
+    {
+      "source": "plan_crud",
+      "target": "fn_debouncedSyncFiltersToAnalytics",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "crud.ts calls debouncedSyncFiltersToAnalytics() after deleteFact to refresh analytics chart after data changes."
+    },
+    {
+      "source": "plan_crud",
+      "target": "fn_loadFacts",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "crud.ts calls PlanFactsTable.loadFacts() after create/update/delete/batch operations to refresh the table."
+    },
+    {
+      "source": "plan_crud",
+      "target": "state_selectedFactIds",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "crud.ts imports selectedFactIds from factsTable.ts to read selected IDs for batch delete."
+    },
+    {
+      "source": "plan_crud",
+      "target": "state_remindersMap",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "crud.ts imports remindersMap from factsTable.ts to check existing reminders when opening edit modal."
+    },
+    {
+      "source": "plan_windowExports",
+      "target": "concept_windowPlanApp",
+      "relation": "exports",
+      "confidence": "EXTRACTED",
+      "description": "setupWindowExports() assigns the planApp object to window.PlanApp, creating the public global API."
+    },
+    {
+      "source": "plan_index",
+      "target": "fn_setupWindowExports",
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "description": "index.ts calls setupWindowExports(planApp) to expose the assembled API to window after module initialization."
+    },
+    {
+      "source": "fn_loadFacts",
+      "target": "iface_PlanFilters",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "loadFacts() calls PlanFilters.getFilters() to build the API query URL from current filter state."
+    },
+    {
+      "source": "fn_syncFiltersToAnalytics",
+      "target": "iface_PlanFilters",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "syncFiltersToAnalytics() reads PlanFilters.getFilters() to extract date range, article type, article ID, and FC for analytics sync."
+    },
+    {
+      "source": "fn_syncAnalyticsToFilters",
+      "target": "iface_PlanFilters",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "syncAnalyticsToFilters() calls PlanFilters.setFilters() to update filter state when syncing analytics selections back to filters."
+    },
+    {
+      "source": "field_skipFiltersSync",
+      "target": "iface_SyncOptions",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "skipFiltersSync is a field of the SyncOptions interface controlling article/type/FC propagation in syncAnalyticsToFilters."
+    },
+    {
+      "source": "fn_selectAnalyticsMonth",
+      "target": "field_skipFiltersSync",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "selectAnalyticsMonth() passes {skipFiltersSync: true} to syncAnalyticsToFilters so that switching months only updates the date range, not article/type/FC filters."
+    },
+    {
+      "source": "plan_index",
+      "target": "plan_helpers",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "index.ts imports PlanHelpers namespace for data loading (loadUsers, loadArticles, etc.) and notifications."
+    },
+    {
+      "source": "plan_index",
+      "target": "plan_analytics",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "index.ts imports PlanAnalytics namespace for analytics initialization and exposure via window.PlanApp."
+    },
+    {
+      "source": "plan_index",
+      "target": "plan_filterAnalyticsSync",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "index.ts imports FilterAnalyticsSync namespace and exposes its public functions via window.PlanApp."
+    },
+    {
+      "source": "plan_index",
+      "target": "plan_filters",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "index.ts imports PlanFilters namespace for filter initialization and exposure via window.PlanApp."
+    },
+    {
+      "source": "plan_index",
+      "target": "plan_factsTable",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "index.ts imports PlanFactsTable namespace for facts loading and exposure via window.PlanApp."
+    },
+    {
+      "source": "plan_index",
+      "target": "plan_crud",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "index.ts imports PlanCRUD namespace for CRUD operations and exposure via window.PlanApp."
+    },
+    {
+      "source": "plan_windowExports",
+      "target": "plan_planModal",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "windowExports.ts imports PlanModal to assign modal helpers (loadFinancialCenters, loadCostCenters, ModalListenerManager, etc.) to window globals."
+    },
+    {
+      "source": "plan_windowExports",
+      "target": "plan_helpers",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "windowExports.ts imports PlanHelpers to expose showNotification and getReminderStatusBadge as window globals."
+    },
+    {
+      "source": "plan_analytics",
+      "target": "plan_analyticsArticleChoices",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "analytics.ts imports initAnalyticsArticleChoices and calls it whenever the article filter list needs to be rebuilt."
+    },
+    {
+      "source": "plan_filterAnalyticsSync",
+      "target": "plan_filters",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "filterAnalyticsSync.ts imports PlanFilters for getFilters/setFilters operations during bidirectional sync."
+    },
+    {
+      "source": "plan_filterAnalyticsSync",
+      "target": "plan_analytics",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "filterAnalyticsSync.ts imports PlanAnalytics for getCurrentAnalyticsMonth, setCurrentAnalyticsMonth, loadPlanAnalytics, and loadAnalyticsFilterOptions."
+    },
+    {
+      "source": "plan_filterAnalyticsSync",
+      "target": "plan_factsTable",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "filterAnalyticsSync.ts imports PlanFactsTable.loadFacts() to trigger facts table reload from syncAnalyticsToFilters."
+    },
+    {
+      "source": "plan_eventDelegation",
+      "target": "plan_filters",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "eventDelegation.ts imports PlanFilters for applyFilters/resetFilters/collapseFilters."
+    },
+    {
+      "source": "plan_eventDelegation",
+      "target": "plan_factsTable",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "eventDelegation.ts imports PlanFactsTable to call loadFacts() on filter apply/reset actions."
+    },
+    {
+      "source": "plan_eventDelegation",
+      "target": "plan_filterAnalyticsSync",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "eventDelegation.ts imports FilterAnalyticsSync to call debouncedSyncFiltersToAnalytics after filter actions."
+    },
+    {
+      "source": "plan_eventDelegation",
+      "target": "plan_crud",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "eventDelegation.ts imports PlanCRUD to dispatch batch-delete action to batchDeleteFacts()."
+    },
+    {
+      "source": "plan_factsTable",
+      "target": "plan_filters",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "factsTable.ts imports PlanFilters.getFilters() to build API query params in buildFactsApiUrl."
+    },
+    {
+      "source": "plan_crud",
+      "target": "plan_factsTable",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "crud.ts imports PlanFactsTable for getFactsData(), loadFacts(), and shared state (remindersMap, selectedFactIds)."
+    },
+    {
+      "source": "plan_crud",
+      "target": "plan_filterAnalyticsSync",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "crud.ts imports FilterAnalyticsSync.debouncedSyncFiltersToAnalytics() to refresh analytics after CRUD operations."
+    },
+    {
+      "source": "plan_wsEventHandlers",
+      "target": "plan_factsTable",
+      "relation": "uses",
+      "confidence": "EXTRACTED",
+      "description": "wsEventHandlers.ts imports PlanFactsTable for loadFacts, fetchAndInjectPlanRow, and removePlanRow."
+    },
+    {
+      "source": "fn_syncFiltersToAnalytics",
+      "target": "fn_syncAnalyticsToFilters",
+      "relation": "syncs_with",
+      "confidence": "INFERRED",
+      "description": "The two functions form a bidirectional sync pair; both share the isSyncInProgress mutex to prevent each from triggering the other in an infinite loop."
+    },
+    {
+      "source": "concept_windowPlanApp",
+      "target": "fn_syncAnalyticsToFilters",
+      "relation": "exports",
+      "confidence": "EXTRACTED",
+      "description": "window.PlanApp.syncAnalyticsToFilters is the public entry point used by analytics.ts to call syncAnalyticsToFilters without a direct module import (avoids circular dependency)."
+    },
+    {
+      "source": "concept_windowPlanApp",
+      "target": "fn_syncFiltersToAnalytics",
+      "relation": "exports",
+      "confidence": "EXTRACTED",
+      "description": "window.PlanApp.syncFiltersToAnalytics is exposed on window for external callers and inline onclick handlers."
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}
