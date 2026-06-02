@@ -8,6 +8,7 @@
  */
 
 import * as PlanHelpers from './helpers';
+import { initAnalyticsArticleChoices } from './analyticsArticleChoices';
 
 // Import ECharts from global window object
 declare const echarts: any;
@@ -221,76 +222,6 @@ export async function selectAnalyticsMonth(month: string, clickedBtn: HTMLButton
 }
 
 // ============================================================================
-// Filter Dropdowns - Helper Functions
-// ============================================================================
-
-/**
- * Group articles by type while preserving hierarchical order
- * @param flatNodes - Flattened article nodes
- * @returns Sorted nodes (expense → income → debit → credit)
- */
-function groupArticlesByType(flatNodes: PlanHelpers.FlatArticle[]): PlanHelpers.FlatArticle[] {
-  const groupedByType: Record<string, PlanHelpers.FlatArticle[]> = {
-    expense: [],
-    income: [],
-    debit: [],
-    credit: []
-  };
-
-  flatNodes.forEach(node => {
-    if (groupedByType[node.type]) {
-      groupedByType[node.type].push(node);
-    }
-  });
-
-  // Flatten back in type order
-  return [
-    ...groupedByType.expense,
-    ...groupedByType.income,
-    ...groupedByType.debit,
-    ...groupedByType.credit
-  ];
-}
-
-/**
- * Build option elements for article dropdown
- * @param select - Target select element
- * @param sortedNodes - Sorted article nodes
- */
-function buildArticleOptions(select: HTMLSelectElement, sortedNodes: PlanHelpers.FlatArticle[]): void {
-  // Color map for article types
-  const colorMap: Record<string, string> = {
-    expense: 'rgb(239, 68, 68)', // Red
-    income: 'rgb(34, 197, 94)', // Green
-    debit: 'rgb(59, 130, 246)', // Blue
-    credit: 'rgb(251, 146, 60)' // Orange
-  };
-
-  sortedNodes.forEach(node => {
-    const option = document.createElement('option');
-    option.value = String(node.id);
-
-    const indent = '›  '.repeat(node.level);
-    const icon = node.isLeaf ? '▸' : '📂';
-    option.textContent = `${indent}${icon} ${node.name}`;
-    option.dataset.type = node.type;
-
-    // Color coding by article type
-    if (colorMap[node.type]) {
-      option.style.color = colorMap[node.type];
-    }
-
-    // Style parent categories
-    if (!node.isLeaf) {
-      option.style.fontWeight = 'bold';
-      option.style.opacity = '0.7';
-    }
-
-    select.appendChild(option);
-  });
-}
-
-// ============================================================================
 // Filter Options - Dynamic from API
 // ============================================================================
 
@@ -422,7 +353,6 @@ export async function loadAnalyticsArticleFilter(
     let articles: PlanHelpers.Article[];
 
     if (articleType !== null) {
-      // Type selected → fetch full hierarchy from API for proper tree display
       const url = `/api/v1/articles?limit=1000&sort_by=usage_count&type=${encodeURIComponent(articleType)}`;
       const response = await fetch(url);
       if (!response.ok) {
@@ -432,10 +362,8 @@ export async function loadAnalyticsArticleFilter(
       const data = await response.json();
       articles = Array.isArray(data) ? data : data.articles || [];
     } else if (allArticles !== null) {
-      // No type filter + pre-fetched plan articles → use them
       articles = allArticles as PlanHelpers.Article[];
     } else {
-      // Fallback: fetch all articles
       const response = await fetch('/api/v1/articles?limit=1000&sort_by=usage_count');
       if (!response.ok) {
         console.warn('[PlanAnalytics] Failed to load articles:', response.status);
@@ -445,31 +373,7 @@ export async function loadAnalyticsArticleFilter(
       articles = Array.isArray(data) ? data : data.articles || [];
     }
 
-    const select = document.getElementById('analytics-article') as HTMLSelectElement | null;
-    if (!select) return;
-
-    // Save current selection
-    const currentValue = select.value;
-
-    // Clear and repopulate (safe DOM API instead of innerHTML)
-    select.textContent = '';
-    const defaultOption = document.createElement('option');
-    defaultOption.value = '';
-    defaultOption.textContent = 'Все категории';
-    select.appendChild(defaultOption);
-
-    // Build tree, flatten, and group by type
-    const tree = PlanHelpers.buildArticleTree(articles);
-    const flatNodes = PlanHelpers.flattenArticleTree(tree);
-    const sortedNodes = groupArticlesByType(flatNodes);
-
-    // Build and append options
-    buildArticleOptions(select, sortedNodes);
-
-    // Restore selection if still valid
-    if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
-      select.value = currentValue;
-    }
+    initAnalyticsArticleChoices(articles, articleType);
   } catch (error) {
     console.error('[PlanAnalytics] Error loading article filter:', error);
   }
