@@ -16,6 +16,8 @@ declare const BudgetShared: {
   };
 };
 
+declare const debugLog: (...args: any[]) => void;
+
 // Import admin-facts-common from global (loaded via admin-facts-common.min.js)
 declare const AdminFactsCommon: {
   syncFiltersUI: (filters: PlanFilters) => void;
@@ -48,17 +50,23 @@ export interface PlanFilters {
 /**
  * Default date range: start of current month to 3 months ahead
  */
+function getPlanningMonthStart(): Date {
+  const today = new Date();
+  return today.getDate() >= 20
+    ? new Date(today.getFullYear(), today.getMonth() + 1, 1)
+    : new Date(today.getFullYear(), today.getMonth(), 1);
+}
+
 export const DEFAULT_DATE_FROM = (() => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  return `${year}-${month}-01`; // First day of current month (YYYY-MM-DD)
+  const base = getPlanningMonthStart();
+  const year = base.getFullYear();
+  const month = String(base.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}-01`;
 })();
 
 export const DEFAULT_DATE_TO = (() => {
-  // For plan page: show plans for next 3 months (current + 3)
-  const now = new Date();
-  const futureDate = new Date(now.getFullYear(), now.getMonth() + 3, 0); // Last day of month +3
+  const base = getPlanningMonthStart();
+  const futureDate = new Date(base.getFullYear(), base.getMonth() + 3, 0);
   const year = futureDate.getFullYear();
   const month = String(futureDate.getMonth() + 1).padStart(2, '0');
   const day = String(futureDate.getDate()).padStart(2, '0');
@@ -99,7 +107,7 @@ export function getFilters(): Readonly<PlanFilters> {
  */
 export function setFilters(newFilters: Partial<PlanFilters>): void {
   filters = { ...filters, ...newFilters };
-  console.log('[PlanFilters] Filters updated:', filters);
+  debugLog('[PlanFilters] Filters updated:', filters);
 
   // Dispatch custom event for listeners
   window.dispatchEvent(new CustomEvent('filtersChanged', { detail: filters }));
@@ -121,7 +129,7 @@ export function resetFilterState(): void {
     has_recurring_plan: null,
     has_reminder: null
   };
-  console.log('[PlanFilters] Filters reset to default:', filters);
+  debugLog('[PlanFilters] Filters reset to default:', filters);
 
   // Dispatch event
   window.dispatchEvent(new CustomEvent('filtersChanged', { detail: filters }));
@@ -169,7 +177,7 @@ export function readFiltersFromUI(): void {
   filters.has_recurring_plan = filterRecurring?.checked ? true : null;
   filters.has_reminder = filterWithReminder?.checked ? true : null;
 
-  console.log('[PlanFilters] Filters read from UI:', filters);
+  debugLog('[PlanFilters] Filters read from UI:', filters);
 
   // Dispatch event
   window.dispatchEvent(new CustomEvent('filtersChanged', { detail: filters }));
@@ -213,7 +221,7 @@ export function writeFiltersToUI(): void {
   if (filterRecurring) filterRecurring.checked = !!filters.has_recurring_plan;
   if (filterWithReminder) filterWithReminder.checked = !!filters.has_reminder;
 
-  console.log('[PlanFilters] Filters written to UI');
+  debugLog('[PlanFilters] Filters written to UI');
 }
 
 /**
@@ -231,7 +239,7 @@ export function initDefaultPeriodFilter(): void {
     dateToInput.value = BudgetShared.DateFormatter.formatForDisplay(DEFAULT_DATE_TO);
   }
 
-  console.log('[PlanFilters] Default period initialized:', DEFAULT_DATE_FROM, 'to', DEFAULT_DATE_TO);
+  debugLog('[PlanFilters] Default period initialized:', DEFAULT_DATE_FROM, 'to', DEFAULT_DATE_TO);
 }
 
 // ============================================================================
@@ -315,7 +323,7 @@ export async function applyFilters(): Promise<void> {
   // Update filter indicator
   updateFilterIndicator();
 
-  console.log('[PlanFilters] Filters applied, ready for data reload');
+  debugLog('[PlanFilters] Filters applied, ready for data reload');
 }
 
 /**
@@ -334,5 +342,5 @@ export async function resetFilters(): Promise<void> {
   // Update filter indicator
   updateFilterIndicator();
 
-  console.log('[PlanFilters] Filters reset, ready for data reload');
+  debugLog('[PlanFilters] Filters reset, ready for data reload');
 }

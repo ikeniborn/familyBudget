@@ -3,23 +3,14 @@
  * Table rendering, pagination, and selection management for plan.html
  *
  * @module plan/factsTable
- * @version 1.0.0
- * @description Manages facts table display, pagination, and selection state
+ * @version 2.0.0
+ * @description Manages facts table display, API-first load-more pagination, and selection state
  */
 
 import * as PlanHelpers from './helpers';
 import * as PlanFilters from './filters';
 import { escapeHtml } from '../shared/htmlSanitizer';
 import { TableFormatters } from '../shared/tableUtils';
-import { dataLayer } from '../data/DataLayer';
-import {
-  isDexieActive,
-  type FactFilters,
-  type LocalBudgetFact,
-  type LocalArticle,
-  type LocalFinancialCenter,
-  type LocalCostCenter
-} from '@db/dexie';
 
 // Import BudgetShared from global window object
 declare const BudgetShared: {
@@ -45,22 +36,33 @@ export type Reminder = PlanHelpers.Reminder;
 // ============================================================================
 
 /**
- * Current pagination page (0-indexed)
+ * Current API offset (increments by PAGE_SIZE on each "load more")
  */
-let currentPage = 0;
+let currentOffset = 0;
 
 /**
- * Number of records per page
+ * Number of records fetched per API request
  */
-const pageSize = 50;
+const PAGE_SIZE = 50;
 
 /**
- * Total number of facts matching current filters
+ * Total number of facts matching current filters (from API)
  */
 let totalFacts = 0;
 
 /**
- * Array of facts for current page
+ * Number of facts currently loaded/displayed in the table
+ */
+let loadedCount = 0;
+
+/**
+ * Whether more facts can be loaded (loadedCount < totalFacts)
+ */
+let hasMoreFacts = false;
+
+/**
+ * All currently loaded facts (accumulates across load-more calls).
+ * Exported for use by crud.ts (shared live binding via Rollup).
  */
 let factsData: BudgetFact[] = [];
 
@@ -77,23 +79,7 @@ export let selectedFactIds: Set<number> = new Set();
 export const remindersMap: Map<number, Reminder> = new Map();
 
 /**
- * Get current page number
- * @returns Current page (0-indexed)
- */
-export function getCurrentPage(): number {
-  return currentPage;
-}
-
-/**
- * Set current page number
- * @param page - Page number (0-indexed)
- */
-export function setCurrentPage(page: number): void {
-  currentPage = page;
-}
-
-/**
- * Get facts data for current page
+ * Get facts data for all currently loaded facts
  * @returns Array of facts
  */
 export function getFactsData(): BudgetFact[] {
@@ -137,13 +123,14 @@ function setInnerHTML(element: HTMLElement, htmlString: string): void {
 // ============================================================================
 
 /**
- * Load reminders for facts on current page
+ * Load reminders for facts
  * Optimized with date range filter (current month ± 1 month buffer)
  *
  * @param factIds - Array of fact IDs to load reminders for
+ * @param clearExisting - Whether to clear remindersMap before loading (default: true)
  */
-async function loadRemindersForFacts(factIds: number[]): Promise<void> {
-  remindersMap.clear();
+async function loadRemindersForFacts(factIds: number[], clearExisting = true): Promise<void> {
+  if (clearExisting) remindersMap.clear();
   if (!factIds || factIds.length === 0) return;
 
   try {
@@ -188,74 +175,6 @@ async function loadRemindersForFacts(factIds: number[]): Promise<void> {
 }
 
 /**
- * Build FactFilters (Dexie-compatible) from current Plan filter state.
- * has_recurring_plan / has_reminder are not in FactFilters — applied post-hoc.
- */
-function buildPlanFactFilters(): FactFilters {
-  const f = PlanFilters.getFilters();
-  const ff: FactFilters = { record_type: 'plan' };
-  if (f.user_id) ff.user_id = f.user_id;
-  if (f.article_id) ff.article_id = f.article_id;
-  if (f.article_type) ff.article_type = f.article_type as any;
-  if (f.date_from) ff.date_from = f.date_from;
-  if (f.date_to) ff.date_to = f.date_to;
-  if (f.financial_center_id) ff.financial_center_id = f.financial_center_id;
-  if (f.cost_center_id) ff.cost_center_id = f.cost_center_id;
-  if (f.search) ff.search = f.search;
-  return ff;
-}
-
-interface EnrichmentMaps {
-  articles: Map<number, LocalArticle>;
-  financialCenters: Map<number, LocalFinancialCenter>;
-  costCenters: Map<number, LocalCostCenter>;
-}
-
-async function loadEnrichmentMaps(userId: number): Promise<EnrichmentMaps> {
-  const [articles, financialCenters, costCenters] = await Promise.all([
-    dataLayer.getArticles(),
-    dataLayer.getFinancialCenters(userId, true),
-    dataLayer.getCostCenters(userId, null, true)
-  ]);
-  return {
-    articles: new Map(articles.map(a => [a.id, a])),
-    financialCenters: new Map(financialCenters.map(fc => [fc.id, fc])),
-    costCenters: new Map(costCenters.map(cc => [cc.id, cc]))
-  };
-}
-
-/**
- * Convert LocalBudgetFact (Dexie shape) → BudgetFact (UI shape) with enrichment
- */
-function toUIFact(local: LocalBudgetFact, maps: EnrichmentMaps): PlanHelpers.BudgetFact {
-  const article = maps.articles.get(local.article_id);
-  const fc = maps.financialCenters.get(local.financial_center_id || 0);
-  const cc = local.cost_center_id ? maps.costCenters.get(local.cost_center_id) : null;
-
-  return {
-    id: local.id || 0,
-    fact_date: local.date,
-    financial_center_id: local.financial_center_id || 0,
-    financial_center_name: fc?.name || '',
-    cost_center_id: local.cost_center_id,
-    cost_center_name: cc?.name || null,
-    article_id: local.article_id,
-    article_name: article?.name || '',
-    article_type: (article?.type as any) || 'expense',
-    amount: Number(local.amount),
-    description: local.comment,
-    user_id: local.user_id,
-    user_name: (local as any).user_name || '',
-    record_type: local.record_type,
-    recurring_plan_id: (local as any).recurring_plan_id ?? null,
-    has_reminder: (local as any).has_reminder ?? false,
-    is_offline_sync: (local as any).is_offline_sync ?? false,
-    created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at?.toISOString?.(),
-    updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at?.toISOString?.()
-  };
-}
-
-/**
  * Convert API fact (with already-populated names) → UI fact
  */
 function toUIFactFromAPI(apiFact: any): PlanHelpers.BudgetFact {
@@ -283,8 +202,30 @@ function toUIFactFromAPI(apiFact: any): PlanHelpers.BudgetFact {
 }
 
 /**
- * Load facts via DataLayer (Dexie-first with API fallback), with client-side
- * enrichment, post-filtering (has_recurring_plan / has_reminder), sorting and pagination.
+ * Build API URL for fetching plan facts with current filters and pagination offset.
+ */
+function buildFactsApiUrl(offset: number): string {
+  const f = PlanFilters.getFilters();
+  const params = new URLSearchParams({
+    record_type: 'plan',
+    limit: String(PAGE_SIZE),
+    offset: String(offset)
+  });
+  if (f.user_id) params.set('user_id', String(f.user_id));
+  if (f.article_id) params.set('article_id', String(f.article_id));
+  if (f.article_type) params.set('article_type', f.article_type);
+  if (f.date_from) params.set('date_from', f.date_from);
+  if (f.date_to) params.set('date_to', f.date_to);
+  if (f.financial_center_id) params.set('financial_center_id', String(f.financial_center_id));
+  if (f.cost_center_id) params.set('cost_center_id', String(f.cost_center_id));
+  if (f.search) params.set('search', f.search);
+  if (f.has_recurring_plan) params.set('has_recurring_plan', 'true');
+  if (f.has_reminder) params.set('has_reminder', 'true');
+  return `/api/v1/facts?${params}`;
+}
+
+/**
+ * Load facts from the API (first page). Resets state and re-renders the table.
  */
 export async function loadFacts(): Promise<void> {
   const container = document.getElementById('facts-table-container');
@@ -293,75 +234,41 @@ export async function loadFacts(): Promise<void> {
     return;
   }
 
+  currentOffset = 0;
+  loadedCount = 0;
+  hasMoreFacts = false;
+  factsData = [];
+
   // Show loading spinner (safe DOM API)
   setInnerHTML(
     container,
     '<div class="flex items-center justify-center py-8"><span class="loading loading-spinner loading-lg text-primary"></span></div>'
   );
+  updateLoadMoreButton();
 
   try {
-    const uiFilters = PlanFilters.getFilters();
-    const factFilters = buildPlanFactFilters();
+    const resp = await fetch(buildFactsApiUrl(0), { credentials: 'include' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
 
-    if (window.DEBUG_MODE && typeof debugLog !== 'undefined') {
-      debugLog('[PlanFactsTable] Loading via DataLayer with filters:', {
-        uiFilters,
-        factFilters,
-        page: currentPage,
-        pageSize
-      });
-    }
+    const items: PlanHelpers.BudgetFact[] = (data.items ?? []).map(toUIFactFromAPI);
+    totalFacts = data.total ?? 0;
+    loadedCount = items.length;
+    hasMoreFacts = (currentOffset + PAGE_SIZE) < totalFacts;
+    factsData = items;
 
-    // Load facts via DataLayer (Dexie-first + API fallback)
-    const localFacts = await dataLayer.getFacts(factFilters);
+    remindersMap.clear();
+    await loadRemindersForFacts(items.map(f => f.id), false);
 
-    // Convert Dexie / API shape → UI shape
-    let allFacts: PlanHelpers.BudgetFact[];
-    if (isDexieActive() && localFacts.length > 0) {
-      const userId = localFacts[0].user_id;
-      const maps = await loadEnrichmentMaps(userId);
-      allFacts = localFacts.map(f => toUIFact(f, maps));
-      // Safety-net article_type filter post-enrichment
-      if (factFilters.article_type) {
-        allFacts = allFacts.filter(f => f.article_type === factFilters.article_type);
-      }
-    } else {
-      allFacts = (localFacts as any[]).map(toUIFactFromAPI);
-    }
-
-    // Plan-specific post-filters (not supported by FactFilters)
-    if (uiFilters.has_recurring_plan) {
-      allFacts = allFacts.filter(f => !!f.recurring_plan_id);
-    }
-    if (uiFilters.has_reminder) {
-      allFacts = allFacts.filter(f => !!f.has_reminder);
-    }
-
-    // Sort by updated_at DESC, id DESC (matches backend ordering)
-    allFacts.sort((a, b) => {
-      const dA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-      const dB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-      return dB - dA || (b.id ?? 0) - (a.id ?? 0);
-    });
-
-    totalFacts = allFacts.length;
-    const start = currentPage * pageSize;
-    factsData = allFacts.slice(start, start + pageSize);
-
-    // Load reminders for current-page facts
-    await loadRemindersForFacts(factsData.map(f => f.id));
-
-    // Render and update UI
-    renderFactsTable(factsData);
+    renderFactsTable(items);
     updateStats();
-    updatePagination();
+    updateLoadMoreButton();
 
-    // Sync UI with filter state
+    const uiFilters = PlanFilters.getFilters();
     if (typeof AdminFactsCommon !== 'undefined') {
       AdminFactsCommon.syncFiltersUI(uiFilters);
     }
 
-    // Load recurring plan stats asynchronously (fire-and-forget)
     if (typeof (window as any).loadStats === 'function') {
       (window as any).loadStats();
     }
@@ -377,6 +284,46 @@ export async function loadFacts(): Promise<void> {
     span.textContent = `❌ Ошибка загрузки: ${errorMessage}`;
     alert.appendChild(span);
     container.appendChild(alert);
+  }
+}
+
+/**
+ * Load the next page of facts and append them to the table.
+ * Called from the "Загрузить ещё" button.
+ */
+export async function loadMoreFacts(): Promise<void> {
+  if (!hasMoreFacts) return;
+
+  const btn = document.getElementById('load-more-btn') as HTMLButtonElement | null;
+  if (btn) {
+    btn.disabled = true;
+    btn.classList.add('loading');
+  }
+
+  try {
+    currentOffset += PAGE_SIZE;
+    const resp = await fetch(buildFactsApiUrl(currentOffset), { credentials: 'include' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    const items: PlanHelpers.BudgetFact[] = (data.items ?? []).map(toUIFactFromAPI);
+    loadedCount += items.length;
+    hasMoreFacts = (currentOffset + PAGE_SIZE) < totalFacts;
+    factsData = factsData.concat(items);
+
+    await loadRemindersForFacts(items.map(f => f.id), false);
+
+    appendFactsToTable(items);
+    updateStats();
+    updateLoadMoreButton();
+  } catch (error) {
+    console.error('[PlanFactsTable] Error loading more facts:', error);
+    currentOffset -= PAGE_SIZE;
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
   }
 }
 
@@ -524,6 +471,99 @@ function renderFactsTable(facts: BudgetFact[]): void {
   setInnerHTML(container, tableHtml + mobileHtml);
 }
 
+/**
+ * Append additional facts to the existing table (used by load-more).
+ * Reuses the same row HTML structure as renderFactsTable().
+ *
+ * @param facts - New facts to append
+ */
+function appendFactsToTable(facts: BudgetFact[]): void {
+  if (facts.length === 0) return;
+
+  const desktopTbody = document.querySelector<HTMLElement>('.facts-desktop-table tbody');
+  const mobileList = document.querySelector<HTMLElement>('.facts-mobile-list');
+
+  if (!desktopTbody && !mobileList) return;
+
+  facts.forEach(fact => {
+    const articleColorClass = TableFormatters.getArticleColorClass(fact.article_type, 'text');
+    const description = escapeHtml(fact.description || '—');
+    const descriptionTruncated = TableFormatters.truncateText(fact.description || '—', 30);
+    const financialCenter = escapeHtml(fact.financial_center_name || '—');
+    const costCenter = escapeHtml(fact.cost_center_name || '—');
+    const formattedDate = BudgetShared.DateFormatter.formatForDisplay(fact.fact_date);
+    const shortDate = formattedDate.slice(0, 5);
+    const articleName = escapeHtml(fact.article_name || '—');
+    const userName = escapeHtml(fact.user_name || '—');
+
+    if (desktopTbody) {
+      const trHtml = `
+        <tr data-plan-id="${fact.id}">
+          <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="${fact.id}" onchange="window.PlanApp.FactsTable.updateBatchDeleteButton()"></td>
+          <td class="text-base-content/50 text-xs">${fact.id}</td>
+          <td>${formattedDate}</td>
+          <td class="max-w-xs truncate" title="${financialCenter}">${financialCenter}</td>
+          <td class="max-w-xs truncate" title="${costCenter}">${costCenter}</td>
+          <td>${articleName}</td>
+          <td class="${articleColorClass} font-bold">${TableFormatters.formatAmount(fact.amount, fact.article_type)}</td>
+          <td class="max-w-xs truncate" title="${description}">${descriptionTruncated}</td>
+          <td>${userName}</td>
+          <td class="text-xs text-base-content/60">${TableFormatters.formatUpdatedAt(fact.updated_at)}</td>
+          <td class="text-center">${fact.has_reminder ? '<span class="text-info" title="Напоминание установлено">🔔</span>' : ''}</td>
+          <td class="text-center">${fact.recurring_plan_id ? '<span class="text-secondary" title="Регламентный платеж">🔄</span>' : ''}</td>
+          <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
+          <td>
+            <div class="flex gap-1">
+              <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
+              <button class="btn btn-xs btn-error btn-square hidden md:inline-flex" data-fact-id="${fact.id}" onclick="event.stopPropagation(); deleteFact(${fact.id})" title="Удалить">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+      const tpl = document.createElement('template');
+      tpl.innerHTML = trHtml.trim();
+      desktopTbody.appendChild(tpl.content);
+    }
+
+    if (mobileList) {
+      const mobileAmountClass = TableFormatters.getArticleColorClass(fact.article_type, 'amount');
+      const mobileAmount = TableFormatters.formatAmount(fact.amount, fact.article_type);
+      const reminderIcon = fact.has_reminder
+        ? '<span class="text-info text-xs" title="Напоминание">🔔</span>'
+        : '';
+      const offlineIcon = fact.is_offline_sync
+        ? '<span class="text-xs" title="Создано offline">☁️</span>'
+        : '';
+      const recurringIcon = fact.recurring_plan_id
+        ? '<span class="text-secondary text-xs" title="Регламентный">🔄</span>'
+        : '';
+
+      const divHtml = `
+        <div class="transaction-item py-2" data-plan-id="${fact.id}" onclick="showEditModal(${fact.id})">
+          <div class="flex items-center gap-2">
+            <span class="badge badge-info badge-xs shrink-0">План</span>
+            <span class="flex-1 font-medium truncate">${articleName}</span>
+            <span class="${mobileAmountClass} font-bold whitespace-nowrap">${mobileAmount}</span>
+            ${recurringIcon}
+            ${reminderIcon}
+            ${offlineIcon}
+          </div>
+          <div class="text-xs text-base-content/60 mt-1 truncate">
+            ${shortDate} • ${financialCenter} • ${description}
+          </div>
+        </div>
+      `;
+      const tpl = document.createElement('template');
+      tpl.innerHTML = divHtml.trim();
+      mobileList.appendChild(tpl.content);
+    }
+  });
+}
+
 // ============================================================================
 // Selection Management
 // ============================================================================
@@ -566,52 +606,39 @@ export function updateBatchDeleteButton(): void {
 }
 
 // ============================================================================
-// Stats & Pagination
+// Stats & Load More
 // ============================================================================
 
 /**
- * Update statistics display (total count, page range)
+ * Update statistics display (total count, loaded count)
  */
 function updateStats(): void {
   const totalElem = document.getElementById('stat-total');
   const pageInfoElem = document.getElementById('stat-page-info');
 
-  if (totalElem) {
-    totalElem.textContent = String(totalFacts);
-  }
+  if (totalElem) totalElem.textContent = String(totalFacts);
 
   if (pageInfoElem) {
-    const startIdx = currentPage * pageSize + 1;
-    const endIdx = Math.min((currentPage + 1) * pageSize, totalFacts);
-    pageInfoElem.textContent =
-      totalFacts > 0 ? `${startIdx}-${endIdx} из ${totalFacts}` : '0-0 из 0';
+    pageInfoElem.textContent = loadedCount < totalFacts
+      ? `показано ${loadedCount} из ${totalFacts}`
+      : String(totalFacts);
   }
 }
 
 /**
- * Update pagination controls state
- * Shows/hides controls based on total records
+ * Show or hide the "Загрузить ещё" button based on hasMoreFacts state
  */
-function updatePagination(): void {
-  const controls = document.getElementById('pagination-controls');
-  const prevBtn = document.getElementById('prev-btn') as HTMLButtonElement | null;
-  const nextBtn = document.getElementById('next-btn') as HTMLButtonElement | null;
-  const pageInfo = document.getElementById('page-info');
+function updateLoadMoreButton(): void {
+  const container = document.getElementById('load-more-container');
+  const counter = document.getElementById('load-more-counter');
 
-  if (!controls) return;
+  if (!container) return;
 
-  if (totalFacts > pageSize) {
-    controls.style.display = 'flex';
-
-    if (prevBtn) prevBtn.disabled = currentPage === 0;
-    if (nextBtn) nextBtn.disabled = (currentPage + 1) * pageSize >= totalFacts;
-
-    if (pageInfo) {
-      const totalPages = Math.ceil(totalFacts / pageSize);
-      pageInfo.textContent = `Страница ${currentPage + 1} из ${totalPages}`;
-    }
+  if (hasMoreFacts) {
+    container.classList.remove('hidden');
+    if (counter) counter.textContent = `(показано ${loadedCount} из ${totalFacts})`;
   } else {
-    controls.style.display = 'none';
+    container.classList.add('hidden');
   }
 }
 
@@ -633,7 +660,7 @@ function parseHtml(html: string): Element | null {
  * "Extra filters" means any filter beyond the default date range.
  */
 function isPage1NoExtraFilters(): boolean {
-  if (currentPage !== 0) {
+  if (currentOffset !== 0) {
     return false;
   }
   const f = PlanFilters.getFilters();
@@ -707,9 +734,9 @@ export async function fetchAndInjectPlanRow(
       const trEl = parseHtml(desktopRow);
       if (trEl) desktopTbody.prepend(trEl);
 
-      // Trim excess rows beyond pageSize
+      // Trim excess rows beyond PAGE_SIZE
       const allRows = desktopTbody.querySelectorAll('tr');
-      for (let i = allRows.length - 1; i >= pageSize; i--) {
+      for (let i = allRows.length - 1; i >= PAGE_SIZE; i--) {
         allRows[i].remove();
       }
     }
@@ -717,15 +744,18 @@ export async function fetchAndInjectPlanRow(
       const divEl = parseHtml(mobileRow);
       if (divEl) mobileList.prepend(divEl);
 
-      // Trim excess items beyond pageSize
+      // Trim excess items beyond PAGE_SIZE
       const allItems = mobileList.querySelectorAll('.transaction-item');
-      for (let i = allItems.length - 1; i >= pageSize; i--) {
+      for (let i = allItems.length - 1; i >= PAGE_SIZE; i--) {
         allItems[i].remove();
       }
     }
     totalFacts++;
+    loadedCount = desktopTbody
+      ? desktopTbody.querySelectorAll('tr').length
+      : loadedCount + 1;
     updateStats();
-    updatePagination();
+    updateLoadMoreButton();
     return true;
   }
 
@@ -763,31 +793,11 @@ export function removePlanRow(planId: number): void {
   // Always decrement the counter: the record was deleted from DB regardless of
   // whether it is visible on the current page (matches facts-page pattern).
   totalFacts = Math.max(0, totalFacts - 1);
+  loadedCount = Math.max(0, loadedCount - 1);
   updateStats();
-  updatePagination();
+  updateLoadMoreButton();
 
   if (trEl) fadeAndRemove(trEl);
   if (divEl) fadeAndRemove(divEl);
 }
 
-/**
- * Navigate to previous page
- * Called from pagination button onclick handler
- */
-export function previousPage(): void {
-  if (currentPage > 0) {
-    currentPage--;
-    loadFacts();
-  }
-}
-
-/**
- * Navigate to next page
- * Called from pagination button onclick handler
- */
-export function nextPage(): void {
-  if ((currentPage + 1) * pageSize < totalFacts) {
-    currentPage++;
-    loadFacts();
-  }
-}

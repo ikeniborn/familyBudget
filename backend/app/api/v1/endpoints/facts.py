@@ -1467,7 +1467,7 @@ async def get_fact_row_html(
   </div>
 </div>"""
     else:
-        # Plan branch — unchanged from prior implementation.
+        # Plan branch — aligned with TypeScript renderFactsTable (14 columns).
         data_attr = f'data-plan-id="{fact.id}"'
         edit_onclick = f"showEditModal({fact.id})"
         delete_onclick = f"event.stopPropagation(); deleteFact({fact.id})"
@@ -1478,14 +1478,15 @@ async def get_fact_row_html(
         desktop_row = f"""
 <tr {data_attr}>
   <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="{fact.id}" onchange="{checkbox_onchange}"></td>
-  <td><code class="badge badge-ghost">{fact.id}</code></td>
+  <td class="text-base-content/50 text-xs">{fact.id}</td>
   <td>{formatted_date}</td>
   <td class="max-w-xs truncate" title="{fc_name}">{fc_name}</td>
   <td class="max-w-xs truncate" title="{cc_name}">{cc_name}</td>
-  <td><span class="{article_color_class}">{article_name}</span></td>
+  <td>{article_name}</td>
   <td class="{article_color_class} font-bold">{formatted_amount}</td>
   <td class="max-w-xs truncate" title="{description}">{description_truncated}</td>
   <td>{user_name}</td>
+  <td class="text-xs text-base-content/60">{updated_at_formatted}</td>
   <td class="text-center">{reminder_icon}</td>
   <td class="text-center">{recurring_icon}</td>
   <td class="text-center">{offline_icon}</td>

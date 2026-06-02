@@ -281,9 +281,13 @@ export function setupCreatePlanPeriodButtons(): void {
   const today = new Date();
   const monthNames = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
 
+  const planningBase = today.getDate() >= 20
+    ? new Date(today.getFullYear(), today.getMonth() + 1, 1)
+    : new Date(today.getFullYear(), today.getMonth(), 1);
+
   periodButtons.forEach(btn => {
     const offset = parseInt(btn.dataset.offset || '0');
-    const d = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+    const d = new Date(planningBase.getFullYear(), planningBase.getMonth() + offset, 1);
     btn.textContent = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
     btn.dataset.year = String(d.getFullYear());
     btn.dataset.month = String(d.getMonth() + 1).padStart(2, '0');
