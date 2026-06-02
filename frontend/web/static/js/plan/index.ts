@@ -64,8 +64,7 @@ interface PlanAppGlobal {
 
   // Facts Table Actions (exposed for onclick handlers)
   loadFacts: () => Promise<void>;
-  previousPage: () => void;
-  nextPage: () => void;
+  loadMoreFacts: () => Promise<void>;
 
   // Analytics Actions (exposed for onclick handlers)
   selectAnalyticsMonth: (month: string, btn: HTMLButtonElement) => Promise<void>;
@@ -543,8 +542,7 @@ const planApp: typeof window.PlanApp = {
 
   // Facts Table Actions (for onclick handlers)
   loadFacts: PlanFactsTable.loadFacts,
-  previousPage: PlanFactsTable.previousPage,
-  nextPage: PlanFactsTable.nextPage,
+  loadMoreFacts: PlanFactsTable.loadMoreFacts,
 
   // Analytics Actions (for onclick handlers)
   selectAnalyticsMonth: PlanAnalytics.selectAnalyticsMonth,

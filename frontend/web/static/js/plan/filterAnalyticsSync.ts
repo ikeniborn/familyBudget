@@ -367,7 +367,6 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
 
     // 5. Reload facts table if any value changed
     if (needsReload && !skipReload) {
-      PlanFactsTable.setCurrentPage(0);
       await PlanFactsTable.loadFacts();
       PlanFilters.updateFilterIndicator();
     }
