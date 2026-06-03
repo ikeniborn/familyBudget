@@ -104,6 +104,13 @@ class ShoppingListUpdate(BaseModel):
         examples=[True, False]
     )
 
+    google_sheets_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="Google Sheets URL for this list (None = not provided, not cleared)",
+        examples=["https://docs.google.com/spreadsheets/d/abc123/edit"]
+    )
+
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: str | None) -> str | None:
