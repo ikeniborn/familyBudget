@@ -12,6 +12,12 @@ import {
   getState
 } from '../index';
 
+import {
+  openEditListModal,
+  closeEditListModal,
+  handleEditList
+} from '../ui/modalManager';
+
 // Глобальные функции из base.html (типизированы в globals.d.ts)
 declare const showToast: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 declare const showConfirmDialog: (message: string, title?: string) => Promise<boolean>;
@@ -87,3 +93,8 @@ export async function deleteCompletedWithConfirm(): Promise<void> {
     await deleteCompleted();
   }
 }
+
+// Edit list modal exports
+(window as any).openEditListModal = openEditListModal;
+(window as any).closeEditListModal = closeEditListModal;
+(window as any).handleEditList = handleEditList;

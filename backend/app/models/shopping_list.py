@@ -112,6 +112,12 @@ class ShoppingList(SQLModel, table=True):
         description="Optional description or notes about the shopping list"
     )
 
+    google_sheets_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="Saved Google Sheets URL for this specific shopping list"
+    )
+
     # Active status flag (completed/archived functionality)
     is_active: bool = Field(
         default=True,

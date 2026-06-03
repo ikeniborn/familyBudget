@@ -340,7 +340,9 @@ export async function toggleItemCompleted(itemId: number, isCompleted: boolean):
   // Find item and get temp_id
   const item = state.currentItems.find(i => i.id === itemId);
   if (!item) {
-    throw new Error('Item not found in state');
+    // Item may have been reloaded with updated state (e.g. during bulk mark-all)
+    debugLog('[LIST_OPS] Item not found in state during toggle, skipping', { itemId });
+    return;
   }
 
   // Optimistic DOM update (instant visual feedback)
@@ -572,6 +574,18 @@ export async function deleteMultipleItems(itemIds: number[], skipConfirm: boolea
         if (state.currentListId) {
           await loadShoppingListItems(state.currentListId);
         }
+
+        // Evict from Dexie by server id — items may lack temp_id if created
+        // via import before Dexie sync completed
+        if (isDexieActive()) {
+          try {
+            await dexieDb.shoppingListItems.where('id').anyOf(itemIds).delete();
+            debugLog('[LIST_OPS] Evicted API-deleted items from Dexie', { count: itemIds.length });
+          } catch (dexieErr) {
+            console.warn('[LIST_OPS] Dexie eviction failed (non-critical):', dexieErr);
+          }
+        }
+
         renderCurrentView();
         return;
       }
