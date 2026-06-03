@@ -1,3 +1,45 @@
+---
+chain:
+  intent: docs/superpowers/intents/2026-06-03-lists-bugs-and-edit-intent.md
+review:
+  spec_hash: c1a9788072d2eff7
+  last_run: "2026-06-03"
+  phases:
+    structure:
+      status: passed
+    coverage:
+      status: passed
+    clarity:
+      status: passed
+    consistency:
+      status: passed
+  findings:
+    - id: F-001
+      phase: structure
+      severity: INFO
+      section: global
+      section_hash: null
+      text: "Duplicate subsection headings: ### Root Cause (x5) and ### Fix (x4) repeated across Issues 2-6"
+      verdict: open
+      verdict_at: null
+    - id: F-002
+      phase: clarity
+      severity: WARNING
+      section: "## Issue 1 / ### Constraints"
+      section_hash: 10c837071e8dda9d
+      text: "\"no length restriction beyond what backend validates\" — backend validation rule for description field unspecified; acceptance criterion missing"
+      verdict: wontfix
+      verdict_at: "2026-06-03"
+    - id: F-003
+      phase: clarity
+      severity: WARNING
+      section: "## Issue 3 / ### Backend Changes"
+      section_hash: da59db073e182884
+      text: "google_sheets_url Field(default=None) in ShoppingListUpdate — behavior when field absent from PATCH body unspecified (exclude_unset vs explicit null); existing PATCH calls could silently clear saved URL"
+      verdict: fixed
+      verdict_at: "2026-06-03"
+---
+
 # Design: Lists Page — Bug Fixes + Edit List Feature
 
 **Date:** 2026-06-03
@@ -106,6 +148,7 @@ google_sheets_url: str | None = Field(default=None, max_length=2048)
 ```python
 google_sheets_url: str | None = Field(default=None, max_length=2048)
 ```
+The existing PATCH endpoint uses `exclude_unset=True` when applying updates, so omitting `google_sheets_url` from the request body does **not** clear an existing value.
 
 **`backend/app/api/v1/endpoints/shopping_lists.py`** — add 2 endpoints:
 
