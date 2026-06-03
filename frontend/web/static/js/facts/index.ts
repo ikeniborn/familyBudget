@@ -79,6 +79,7 @@ import {
     destroyCategoryTrees,
     updateTransactionCategoryTreeType
 } from './features/modalFact/categoryWidget';
+import { initFactsFilterArticle } from './features/filterArticle/init';
 
 /** CalendarWidget instances for modal_fact date inputs */
 let modalFactDateCalendar: any = null;
@@ -118,6 +119,20 @@ async function initializeUI(): Promise<void> {
     } catch (error) {
         logger.error(' Ошибка загрузки dropdown:', error);
     }
+
+    // Initialize ChoicesCategoryTree for #filter-article
+    initFactsFilterArticle();
+
+    const articleTypeEl = document.getElementById('filter-article-type') as HTMLSelectElement | null;
+    articleTypeEl?.addEventListener('change', () => {
+        const newType = articleTypeEl.value || null;
+        import('./features/filterArticle/init').then(({ initFactsFilterArticle: reinit }) => {
+            reinit(newType);
+        });
+        import('./core/stateManager').then(({ updateFilters }) => {
+            updateFilters({ article_id: null });
+        });
+    });
 
     // 4. Setup modal_fact event listeners (Today button, etc.)
     setupModalFactListeners();
@@ -193,7 +208,6 @@ async function loadAndPopulateDropdowns(): Promise<void> {
 
         // Populate filter dropdowns
         populateUserDropdown(users);
-        populateArticleDropdown(articles);
         populateFinancialCenterDropdown(financialCenters);
         populateCostCenterDropdown(costCenters);
 
@@ -225,78 +239,6 @@ function populateUserDropdown(users: any[]): void {
         option.textContent = user.display_name || user.username || `User ${user.id}`;
         select.appendChild(option);
     });
-}
-
-/**
- * Populate article filter dropdown with hierarchical structure
- */
-function populateArticleDropdown(articles: any[]): void {
-    const select = document.getElementById('filter-article') as HTMLSelectElement;
-    if (!select) return;
-
-    // Keep default option
-    select.innerHTML = '<option value="">Все категории</option>';
-
-    // Group by type and add with indentation
-    const grouped = groupArticlesByTypeForSelect(articles);
-    grouped.forEach(item => {
-        const option = document.createElement('option');
-        option.value = String(item.id);
-        option.textContent = item.displayName;
-        if (item.isParent) {
-            option.className = 'category-parent';
-        } else {
-            option.className = 'category-leaf';
-        }
-        select.appendChild(option);
-    });
-}
-
-/**
- * Group articles by type for select display
- */
-function groupArticlesByTypeForSelect(articles: any[]): any[] {
-    const result: any[] = [];
-    const typeLabels: Record<string, string> = {
-        'expense': '═══ РАСХОДЫ ═══',
-        'income': '═══ ДОХОДЫ ═══',
-        'debit': '═══ СПИСАНИЯ ═══',
-        'credit': '═══ ПОПОЛНЕНИЯ ═══'
-    };
-
-    const byType: Record<string, any[]> = {};
-    articles.forEach(a => {
-        const articleType = a.type;
-        if (!byType[articleType]) byType[articleType] = [];
-        byType[articleType].push(a);
-    });
-
-    ['expense', 'income', 'debit', 'credit'].forEach(type => {
-        const typeArticles = byType[type] || [];
-        if (typeArticles.length === 0) return;
-
-        // Add type separator
-        result.push({
-            id: `type_${type}`,
-            displayName: typeLabels[type],
-            isParent: true,
-            disabled: true
-        });
-
-        // Sort and add articles
-        typeArticles
-            .sort((a, b) => a.name.localeCompare(b.name, 'ru'))
-            .forEach(article => {
-                const indent = article.parent_id ? '    ' : '';
-                result.push({
-                    id: article.id,
-                    displayName: `${indent}${article.name}`,
-                    isParent: !article.parent_id
-                });
-            });
-    });
-
-    return result;
 }
 
 /**
