@@ -16,6 +16,7 @@ import * as PlanFilters from '../filters';
 import * as PlanFactsTable from '../factsTable';
 import * as FilterAnalyticsSync from '../filterAnalyticsSync';
 import * as PlanCRUD from '../crud';
+import { resetPlanFilterArticle } from '../features/filterArticle/init';
 
 // Глобальная функция из plan.html (inline JS)
 declare function exportFilteredFacts(format: string): void;
@@ -89,6 +90,7 @@ async function applyFilters(): Promise<void> {
  * Сбросить фильтры и перезагрузить таблицу фактов
  */
 async function resetFilters(): Promise<void> {
+  resetPlanFilterArticle();
   await PlanFilters.resetFilters();
   await PlanFactsTable.loadFacts();
   FilterAnalyticsSync.debouncedSyncFiltersToAnalytics();
