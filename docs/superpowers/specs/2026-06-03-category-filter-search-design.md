@@ -1,3 +1,29 @@
+---
+review:
+  spec_hash: 65b3bda50725e9a7
+  last_run: "2026-06-03"
+  phases:
+    structure:
+      status: passed
+    coverage:
+      status: passed
+    clarity:
+      status: passed
+    consistency:
+      status: passed
+  findings:
+    - id: F-001
+      phase: coverage
+      severity: WARNING
+      section: "### E2E (Playwright)"
+      section_hash: d78eac30cd2bdf3a
+      text: "Health metric из intent «No regressions in other pages that use ChoicesCategoryTree» не покрыт тестом в Testing секции"
+      verdict: fixed
+      verdict_at: "2026-06-03"
+chain:
+  intent: docs/superpowers/intents/2026-06-03-category-filter-search-intent.md
+---
+
 # Design: Category Filter Search (facts & plan)
 
 **Date:** 2026-06-03
@@ -249,6 +275,7 @@ Month button clicked → loadAnalyticsFilterOptions({ planning_month })
 - `/plan`: change analytics-article → filter-article updates in Choices UI (bidirectional sync)
 - `/plan`: analytics-article list contains only categories from current month's plan records
 - Mobile 375px: Choices.js dropdown renders correctly, not clipped
+- Regression: open a page with existing `ChoicesCategoryTree` usage (e.g. transaction modal) → widget initializes and functions correctly (no JS errors)
 
 ### TypeScript
 `npm run type-check` passes — no errors from new imports or renamed parameters.
