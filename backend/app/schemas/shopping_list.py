@@ -132,6 +132,30 @@ class ShoppingListUpdate(BaseModel):
         return trimmed
 
 
+class GoogleSheetsUrlResponse(BaseModel):
+    """Response schema for google-sheets-url endpoints."""
+
+    google_sheets_url: str | None = Field(
+        default=None,
+        description="Saved Google Sheets URL for this list",
+    )
+    has_saved_url: bool = Field(
+        description="Whether a URL has been saved for this list"
+    )
+
+    model_config = {"from_attributes": True}
+
+
+class GoogleSheetsUrlUpdate(BaseModel):
+    """Request schema for updating google-sheets-url."""
+
+    google_sheets_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="New Google Sheets URL (None to clear)",
+    )
+
+
 class ShoppingListResponse(BaseModel):
     """
     Schema for shopping list responses.
