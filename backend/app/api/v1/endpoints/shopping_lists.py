@@ -465,7 +465,7 @@ async def get_list_google_sheets_url(
 
     return GoogleSheetsUrlResponse(
         google_sheets_url=shopping_list.google_sheets_url,
-        has_saved_url=shopping_list.google_sheets_url is not None,
+        has_saved_url=shopping_list.google_sheets_url is not None and len(shopping_list.google_sheets_url) > 0,
     )
 
 
@@ -492,18 +492,19 @@ async def update_list_google_sheets_url(
             detail=f"Shopping list {shopping_list_id} not found",
         )
 
-    shopping_list.google_sheets_url = update_data.google_sheets_url
-    shopping_list.updated_at = datetime.utcnow()
-    session.add(shopping_list)
-    await session.commit()
-    await session.refresh(shopping_list)
+    if shopping_list.google_sheets_url != update_data.google_sheets_url:
+        shopping_list.google_sheets_url = update_data.google_sheets_url
+        shopping_list.updated_at = datetime.utcnow()
+        session.add(shopping_list)
+        await session.commit()
+        await session.refresh(shopping_list)
 
-    logger.info(
-        "Updated google_sheets_url for list %s by user %s",
-        shopping_list_id, current_user.id
-    )
+        logger.info(
+            "Updated google_sheets_url for list %s by user %s",
+            shopping_list_id, current_user.id
+        )
 
     return GoogleSheetsUrlResponse(
         google_sheets_url=shopping_list.google_sheets_url,
-        has_saved_url=shopping_list.google_sheets_url is not None,
+        has_saved_url=shopping_list.google_sheets_url is not None and len(shopping_list.google_sheets_url) > 0,
     )
