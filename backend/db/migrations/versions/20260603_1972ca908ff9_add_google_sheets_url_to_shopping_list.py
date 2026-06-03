@@ -1,6 +1,6 @@
 """add_google_sheets_url_to_shopping_list
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: 1972ca908ff9
 Revises: ebf328b51e19
 Create Date: 2026-06-03 12:00:00.000000
 """
@@ -8,7 +8,7 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = 'a1b2c3d4e5f6'
+revision: str = '1972ca908ff9'
 down_revision: str | None = 'ebf328b51e19'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
