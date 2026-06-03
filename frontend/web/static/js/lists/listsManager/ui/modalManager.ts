@@ -698,6 +698,106 @@ export async function confirmDeleteList(): Promise<void> {
 }
 
 // ============================================================================
+// Edit List Modal
+// ============================================================================
+
+/**
+ * Open edit list modal — reads current list from state, fills name/description
+ */
+export function openEditListModal(): void {
+  const state = getState();
+  const listId = state.currentListId;
+  if (!listId) {
+    showToast('Список не выбран', 'error');
+    return;
+  }
+
+  const list = state.shoppingLists.find(l => l.id === listId);
+  if (!list) {
+    showToast('Список не найден', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('edit-list-modal') as HTMLDialogElement | null;
+  const nameInput = document.getElementById('edit-list-name') as HTMLInputElement | null;
+  const descInput = document.getElementById('edit-list-description') as HTMLTextAreaElement | null;
+  const hiddenId = document.getElementById('edit-list-id') as HTMLInputElement | null;
+
+  if (nameInput) nameInput.value = list.name;
+  if (descInput) descInput.value = list.description || '';
+  if (hiddenId) hiddenId.value = String(listId);
+
+  if (modal) modal.showModal();
+}
+
+/**
+ * Close edit list modal
+ */
+export function closeEditListModal(): void {
+  const modal = document.getElementById('edit-list-modal') as HTMLDialogElement | null;
+  if (modal) modal.close();
+}
+
+/**
+ * Handle edit list form submission — PUT /api/v1/shopping-lists/{id}
+ */
+export async function handleEditList(event: Event): Promise<void> {
+  event.preventDefault();
+
+  const form = event.target as HTMLFormElement;
+  const formData = new FormData(form);
+
+  const listId = parseInt(formData.get('list_id') as string, 10);
+  const name = (formData.get('name') as string).trim();
+  const description = (formData.get('description') as string).trim() || null;
+
+  if (!listId || !name) {
+    showToast('Название обязательно', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/v1/shopping-lists/${listId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ name, description })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const updated = await response.json();
+
+    // Update in-memory state
+    const state = getState();
+    const idx = state.shoppingLists.findIndex(l => l.id === listId);
+    if (idx >= 0) {
+      const updatedList = { ...state.shoppingLists[idx], name: updated.name, description: updated.description };
+      const lists = [...state.shoppingLists];
+      lists[idx] = updatedList;
+      updateState({ shoppingLists: lists });
+    }
+
+    // Update breadcrumb title in detail view
+    const breadcrumb = document.getElementById('breadcrumb-list-name');
+    if (breadcrumb) breadcrumb.textContent = updated.name;
+
+    // Refresh landing page cards (for when user navigates back)
+    const { renderShoppingListCards } = await import('../rendering/listRenderer');
+    renderShoppingListCards();
+
+    closeEditListModal();
+    showToast('Список обновлён', 'success');
+
+  } catch (error) {
+    console.error('[EDIT_LIST] Error updating list:', error);
+    showToast('Ошибка обновления списка', 'error');
+  }
+}
+
+// ============================================================================
 // Choices.js Dropdown Z-Index Management
 // ============================================================================
 
