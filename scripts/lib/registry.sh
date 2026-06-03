@@ -80,11 +80,8 @@ pull_from_registry() {
         local image_name="$REGISTRY_URL/$REGISTRY_OWNER/familybudget-$service:$image_tag"
 
         info "Pulling $service image (version: $image_tag)..."
-        if docker image inspect "$image_name" > /dev/null 2>&1; then
-            success "$service image already present locally (version: $image_tag)"
-        elif docker pull "$image_name" >> "$LOG_FILE" 2>&1; then
+        if docker pull "$image_name" >> "$LOG_FILE" 2>&1; then
             success "$service image pulled successfully (version: $image_tag)"
-            # Перетегирование УДАЛЕНО - docker-compose использует ghcr.io образы напрямую
         else
             error "Failed to pull $service image: $image_name"
             pull_failed=true
