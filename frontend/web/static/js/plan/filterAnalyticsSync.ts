@@ -10,6 +10,7 @@
 import * as PlanFilters from './filters';
 import * as PlanAnalytics from './analytics';
 import * as PlanFactsTable from './factsTable';
+import { planFilterArticleWidget } from './features/filterArticle/init';
 
 // Import BudgetShared from global
 declare const BudgetShared: {
@@ -338,6 +339,7 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
           if (filterArticle) {
             filterArticle.value = '';
             PlanFilters.setFilters({ article_id: null });
+            planFilterArticleWidget.clearValue();
           }
 
           needsReload = true;
@@ -354,6 +356,7 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
         if (optionExists && filterArticle.value !== newValue) {
           filterArticle.value = newValue;
           PlanFilters.setFilters({ article_id: parseInt(newValue) || null });
+          planFilterArticleWidget.setValue(newValue || null);
           needsReload = true;
         }
       }

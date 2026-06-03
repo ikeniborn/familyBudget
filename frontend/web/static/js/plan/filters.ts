@@ -18,6 +18,8 @@ declare const BudgetShared: {
 
 declare const debugLog: (...args: any[]) => void;
 
+import { planFilterArticleWidget } from './features/filterArticle/init';
+
 // Import admin-facts-common from global (loaded via admin-facts-common.min.js)
 declare const AdminFactsCommon: {
   syncFiltersUI: (filters: PlanFilters) => void;
@@ -198,6 +200,7 @@ export function writeFiltersToUI(): void {
 
   if (userSelect) userSelect.value = filters.user_id ? String(filters.user_id) : '';
   if (articleSelect) articleSelect.value = filters.article_id ? String(filters.article_id) : '';
+  planFilterArticleWidget.setValue(filters.article_id ? String(filters.article_id) : null);
   if (articleTypeSelect) articleTypeSelect.value = filters.article_type || '';
   if (fcSelect) fcSelect.value = filters.financial_center_id ? String(filters.financial_center_id) : '';
   if (ccSelect) ccSelect.value = filters.cost_center_id ? String(filters.cost_center_id) : '';

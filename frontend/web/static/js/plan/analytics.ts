@@ -354,24 +354,16 @@ export async function loadAnalyticsArticleFilter(
     let articles: PlanHelpers.Article[];
 
     if (articleType !== null) {
-      const url = `/api/v1/articles?limit=1000&sort_by=usage_count&type=${encodeURIComponent(articleType)}`;
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.warn('[PlanAnalytics] Failed to load articles:', response.status);
-        return;
-      }
-      const data = await response.json();
-      articles = Array.isArray(data) ? data : data.articles || [];
+      const cached = await loadAnalyticsFilterOptions();
+      const filtered = (cached?.articles ?? []).filter(
+        (a: { type: string }) => a.type === articleType
+      );
+      articles = filtered as PlanHelpers.Article[];
     } else if (allArticles !== null) {
       articles = allArticles as PlanHelpers.Article[];
     } else {
-      const response = await fetch('/api/v1/articles?limit=1000&sort_by=usage_count');
-      if (!response.ok) {
-        console.warn('[PlanAnalytics] Failed to load articles:', response.status);
-        return;
-      }
-      const data = await response.json();
-      articles = Array.isArray(data) ? data : data.articles || [];
+      const cached = await loadAnalyticsFilterOptions();
+      articles = (cached?.articles ?? []) as PlanHelpers.Article[];
     }
 
     initAnalyticsArticleChoices(articles, articleType);

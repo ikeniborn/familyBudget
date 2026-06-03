@@ -1,7 +1,7 @@
 let articleChoicesInstance: any = null;
 
 export function initAnalyticsArticleChoices(
-  _articles: Array<{ id: number; name: string; type: string; parent_id: number | null }>,
+  articles: Array<{ id: number; name: string; type: string; parent_id: number | null }>,
   articleType: string | null
 ): void {
   const ChoicesCategoryTree = (window as any).BudgetShared?.ChoicesCategoryTree;
@@ -19,4 +19,9 @@ export function initAnalyticsArticleChoices(
     showClearButton: true,
     mode: 'create',
   });
+
+  if (articles.length > 0 && articleChoicesInstance?.setChoices) {
+    const mapped = articles.map((a: { id: number; name: string }) => ({ value: String(a.id), label: a.name, customProperties: a }));
+    articleChoicesInstance.setChoices(mapped, 'value', 'label', true);
+  }
 }
