@@ -78,7 +78,6 @@ export {
 export {
   calculateRetryDelay,
   isRetryableError,
-  shouldStopOn503,
   getRetryConfig,
 } from './fallback/pollRetry';
 
