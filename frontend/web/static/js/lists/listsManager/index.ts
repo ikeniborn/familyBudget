@@ -33,7 +33,6 @@ export type {
 
 export {
   initializeListsManager,
-  isOnline,
   loadShoppingLists,
   loadShoppingListItems,
   switchToList

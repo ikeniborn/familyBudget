@@ -105,8 +105,7 @@ export async function handleCreateList(event: Event): Promise<void> {
     // Close modal
     closeCreateListModal();
 
-    // OPTIMISTIC UPDATE: Add new list to state directly (API response is source of truth)
-    // This eliminates race condition with Dexie sync latency
+    // OPTIMISTIC UPDATE: render before API responds for snappy UX
     const newList: ShoppingList = {
       id: result.id,
       temp_id: result.temp_id, // Always use API (backend guarantees UUID)
@@ -390,7 +389,7 @@ export async function handleDeleteFromModal(): Promise<void> {
   closeItemModal();
 
   // Delete item using existing deleteItem method
-  // (already handles confirmation, offline support, cache update)
+  // (already handles confirmation)
   await deleteItem(itemId);
 
   debugLog('[DELETE_MODAL] Delete completed', { itemId });

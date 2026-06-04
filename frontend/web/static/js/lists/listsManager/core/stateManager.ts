@@ -16,12 +16,6 @@ import { shouldSimulateLoadError, isVerboseLoggingEnabled } from '../testing/deb
 declare const debugLog: (...args: any[]) => void;
 declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
 
-declare global {
-  interface Window {
-    offlineManager?: any;
-  }
-}
-
 // ============================================================================
 // API Response Converters
 // ============================================================================
@@ -116,16 +110,8 @@ function convertProductGroup(api: any): ProductGroup {
 export async function initializeListsManager(): Promise<void> {
   debugLog('[ListsManager] Initializing...');
 
-  // Listen for network status changes (refresh when back online).
-  // Both events signal transitions: 'offline-status-change' (auto-offline / restored)
-  // and 'network-status-change' (regular online/offline transitions from networkDetector).
-  // Deduplicate via a short-lived flag so we don't double-fire when both arrive.
-  let lastReconnectAt = 0;
+  // Listen for native browser 'online' event to refresh data after reconnect.
   const handleReconnect = async () => {
-    const now = Date.now();
-    if (now - lastReconnectAt < 2000) return;
-    lastReconnectAt = now;
-
     debugLog('[ListsManager] Network restored, refreshing data...');
     await loadShoppingLists();
     const currentState = getState();
@@ -155,40 +141,9 @@ export async function initializeListsManager(): Promise<void> {
     }
   };
 
-  window.addEventListener('offline-status-change', (event: Event) => {
-    const { online } = (event as CustomEvent).detail || {};
-    if (online) void handleReconnect();
-  });
-  window.addEventListener('network-status-change', (event: Event) => {
-    const { status, previousStatus } = (event as CustomEvent).detail || {};
-    const cameBackOnline =
-      previousStatus === 'offline' && (status === 'online' || status === 'degraded');
-    if (cameBackOnline) void handleReconnect();
-  });
   window.addEventListener('online', () => void handleReconnect());
 
   debugLog('[ListsManager] Initialization complete');
-}
-
-/**
- * Check if currently online
- * Uses offlineManager's network detector if available
- */
-export function isOnline(): boolean {
-  if (window.offlineManager && window.offlineManager.networkDetector) {
-    return window.offlineManager.networkDetector.getStatus() !== 'offline';
-  }
-
-  // Fallback: check localStorage for autoOfflineMode
-  try {
-    if (localStorage.getItem('budget_auto_offline_mode') === 'true') {
-      return false;
-    }
-  } catch (e) {
-    // Ignore localStorage errors
-  }
-
-  return navigator.onLine;
 }
 
 // ============================================================================
