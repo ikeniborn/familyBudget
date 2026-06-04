@@ -74,8 +74,7 @@
             MODAL_KB: isDevelopment,   // Modal keyboard adaptation
             PUSH_BANNER: true,         // Push permission banner (info logs removed from code)
             ADMIN_LOGS: true,          // Admin logs page (info logs removed from code)
-            CONFLICT: true,            // Conflict resolution (task-009: LWW strategy)
-            DEXIE: isDevelopment       // Dexie database operations (dev only)
+            CONFLICT: true             // Conflict resolution (task-009: LWW strategy)
         },
 
         // Environment info (for debugging)

@@ -522,7 +522,7 @@ function setupModalFactListeners(): void {
                     setFactTransferDate(0);               // Дата transfer tab
                     initModalFactCalendars();             // CalendarWidget иконки
                     setupModalFactTabSwitching();         // Radio tab switching
-                    // Re-populate selects if empty (race: Dexie not ready at init time)
+                    // Re-populate selects if empty (race: dropdowns may not be ready at init time)
                     const fcSelect = target.querySelector(
                         'select[name="financial_center_id"]'
                     ) as HTMLSelectElement | null;

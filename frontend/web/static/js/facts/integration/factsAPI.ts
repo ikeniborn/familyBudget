@@ -30,7 +30,6 @@ interface CreateTransferData {
 
 /**
  * Build FactFilters from current filter state
- * Converts UI filters to Dexie-compatible format
  */
 function buildFactFilters(): FactFilters {
     const filters = getFilters();
@@ -173,9 +172,7 @@ export async function getFact(factId: number): Promise<BudgetFact> {
  */
 export async function createFact(data: CreateFactData): Promise<BudgetFact> {
     try {
-        // API-first strategy: always send to server for reliable persistence
-        // Dexie-first was causing data loss (fact saved to IndexedDB only,
-        // never synced to server, disappeared on page reload)
+        // Send directly to server for reliable persistence
         const response = await fetch('/api/v1/facts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

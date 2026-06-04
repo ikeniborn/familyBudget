@@ -36,7 +36,6 @@ frontend/web/static/js/facts/
 - **Facts API**: CRUD operations (load, create, update, delete, batch delete)
 - **Dropdown API**: Load users, articles, financial centers, cost centers
 - **Analytics API**: Fact hints (plan/fact for current month)
-- Offline support via `window.offlineManager`
 - Parallel API calls optimization
 
 ### Rendering (Temporary - Phase 1)
@@ -271,7 +270,6 @@ facts/
 
 - `BudgetShared.DateFormatter` - Date formatting utilities
 - `BudgetShared.MoneyFormatter` - Money formatting utilities
-- `window.offlineManager` - Offline support (optional)
 - `window.budgetWSManager` - WebSocket manager (optional)
 - `htmx` - HTMX library (Phase 2)
 

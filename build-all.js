@@ -34,14 +34,6 @@ const builds = [
     globalName: 'NetworkModule'
   },
 
-  // === Performance Monitoring ===
-  {
-    name: 'performanceMonitor',
-    input: 'frontend/web/static/js/monitoring/PerformanceMonitor.ts',
-    output: 'frontend/web/static/js/monitoring/PerformanceMonitor.min.js',
-    globalName: 'PerformanceMonitor'
-  },
-
   // === Individual shared modules (loaded directly in HTML via <script> tags) ===
   {
     name: 'budgetShared',

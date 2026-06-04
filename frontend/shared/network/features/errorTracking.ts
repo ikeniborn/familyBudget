@@ -22,7 +22,7 @@ import { getState, updateState } from '../core/NetworkState';
  * - If status = 'offline' → verify real availability (might be back online)
  * - If status = 'degraded' → upgrade to 'online' (success indicates good connection)
  *
- * Integration: Called by OfflineManager after successful request
+ * Integration: Called by network adapter after successful request
  */
 export const onRequestSuccess = (): void => {
   const { autoOfflineMode, status } = getState();
@@ -68,7 +68,7 @@ export const onRequestSuccess = (): void => {
  * - If failures >= maxFailuresBeforeOffline (default: 3) → set 'offline' status
  * - Else if status = 'online' → downgrade to 'degraded'
  *
- * Integration: Called by OfflineManager after failed request
+ * Integration: Called by network adapter after failed request
  */
 export const onRequestFailure = (): void => {
   const { autoOfflineMode, consecutiveFailures, maxFailuresBeforeOffline, status } = getState();

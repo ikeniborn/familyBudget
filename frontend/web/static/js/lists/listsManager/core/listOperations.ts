@@ -2,7 +2,7 @@
  * Lists Manager - CRUD Operations
  *
  * Core create, update, delete operations for shopping list items.
- * Direct REST API calls (Dexie removed).
+ * Direct REST API calls.
  */
 
 import { getState } from './ListsState';
@@ -338,9 +338,9 @@ export async function deleteMultipleItems(itemIds: number[], skipConfirm: boolea
 // ============================================================================
 
 /**
- * Update items cache (no-op after Dexie removal).
+ * Update items cache (no-op kept for callsite compatibility).
+ * Data is loaded directly from API on demand.
  */
 export async function updateItemsCache(): Promise<void> {
-  // No-op: data is loaded directly from API on demand
   debugLog('[ListsManager] Cache update skipped (API-only mode)');
 }

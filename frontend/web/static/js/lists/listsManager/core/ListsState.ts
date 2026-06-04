@@ -16,7 +16,7 @@ export {}; // Force module scope
 
 export interface ShoppingList {
   id: number;
-  temp_id?: string;              // Dexie temp_id for offline operations (task-015 Phase 4)
+  temp_id?: string;              // Client-side temp_id for optimistic WS deduplication
   name: string;
   is_active: boolean;
   created_at: string;

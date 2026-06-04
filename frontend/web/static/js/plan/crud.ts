@@ -1445,21 +1445,20 @@ export async function createPlan(event: Event): Promise<void> {
       logCrud.debug('[createPlan] Recurring data with reminders:', recurringData);
       logCrud.debug('[createPlan] Creating recurring plan:', recurringData);
 
-      // Use OfflineManager if available for offline support
-      if ((window as any).offlineManager) {
-        const result = await (window as any).offlineManager.createRecurringPlan(recurringData);
+      const response = await fetch('/api/v1/recurring-plans/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(recurringData)
+      });
 
-        if (result._offline) {
-          showToast('Регулярный платеж сохранён оффлайн (будет создан при подключении)', 'warning');
-          logCrud.debug('[createPlan] Recurring plan saved offline:', result);
-        } else {
-          let message = `Регулярный платеж создан! Сгенерировано записей: ${result.occurrences_generated}`;
-          if (result.enable_reminder && result.reminder_time_display) {
-            message += `. Напоминания в ${result.reminder_time_display}`;
-          }
-          showToast(message, 'success');
-          logCrud.debug('[createPlan] Recurring plan created:', result);
+      if (response.ok) {
+        const createdPlan = await response.json();
+        let message = `Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`;
+        if (createdPlan.enable_reminder && createdPlan.reminder_time_display) {
+          message += `. Напоминания в ${createdPlan.reminder_time_display}`;
         }
+        showToast(message, 'success');
+        logCrud.debug('[createPlan] Recurring plan created:', createdPlan);
 
         (document.getElementById('modal_plan') as HTMLDialogElement).close();
         form.reset();
@@ -1472,44 +1471,16 @@ export async function createPlan(event: Event): Promise<void> {
         await PlanFactsTable.loadFacts();
         setupCreatePlanPeriodButtons();
       } else {
-        // Fallback to direct fetch if OfflineManager not available
-        const response = await fetch('/api/v1/recurring-plans/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(recurringData)
-        });
-
-        if (response.ok) {
-          const createdPlan = await response.json();
-          let message = `Регулярный платеж создан! Сгенерировано записей: ${createdPlan.occurrences_generated}`;
-          if (createdPlan.enable_reminder && createdPlan.reminder_time_display) {
-            message += `. Напоминания в ${createdPlan.reminder_time_display}`;
-          }
-          showToast(message, 'success');
-          logCrud.debug('[createPlan] Recurring plan created:', createdPlan);
-
-          (document.getElementById('modal_plan') as HTMLDialogElement).close();
-          form.reset();
-          // Reset recurring settings
-          resetRecurringSettings(modalId);
-          // Reset reminder settings
-          const reminderSettings = document.getElementById('reminder-settings-modal_plan');
-          if (reminderSettings) reminderSettings.classList.add('hidden');
-          resetReminderFields(modalId);
-          await PlanFactsTable.loadFacts();
-          setupCreatePlanPeriodButtons();
-        } else {
-          const error = await response.json();
-          let errorMsg = 'Не удалось создать регулярный платеж';
-          if (Array.isArray(error.detail)) {
-            errorMsg = error.detail.map((e: any) => e.msg || e.message || 'Ошибка').join('; ');
-          } else if (error.detail && typeof error.detail === 'object' && error.detail.message) {
-            errorMsg = error.detail.message;
-          } else if (typeof error.detail === 'string') {
-            errorMsg = error.detail;
-          }
-          showToast('Ошибка: ' + errorMsg, 'error');
+        const error = await response.json();
+        let errorMsg = 'Не удалось создать регулярный платеж';
+        if (Array.isArray(error.detail)) {
+          errorMsg = error.detail.map((e: any) => e.msg || e.message || 'Ошибка').join('; ');
+        } else if (error.detail && typeof error.detail === 'object' && error.detail.message) {
+          errorMsg = error.detail.message;
+        } else if (typeof error.detail === 'string') {
+          errorMsg = error.detail;
         }
+        showToast('Ошибка: ' + errorMsg, 'error');
       }
       return;
     }
@@ -1529,27 +1500,27 @@ export async function createPlan(event: Event): Promise<void> {
       description: formData.get('description') || null
     };
 
-    // Use OfflineManager if available, otherwise fallback to direct fetch
-    if ((window as any).offlineManager) {
-      const result = await (window as any).offlineManager.createPlan(data);
+    const response = await fetch('/api/v1/facts', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(data)
+    });
 
-      if (result._offline) {
-        showToast('План сохранён оффлайн (будет синхронизирован при подключении)', 'warning');
-        logCrud.debug('[createPlan] Saved offline:', result);
-      } else {
-        showToast('План успешно создан!', 'success');
-        logCrud.debug('[createPlan] Saved online:', result);
+    if (response.ok) {
+      const createdPlan = await response.json();
+      showToast('План успешно создан!', 'success');
 
-        // Create reminder if enabled (only for online plans)
-        if (enableReminder && reminderDatetime && result.id) {
-          const reminderCreated = await (BudgetShared as any).Reminders.createReminder(result.id, reminderDatetime);
-          if (reminderCreated) {
-            // ✅ FIX 2: Update remindersMap to show icon in table
-            remindersMap.set(result.id, reminderCreated);
-            showToast('Напоминание установлено', 'success');
-          } else {
-            showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
-          }
+      // Create reminder if enabled
+      if (enableReminder && reminderDatetime && createdPlan.id) {
+        const reminderCreated = await (BudgetShared as any).Reminders.createReminder(createdPlan.id, reminderDatetime);
+        if (reminderCreated) {
+          // ✅ FIX 2: Update remindersMap to show icon in table
+          remindersMap.set(createdPlan.id, reminderCreated);
+          showToast('Напоминание установлено', 'success');
+        } else {
+          showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
         }
       }
 
@@ -1559,53 +1530,13 @@ export async function createPlan(event: Event): Promise<void> {
       const reminderSettings = document.getElementById('reminder-settings-modal_plan');
       if (reminderSettings) reminderSettings.classList.add('hidden');
       resetReminderFields('modal_plan');
-      if (result._offline) {
-        await PlanFactsTable.loadFacts(); // только для offline (нет WS-события)
-      }
-      // для online: WS-событие plan_created обновит таблицу инкрементально
+      // WS-событие plan_created обновит таблицу инкрементально
 
       // Переинициализировать кнопки периода
       setupCreatePlanPeriodButtons();
     } else {
-      // Fallback to direct fetch if OfflineManager not available
-      const response = await fetch('/api/v1/facts', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-
-      if (response.ok) {
-        const createdPlan = await response.json();
-        showToast('План успешно создан!', 'success');
-
-        // Create reminder if enabled
-        if (enableReminder && reminderDatetime && createdPlan.id) {
-          const reminderCreated = await (BudgetShared as any).Reminders.createReminder(createdPlan.id, reminderDatetime);
-          if (reminderCreated) {
-            // ✅ FIX 2: Update remindersMap to show icon in table
-            remindersMap.set(createdPlan.id, reminderCreated);
-            showToast('Напоминание установлено', 'success');
-          } else {
-            showToast('Предупреждение: план создан, но напоминание не установлено', 'warning');
-          }
-        }
-
-        (document.getElementById('modal_plan') as HTMLDialogElement).close();
-        form.reset();
-        // Reset reminder settings visibility and fields
-        const reminderSettings = document.getElementById('reminder-settings-modal_plan');
-        if (reminderSettings) reminderSettings.classList.add('hidden');
-        resetReminderFields('modal_plan');
-        // WS-событие plan_created обновит таблицу инкрементально
-
-        // Переинициализировать кнопки периода
-        setupCreatePlanPeriodButtons();
-      } else {
-        const error = await response.json();
-        showToast('Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
-      }
+      const error = await response.json();
+      showToast('Ошибка: ' + (error.detail || 'Не удалось создать план'), 'error');
     }
   } catch (error) {
     logCrud.error('Error creating plan:', error);

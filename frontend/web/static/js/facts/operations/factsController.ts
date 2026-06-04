@@ -29,7 +29,7 @@ export async function loadFacts(options?: { forceAPI?: boolean }): Promise<void>
     try {
         logger.log('Loading facts...', options?.forceAPI ? '(forceAPI)' : '');
 
-        // Get facts data (forceAPI option retained for caller compatibility; no longer needed without Dexie)
+        // Get facts data (forceAPI option retained for caller compatibility)
         const { facts, total } = await loadFactsWithCount();
 
         logger.log(`Loaded ${facts.length} facts (total: ${total})`);
@@ -694,7 +694,7 @@ export async function batchDelete(): Promise<void> {
             'success'
         );
 
-        // Reload facts from API (bypass Dexie cache)
+        // Reload facts from API
         await loadFacts({ forceAPI: true });
     } catch (error) {
         logger.error(' Error batch deleting:', error);
@@ -855,8 +855,7 @@ export function renderFactsTable(facts: FactRow[]): void {
 export function renderFactRow(fact: FactRow): string {
     const BudgetShared = (window as any).BudgetShared;
 
-    // Convert fact.fact_date to string if needed (Dexie may return Date objects)
-    // Type assertion needed because Dexie runtime types may differ from interface
+    // Convert fact.fact_date to string if needed (may be Date in some code paths)
     const dateValue: unknown = fact.fact_date;
     const dateString = typeof dateValue === 'string'
         ? dateValue
@@ -931,7 +930,7 @@ function buildFactRowHtml(fact: FactRow, p: FactRowParts): string {
 export function renderFactMobileCard(fact: FactRow): string {
     const BudgetShared = (window as any).BudgetShared;
 
-    // Convert fact.fact_date to string if needed (Dexie may return Date objects)
+    // Convert fact.fact_date to string if needed (may be Date in some code paths)
     const dateValue: unknown = fact.fact_date;
     const dateString = typeof dateValue === 'string'
         ? dateValue
