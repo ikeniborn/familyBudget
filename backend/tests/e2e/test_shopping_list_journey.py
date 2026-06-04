@@ -5,7 +5,6 @@ Complete user workflows:
 1. Happy path: Create list → Add items → Complete → Delete
 2. CSV import: Upload → Analyze → Preview → Import
 3. Hierarchy view: Navigate tree structure
-4. Offline scenario: Create offline → Sync online
 """
 
 import base64

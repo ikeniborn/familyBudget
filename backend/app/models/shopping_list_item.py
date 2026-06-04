@@ -33,13 +33,12 @@ class ShoppingListItem(SQLModel, table=True):
 
     Optimistic Locking:
         - version field: incremented on each update
-        - Used for conflict detection during sync
-        - If client version != server version, conflict is detected
+        - Used for optimistic locking
 
     Soft Delete:
         - deleted_at field: NULL = active, NOT NULL = soft-deleted
         - Soft-deleted items are excluded from regular queries
-        - Kept for autocomplete history and conflict resolution
+        - Kept for autocomplete history
 
     Attributes:
         id: Surrogate primary key
@@ -52,7 +51,7 @@ class ShoppingListItem(SQLModel, table=True):
         unit: Unit of measurement (OPTIONAL, max 50 chars, e.g., "kg", "liters", "pieces")
         comment: Optional comment or notes (e.g., "buy on sale", "specific brand")
         is_completed: Completion flag (True = marked as bought, False = still needed)
-        completed_at: When item was marked as completed (for conflict resolution)
+        completed_at: When item was marked as completed
         version: Optimistic locking version (incremented on each update)
         deleted_at: Soft delete timestamp (NULL = active, NOT NULL = deleted)
         last_modified_by: User ID who last modified this item
@@ -156,7 +155,7 @@ class ShoppingListItem(SQLModel, table=True):
     completed_at: datetime | None = Field(
         default=None,
         nullable=True,
-        description="When item was marked as completed (for conflict resolution priority)"
+        description="When item was marked as completed"
     )
 
     # Optimistic locking

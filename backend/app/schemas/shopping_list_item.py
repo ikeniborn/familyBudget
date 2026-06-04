@@ -190,7 +190,7 @@ class ShoppingListItemResponse(BaseModel):
 
     Notes:
         - SHARED model: All users can view/edit all items
-        - version is used for optimistic locking (conflict detection)
+        - version is used for optimistic locking
         - completed_at tracks when item was marked as completed
     """
 
@@ -252,7 +252,7 @@ class ShoppingListItemResponse(BaseModel):
 
     completed_at: datetime | None = Field(
         default=None,
-        description="When item was marked as completed (for conflict resolution)",
+        description="When item was marked as completed",
         examples=["2025-01-10T14:30:00Z", None]
     )
 
