@@ -1651,7 +1651,7 @@ class CSVImporter {
                     5000
                 );
 
-                // Reload shopping list items FIRST (loads stale groups from Dexie)
+                // Reload shopping list items FIRST from API
                 await this.listsManager.loadShoppingListItems(currentListId);
 
                 // Overwrite with fresh data AFTER items load (fixes hierarchy tree)
