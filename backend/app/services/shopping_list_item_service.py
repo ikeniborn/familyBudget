@@ -206,9 +206,11 @@ async def restore_item(
     if item.deleted_at is None:
         return item
 
-    # Restore: clear deleted_at
+    # Restore: clear deleted_at and reset completion state
     now = datetime.utcnow()
     item.deleted_at = None
+    item.is_completed = False
+    item.completed_at = None
     item.version += 1
     item.updated_at = now
     item.sync_status = "synced"
