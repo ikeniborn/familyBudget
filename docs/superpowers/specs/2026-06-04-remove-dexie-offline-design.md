@@ -1,3 +1,48 @@
+---
+review:
+  spec_hash: 2a3e3e76bbe3adf2
+  last_run: 2026-06-04
+  phases:
+    structure:    { status: passed }
+    coverage:     { status: passed }
+    clarity:      { status: passed }
+    consistency:  { status: passed }
+  findings:
+    - id: F-001
+      phase: coverage
+      severity: WARNING
+      section: "## Implementation Order (single branch, one pass)"
+      section_hash: 13be409cc2b841be
+      text: "Step 9 says 'delete 19 test files' but Frontend TESTS to DELETE lists ListsState.test.ts as partial (keep non-Dexie assertions). Count of 19 includes this partial file — misleading."
+      verdict: fixed
+      verdict_at: 2026-06-04
+    - id: F-002
+      phase: clarity
+      severity: INFO
+      section: "## Verification"
+      section_hash: 0d3976e701ab0235
+      text: "'verify data intact' (migration verification) has no explicit criterion — no defined query or assertion to confirm post-migration integrity."
+      verdict: fixed
+      verdict_at: 2026-06-04
+    - id: F-003
+      phase: clarity
+      severity: INFO
+      section: "## Constraints (from intent)"
+      section_hash: bac55e02b65f0aa4
+      text: "'non-trivial flow' is undefined — no criterion distinguishing trivial from non-trivial for the halt condition."
+      verdict: fixed
+      verdict_at: 2026-06-04
+    - id: F-004
+      phase: clarity
+      severity: INFO
+      section: "## Constraints (from intent)"
+      section_hash: bac55e02b65f0aa4
+      text: "'in a non-obvious way' is undefined escalation trigger — no criterion for obvious vs non-obvious mixed Dexie/non-Dexie logic."
+      verdict: fixed
+      verdict_at: 2026-06-04
+chain:
+  intent: docs/superpowers/intents/2026-06-04-remove-dexie-offline-intent.md
+---
 # Design: Remove Dexie and Offline Mode
 
 **Date:** 2026-06-04  
@@ -185,7 +230,7 @@ All work in `dev/remove-dexie`. Deploy once at end.
 6. **shared** — `budgetShared.ts`: remove `_loadCategoriesFromDexie`; `monitoring/PerformanceMonitor.ts`: remove Dexie metrics; `dashboard/types/globals.d.ts`: remove OfflineManager interface
 7. **WS client** — delete `syncHandler.ts`, `uploadHandler.ts`; strip Dexie/offlineManager from `eventHandlers.ts`, `fallback/longPolling.ts`, `core/connectionManager.ts`, `index.ts`; clean `types/events.ts` (proposal first for handler changes)
 8. **templates** — `base.html`, `login_email.html`, `2fa_verify.html`, `pwa-splash-screen.html`, `service-worker-registration.html`, `lists/initialization_script.html`, `recent_transactions.html`: remove all Dexie blocks; delete `navbar-sync-badge.html`, `dexie-indicator-manager.html`
-9. **shared cleanup** — delete: `frontend/shared/db/dexie/`, `DataLayer.ts`, diagnostic/notification files, `offline/networkDetector.ts`, `offline/p2p/`, `offline/*.bak`, `scripts/verify-dexie-export.js`, `types/indexeddb.d.ts`; delete 19 test files; update `build-all.js`, `package.json`, `vitest.config.ts`
+9. **shared cleanup** — delete: `frontend/shared/db/dexie/`, `DataLayer.ts`, diagnostic/notification files, `offline/networkDetector.ts`, `offline/p2p/`, `offline/*.bak`, `scripts/verify-dexie-export.js`, `types/indexeddb.d.ts`; delete 18 test files entirely; partially clean 1 (`ListsState.test.ts` — remove Dexie mocks, keep non-Dexie assertions); update `build-all.js`, `package.json`, `vitest.config.ts`
 10. **backend** — delete `sync.py`, `sync_handlers.py`; modify `budget_ws.py`, `facts.py`, `shopping_list_items.py`, `shopping_lists.py`, `transfers.py`; update services, models, schemas; remove router registration
 11. **migration** — Alembic migration: drop 5 columns + 7 indexes
 12. **final verification** — see below
@@ -219,7 +264,7 @@ npm run test:coverage              # remaining unit tests pass
 npm run test:e2e                   # facts, plan, lists, dashboard golden paths
 ```
 
-Migration: run on test server first, verify data intact, then prod.
+Migration: run on test server first, then verify data intact (`SELECT COUNT(*) FROM t_f_fact_current` before/after must match; spot-check 5 rows for field completeness), then prod.
 
 ---
 
@@ -230,5 +275,5 @@ Migration: run on test server first, verify data intact, then prod.
 - No new caching layer — plain API calls only
 - `budget_ws.py`: MODIFY only (remove sync dispatch), do NOT delete
 - Auth, production deploy: human-only actions
-- Halt if removing Dexie dependency requires redesigning a non-trivial flow
-- Escalate if a file mixes Dexie + non-Dexie logic in a non-obvious way
+- Halt if removing Dexie dependency requires redesigning a non-trivial flow (i.e., the replacement logic cannot be expressed as a single `fetch` call + DOM update — any branching state machine, retry logic, or multi-step coordination counts as non-trivial)
+- Escalate if a file mixes Dexie + non-Dexie logic in a non-obvious way (i.e., removing the Dexie path changes observable behavior beyond offline: affects online CRUD, error handling, or UI state)

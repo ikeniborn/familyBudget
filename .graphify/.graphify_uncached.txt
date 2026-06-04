@@ -1,8 +1,0 @@
-/home/ikeniborn/Documents/Project/familyBudget/backend/app/services/shopping_list_item_service.py
-/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/csvImporter.ts
-/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/importManager.js
-/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/listsManager/core/listOperations.ts
-/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/listsManager/rendering/hierarchyIntegration.ts
-/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/listsManager/rendering/listRenderer.ts
-/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/listsManager/ui/modalManager.ts
-/home/ikeniborn/Documents/Project/familyBudget/frontend/web/templates/partials/lists/detail_view.html

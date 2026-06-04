@@ -1,0 +1,1 @@
+{"nodes": [{"id": "model_recurring_plan", "label": "RecurringPlan \u2014 recurring_plan_service.py generates fact entries", "file_type": "code", "source_file": "backend/app/services/recurring_plan_service.py", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}
