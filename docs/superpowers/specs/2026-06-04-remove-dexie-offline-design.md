@@ -30,12 +30,17 @@ Reference data (articles, financial centers, cost centers) loaded via direct `fe
 | `frontend/web/static/js/notifications/dexieReadyNotification.ts` | "Dexie ready" toast |
 | `frontend/web/static/js/notifications/dexieProgressToast.ts` | Sync progress toast |
 | `frontend/web/static/js/dashboard/features/offlineDashboard.ts` | HTMX intercept + Dexie render for offline dashboard |
-| `frontend/web/static/js/offline/networkDetector.ts` | Network detection (offline mode only — no online consumers after Dexie removal) |
+| `frontend/web/static/js/dashboard/features/pendingRecords/` | Entire dir (5 files): pending records UI, syncOperations, transferSplit — all offline-only |
+| `frontend/web/static/js/transfers/integration/offlineIntegration.ts` | `createTransferOffline()` — offline-only |
+| `frontend/web/static/js/offline/networkDetector.ts` | Offline mode network detection (not the `shared/network/` SmartNetworkDetector — that stays) |
 | `frontend/web/static/js/offline/p2p/` | P2P sync directory (P2PManager, P2PMerge, P2PSyncProtocol) |
+| `frontend/web/static/js/offline/*.ts.bak` | 3 backed-up TS sources: conflictResolver, networkDetector, pushManager |
 | `frontend/web/static/js/budget/budgetWSClient/integration/syncHandler.ts` | WS sync_initial/sync_incremental handler |
 | `frontend/web/static/js/budget/budgetWSClient/integration/uploadHandler.ts` | WS upload pending operations handler |
 | `frontend/web/templates/scripts/navbar-sync-badge.html` | Sync badge calling `window.Dexie` |
 | `frontend/web/templates/scripts/dexie-indicator-manager.html` | Dexie status indicator (DB icon + status dot) |
+| `scripts/verify-dexie-export.js` | Post-build Dexie bundle verification script |
+| `types/indexeddb.d.ts` | IndexedDB schema types (OfflineFact, OfflineTransfer, SyncQueue) |
 
 ### Frontend — MODIFY (surgical Dexie removal)
 
@@ -63,6 +68,18 @@ Reference data (articles, financial centers, cost centers) loaded via direct `fe
 | `lists/listsManager/testing/debugUtils.ts` | `window.dexieManager` references |
 | `shared/static/js/budgetShared.ts` | `_loadCategoriesFromDexie()` method + calls (lines ~1909-2039) → API-only path |
 | `monitoring/PerformanceMonitor.ts` | `trackDexieCall()`, `trackCacheHit('dexie')` methods |
+| `dashboard/features/addPlan/planForm.ts` | `window.offlineManager.createPlanOffline()` calls → API-only |
+| `dashboard/features/addTransaction/transactionForm.ts` | `window.offlineManager.createFactOffline()` calls → API-only |
+| `dashboard/features/editModal/dropdownCache.ts` | `populateOfflineDropdowns()` — remove offline path |
+| `dashboard/features/editModal/helpers.ts` | `window.offlineManager` references |
+| `dashboard/features/editModal/deleteOperations.ts` | `window.offlineManager` references |
+| `dashboard/features/editModal/formPopulation.ts` | `window.offlineManager` references |
+| `dashboard/types/globals.d.ts` | Remove `OfflineManager` interface, `window.offlineManager` declaration |
+| `transfers/core/dataLoader.ts` | Remove offline/offlineManager references |
+| `transfers/types/globals.d.ts` | Remove `window.offlineManager` type declaration |
+| `budget/budgetWSClient/fallback/longPolling.ts` | Remove `isOfflineModeActive()` checks (lines 21, 26, 51, 145, 207-213) |
+| `budget/budgetWSClient/core/connectionManager.ts` | Remove `_isOfflineModeActive()` method |
+| `budget/budgetWSClient/index.ts` | Remove offlineManager references |
 | `templates/base.html` | Remove: dexie.min.js + dexie-diagnostic.min.js script tags, Dexie init block (lines 880-928), navbar-sync-badge/dexie-indicator-manager includes, `#dexie-indicator-wrapper` element, `#navbar-sync-badge-wrapper` element, `dexieActive` localStorage init |
 | `templates/login_email.html` | Remove `dexieActive` localStorage.setItem on login |
 | `templates/2fa_verify.html` | Remove `dexieActive` localStorage.setItem |
@@ -96,6 +113,7 @@ Reference data (articles, financial centers, cost centers) loaded via direct `fe
 | `tests/integration/workflows/offline-sync.test.ts` |
 | `tests/e2e/webapp/test_offline_functionality.spec.ts` |
 | `tests/e2e/webapp/test_offline_dashboard.spec.ts` |
+| `tests/integration/p2p-datalayer-integration.test.js` |
 
 ---
 
@@ -148,7 +166,10 @@ Total: 5 columns, 7 indexes dropped across fact + history tables + shopping tabl
 - All regular REST endpoints (facts, lists, plans, articles, financial centers, cost centers, stores, product groups)
 - WS event handlers — simplified (DOM updates only, no Dexie writes)
 - PWA installable (without offline cache — acceptable per intent)
-- `networkDetector`-independent features: if any non-offline consumer exists, check before deleting
+- `frontend/shared/network/` (SmartNetworkDetector v3.0.0) — online network quality detection, no Dexie
+- `sw.js` — standard PWA cache (Cache First static, Network First HTML) — not Dexie-specific
+- `backend/app/api/v1/endpoints/p2p.py` — online-only P2P relay signaling (no Dexie)
+- `frontend/web/templates/p2p/` — P2P UI templates (no Dexie references)
 
 ---
 
@@ -159,14 +180,15 @@ All work in `dev/remove-dexie`. Deploy once at end.
 1. **facts page** — `factsAPI.ts`, `dropdownAPI.ts`: DataLayer → direct API calls
 2. **plan page** — `helpers.ts`, `index.ts`: replace; propose simplified `wsEventHandlers.ts` + `factsTable.ts` before implementing
 3. **lists page** — `stateManager.ts`, `listOperations.ts`, `modalManager.ts`, `csvImporter.ts`, `autocomplete.ts`, `debugUtils.ts`: remove Dexie; remove temp_id reconciliation
-4. **dashboard** — `factsManager.ts`, `categoryLoader.ts`, `saveTransaction.ts`, `saveTransfer.ts`, `saveTransaction.ts(plan)`, `windowExports.ts`: replace; delete `offlineDashboard.ts`
-5. **shared** — `budgetShared.ts`: remove `_loadCategoriesFromDexie`; `monitoring/PerformanceMonitor.ts`: remove Dexie metrics
-6. **WS client** — delete `syncHandler.ts`, `uploadHandler.ts`; strip Dexie from `eventHandlers.ts` + clean `types/events.ts` (proposal first)
-7. **templates** — `base.html`, `login_email.html`, `2fa_verify.html`, `pwa-splash-screen.html`, `service-worker-registration.html`, `lists/initialization_script.html`, `recent_transactions.html`: remove all Dexie blocks; delete `navbar-sync-badge.html`, `dexie-indicator-manager.html`
-8. **shared cleanup** — delete `frontend/shared/db/dexie/`, `DataLayer.ts`, diagnostic/notification/offline files listed above; delete Dexie tests (18 files); update `build-all.js`, `package.json`, `vitest.config.ts`
-9. **backend** — delete `sync.py`, `sync_handlers.py`; modify `budget_ws.py`, `facts.py`, `shopping_list_items.py`, `shopping_lists.py`, `transfers.py`; modify services; update models + schemas; remove router registration
-10. **migration** — Alembic migration: drop 5 columns + 7 indexes
-11. **final verification** — see below
+4. **dashboard** — `factsManager.ts`, `categoryLoader.ts`, `windowExports.ts`: replace/clean; `addPlan/planForm.ts`, `addTransaction/transactionForm.ts`, `editModal/helpers.ts`, `editModal/deleteOperations.ts`, `editModal/formPopulation.ts`, `editModal/dropdownCache.ts`: remove offlineManager calls; delete `offlineDashboard.ts`, `pendingRecords/` directory
+5. **transfers** — `transfers/core/dataLoader.ts`, `transfers/types/globals.d.ts`: remove offline refs; delete `transfers/integration/offlineIntegration.ts`; remove `saveTransfer.ts` Dexie logic
+6. **shared** — `budgetShared.ts`: remove `_loadCategoriesFromDexie`; `monitoring/PerformanceMonitor.ts`: remove Dexie metrics; `dashboard/types/globals.d.ts`: remove OfflineManager interface
+7. **WS client** — delete `syncHandler.ts`, `uploadHandler.ts`; strip Dexie/offlineManager from `eventHandlers.ts`, `fallback/longPolling.ts`, `core/connectionManager.ts`, `index.ts`; clean `types/events.ts` (proposal first for handler changes)
+8. **templates** — `base.html`, `login_email.html`, `2fa_verify.html`, `pwa-splash-screen.html`, `service-worker-registration.html`, `lists/initialization_script.html`, `recent_transactions.html`: remove all Dexie blocks; delete `navbar-sync-badge.html`, `dexie-indicator-manager.html`
+9. **shared cleanup** — delete: `frontend/shared/db/dexie/`, `DataLayer.ts`, diagnostic/notification files, `offline/networkDetector.ts`, `offline/p2p/`, `offline/*.bak`, `scripts/verify-dexie-export.js`, `types/indexeddb.d.ts`; delete 19 test files; update `build-all.js`, `package.json`, `vitest.config.ts`
+10. **backend** — delete `sync.py`, `sync_handlers.py`; modify `budget_ws.py`, `facts.py`, `shopping_list_items.py`, `shopping_lists.py`, `transfers.py`; update services, models, schemas; remove router registration
+11. **migration** — Alembic migration: drop 5 columns + 7 indexes
+12. **final verification** — see below
 
 ---
 
@@ -183,12 +205,12 @@ Each WS handler change requires proposal before implementation (proposal-first z
 
 ## Verification
 
-After each module (steps 1–6): `npm run type-check` must pass; verify in browser: load, CRUD, WS live update.
+After each module (steps 1–7): `npm run type-check` must pass; verify in browser: load, CRUD, WS live update.
 
-Final (step 11):
+Final (step 12):
 ```bash
 npm run build
-grep -rn "dexie\|Dexie\|DataLayer\|sync_status\|pendingOp\|temp_id\|is_offline_sync\|content_hash\|sync_hash\|isDexieActive\|getDexieManager\|offlineSync\|dexieActive" \
+grep -rn "dexie\|Dexie\|DataLayer\|sync_status\|pendingOp\|temp_id\|is_offline_sync\|content_hash\|sync_hash\|isDexieActive\|getDexieManager\|offlineSync\|dexieActive\|offlineManager\|OfflineManager\|offlineDashboard\|pendingRecords\|createFactOffline\|createPlanOffline\|createTransferOffline" \
   frontend/web/static/js/ frontend/shared/ frontend/web/templates/
 # must return 0 results
 
