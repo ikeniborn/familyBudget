@@ -32,7 +32,7 @@ Category hierarchy for shopping lists and store products. Separate tree from art
 
 ## Shopping List
 
-Temporary list of items to purchase. Items can reference product groups and stores. Supports offline creation via [[frontend#Dexie Offline Sync]].
+Temporary list of items to purchase. Items can reference product groups and stores. Managed via REST API + WebSocket real-time sync across tabs.
 
 ## Recurring Plan
 

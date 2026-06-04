@@ -1,6 +1,6 @@
 # Frontend
 
-Progressive Web App built with HTMX + Tailwind CSS + DaisyUI. TypeScript compiled via Rollup into bundles. Supports offline via Dexie.js IndexedDB.
+Progressive Web App built with HTMX + Tailwind CSS + DaisyUI. TypeScript compiled via Rollup into bundles. Real-time sync via WebSocket + Redis Pub/Sub.
 
 ## Architecture
 
@@ -24,13 +24,9 @@ Bundle configs: `config/` directory. Output: `frontend/web/static/js/**/*.min.js
 
 Server returns HTML fragments to HTMX `hx-target`. Partial endpoints in `backend/app/api/v1/endpoints/facts_partials.py`. WebSocket events trigger `htmx.trigger()` to refresh specific components. See [[realtime#WebSocket Protocol]].
 
-## Dexie Offline Sync
+## Real-Time Sync
 
-IndexedDB via Dexie.js 4.0+ for offline-first operations. Shopping lists and facts can be created offline; sync runs on reconnect via [[api#Key Endpoint Groups#Sync]].
-
-Schema defined in TypeScript `frontend/web/static/js/data/`. Delete sync uses soft-delete flags, not physical removal, to avoid sync conflicts. Edit persistence requires re-fetching from IndexedDB after save — not from DOM.
-
-Shopping list item upload (`shoppingSync.ts`): if PUT returns 404 (item deleted server-side), the sync falls back to POST to recreate it. This preserves offline edits that would otherwise be silently lost.
+WebSocket client (`budgetWSClient.js`) handles all real-time events. Multi-tab sync via Redis Pub/Sub — events from any tab/device propagate to all open sessions instantly. No local IndexedDB — all data fetched from REST API. See [[realtime#WebSocket Protocol]].
 
 ## CSS
 

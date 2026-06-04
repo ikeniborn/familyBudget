@@ -9,6 +9,6 @@ Top-level navigation for all lat.md documentation sections in this project.
 - [[database]] — star schema, SCD Type 1/2, Closure Table, partitioning
 - [[auth]] — Telegram OAuth, Email+Password, WebAuthn, JWT, 2FA
 - [[api]] — REST endpoints, WebSocket, sync protocol, import pipeline
-- [[frontend]] — HTMX + Tailwind, TypeScript bundles, Dexie offline sync
+- [[frontend]] — HTMX + Tailwind, TypeScript bundles, PWA
 - [[realtime]] — WebSocket + Redis Pub/Sub, write-behind cache
 - [[bot]] — Telegram bot commands, scheduled jobs, Web App auth

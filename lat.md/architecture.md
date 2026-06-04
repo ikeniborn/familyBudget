@@ -14,7 +14,7 @@ Entry point: `backend/app/main.py`. Router tree: `api/v1/endpoints/` (REST) + `a
 
 ### Frontend (PWA)
 
-Progressive Web App served by the backend. HTMX drives partial HTML updates; TypeScript bundles handle complex UI logic. Supports offline via Dexie.js IndexedDB sync. See [[frontend#Architecture]].
+Progressive Web App served by the backend. HTMX drives partial HTML updates; TypeScript bundles handle complex UI logic. See [[frontend#Architecture]].
 
 ### Telegram Bot
 
