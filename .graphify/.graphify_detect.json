@@ -1,28 +1,21 @@
 {
+  "total_files": 8,
+  "total_words": 17257,
   "files": {
     "code": [
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/index.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/helpers.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/planModal.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/analytics.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/filterAnalyticsSync.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/filters.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/crud.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/wsEventHandlers.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/factsTable.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/analyticsArticleChoices.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/adapters/windowExports.ts",
-      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/plan/adapters/eventDelegation.ts"
+      "/home/ikeniborn/Documents/Project/familyBudget/backend/app/services/shopping_list_item_service.py",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/csvImporter.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/importManager.js",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/listsManager/core/listOperations.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/listsManager/rendering/hierarchyIntegration.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/listsManager/rendering/listRenderer.ts",
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/static/js/lists/listsManager/ui/modalManager.ts"
     ],
-    "document": [],
-    "paper": [],
+    "document": [
+      "/home/ikeniborn/Documents/Project/familyBudget/frontend/web/templates/partials/lists/detail_view.html"
+    ],
     "image": [],
     "video": []
   },
-  "total_files": 12,
-  "total_words": 22438,
-  "needs_graph": false,
-  "warning": "Corpus is ~22,438 words - fits in a single context window. You may not need a graph.",
-  "skipped_sensitive": [],
-  "graphifyignore_patterns": 39
+  "skipped_sensitive": []
 }
