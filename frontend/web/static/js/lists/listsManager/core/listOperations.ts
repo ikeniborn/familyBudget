@@ -570,13 +570,9 @@ export async function deleteMultipleItems(itemIds: number[], skipConfirm: boolea
           )
         );
 
-        // Reload from server to sync state
-        if (state.currentListId) {
-          await loadShoppingListItems(state.currentListId);
-        }
-
-        // Evict from Dexie by server id — items may lack temp_id if created
-        // via import before Dexie sync completed
+        // Evict from Dexie BEFORE reload — items may lack temp_id if created
+        // via import before Dexie sync completed; evicting first prevents
+        // loadShoppingListItems from pulling them back into state
         if (isDexieActive()) {
           try {
             await dexieDb.shoppingListItems.where('id').anyOf(itemIds).delete();
@@ -584,6 +580,11 @@ export async function deleteMultipleItems(itemIds: number[], skipConfirm: boolea
           } catch (dexieErr) {
             console.warn('[LIST_OPS] Dexie eviction failed (non-critical):', dexieErr);
           }
+        }
+
+        // Reload after eviction so state reflects clean server state
+        if (state.currentListId) {
+          await loadShoppingListItems(state.currentListId);
         }
 
         renderCurrentView();

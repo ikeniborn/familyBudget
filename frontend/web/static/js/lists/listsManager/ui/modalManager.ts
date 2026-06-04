@@ -704,15 +704,15 @@ export async function confirmDeleteList(): Promise<void> {
 /**
  * Open edit list modal — reads current list from state, fills name/description
  */
-export function openEditListModal(): void {
+export function openEditListModal(listId?: number): void {
   const state = getState();
-  const listId = state.currentListId;
-  if (!listId) {
+  const id = listId ?? state.currentListId;
+  if (!id) {
     showToast('Список не выбран', 'error');
     return;
   }
 
-  const list = state.shoppingLists.find(l => l.id === listId);
+  const list = state.shoppingLists.find(l => l.id === id);
   if (!list) {
     showToast('Список не найден', 'error');
     return;
@@ -725,7 +725,7 @@ export function openEditListModal(): void {
 
   if (nameInput) nameInput.value = list.name;
   if (descInput) descInput.value = list.description || '';
-  if (hiddenId) hiddenId.value = String(listId);
+  if (hiddenId) hiddenId.value = String(id);
 
   if (modal) modal.showModal();
 }

@@ -10,20 +10,11 @@
 <!-- ============================================== -->
 <div id="detail-view" class="view-state hidden">
     <!-- Breadcrumb Navigation -->
-    <div class="flex items-center gap-2">
-        <div class="text-sm breadcrumbs flex-1 min-w-0">
-            <ul>
-                <li><a href="#" onclick="showLandingView(); return false;">🛒 Списки покупок</a></li>
-                <li id="breadcrumb-list-name" class="truncate max-w-48 sm:max-w-none">Loading...</li>
-            </ul>
-        </div>
-        <button
-            onclick="window.openEditListModal()"
-            class="btn btn-ghost btn-sm btn-circle flex-shrink-0"
-            title="Редактировать список"
-            aria-label="Редактировать список">
-            ✏️
-        </button>
+    <div class="text-sm breadcrumbs">
+        <ul>
+            <li><a href="#" onclick="showLandingView(); return false;">🛒 Списки покупок</a></li>
+            <li id="breadcrumb-list-name" class="truncate max-w-48 sm:max-w-none">Loading...</li>
+        </ul>
     </div>
 
     <!-- Import Accordion (CSV or Google Sheets) - hidden on mobile -->
