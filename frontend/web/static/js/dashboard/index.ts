@@ -7,7 +7,6 @@
  * This module manages:
  * - Add Transaction/Plan modals
  * - Edit Fact/Plan modal
- * - Pending records management (IndexedDB sync queue)
  * - Mobile UI (collapsible sections)
  * - WebSocket event handlers for real-time updates
  */
@@ -26,9 +25,6 @@ export {
   setTransactionCategoryTreeSelect,
   setPlanCategoryTreeSelect,
   setEditCategoryTreeSelect,
-  incrementPendingCallCount,
-  setPendingLock,
-  getPendingLock,
 } from './core/DashboardState';
 
 export type { DashboardState } from './core/DashboardState';
@@ -52,19 +48,11 @@ export type {
   CostCenter,
   CacheEntry,
   DropdownCache,
-  PendingRecordEntity,
-  PendingRecordStatus,
   RecordType,
   FactType,
-  PendingRecordData,
-  PendingRecord,
-  PendingRecordsRenderResult,
-  UnsyncedItemsResult,
   EditRecordType,
   EditFactData,
   EditPlanData,
-  TransactionFormData,
-  PlanFormData,
   TransferFormData,
   FrequencyType,
   DurationType,
@@ -72,7 +60,6 @@ export type {
   RecurringSettings,
   PlanHintsData,
   FactHintsData,
-  SyncResults,
 } from './types/dashboard.d';
 
 // Analytics types (task-011)
@@ -82,40 +69,6 @@ export type { QuickStats, AccountBalance, RecentFact } from './types/analytics';
 // Feature Exports
 // ============================================================================
 
-// Pending Records (Phase 2)
-export {
-  // State
-  isLoadInProgress,
-  acquireLoadLock,
-  releaseLoadLock,
-  waitForExistingLock,
-  getNextCallId,
-  getCurrentCallCount,
-  // Renderer
-  formatShortDate,
-  formatAmount,
-  getStatusBadge,
-  getStatusBadgeMobile,
-  getRecordTypeLabel,
-  getRecordTypeLabelXs,
-  generateHTMLSync,
-  generateHTMLAsync,
-  shouldUseWorker,
-  getWorkerThreshold,
-  // Sync operations
-  loadPendingRecords,
-  retryFailedItems,
-  handleSyncResults,
-  deletePendingRecord,
-  deleteFailedRecords,
-  updatePendingCount,
-  syncPendingRecords,
-  notifyPendingRecords,
-  // Transfer split
-  splitTransferToFacts,
-  handleTransferEditClick,
-} from './features/pendingRecords';
-
 // Add Transaction (Phase 3)
 export {
   loadTransactionCategories,
@@ -124,7 +77,6 @@ export {
   filterCostCenterDropdown,
   loadFactHints,
   saveTransaction,
-  saveTransactionOffline,
   setTransactionDate,
   setupTransactionTypeButtons,
 } from './features/addTransaction';
@@ -164,7 +116,6 @@ export {
   loadRemindersForEdit,
   populateFinancialCentersDropdown,
   populateCostCentersDropdown,
-  populateOfflineDropdowns,
   // Reminder helpers
   toggleEditReminderSettings,
   initEditReminderCalendarWidget,
@@ -174,13 +125,11 @@ export {
   getReminderStatusBadge,
   // Form population
   getCurrentEditingRecordType,
-  getCurrentEditingPendingId,
   setCurrentEditingState,
   setEditModalMode,
   updateEditCategoryTypeBadge,
   setupEditCategoryTypeButtons,
   initEditCategoryTreeSelect,
-  openEditPendingRecord,
   openEditModal,
   closeEditModal,
   // Save operations
@@ -215,9 +164,6 @@ export {
 // Facts Manager (task-011: Dashboard Query Optimization)
 export { factsManager } from './features/factsManager';
 
-// Offline Dashboard (offline-dashboard: coordinator)
-export { offlineDashboard } from './features/offlineDashboard';
-
 // Recent Transactions (Table Optimization v2.0)
 export { loadRecentTransactions } from './recentTransactions';
 
@@ -233,7 +179,6 @@ export { dashboardExports, initWindowExports } from './adapters/windowExports';
 
 import { initWindowExports, dashboardExports } from './adapters/windowExports';
 import { setInitialized } from './core/stateManager';
-import { offlineDashboard } from './features/offlineDashboard';
 
 // Desktop FAB component (auto-initializes on import)
 import '../components/desktopFab';
@@ -253,9 +198,6 @@ function initModule(): void {
   // Call Dashboard.init() to set up forms, event listeners, and WebSocket handlers
   // This is critical for the module to work properly
   dashboardExports.init();
-
-  // Initialize offline dashboard coordinator
-  offlineDashboard.init();
 
   debugLog('[Dashboard] Module loaded');
 }

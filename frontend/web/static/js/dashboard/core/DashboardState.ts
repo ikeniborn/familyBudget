@@ -51,11 +51,6 @@ export interface DashboardState {
 
   // Edit modal state
   currentEditingRecordType: EditRecordType;
-  currentEditingPendingId: number | null;
-
-  // Pending records deduplication
-  loadPendingLock: Promise<void> | null;
-  loadPendingCallCount: number;
 
   // Mobile UI state
   quickStatsExpanded: boolean;
@@ -107,11 +102,6 @@ function createDefaultState(): DashboardState {
 
     // Edit modal state
     currentEditingRecordType: null,
-    currentEditingPendingId: null,
-
-    // Pending records deduplication
-    loadPendingLock: null,
-    loadPendingCallCount: 0,
 
     // Mobile UI state
     quickStatsExpanded: false,
@@ -310,30 +300,4 @@ export function setPlanCategoryTreeSelect(instance: CategoryTreeSelectInstance |
  */
 export function setEditCategoryTreeSelect(instance: CategoryTreeSelectInstance | null): void {
   state.editCategoryTreeSelect = instance;
-}
-
-// ============================================================================
-// Pending Records Deduplication Helpers
-// ============================================================================
-
-/**
- * Get and increment pending call count (for debugging)
- */
-export function incrementPendingCallCount(): number {
-  state.loadPendingCallCount++;
-  return state.loadPendingCallCount;
-}
-
-/**
- * Set pending lock promise
- */
-export function setPendingLock(lock: Promise<void> | null): void {
-  state.loadPendingLock = lock;
-}
-
-/**
- * Get pending lock promise
- */
-export function getPendingLock(): Promise<void> | null {
-  return state.loadPendingLock;
 }

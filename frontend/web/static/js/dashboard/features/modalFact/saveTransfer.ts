@@ -7,8 +7,6 @@
 
 import { refreshUIAfterFactSave } from '../../shared/utils/uiRefresh';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
-import { createFact, generateUUID, isDexieActive } from '@db/dexie';
-import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 /**
  * Save fact transfer
@@ -41,71 +39,18 @@ export async function saveFactTransfer(form: HTMLFormElement): Promise<void> {
     description: descriptionInput?.value || null
   };
 
-  try {
-    // POST /api/v1/transfers
-    const transferData = await postAPI<{ expense_fact_id?: number; income_fact_id?: number }>(
-      '/api/v1/transfers', data, 'SaveFactModal'
-    );
+  // POST /api/v1/transfers
+  const transferData = await postAPI<{ expense_fact_id?: number; income_fact_id?: number }>(
+    '/api/v1/transfers', data, 'SaveFactModal'
+  );
 
-    // Try incremental row injection for facts page; fall back to full reload if unavailable
-    const injectRow = (window as any).FactsManager?.fetchAndInjectRow;
-    if (typeof injectRow === 'function') {
-      const ids = [transferData.expense_fact_id, transferData.income_fact_id].filter(Boolean) as number[];
-      const results = await Promise.all(ids.map(id => injectRow(id, 'create') as Promise<boolean>));
-      if (results.some(Boolean)) return;
-    }
-
-    await refreshUIAfterFactSave();
-  } catch (error) {
-    // Offline fallback: create both sides of the transfer in Dexie pendingOperations
-    const isOffline = !navigator.onLine
-      || (error instanceof TypeError && /fetch/i.test(error.message));
-
-    if (isOffline && isDexieActive()) {
-      try {
-        const userId = await getCurrentUserId();
-        const transferGroupId = generateUUID();
-
-        // Debit side (expense): money leaving from_financial_center
-        await createFact({
-          user_id: userId,
-          article_id: data.from_article_id ?? 0,
-          financial_center_id: data.from_financial_center_id,
-          cost_center_id: null,
-          date: data.transfer_date,
-          amount: -Math.abs(data.amount),
-          record_type: 'fact',
-          comment: data.description ?? null,
-          transfer_group_id: transferGroupId,
-          is_transfer: true,
-          sync_hash: null
-        });
-
-        // Credit side (income): money arriving at to_financial_center
-        await createFact({
-          user_id: userId,
-          article_id: data.to_article_id ?? 0,
-          financial_center_id: data.to_financial_center_id,
-          cost_center_id: null,
-          date: data.transfer_date,
-          amount: Math.abs(data.amount),
-          record_type: 'fact',
-          comment: data.description ?? null,
-          transfer_group_id: transferGroupId,
-          is_transfer: true,
-          sync_hash: null
-        });
-
-        if (typeof (window as any).showToast === 'function') {
-          (window as any).showToast('Перевод сохранён offline — отправится при подключении', 'info');
-        }
-        await refreshUIAfterFactSave();
-        return;
-      } catch (offlineError) {
-        console.error('[SaveFactModal] Failed to save transfer offline:', offlineError);
-      }
-    }
-
-    throw error;
+  // Try incremental row injection for facts page; fall back to full reload if unavailable
+  const injectRow = (window as any).FactsManager?.fetchAndInjectRow;
+  if (typeof injectRow === 'function') {
+    const ids = [transferData.expense_fact_id, transferData.income_fact_id].filter(Boolean) as number[];
+    const results = await Promise.all(ids.map(id => injectRow(id, 'create') as Promise<boolean>));
+    if (results.some(Boolean)) return;
   }
+
+  await refreshUIAfterFactSave();
 }

@@ -5,8 +5,6 @@
  */
 
 import { getState } from '../../core/DashboardState';
-import { loadPendingRecords } from '../pendingRecords';
-import type { TransactionFormData } from '../../types/dashboard.d';
 
 
 
@@ -31,92 +29,6 @@ export function saveTransaction(button: HTMLElement): void {
     // Re-enable button if validation fails
     setButtonLoading(button, false);
     form?.reportValidity();
-  }
-}
-
-/**
- * Save transaction to offline queue only (without uploading)
- */
-export async function saveTransactionOffline(button: HTMLElement): Promise<void> {
-  const formId = button.dataset.formId;
-  const modalId = button.dataset.modalId;
-  const form = formId ? document.getElementById(formId) as HTMLFormElement | null : null;
-  const modal = modalId ? document.getElementById(modalId) as HTMLDialogElement | null : null;
-
-  if (!form || !modal) {
-    console.error('[saveTransactionOffline] Form or modal not found:', formId, modalId);
-    return;
-  }
-
-  // Validate form
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    return;
-  }
-
-  // Disable button and show loading
-  setButtonLoading(button, true);
-
-  try {
-    const formData = new FormData(form);
-
-    // Helper to get selected option text
-    function getSelectedText(selectElement: HTMLSelectElement | null): string | null {
-      if (!selectElement) return null;
-      const selected = selectElement.options[selectElement.selectedIndex];
-      return selected ? selected.text : null;
-    }
-
-    // Get form elements for names
-    const fcSelect = form.querySelector('[name="financial_center_id"]') as HTMLSelectElement | null;
-    const ccSelect = form.querySelector('[name="cost_center_id"]') as HTMLSelectElement | null;
-
-    // Get article name from category tree
-    let articleName: string | null = null;
-    const state = getState();
-    if (state.transactionCategoryTreeSelect?.getSelectedCategory) {
-      const selected = state.transactionCategoryTreeSelect.getSelectedCategory();
-      articleName = selected ? selected.name : null;
-    }
-
-    const data: TransactionFormData = {
-      record_type: 'fact',
-      fact_type: formData.get('record_type') as 'income' | 'expense',
-      amount: Number.parseInt(formData.get('amount') as string, 10),
-      article_id: parseInt(formData.get('article_id') as string),
-      article_name: articleName || undefined,
-      financial_center_id: parseInt(formData.get('financial_center_id') as string),
-      financial_center_name: getSelectedText(fcSelect) || undefined,
-      cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id') as string) : null,
-      cost_center_name: getSelectedText(ccSelect) || undefined,
-      fact_date: window.BudgetShared?.DateFormatter.formatForAPI(formData.get('fact_date') as string) || '',
-      description: (formData.get('description') as string) || null,
-    };
-
-    // Force offline save (bypass online check)
-    if (window.offlineManager) {
-      await window.offlineManager.createFactOffline(data);
-
-      modal.close();
-      form.reset();
-
-      // Reset date to today
-      const dateInput = form.querySelector('input[name="fact_date"]') as HTMLInputElement | null;
-      if (dateInput && window.BudgetShared?.DateFormatter) {
-        dateInput.value = window.BudgetShared.DateFormatter.today();
-      }
-
-      showToast('Факт сохранен локально (синхронизируется при подключении)', 'warning');
-      // Update pending records table
-      await loadPendingRecords();
-    } else {
-      showToast('Ошибка: OfflineManager не доступен', 'error');
-    }
-  } catch (error) {
-    console.error('[saveTransactionOffline] Error:', error);
-    showToast('Ошибка при сохранении: ' + (error as Error).message, 'error');
-  } finally {
-    setButtonLoading(button, false);
   }
 }
 

@@ -4,12 +4,10 @@
  * Handles saving/updating facts and plans from the edit modal.
  */
 
-import { loadPendingRecords } from '../pendingRecords';
-import { closeEditModal, getCurrentEditingPendingId, getCurrentEditingRecordType } from './formPopulation';
+import { closeEditModal, getCurrentEditingRecordType } from './formPopulation';
 import {
   validateFactForm,
   buildFactDataFromForm,
-  updatePendingRecord,
   updateOnlineRecord,
   updateReminder,
 } from './helpers';
@@ -82,25 +80,7 @@ export async function updateFact(event: Event): Promise<void> {
   // Build data object
   const data = buildFactDataFromForm(formData);
 
-  const currentEditingPendingId = getCurrentEditingPendingId();
   const currentEditingRecordType = getCurrentEditingRecordType();
-
-  // Handle pending record update
-  if (currentEditingPendingId !== null) {
-    try {
-      await updatePendingRecord(currentEditingPendingId, data, formData, currentEditingRecordType || 'fact');
-
-      closeEditModal();
-      await loadPendingRecords();
-      showToast('Запись обновлена (ожидает синхронизации)', 'success');
-    } catch (error) {
-      console.error('[SAVE_EDIT] Error updating pending record:', error);
-      showToast('Ошибка обновления записи: ' + (error as Error).message, 'error');
-    } finally {
-      setSubmitLoading(form, false);
-    }
-    return;
-  }
 
   // Handle online record update
   const editScope = formData.get('edit_scope') as string;
