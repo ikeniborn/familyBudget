@@ -175,8 +175,9 @@ class ImportManager {
 
             if (this.googleSheetsImporter) {
                 // Delegate to Google Sheets importer
+                // Use init() so fetchSavedGoogleSheetsUrl() runs on every open
                 this.googleSheetsImporter.container = this.container;
-                this.googleSheetsImporter.renderStep1();
+                this.googleSheetsImporter.init().catch(e => console.error('[ImportManager] GoogleSheetsImporter init error:', e));
             } else {
                 console.error('[ImportManager] GoogleSheetsImporter not loaded');
                 showToast('Ошибка: Google Sheets импортер не загружен', 'error');
