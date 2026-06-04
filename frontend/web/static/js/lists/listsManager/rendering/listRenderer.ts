@@ -12,7 +12,6 @@ import { getState, updateState } from '../core/ListsState';
 import { loadShoppingLists, loadShoppingListItems } from '../core/stateManager';
 import { renderCurrentView } from './tableBuilder';
 import { updateHideCompletedButton, updateFABButtons, clearSearch } from '../features/searchFilter';
-import { openEditListModal } from '../ui/modalManager';
 
 // ============================================================================
 // Type Definitions
@@ -401,11 +400,12 @@ export function renderShoppingListCards(): void {
   });
 
   grid.querySelectorAll('.btn-edit-list').forEach(btn => {
-    btn.addEventListener('click', (e: Event) => {
+    btn.addEventListener('click', async (e: Event) => {
       e.stopPropagation();
       const htmlBtn = btn as HTMLElement;
       const listId = htmlBtn.dataset.listId;
       if (listId) {
+        const { openEditListModal } = await import('../ui/modalManager');
         openEditListModal(parseInt(listId, 10));
       }
     });
