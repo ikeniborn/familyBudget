@@ -162,7 +162,7 @@ export {
 } from './integration';
 
 // Facts Manager (task-011: Dashboard Query Optimization)
-export { factsManager } from './features/factsManager';
+export { dashboardFactsManager } from './features/factsManager';
 
 // Recent Transactions (Table Optimization v2.0)
 export { loadRecentTransactions } from './recentTransactions';

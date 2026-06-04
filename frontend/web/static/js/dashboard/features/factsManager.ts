@@ -28,6 +28,7 @@ class DashboardFactsManager {
     return await r.json();
   }
 
+  // TODO(task-12): backend endpoint /api/v1/financial-centers/balances doesn't exist; called only by DataLayer.ts which will be deleted in Task 9.
   async loadAccountBalances(): Promise<AccountBalance[]> {
     const r = await fetch('/api/v1/financial-centers/balances', { credentials: 'include' });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
@@ -52,4 +53,4 @@ class DashboardFactsManager {
   }
 }
 
-export const factsManager = new DashboardFactsManager();
+export const dashboardFactsManager = new DashboardFactsManager();

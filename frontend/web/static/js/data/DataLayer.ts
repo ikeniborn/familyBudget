@@ -44,7 +44,7 @@ import type {
   FactFilters,
   RecurringPlanFilters
 } from '@db/dexie';
-import { factsManager } from '../dashboard/features/factsManager';
+import { dashboardFactsManager } from '../dashboard/features/factsManager';
 import type {
   ArticleListResponse,
   FinancialCenterListResponse,
@@ -1541,7 +1541,7 @@ export class DataLayer {
    * @returns Dashboard data (recent facts, quick stats, account balances)
    */
   async getDashboardData() {
-    return await factsManager.initDashboard();
+    return await dashboardFactsManager.initDashboard();
   }
 
   // =============================================================================
