@@ -379,7 +379,8 @@ export async function downloadShoppingListItems(listId: number): Promise<{
   try {
     const response = await fetchWithTimeout(
       `/api/v1/shopping-list-items?shopping_list_id=${listId}&limit=1000`,
-      { method: 'GET', credentials: 'include' }
+      { method: 'GET', credentials: 'include' },
+      5000
     );
 
     if (!response.ok) {
