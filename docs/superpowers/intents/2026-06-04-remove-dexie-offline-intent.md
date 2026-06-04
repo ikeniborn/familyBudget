@@ -1,7 +1,7 @@
 # Intent: Remove Dexie and Offline Mode
 
 **Date:** 2026-06-04
-**Status:** draft
+**Status:** approved
 
 ## Objective
 
