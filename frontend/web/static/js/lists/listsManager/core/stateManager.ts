@@ -40,6 +40,8 @@ const TEMP_ID_SUFFIX = '_temp';
  * events) cannot mask newly-created lists.
  */
 let bootstrapPullDone = false;
+// Track lists that have had a fresh server pull this session (avoids stale Dexie from missed WS events)
+const bootstrapPulledListIds = new Set<number>();
 
 // ============================================================================
 // Type Definitions
@@ -415,5 +417,18 @@ async function loadStoresAndGroups(): Promise<void> {
 export async function switchToList(listId: number): Promise<void> {
   // Clear stale items from previous list immediately — prevents wrong items showing on load error
   updateState({ currentListId: listId, currentItems: [] });
+
+  // Force server pull on first open per session — recovers from missed WS delete events
+  // (e.g. Device 2 was offline when Device 1 deleted items)
+  if (!bootstrapPulledListIds.has(listId)) {
+    bootstrapPulledListIds.add(listId);
+    try {
+      const { downloadShoppingListItems } = await import('@db/dexie');
+      await downloadShoppingListItems(listId);
+    } catch (pullError) {
+      debugLog('[ListsManager] Bootstrap items pull failed (non-fatal)', pullError);
+    }
+  }
+
   await loadShoppingListItems(listId);
 }

@@ -557,7 +557,7 @@ export async function deleteMultipleItems(itemIds: number[], skipConfirm: boolea
 
       if (tempIds.length !== itemIds.length) {
         // FALLBACK: If temp_id missing, use API-only deletion (skip Dexie)
-        console.warn('[LIST_OPS] Some items missing temp_id, using API-only deletion');
+        debugLog('[LIST_OPS] Some items missing temp_id, using API-only deletion');
 
         // API-only bulk delete
         await Promise.all(

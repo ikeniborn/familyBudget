@@ -354,7 +354,17 @@ class CSVImporter {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.detail || 'Failed to analyze CSV file');
+                let detail: string;
+                if (Array.isArray(error.detail)) {
+                    detail = error.detail.map((e: any) => e.msg || JSON.stringify(e)).join(', ');
+                } else if (typeof error.detail === 'string') {
+                    detail = error.detail;
+                } else if (error.detail) {
+                    detail = JSON.stringify(error.detail);
+                } else {
+                    detail = `HTTP ${response.status}`;
+                }
+                throw new Error(detail || 'Failed to analyze CSV file');
             }
 
             this.detectionResult = await response.json();

@@ -362,3 +362,64 @@ async function uploadShoppingList(list: LocalShoppingList): Promise<void> {
     logger.info('[shoppingSync] ✅ List updated', { temp_id: list.temp_id });
   }
 }
+
+/**
+ * Download items for a specific shopping list from server and replace stale Dexie rows.
+ *
+ * Replaces only rows with sync_status='synced'; pending and deleted
+ * local edits are preserved for the next upload pass.
+ * Call on first list open per session to recover from missed WS delete events.
+ */
+export async function downloadShoppingListItems(listId: number): Promise<{
+  success: boolean;
+  count: number;
+}> {
+  logger.info('[shoppingSync] Downloading items for list', { listId });
+
+  try {
+    const response = await fetchWithTimeout(
+      `/api/v1/shopping-list-items?shopping_list_id=${listId}&limit=1000`,
+      { method: 'GET', credentials: 'include' }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch items: ${response.status}`);
+    }
+
+    const payload = await response.json();
+    const serverItems: LocalShoppingListItem[] = payload.items ?? [];
+
+    // Resolve list temp_id (needed as FK for Dexie queries)
+    const list = await db.shoppingLists.where('id').equals(listId).first();
+    const listTempId = list?.temp_id ?? `server-list-${listId}`;
+
+    const now = new Date();
+    const localItems: LocalShoppingListItem[] = serverItems.map(item => ({
+      ...item,
+      temp_id: item.temp_id || `item_${item.id}_server`,
+      shopping_list_temp_id: item.shopping_list_temp_id || listTempId,
+      sync_status: 'synced' as const,
+      synced_at: now,
+      created_at: item.created_at ? new Date(item.created_at as unknown as string) : now,
+      updated_at: item.updated_at ? new Date(item.updated_at as unknown as string) : now,
+      completed_at: item.completed_at ? new Date(item.completed_at as unknown as string) : null,
+      deleted_at: item.deleted_at ? new Date(item.deleted_at as unknown as string) : null,
+    }));
+
+    // Replace only synced rows for this list; preserve pending/conflict local edits
+    await db.shoppingListItems
+      .where('shopping_list_temp_id').equals(listTempId)
+      .and(item => item.sync_status === 'synced')
+      .delete();
+
+    if (localItems.length > 0) {
+      await db.shoppingListItems.bulkPut(localItems);
+    }
+
+    logger.info('[shoppingSync] ✅ Items downloaded', { listId, count: localItems.length });
+    return { success: true, count: localItems.length };
+  } catch (error) {
+    logger.error('[shoppingSync] ❌ Items download failed:', error);
+    return { success: false, count: 0 };
+  }
+}
