@@ -266,7 +266,6 @@ declare global {
   function showToast(message: string, type: 'success' | 'error' | 'warning' | 'info'): void;
   function debugLog(...args: any[]): void;
   function setButtonLoading(button: HTMLElement, loading: boolean): void;
-  function updatePendingSyncBadge(count: number, showAnimation: boolean): void;
 }
 
 // ============================================================================

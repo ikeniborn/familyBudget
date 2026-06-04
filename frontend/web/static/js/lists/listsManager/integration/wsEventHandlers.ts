@@ -13,7 +13,6 @@ import { updateItemsCache } from '../core/listOperations';
 import { renderCurrentView } from '../rendering/tableBuilder';
 import { updateFABVisibility, renderLandingView, renderShoppingListCards } from '../rendering/listRenderer';
 import { updateFABButtons } from '../features/searchFilter';
-import { db } from '@db/dexie';
 
 // ============================================================================
 // Type Definitions
@@ -21,31 +20,6 @@ import { db } from '@db/dexie';
 
 declare const debugLog: (...args: any[]) => void;
 declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
-
-// ============================================================================
-// Dexie Sync Helpers
-// ----------------------------------------------------------------------------
-// Item create/update/delete persistence lives in budgetWSClient/integration/
-// eventHandlers.ts (upsertShoppingItemInDexie / hardDeleteShoppingItemInDexie),
-// which is always loaded. This layer only handles the is_completed toggle —
-// the budget-layer does not have a handler for `item_completed`.
-// ============================================================================
-
-/**
- * Update is_completed on a Dexie row by server id.
- */
-async function toggleItemCompletedInDexie(itemId: number, isCompleted: boolean): Promise<void> {
-  try {
-    await db.shoppingListItems.where('id').equals(itemId).modify({
-      is_completed: isCompleted,
-      completed_at: isCompleted ? new Date() : null,
-      sync_status: 'synced',
-      updated_at: new Date(),
-    });
-  } catch (error) {
-    debugLog('[ListsManager] Dexie toggle-complete failed for item:', itemId, error);
-  }
-}
 
 // ============================================================================
 // Event Handlers
@@ -252,9 +226,6 @@ export function handleItemCompletedToggled(itemId: number, isCompleted: boolean,
 
   updateState({ currentItems: newItems });
   debugLog('[ListsManager] Toggled item from WebSocket:', itemId, isCompleted);
-
-  // Persist to Dexie (BUG #4)
-  void toggleItemCompletedInDexie(itemId, isCompleted);
 
   // Re-render and update UI
   renderCurrentView();

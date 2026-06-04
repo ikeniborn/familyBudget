@@ -12,15 +12,6 @@ import './lists/csvImporter.ts';
 import './lists/googleSheetsImporter';
 import './lists/importManager';
 
-// Dexie progress notification (v11.0+)
-import { showDexieProgress, hideDexieProgress } from './notifications/dexieProgressToast';
-
-// Dexie operations (v11.4.12+)
-import { addItemToList } from '../../../shared/db/dexie/index';
-
-// Dexie diagnostic modal (v11.4.0+)
-import { openDexieDiagnostic } from './modules/uiComponents/modals/DexieDiagnosticModal';
-
 // === МОДУЛЬНЫЕ ЭКСПОРТЫ (заменяет legacy listsManager.js) ===
 import {
   // Initialization
@@ -152,6 +143,7 @@ const windowExports = {
   deleteCompletedWithConfirm,
 
   // Hierarchy (TypeScript v7.x+)
+  // (Dexie operations and diagnostic exports removed — see Task 9)
   toggleAllNodes: () => {
     if (window.hierarchyView) {
       const btn = document.getElementById('hierarchy-toggle-btn');
@@ -224,17 +216,7 @@ const windowExports = {
         window.importManager.init();
       }
     }
-  },
-
-  // Dexie operations (v11.4.12+)
-  addItemToList,
-
-  // Dexie progress notifications (v10.1.38+)
-  showDexieProgress,
-  hideDexieProgress,
-
-  // Dexie diagnostic modal (v11.4.0+)
-  openDexieDiagnostic
+  }
 };
 
 // Handle browser back/forward navigation
@@ -252,10 +234,6 @@ try {
     // Object.assign работает корректно после Vite минификации
     // (в отличие от Object.entries().forEach() который tree-shaking может удалить)
     Object.assign(window, windowExports);
-
-    // Backward compatibility aliases: Dexie → Dexie terminology
-    (window as any).showDexieProgress = showDexieProgress;
-    (window as any).hideDexieProgress = hideDexieProgress;
 
     // Create window.listsManager object for backward compatibility
     // (used in onclick handlers: window.listsManager.showDetailView, toggleItemCompleted)

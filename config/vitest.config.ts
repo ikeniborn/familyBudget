@@ -79,18 +79,6 @@ export default defineConfig({
           functions: 66,   // LOWERED: Actual 66.66% after skipping legacy autocomplete tests
           branches: 85,
           statements: 62   // LOWERED: Actual 63.43% after skipping legacy autocomplete tests
-        },
-        '**/offlineManager/core/*.ts': {
-          lines: 10,       // LOWERED: Actual 10.62% after hierarchyView migration (PR #321)
-          functions: 70,
-          branches: 60,
-          statements: 10   // LOWERED: Actual 10.62% after hierarchyView migration (PR #321)
-        },
-        '**/offlineManager/operations/*.ts': {
-          lines: 0,        // TODO: Raise to 95% after migration (Phase 2.1-2.5)
-          functions: 0,
-          branches: 0,
-          statements: 0
         }
       }
     },
@@ -98,8 +86,7 @@ export default defineConfig({
       '@web': resolve(__dirname, '../frontend/web/static/js'),
       '@webapp': resolve(__dirname, '../frontend/webapp/static/js'),
       '@shared': resolve(__dirname, '../frontend/shared/static/js'),
-      '@components': resolve(__dirname, '../frontend/web/static/js/modules/uiComponents'),
-      '@db': resolve(__dirname, '../frontend/shared/db')
+      '@components': resolve(__dirname, '../frontend/web/static/js/modules/uiComponents')
     }
   }
 });

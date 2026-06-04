@@ -34,36 +34,12 @@ const builds = [
     globalName: 'NetworkModule'
   },
 
-  // === Dexie IndexedDB Wrapper (loaded after network, before other modules) ===
-  {
-    name: 'dexie',
-    input: 'frontend/shared/db/dexie/index.ts',
-    output: 'frontend/shared/db/dexie.min.js',
-    globalName: 'Dexie'
-  },
-
-  // === Dexie Diagnostic (global, loaded after Dexie in base.html) ===
-  {
-    name: 'dexieDiagnostic',
-    input: 'frontend/web/static/js/diagnostics/dexie-diagnostic-entry.ts',
-    output: 'frontend/web/static/js/diagnostics/dexie-diagnostic.min.js',
-    globalName: 'DexieDiagnostic'
-  },
-
-  // === Performance Monitoring (loaded after Dexie) ===
+  // === Performance Monitoring ===
   {
     name: 'performanceMonitor',
     input: 'frontend/web/static/js/monitoring/PerformanceMonitor.ts',
     output: 'frontend/web/static/js/monitoring/PerformanceMonitor.min.js',
     globalName: 'PerformanceMonitor'
-  },
-
-  // === Data Layer (Dexie-first with API fallback) ===
-  {
-    name: 'dataLayer',
-    input: 'frontend/web/static/js/data/DataLayer.ts',
-    output: 'frontend/web/static/js/data/DataLayer.min.js',
-    globalName: 'DataLayer'
   },
 
   // === Individual shared modules (loaded directly in HTML via <script> tags) ===
@@ -116,20 +92,7 @@ const builds = [
     globalName: 'Reminders'
   },
 
-  // === Legacy Web modules (offline, utils, budget, workers) ===
-  // Offline
-  {
-    name: 'networkDetector',
-    input: 'frontend/web/static/js/offline/networkDetector.js',
-    output: 'frontend/web/static/js/offline/networkDetector.min.js',
-    globalName: 'NetworkDetector'
-  },
-  {
-    name: 'pushManager',
-    input: 'frontend/web/static/js/offline/pushManager.js',
-    output: 'frontend/web/static/js/offline/pushManager.min.js',
-    globalName: 'PushManager'
-  },
+  // === Legacy Web modules (utils, budget, workers) ===
   // Utils
   {
     name: 'logger',
