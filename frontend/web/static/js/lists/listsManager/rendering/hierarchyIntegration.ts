@@ -8,7 +8,7 @@
  */
 
 import { getState, updateState } from '../core/ListsState';
-import { filterItemsBySearch, renderItemsTable } from './tableBuilder';
+import { filterItemsBySearch, renderItemsTable, renderCurrentView } from './tableBuilder';
 import { loadShoppingListItems, loadShoppingLists, loadStores, loadProductGroups } from '../core/stateManager';
 import { deleteItem } from '../core/listOperations';
 import { initStoreChoices, initProductGroupChoices } from '../ui/modalManager';
@@ -127,6 +127,7 @@ export function createListsManagerProxy(): any {
     loadProductGroups,
     deleteItem,
     renderItemsTable,
+    renderCurrentView,
     initStoreChoices,
     initProductGroupChoices,
 

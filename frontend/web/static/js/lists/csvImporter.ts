@@ -1655,8 +1655,12 @@ class CSVImporter {
                     await this.listsManager.loadProductGroups();
                 }
 
-                // Re-render items table (now with updated stores/productGroups cache)
-                this.listsManager.renderItemsTable();
+                // Re-render current view (table or hierarchy) with updated data
+                if (typeof this.listsManager.renderCurrentView === 'function') {
+                    this.listsManager.renderCurrentView();
+                } else {
+                    this.listsManager.renderItemsTable();
+                }
 
                 // Refresh landing page counters AFTER render (total_items/completed_items/completion_percentage)
                 if (typeof this.listsManager.loadShoppingLists === 'function') {
