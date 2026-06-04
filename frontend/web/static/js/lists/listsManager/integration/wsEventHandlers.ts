@@ -47,18 +47,10 @@ export function handleItemCreated(item: any): void {
   }
 
   // Check if item already exists (avoid duplicates).
-  // Extended deduplication: match by server id OR by temp_id when the WS event
-  // arrives before the create-response so the optimistic local item still
-  // carries only the client-side temp_id.
-  const existingIndex = state.currentItems.findIndex(
-    i => i.id === item.id ||
-         (item.temp_id && i.temp_id && i.temp_id === item.temp_id)
-  );
+  const existingIndex = state.currentItems.findIndex(i => i.id === item.id);
 
   if (existingIndex !== -1) {
-    // Replace the pending virtual-id item with the server item so the id
-    // transitions from negative virtual → real positive without a full reload.
-    debugLog('[ListsManager] Replacing pending item with server item (temp_id match):', item.id, item.temp_id);
+    debugLog('[ListsManager] Replacing existing item with server item:', item.id);
     const newItems = [...state.currentItems];
     newItems[existingIndex] = { ...newItems[existingIndex], ...item };
     updateState({ currentItems: newItems });

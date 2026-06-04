@@ -143,7 +143,6 @@ const windowExports = {
   deleteCompletedWithConfirm,
 
   // Hierarchy (TypeScript v7.x+)
-  // (Dexie operations and diagnostic exports removed — see Task 9)
   toggleAllNodes: () => {
     if (window.hierarchyView) {
       const btn = document.getElementById('hierarchy-toggle-btn');

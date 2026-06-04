@@ -2,7 +2,7 @@
  * Lists Manager - State Management
  *
  * Handles initialization and data loading for shopping lists.
- * All data flows through REST API directly (no Dexie cache layer).
+ * All data flows through REST API directly.
  */
 
 import { getState, updateState } from './ListsState';
@@ -26,7 +26,6 @@ declare const showToast: (message: string, type?: 'success' | 'error' | 'info' |
 function convertShoppingList(api: any): ShoppingList {
   return {
     id: api.id,
-    temp_id: api.temp_id,
     name: api.name,
     is_active: api.is_active,
     created_at: typeof api.created_at === 'string'
@@ -49,7 +48,6 @@ function convertShoppingListItem(api: any, listId: number): ShoppingItem {
   return {
     id: api.id,
     list_id: listId,
-    temp_id: api.temp_id,
     product_name: api.product_name,
     quantity: api.quantity ?? null,
     unit: api.unit ?? null,

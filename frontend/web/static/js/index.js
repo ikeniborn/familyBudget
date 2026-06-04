@@ -54,17 +54,13 @@ async function initializeApp() {
         } else {
             console.warn('[APP] budgetWSClient not available');
         }
-        // TODO Phase 2.4: Initialize offline manager
-        // const offlineManager = new OfflineManager();
-        // await offlineManager.initialize();
         // TODO Phase 2.2: Complete listsManager initialization
         // await listsManager.initializeListsManager();
         // TODO Phase 2.6: Remove after full migration (backward compatibility)
         // For now, expose on window for legacy code
         window.listsManager = listsManager;
         window.csvImporter = csvImporter;
-        // Note: budgetWSClient and offlineManager NOT exposed here
-        // They are monolithic .js files loaded separately via build-all.js
+        // Note: budgetWSClient loaded separately via build-all.js
         debugLog('[APP] Application initialized successfully (Phase 2.1-2.4 complete)');
     }
     catch (error) {

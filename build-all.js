@@ -149,18 +149,6 @@ const builds = [
     globalName: 'HierarchyWorker'
   },
   {
-    name: 'pendingRecordsWorker',
-    input: 'frontend/web/static/js/workers/pendingRecordsWorker.js',
-    output: 'frontend/web/static/js/workers/pendingRecordsWorker.min.js',
-    globalName: 'PendingRecordsWorker'
-  },
-  {
-    name: 'syncWorker',
-    input: 'frontend/web/static/js/workers/syncWorker.js',
-    output: 'frontend/web/static/js/workers/syncWorker.min.js',
-    globalName: 'SyncWorker'
-  },
-  {
     name: 'workerWrapper',
     input: 'frontend/web/static/js/workers/core/workerWrapper.js',
     output: 'frontend/web/static/js/workers/core/workerWrapper.min.js',

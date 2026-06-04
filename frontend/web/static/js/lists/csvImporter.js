@@ -1424,7 +1424,6 @@ class CSVImporter {
             // Show results
             if (result.success || result.imported_count > 0) {
                 showToast(`✅ Импорт завершён! Импортировано: ${result.imported_count}, Пропущено: ${result.skipped_count}, Ошибок: ${result.error_count}`, 'success', 5000);
-                // Reload shopping list items FIRST (loads stale groups from Dexie)
                 await this.listsManager.loadShoppingListItems(currentListId);
                 // Overwrite with fresh data AFTER items load (fixes hierarchy tree)
                 if (result.created_stores && result.created_stores.length > 0) {

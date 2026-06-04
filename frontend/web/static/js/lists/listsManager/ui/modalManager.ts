@@ -33,7 +33,6 @@ interface ChoicesInstance {
 /** API response interface for shopping list creation */
 interface CreateListAPIResponse {
   id: number;
-  temp_id?: string;
   name: string;
   description?: string;
   is_active?: boolean;
@@ -108,7 +107,6 @@ export async function handleCreateList(event: Event): Promise<void> {
     // OPTIMISTIC UPDATE: render before API responds for snappy UX
     const newList: ShoppingList = {
       id: result.id,
-      temp_id: result.temp_id, // Always use API (backend guarantees UUID)
       name: result.name,
       description: result.description || undefined,
       is_active: result.is_active ?? true,

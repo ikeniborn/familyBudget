@@ -17,7 +17,6 @@ let cachedUserId: number | null = null;
  * 3. Cached user ID from previous API call
  * 4. API call /api/v1/users/me (last resort)
  *
- * NOTE: offlineManager removed in v11.1.40 (no longer used)
  */
 export async function getCurrentUserId(): Promise<number> {
   // PRIMARY: window.userData (set in base.html)

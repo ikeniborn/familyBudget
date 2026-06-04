@@ -2,7 +2,7 @@
 
 Инструкции по тестированию синхронизации удаления списков покупок.
 
-> **Note:** Dexie/IndexedDB offline cache был удалён. Все операции идут через REST API + WebSocket.
+> **Note:** Offline cache удалён. Все операции идут через REST API + WebSocket.
 
 ## Quick Start
 
@@ -254,5 +254,5 @@ test('slow network deletion', async ({ page }) => {
 
 ---
 
-**Версия:** 2.0 (post-Dexie removal)
+**Версия:** 2.0 (offline sync removed)
 **Автор:** Claude Code Team
