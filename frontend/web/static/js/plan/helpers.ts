@@ -99,7 +99,6 @@ export interface BudgetFact {
   record_type: 'plan' | 'fact' | string;
   recurring_plan_id: number | null;
   has_reminder?: boolean;
-  is_offline_sync?: boolean;
   is_template?: boolean;
   created_at?: string;
   updated_at?: string;
@@ -171,7 +170,6 @@ export interface APIListResponse<T> {
 // Imports
 // ============================================================================
 
-import { dataLayer } from '../data/DataLayer';
 import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 // ============================================================================
@@ -208,14 +206,10 @@ export async function loadUsers(): Promise<User[]> {
  * @throws Error if API request fails
  */
 export async function loadArticles(): Promise<Article[]> {
-  try {
-    // Use DataLayer (Dexie-first with API fallback)
-    const articles = await dataLayer.getArticles() as unknown as Article[];
-    return articles;
-  } catch (error) {
-    console.error('[PlanHelpers] Error loading articles:', error);
-    throw error;
-  }
+  const r = await fetch('/api/v1/articles', { credentials: 'include' });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const data = await r.json();
+  return data.articles ?? data;
 }
 
 /**
@@ -224,20 +218,12 @@ export async function loadArticles(): Promise<Article[]> {
  * @returns Promise with array of financial centers
  * @throws Error if API request fails
  */
-export async function loadFinancialCenters(
-  includeGlobal: boolean = true
-): Promise<FinancialCenter[]> {
-  try {
-    // Get user ID for data layer queries
-    const userId = await getCurrentUserId();
-
-    // Use DataLayer (Dexie-first with API fallback)
-    const centers = await dataLayer.getFinancialCenters(userId, includeGlobal) as unknown as FinancialCenter[];
-    return centers;
-  } catch (error) {
-    console.error('[PlanHelpers] Error loading financial centers:', error);
-    throw error;
-  }
+export async function loadFinancialCenters(includeGlobal: boolean = true): Promise<FinancialCenter[]> {
+  const userId = await getCurrentUserId();
+  const r = await fetch(`/api/v1/financial-centers?user_id=${userId}&include_global=${includeGlobal}`, { credentials: 'include' });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const data = await r.json();
+  return data.financial_centers ?? data;
 }
 
 /**
@@ -246,21 +232,12 @@ export async function loadFinancialCenters(
  * @returns Promise with array of cost centers
  * @throws Error if API request fails
  */
-export async function loadCostCenters(
-  includeGlobal: boolean = true
-): Promise<CostCenter[]> {
-  try {
-    // Get user ID for data layer queries
-    const userId = await getCurrentUserId();
-
-    // Use DataLayer (Dexie-first with API fallback)
-    const centers = await dataLayer.getCostCenters(userId, null, includeGlobal) as unknown as CostCenter[];
-
-    return centers;
-  } catch (error) {
-    console.error('[PlanHelpers] Error loading cost centers:', error);
-    throw error;
-  }
+export async function loadCostCenters(includeGlobal: boolean = true): Promise<CostCenter[]> {
+  const userId = await getCurrentUserId();
+  const r = await fetch(`/api/v1/cost-centers?user_id=${userId}&include_global=${includeGlobal}`, { credentials: 'include' });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const data = await r.json();
+  return data.cost_centers ?? data;
 }
 
 // ============================================================================

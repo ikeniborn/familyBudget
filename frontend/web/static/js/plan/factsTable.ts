@@ -195,7 +195,6 @@ function toUIFactFromAPI(apiFact: any): PlanHelpers.BudgetFact {
     record_type: apiFact.record_type,
     recurring_plan_id: apiFact.recurring_plan_id ?? null,
     has_reminder: apiFact.has_reminder ?? false,
-    is_offline_sync: apiFact.is_offline_sync ?? false,
     created_at: apiFact.created_at,
     updated_at: apiFact.updated_at
   };
@@ -374,7 +373,6 @@ function renderFactsTable(facts: BudgetFact[]): void {
             <th>🕐 Обновлено</th>
             <th class="text-center" title="Напоминание">🔔</th>
             <th class="text-center" title="Регламентный платеж">🔄</th>
-            <th class="text-center" title="Создано offline">☁️</th>
             <th>⚙️ Действия</th>
           </tr>
         </thead>
@@ -413,7 +411,6 @@ function renderFactsTable(facts: BudgetFact[]): void {
         <td class="text-xs text-base-content/60">${TableFormatters.formatUpdatedAt(fact.updated_at)}</td>
         <td class="text-center">${fact.has_reminder ? '<span class="text-info" title="Напоминание установлено">🔔</span>' : ''}</td>
         <td class="text-center">${fact.recurring_plan_id ? '<span class="text-secondary" title="Регламентный платеж">🔄</span>' : ''}</td>
-        <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
         <td>
           <div class="flex gap-1">
             <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
@@ -433,9 +430,6 @@ function renderFactsTable(facts: BudgetFact[]): void {
     const reminderIcon = fact.has_reminder
       ? '<span class="text-info text-xs" title="Напоминание">🔔</span>'
       : '';
-    const offlineIcon = fact.is_offline_sync
-      ? '<span class="text-xs" title="Создано offline">☁️</span>'
-      : '';
     const recurringIcon = fact.recurring_plan_id
       ? '<span class="text-secondary text-xs" title="Регламентный">🔄</span>'
       : '';
@@ -449,7 +443,6 @@ function renderFactsTable(facts: BudgetFact[]): void {
           <span class="${mobileAmountClass} font-bold whitespace-nowrap">${mobileAmount}</span>
           ${recurringIcon}
           ${reminderIcon}
-          ${offlineIcon}
         </div>
         <!-- Line 2: Date • Account • Description -->
         <div class="text-xs text-base-content/60 mt-1 truncate">
@@ -511,7 +504,6 @@ function appendFactsToTable(facts: BudgetFact[]): void {
           <td class="text-xs text-base-content/60">${TableFormatters.formatUpdatedAt(fact.updated_at)}</td>
           <td class="text-center">${fact.has_reminder ? '<span class="text-info" title="Напоминание установлено">🔔</span>' : ''}</td>
           <td class="text-center">${fact.recurring_plan_id ? '<span class="text-secondary" title="Регламентный платеж">🔄</span>' : ''}</td>
-          <td class="text-center" title="${fact.is_offline_sync ? 'Создано offline' : ''}">${fact.is_offline_sync ? '☁️' : ''}</td>
           <td>
             <div class="flex gap-1">
               <button class="btn btn-xs btn-primary gap-1" onclick="showEditModal(${fact.id})">✏️</button>
@@ -535,9 +527,6 @@ function appendFactsToTable(facts: BudgetFact[]): void {
       const reminderIcon = fact.has_reminder
         ? '<span class="text-info text-xs" title="Напоминание">🔔</span>'
         : '';
-      const offlineIcon = fact.is_offline_sync
-        ? '<span class="text-xs" title="Создано offline">☁️</span>'
-        : '';
       const recurringIcon = fact.recurring_plan_id
         ? '<span class="text-secondary text-xs" title="Регламентный">🔄</span>'
         : '';
@@ -550,7 +539,6 @@ function appendFactsToTable(facts: BudgetFact[]): void {
             <span class="${mobileAmountClass} font-bold whitespace-nowrap">${mobileAmount}</span>
             ${recurringIcon}
             ${reminderIcon}
-            ${offlineIcon}
           </div>
           <div class="text-xs text-base-content/60 mt-1 truncate">
             ${shortDate} • ${financialCenter} • ${description}
