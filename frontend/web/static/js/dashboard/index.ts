@@ -62,9 +62,6 @@ export type {
   FactHintsData,
 } from './types/dashboard.d';
 
-// Analytics types (task-011)
-export type { QuickStats, AccountBalance, RecentFact } from './types/analytics';
-
 // ============================================================================
 // Feature Exports
 // ============================================================================
@@ -160,9 +157,6 @@ export {
   refreshDashboardWidgets,
   registerWSEventHandlers,
 } from './integration';
-
-// Facts Manager (task-011: Dashboard Query Optimization)
-export { dashboardFactsManager } from './features/factsManager';
 
 // Recent Transactions (Table Optimization v2.0)
 export { loadRecentTransactions } from './recentTransactions';

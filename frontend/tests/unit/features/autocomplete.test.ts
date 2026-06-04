@@ -51,7 +51,6 @@ describe('autocomplete', () => {
         vi.spyOn(ListsState, 'getState').mockReturnValue(mockState);
 
         // Mock stateManager functions
-        vi.spyOn(stateManager, 'isOnline').mockReturnValue(true);
         vi.spyOn(stateManager, 'loadShoppingListItems').mockResolvedValue(undefined);
 
         // Mock document.getElementById
@@ -246,7 +245,8 @@ describe('autocomplete', () => {
 
             await vi.waitFor(() => {
                 expect(global.fetch).toHaveBeenCalledWith(
-                    expect.stringContaining('/api/v1/shopping-list-items/products/suggest')
+                    expect.stringContaining('/api/v1/shopping-list-items/products/suggest'),
+                    expect.anything()
                 );
             });
         });
@@ -268,7 +268,8 @@ describe('autocomplete', () => {
 
             await vi.waitFor(() => {
                 expect(global.fetch).toHaveBeenCalledWith(
-                    expect.stringContaining('shopping_list_id=123')
+                    expect.stringContaining('shopping_list_id=123'),
+                    expect.anything()
                 );
             });
         });
@@ -290,14 +291,12 @@ describe('autocomplete', () => {
 
             await vi.waitFor(() => {
                 expect(global.fetch).toHaveBeenCalledWith(
-                    expect.stringContaining('include_deleted=true')
+                    expect.stringContaining('include_deleted=true'),
+                    expect.anything()
                 );
             });
         });
     });
-
-    // Legacy offline cache tests removed (Dexie migration v11.3.1)
-    // Offline functionality now handled by DataLayer + Dexie automatically
 
     describe('dropdown rendering', () => {
         it('should render suggestions with product names', async () => {
@@ -415,161 +414,4 @@ describe('autocomplete', () => {
         });
     });
 
-    // TODO(v11.0): Update mock setup after Dexie migration
-    // These tests fail due to outdated mockDb implementation
-    // Requires updating to match new Dexie API behavior
-    // Related: Dexie migration (docs/architecture/core/dexie-integration.md)
-    describe.skip('error handling', () => {
-        it('should fallback to cache on API error', async () => {
-            const input = document.getElementById('item-product-name') as any;
-            const cachedSuggestions = [{ product_name: 'Cached Milk' }];
-
-            (global.fetch as any).mockRejectedValue(new Error('Network error'));
-            mockDb.getCache.mockResolvedValue(cachedSuggestions);
-
-            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-            setupProductAutocomplete();
-            const handler = (input.addEventListener as any).mock.calls[0][1];
-
-            input.value = 'mil';
-            handler();
-            vi.advanceTimersByTime(300);
-
-            await vi.waitFor(() => {
-                const dropdown = document.getElementById('product-suggestions-dropdown') as any;
-                expect(dropdown.innerHTML).toContain('Cached Milk');
-                expect(consoleSpy).toHaveBeenCalled();
-            });
-
-            consoleSpy.mockRestore();
-        });
-
-        it('should handle IndexedDB errors gracefully', async () => {
-            const input = document.getElementById('item-product-name') as any;
-
-            (global.fetch as any).mockResolvedValue({
-                ok: true,
-                json: async () => ({ suggestions: [{ product_name: 'Milk' }] })
-            });
-
-            mockDb.setCache.mockRejectedValue(new Error('IDB error'));
-
-            const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-
-            setupProductAutocomplete();
-            const handler = (input.addEventListener as any).mock.calls[0][1];
-
-            input.value = 'mil';
-            handler();
-            vi.advanceTimersByTime(300);
-
-            await vi.waitFor(() => {
-                // Should still show dropdown despite cache error
-                const dropdown = document.getElementById('product-suggestions-dropdown') as any;
-                expect(dropdown.innerHTML).toContain('Milk');
-                expect(consoleSpy).toHaveBeenCalled();
-            });
-
-            consoleSpy.mockRestore();
-        });
-    });
-
-    // TODO(v11.0): Update mock setup after Dexie migration
-    // These tests fail due to outdated mockDb implementation
-    // Requires updating to match new Dexie API behavior
-    // Related: Dexie migration (docs/architecture/core/dexie-integration.md)
-    describe.skip('caching behavior', () => {
-        it('should merge new suggestions with existing cache', async () => {
-            const input = document.getElementById('item-product-name') as any;
-            const existingCache = [
-                { product_name: 'Milk', store_id: 1 }
-            ];
-            const newSuggestions = [
-                { product_name: 'Bread', store_id: 2, is_deleted: false }
-            ];
-
-            (global.fetch as any).mockResolvedValue({
-                ok: true,
-                json: async () => ({ suggestions: newSuggestions })
-            });
-
-            mockDb.getCache.mockResolvedValue(existingCache);
-
-            setupProductAutocomplete();
-            const handler = (input.addEventListener as any).mock.calls[0][1];
-
-            input.value = 'test';
-            handler();
-            vi.advanceTimersByTime(300);
-
-            await vi.waitFor(() => {
-                expect(mockDb.setCache).toHaveBeenCalledWith(
-                    'product_suggestions',
-                    expect.arrayContaining([
-                        expect.objectContaining({ product_name: 'Milk' }),
-                        expect.objectContaining({ product_name: 'Bread' })
-                    ]),
-                    86400
-                );
-            });
-        });
-
-        it('should limit cache size to 500 entries', async () => {
-            const input = document.getElementById('item-product-name') as any;
-            const largeCache = Array.from({ length: 501 }, (_, i) => ({
-                product_name: `Item ${i}`,
-                store_id: i
-            }));
-
-            (global.fetch as any).mockResolvedValue({
-                ok: true,
-                json: async () => ({ suggestions: [{ product_name: 'New', store_id: 999, is_deleted: false }] })
-            });
-
-            mockDb.getCache.mockResolvedValue(largeCache);
-
-            setupProductAutocomplete();
-            const handler = (input.addEventListener as any).mock.calls[0][1];
-
-            input.value = 'test';
-            handler();
-            vi.advanceTimersByTime(300);
-
-            await vi.waitFor(() => {
-                const cachedArray = (mockDb.setCache as any).mock.calls[0][1];
-                expect(cachedArray.length).toBeLessThanOrEqual(500);
-            });
-        });
-
-        it('should deduplicate suggestions by product_name + store_id', async () => {
-            const input = document.getElementById('item-product-name') as any;
-            const existingCache = [
-                { product_name: 'Milk', store_id: 1 }
-            ];
-            const newSuggestions = [
-                { product_name: 'Milk', store_id: 1, is_deleted: false } // Duplicate
-            ];
-
-            (global.fetch as any).mockResolvedValue({
-                ok: true,
-                json: async () => ({ suggestions: newSuggestions })
-            });
-
-            mockDb.getCache.mockResolvedValue(existingCache);
-
-            setupProductAutocomplete();
-            const handler = (input.addEventListener as any).mock.calls[0][1];
-
-            input.value = 'mil';
-            handler();
-            vi.advanceTimersByTime(300);
-
-            await vi.waitFor(() => {
-                const cachedArray = (mockDb.setCache as any).mock.calls[0][1];
-                const milkItems = cachedArray.filter((s: any) => s.product_name === 'Milk' && s.store_id === 1);
-                expect(milkItems).toHaveLength(1); // Only 1, not 2
-            });
-        });
-    });
 });
