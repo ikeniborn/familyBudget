@@ -253,12 +253,6 @@
 
             showToast('Обновление приложения...', 'info', 15000);
 
-            // Show "updating" state in Dexie indicator (yellow icon) while update is in progress
-            if (typeof updateDexieIndicator === 'function') {
-                updateDexieIndicator('initializing');
-                console.log('[SW_UPDATE] Dexie indicator set to "initializing" (yellow)');
-            }
-
             try {
                 // Step 0.5/5: Put active SW into passthrough mode
                 console.log('[SW_UPDATE] Step 0.5/5: Entering update mode...');
@@ -299,51 +293,6 @@
                 await Promise.all(cacheNames.map(name => caches.delete(name)));
                 console.log('[SW_UPDATE] ✅ Step 2/5: Cleared', cacheNames.length, 'caches');
 
-                // Step 2.3/5: Upload pending shopping data before DB deletion
-                // CRITICAL: Must run BEFORE close() and BEFORE indexedDB.deleteDatabase()
-                // Pending items (sync_status='pending') would be lost forever if DB is deleted first.
-                // NOTE: dexie.min.js is IIFE format — import() returns {}. Use window.Dexie instead.
-                console.log('[SW_UPDATE] Step 2.3/5: Upload pending shopping data...');
-                try {
-                    const dexieMod = window.Dexie;
-                    if (dexieMod && typeof dexieMod.getDexieManager === 'function') {
-                        const dexieManagerForUpload = dexieMod.getDexieManager();
-                        if (dexieManagerForUpload && dexieManagerForUpload.isReady()) {
-                            const result = await dexieManagerForUpload.uploadPendingShoppingData();
-                            console.log(`[SW_UPDATE] ✅ Step 2.3/5: Uploaded ${result.listsUploaded} lists, ${result.itemsUploaded} items (${result.failed} failed)`);
-                        } else {
-                            console.log('[SW_UPDATE] ℹ️ Step 2.3/5: Dexie not initialized, no pending shopping data to upload');
-                        }
-                    } else {
-                        console.log('[SW_UPDATE] ℹ️ Step 2.3/5: window.Dexie not available, skipping upload');
-                    }
-                } catch (e) {
-                    // Non-blocking: update continues even if upload fails
-                    // Items remain on server if they were previously synced; only truly pending local-only items may be lost
-                    console.warn('[SW_UPDATE] ⚠️ Step 2.3/5: Failed to upload pending shopping data (continuing update):', e.message);
-                }
-
-                // Step 2.5/5: Close Dexie connections
-                // NOTE: dexie.min.js is IIFE format — import() returns {}. Use window.Dexie instead.
-                console.log('[SW_UPDATE] Step 2.5/5: Closing Dexie connections...');
-                try {
-                    const dexieMod = window.Dexie;
-                    const dexieManager = dexieMod && typeof dexieMod.getDexieManager === 'function'
-                        ? dexieMod.getDexieManager()
-                        : null;
-
-                    if (dexieManager && dexieManager.isReady()) {
-                        await dexieManager.close();
-                        console.log('[SW_UPDATE] ✅ Step 2.5/5: Dexie connections closed');
-                        // Wait 500ms for connections to actually close
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                    } else {
-                        console.log('[SW_UPDATE] ℹ️ Step 2.5/5: Dexie not initialized, skipping');
-                    }
-                } catch (e) {
-                    console.warn('[SW_UPDATE] ⚠️ Step 2.5/5: Error closing Dexie:', e.message);
-                }
-
                 // Step 3/5: Delete IndexedDB
                 console.log('[SW_UPDATE] Step 3/5: Delete IndexedDB...');
                 await new Promise((resolve) => {
@@ -362,15 +311,7 @@
                 if (newVersion) localStorage.setItem(SW_VERSION_KEY, newVersion);
                 // Skip SW registration on next load to keep cache empty
                 localStorage.setItem(SW_SKIP_REGISTRATION_KEY, 'true');
-                // Signal post-update: Dexie DB was cleared, next load must re-sync reference data
-                // This flag is read by base.html DOMContentLoaded handler after module loading completes
-                localStorage.setItem('sw_post_update_sync', 'true');
-                // Restore dexieActive flag so pwa-splash-screen.html does NOT trigger an extra
-                // syncReferenceData() on Load 1. Without this, pwa-splash-screen sees dexieActive=null
-                // (because localStorage was just cleared) and fires a redundant sync alongside
-                // the sw_post_update_sync sync in base.html, causing Dexie race conditions.
-                localStorage.setItem('dexieActive', 'true');
-                console.log('[SW_UPDATE] ✅ Step 4/5: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration + sw_post_update_sync + dexieActive flags');
+                console.log('[SW_UPDATE] ✅ Step 4/5: Cleared', lsKeys, 'localStorage keys, set sw_skip_registration flag');
 
                 // Set Cache API flag for SW to detect post-update mode
                 // This is more reliable than MessageChannel after unregister()
@@ -431,12 +372,6 @@
                     message: error.message,
                     stack: error.stack
                 });
-
-                // Show error state in Dexie indicator (red icon) on update failure
-                if (typeof updateDexieIndicator === 'function') {
-                    updateDexieIndicator('error');
-                    console.log('[SW_UPDATE] Dexie indicator set to "error" (red)');
-                }
 
                 showToast('Ошибка обновления, перезагрузка...', 'error');
 
@@ -812,47 +747,6 @@
             checkForPendingUpdate();
         });
 
-        // === Handle Service Worker Messages (task-010) ===
-        navigator.serviceWorker.addEventListener('message', async (event) => {
-            if (event.data.type === 'GET_PRUNING_FLAG') {
-                const enableAutoPruning = localStorage.getItem('dexieEnableAutoPruning') === 'true';
-                event.ports[0].postMessage({ enableAutoPruning });
-            }
-
-            if (event.data.type === 'EXECUTE_PRUNING') {
-                try {
-                    const { getDexieManager } = await import('/shared/db/dexie.min.js?v=PLACEHOLDER');
-                    const dexie = getDexieManager();
-                    const result = await dexie.pruneFacts();
-
-                    event.ports[0].postMessage({ success: true, result });
-                } catch (error) {
-                    event.ports[0].postMessage({ success: false, error: error.message });
-                }
-            }
-        });
-
-        // === Register Periodic Pruning (task-010) ===
-        if ('periodicSync' in navigator.serviceWorker) {
-            navigator.serviceWorker.ready.then(async (registration) => {
-                try {
-                    // Check if auto-pruning enabled
-                    const enableAutoPruning = localStorage.getItem('dexieEnableAutoPruning') === 'true';
-
-                    if (enableAutoPruning) {
-                        await registration.periodicSync.register('weekly-pruning', {
-                            minInterval: 7 * 24 * 60 * 60 * 1000 // 7 days
-                        });
-                        console.log('[PRUNING] Periodic sync registered (7 days)');
-                    }
-                } catch (error) {
-                    console.warn('[PRUNING] Failed to register periodic sync:', error);
-                }
-            });
-        } else {
-            console.info('[PRUNING] Using hybrid pruning strategy (setInterval + Visibility API + Idle Detection)');
-            console.info('[PRUNING] Periodic Background Sync unavailable (requires PWA standalone mode)');
-        }
     }
 </script>
 {% endraw %}
