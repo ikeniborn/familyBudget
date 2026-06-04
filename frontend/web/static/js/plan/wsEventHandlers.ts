@@ -37,7 +37,7 @@ function handlePlanDeleted(data: { id?: number }): void {
 function handleRecurringPlanChanged(_data: unknown): void { debouncedReloadFacts(); }
 
 function handleFactsBatchDeleted(data: { record_type?: string }): void {
-  if (!data.record_type || data.record_type === 'plan') debouncedReloadFacts();
+  if (!data?.record_type || data.record_type === 'plan') debouncedReloadFacts();
 }
 
 async function handleTransferCreated(data: { expense_fact_id?: number; income_fact_id?: number }): Promise<void> {
@@ -48,7 +48,7 @@ async function handleTransferCreated(data: { expense_fact_id?: number; income_fa
 }
 
 export function registerWSHandlers(): void {
-  const c = (window as any).budgetWSClient;
+  const c = window.budgetWSClient;
   if (!c) return;
   c.on('plan_created', handlePlanCreated);
   c.on('plan_updated', handlePlanUpdated);
@@ -62,8 +62,9 @@ export function registerWSHandlers(): void {
 }
 
 export function unregisterWSHandlers(): void {
-  const c = (window as any).budgetWSClient;
+  const c = window.budgetWSClient;
   if (!c) return;
+  if (wsReloadTimeout) { clearTimeout(wsReloadTimeout); wsReloadTimeout = null; }
   c.off('plan_created', handlePlanCreated);
   c.off('plan_updated', handlePlanUpdated);
   c.off('plan_deleted', handlePlanDeleted);

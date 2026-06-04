@@ -120,10 +120,6 @@ declare global {
 // Page Initialization
 // ============================================================================
 
-/**
- * Initialize plan page
- * Called on DOMContentLoaded from inline script
- */
 function initFilterCalendar(): void {
   const startInputElement = document.getElementById('filter-date-from') as HTMLInputElement | null;
   const endInputElement = document.getElementById('filter-date-to') as HTMLInputElement | null;
