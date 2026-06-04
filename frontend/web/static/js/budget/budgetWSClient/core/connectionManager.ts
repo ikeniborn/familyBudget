@@ -98,15 +98,6 @@ export function sendMessage(message: any): boolean {
   }
 }
 
-/**
- * Check if offline mode is active
- * Original: budgetWSClient.js:312-337
- */
-function isOfflineModeActive(): boolean {
-  const offlineManager = (window as any).offlineManager;
-  return offlineManager && typeof offlineManager.isOffline === 'function' && offlineManager.isOffline();
-}
-
 // ============================================================================
 // Token Management
 // ============================================================================
@@ -178,16 +169,6 @@ function handleServerMessage(message: any): void {
   // Pong response - measure RTT
   if (event === 'pong') {
     handlePongReceived();
-    return;
-  }
-
-  // Offline mode notification
-  if (event === 'offline') {
-    // Integration with offlineManager
-    const offlineManager = (window as any).offlineManager;
-    if (offlineManager && typeof offlineManager.handleOfflineEvent === 'function') {
-      offlineManager.handleOfflineEvent(data);
-    }
     return;
   }
 
@@ -326,13 +307,6 @@ async function createConnection(): Promise<void> {
 
   if (!state.enabled) return;
 
-  // Skip if offline mode is active
-  if (isOfflineModeActive()) {
-    logHistory('connect_skip_offline_mode');
-    debugLog('[BudgetWS] Skipping connection - offline mode active');
-    return;
-  }
-
   // Quick check: don't attempt if browser says offline
   if (!navigator.onLine) {
     logHistory('connect_skip_navigator_offline');
@@ -421,13 +395,6 @@ async function createConnection(): Promise<void> {
 function scheduleReconnect(): void {
   const state = getState();
 
-  // Skip reconnect if offline mode is active
-  if (isOfflineModeActive()) {
-    logHistory('reconnect_skip_offline_mode');
-    debugLog('[BudgetWS] Skipping reconnect - offline mode active');
-    return;
-  }
-
   if (!navigator.onLine) {
     logHistory('reconnect_skip_navigator_offline');
     debugLog('[BudgetWS] Offline, waiting for network');
@@ -512,13 +479,6 @@ export async function connect(): Promise<void> {
   const state = getState();
 
   logHistory('connect_start');
-
-  // Skip connection if offline mode is active
-  if (isOfflineModeActive()) {
-    logHistory('connect_skip_offline_mode');
-    debugLog('[BudgetWS] Skipping connect - offline mode active');
-    return;
-  }
 
   if (!state.enabled) {
     logHistory('connect_skip_disabled');

@@ -18,11 +18,6 @@ export function startLongPolling(): void {
     return;
   }
 
-  // Skip if offline mode is active
-  if (isOfflineModeActive()) {
-    return;
-  }
-
   // Quick check: don't start polling if browser says offline
   if (!navigator.onLine) {
     return;
@@ -44,12 +39,6 @@ async function pollLoop(): Promise<void> {
   const state = getState();
 
   if (!state.enabled || !state.pollingActive) {
-    stopLongPolling();
-    return;
-  }
-
-  // Stop polling if offline mode became active
-  if (isOfflineModeActive()) {
     stopLongPolling();
     return;
   }
@@ -141,8 +130,8 @@ async function pollLoop(): Promise<void> {
       const consecutive503Count = currentState.consecutive503Count + 1;
       updateState({ consecutive503Count });
 
-      if (consecutive503Count >= 3 && isOfflineModeActive()) {
-        // Multiple 503 errors + offline mode active, stop polling
+      if (consecutive503Count >= 3) {
+        // Multiple 503 errors, stop polling
         stopLongPolling();
         const statusEvent = new CustomEvent('ws:status-changed', {
           detail: { isConnected: false },
@@ -201,16 +190,4 @@ export function stopLongPolling(): void {
   }
 
   updateState({ pollingActive: false });
-}
-
-/**
- * Check if offline mode is active
- */
-function isOfflineModeActive(): boolean {
-  // Check if offline manager exists and is in offline mode
-  if (typeof window !== 'undefined' && (window as any).offlineManager) {
-    const offlineManager = (window as any).offlineManager;
-    return offlineManager.networkDetector?.autoOfflineMode === true;
-  }
-  return false;
 }

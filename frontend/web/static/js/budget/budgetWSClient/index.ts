@@ -163,7 +163,6 @@ export {
 // ============================================================================
 export type {
   ILogger,
-  IOfflineManager,
   IListsManager,
   ShoppingItemData,
 } from './types/dependencies';
