@@ -9,7 +9,7 @@ import { updateState } from './TransferState';
 import type { FinancialCenter, CostCenter } from '../types/transfer';
 
 /**
- * Load transfer data (FC, CC) with cache
+ * Load transfer data (FC, CC) into state.
  * Migrated from: transfer.js loadTransferData() (lines 546-612)
  */
 export async function loadTransferData(): Promise<void> {
