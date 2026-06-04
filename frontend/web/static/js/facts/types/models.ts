@@ -124,6 +124,21 @@ export interface FactHint {
 // ============================================================================
 
 /**
+ * Fact filters for list/count API queries
+ */
+export interface FactFilters {
+    record_type?: 'fact' | 'plan';
+    user_id?: number;
+    article_id?: number;
+    article_type?: 'expense' | 'income' | 'debit' | 'credit';
+    date_from?: string;
+    date_to?: string;
+    financial_center_id?: number;
+    cost_center_id?: number;
+    search?: string;
+}
+
+/**
  * Data for creating a new fact
  */
 export interface CreateFactData {

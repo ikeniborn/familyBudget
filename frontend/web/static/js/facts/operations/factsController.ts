@@ -29,8 +29,8 @@ export async function loadFacts(options?: { forceAPI?: boolean }): Promise<void>
     try {
         logger.log('Loading facts...', options?.forceAPI ? '(forceAPI)' : '');
 
-        // Get facts data (forceAPI bypasses Dexie cache for guaranteed fresh data)
-        const { facts, total } = await loadFactsWithCount(options);
+        // Get facts data (forceAPI option retained for caller compatibility; no longer needed without Dexie)
+        const { facts, total } = await loadFactsWithCount();
 
         logger.log(`Loaded ${facts.length} facts (total: ${total})`);
 

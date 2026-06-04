@@ -7,20 +7,10 @@
  * Extracted from: frontend/web/templates/facts.html (lines 1304-2161)
  */
 
-import type { BudgetFact, LoadFactsResponse, BatchDeleteResponse, CreateFactData, UpdateFactData } from '../types/models';
+import type { BudgetFact, LoadFactsResponse, BatchDeleteResponse, CreateFactData, UpdateFactData, FactFilters } from '../types/models';
 import { buildFilterQuery } from '../operations/filterOperations';
 import { getFilters } from '../core/stateManager';
 import { getOffset, getLimit } from '../operations/paginationOperations';
-import { dataLayer } from '../../data/DataLayer';
-import type { DataLayerFetchOptions } from '../../data/DataLayer';
-import type {
-    FactFilters,
-    LocalBudgetFact,
-    LocalArticle,
-    LocalFinancialCenter,
-    LocalCostCenter
-} from '@db/dexie';
-import { getDexieManager, isDexieActive, mapAPIFactToLocal } from '@db/dexie';
 
 // ============================================================================
 // Types
@@ -63,60 +53,8 @@ function buildFactFilters(): FactFilters {
 }
 
 /**
- * Convert LocalBudgetFact to BudgetFact
- * Note: Names (article_name, financial_center_name, etc.) are not available in Dexie
- * TODO: Add client-side join with reference data in future
- */
-/**
- * Lookup maps for enriching facts with reference data
- */
-interface EnrichmentMaps {
-    articles: Map<number, LocalArticle>;
-    financialCenters: Map<number, LocalFinancialCenter>;
-    costCenters: Map<number, LocalCostCenter>;
-    users: Map<number, { id: number; name: string }>;
-}
-
-/**
- * Convert LocalBudgetFact to BudgetFact with optional enrichment
- *
- * @param local - Raw fact from Dexie
- * @param maps - Optional reference data for enrichment (client-side join)
- * @returns BudgetFact with all fields populated
- */
-function convertBudgetFact(local: LocalBudgetFact, maps?: EnrichmentMaps): BudgetFact {
-    // Client-side join: Lookup reference data if maps provided
-    const article = maps?.articles.get(local.article_id);
-    const fc = maps?.financialCenters.get(local.financial_center_id || 0);
-    const cc = local.cost_center_id && maps ? maps.costCenters.get(local.cost_center_id) : null;
-    const user = maps?.users.get(local.user_id);
-
-    return {
-        id: local.id || 0,
-        temp_id: local.temp_id,    // Preserve Dexie temp_id for write operations (task-015 Phase 4.4)
-        fact_date: local.date, // Already YYYY-MM-DD
-        article_id: local.article_id,
-        article_name: article?.name || '',
-        article_type: (article?.type as any) || 'expense',
-        financial_center_id: local.financial_center_id || 0,
-        financial_center_name: fc?.name || '',
-        cost_center_id: local.cost_center_id,
-        cost_center_name: cc?.name || null,
-        amount: Number(local.amount),
-        description: local.comment,
-        user_id: local.user_id,
-        user_name: (local as any).user_name || user?.name || '',
-        record_type: 'spend', // Default mapping from 'fact'
-        // DEFENSIVE: Dexie returns TIMESTAMP as ISO strings, but types define Date
-        // Runtime check provides backward compatibility with both API (Date) and Dexie (string)
-        created_at: typeof local.created_at === 'string' ? local.created_at : local.created_at.toISOString(),
-        updated_at: typeof local.updated_at === 'string' ? local.updated_at : local.updated_at.toISOString()
-    };
-}
-
-/**
  * Convert API fact response directly to BudgetFact
- * Used when forceAPI bypasses Dexie — API already provides all name fields
+ * API already provides all name fields via JOINs on the backend
  */
 function convertAPIFact(apiFact: Record<string, any>): BudgetFact {
     return {
@@ -144,119 +82,57 @@ function convertAPIFact(apiFact: Record<string, any>): BudgetFact {
 // ============================================================================
 
 /**
- * Load reference data for enriching facts (client-side join)
- * Used when Dexie is active to populate name fields
- *
- * @param userId - User ID for loading financial centers and cost centers
- * @returns Lookup maps for articles, financial centers, and cost centers
+ * Load facts via direct REST API
  */
-async function loadEnrichmentMaps(userId: number): Promise<EnrichmentMaps> {
-    // Load reference data from DataLayer (Dexie or API)
-    const [articles, financialCenters, costCenters] = await Promise.all([
-        dataLayer.getArticles(),
-        dataLayer.getFinancialCenters(userId, true),
-        dataLayer.getCostCenters(userId, null, true)
-    ]);
+export async function loadFacts(): Promise<LoadFactsResponse> {
+    const factFilters = buildFactFilters();
+    const params = new URLSearchParams();
+    if (factFilters.record_type)        params.set('record_type', factFilters.record_type);
+    if (factFilters.user_id)            params.set('user_id', String(factFilters.user_id));
+    if (factFilters.article_id)         params.set('article_id', String(factFilters.article_id));
+    if (factFilters.article_type)       params.set('article_type', factFilters.article_type);
+    if (factFilters.date_from)          params.set('date_from', factFilters.date_from);
+    if (factFilters.date_to)            params.set('date_to', factFilters.date_to);
+    if (factFilters.financial_center_id) params.set('financial_center_id', String(factFilters.financial_center_id));
+    if (factFilters.cost_center_id)     params.set('cost_center_id', String(factFilters.cost_center_id));
+    if (factFilters.search)             params.set('search', factFilters.search);
+    params.set('limit', String(getLimit()));
+    params.set('offset', String(getOffset()));
 
-    // Load cached users for user_name enrichment
-    const { getCachedUsers } = await import('../core/stateManager');
-    const cachedUsers = getCachedUsers();
-
-    // Create lookup maps for O(1) access during conversion
+    const response = await fetch(`/api/v1/facts?${params}`, { credentials: 'include' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const facts: BudgetFact[] = (data.facts ?? data).map(convertAPIFact);
     return {
-        articles: new Map(articles.map(a => [a.id, a])),
-        financialCenters: new Map(financialCenters.map(fc => [fc.id, fc])),
-        costCenters: new Map(costCenters.map(cc => [cc.id, cc])),
-        users: new Map(cachedUsers.map(u => [u.id, { id: u.id, name: u.display_name || u.first_name || u.username || u.last_name || `User ${u.id}` }]))
+        facts,
+        total: data.total ?? facts.length,
+        page: Math.floor(getOffset() / getLimit()),
+        page_size: getLimit()
     };
 }
 
 /**
- * Load facts (Dexie-first with API fallback)
- * Uses DataLayer for unified data access (task-015 phase 3)
+ * Load facts count via direct REST API
  */
-export async function loadFacts(options?: DataLayerFetchOptions): Promise<LoadFactsResponse> {
-    try {
-        // Build filters
-        const factFilters = buildFactFilters();
-
-        // Load all facts via DataLayer (Dexie-first + API fallback)
-        const localFacts = await dataLayer.getFacts(factFilters, options);
-
-        // Convert to UI types
-        let allFacts: BudgetFact[];
-
-        if (options?.forceAPI) {
-            // API returns full data with names — map directly to BudgetFact
-            allFacts = (localFacts as any[]).map(fact => convertAPIFact(fact));
-        } else if (isDexieActive() && localFacts.length > 0) {
-            // Dexie path: client-side join with reference data
-            const userId = localFacts[0].user_id;
-            const enrichmentMaps = await loadEnrichmentMaps(userId);
-            allFacts = localFacts.map(fact => convertBudgetFact(fact, enrichmentMaps));
-
-            // Apply article_type filter post-enrichment as safety layer
-            // (primary filtering done in DexieManager.queryFacts via article join)
-            if (factFilters.article_type) {
-                allFacts = allFacts.filter(f => f.article_type === factFilters.article_type);
-            }
-        } else {
-            // Fallback: Dexie inactive — API data with API field names
-            allFacts = localFacts.map(fact => convertAPIFact(fact as any));
-        }
-
-        // Sort by updated_at DESC, id DESC (matches backend ORDER BY)
-        allFacts.sort((a, b) => {
-            const dateA = a.updated_at ? new Date(a.updated_at).getTime() : 0;
-            const dateB = b.updated_at ? new Date(b.updated_at).getTime() : 0;
-            return dateB - dateA || (b.id ?? 0) - (a.id ?? 0);
-        });
-
-        // Client-side pagination
-        const limit = getLimit();
-        const offset = getOffset();
-        const facts = allFacts.slice(offset, offset + limit);
-
-        return {
-            facts,
-            total: allFacts.length,
-            page: Math.floor(offset / limit),
-            page_size: limit
-        };
-    } catch (error) {
-        console.error('[FACTS_API] Error loading facts:', error);
-        throw new Error(`Failed to load facts: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-}
-
-/**
- * Load facts count (Dexie-first with API fallback)
- * Uses DataLayer for unified data access (task-015 phase 3)
- */
-export async function loadFactsCount(options?: DataLayerFetchOptions): Promise<number> {
-    try {
-        // Build filters for Dexie
-        const factFilters = buildFactFilters();
-
-        // Get count via DataLayer (Dexie-first + API fallback)
-        const total = await dataLayer.getFactsCount(factFilters, options);
-
-        return total;
-    } catch (error) {
-        console.error('[FACTS_API] Error loading facts count:', error);
-        throw new Error(`Failed to load facts count: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+export async function loadFactsCount(): Promise<number> {
+    const factFilters = buildFactFilters();
+    const params = new URLSearchParams();
+    Object.entries(factFilters).forEach(([k, v]) => v != null && params.set(k, String(v)));
+    const response = await fetch(`/api/v1/facts/count?${params}`, { credentials: 'include' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return data.total ?? 0;
 }
 
 /**
  * Load facts and count in parallel
  * Returns both results for single API call optimization
  */
-export async function loadFactsWithCount(options?: DataLayerFetchOptions): Promise<{
+export async function loadFactsWithCount(): Promise<{
     facts: BudgetFact[];
     total: number;
 }> {
-    const factsResponse = await loadFacts(options);
+    const factsResponse = await loadFacts();
     return {
         facts: factsResponse.facts,
         total: factsResponse.total
@@ -313,23 +189,6 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
         }
 
         const createdFact = await response.json();
-
-        // Sync Dexie cache: insert new fact so loadFacts() sees it immediately
-        // Without this, Dexie returns stale data and the new fact won't appear
-        if (isDexieActive()) {
-            try {
-                const dexie = getDexieManager();
-                if (dexie.isReady()) {
-                    const localFact = mapAPIFactToLocal(createdFact);
-                    await dexie.bulkUpdateFacts([localFact]);
-                    console.debug('[FACTS_API] Synced new fact to Dexie cache', { id: createdFact.id });
-                }
-            } catch (cacheError) {
-                // Non-critical: fact is on server, cache miss just means stale UI until refresh
-                console.warn('[FACTS_API] Failed to sync to Dexie cache:', cacheError);
-            }
-        }
-
         return createdFact;
     } catch (error) {
         console.error('[FACTS_API] Error creating fact:', error);
@@ -340,25 +199,6 @@ export async function createFact(data: CreateFactData): Promise<BudgetFact> {
 // ============================================================================
 // Update Fact
 // ============================================================================
-
-/**
- * Helper: Find fact temp_id by server ID
- */
-async function findFactTempId(factId: number): Promise<string | null> {
-    const dexie = getDexieManager();
-    if (!isDexieActive() || !dexie.isReady()) {
-        return null;
-    }
-
-    try {
-        const facts = await dexie.queryFacts({});
-        const fact = facts.find(f => f.id === factId);
-        return fact?.temp_id || null;
-    } catch (error) {
-        console.error('[FACTS_API] Error finding fact temp_id:', error);
-        return null;
-    }
-}
 
 /**
  * Update existing fact
@@ -405,21 +245,6 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
         }
 
         const updatedFact = await response.json();
-
-        // Sync Dexie cache so local data stays consistent
-        if (isDexieActive()) {
-            try {
-                const dexie = getDexieManager();
-                if (dexie.isReady()) {
-                    const localFact = mapAPIFactToLocal(updatedFact);
-                    await dexie.bulkUpdateFacts([localFact]);
-                    console.debug('[FACTS_API] Synced updated fact to Dexie cache', { id: factId });
-                }
-            } catch (cacheError) {
-                console.warn('[FACTS_API] Failed to sync update to Dexie cache:', cacheError);
-            }
-        }
-
         return updatedFact;
     } catch (error) {
         console.error('[FACTS_API] Error updating fact:', error);
@@ -432,49 +257,20 @@ export async function updateFact(factId: number, data: UpdateFactData): Promise<
 // ============================================================================
 
 /**
- * Delete single fact
- * API-first: sends directly to server for reliable persistence (aligned with createFact pattern)
+ * Delete single fact via direct REST API
  */
 export async function deleteFact(factId: number): Promise<void> {
-    try {
-        // Capture temp_id before server deletion (avoids race condition with background sync)
-        let cachedTempId: string | null = null;
-        if (isDexieActive()) {
-            try {
-                cachedTempId = await findFactTempId(factId);
-            } catch { /* non-critical lookup */ }
-        }
-
-        // API-first strategy: always send to server for reliable persistence
-        const response = await fetch(`/api/v1/facts/${factId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-
-        if (!response.ok) {
-            let errorMsg = `HTTP error! status: ${response.status}`;
-            try {
-                const error = await response.json();
-                if (error.detail) errorMsg = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
-            } catch { console.debug('[FACTS_API] Non-JSON error response:', response.status); }
-            throw new Error(errorMsg);
-        }
-
-        // Remove from Dexie cache so local data stays consistent
-        if (cachedTempId && isDexieActive()) {
-            try {
-                const dexie = getDexieManager();
-                if (dexie.isReady()) {
-                    await dexie.deleteFact(cachedTempId);
-                    console.debug('[FACTS_API] Synced delete to Dexie cache', { id: factId });
-                }
-            } catch (cacheError) {
-                console.warn('[FACTS_API] Failed to sync delete to Dexie cache:', cacheError);
-            }
-        }
-    } catch (error) {
-        console.error('[FACTS_API] Error deleting fact:', error);
-        throw error;
+    const response = await fetch(`/api/v1/facts/${factId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+    });
+    if (!response.ok) {
+        let errorMsg = `HTTP error! status: ${response.status}`;
+        try {
+            const error = await response.json();
+            if (error.detail) errorMsg = typeof error.detail === 'string' ? error.detail : JSON.stringify(error.detail);
+        } catch { /* non-JSON error */ }
+        throw new Error(errorMsg);
     }
 }
 
