@@ -175,7 +175,6 @@ async def test_create_shopping_list_item(
     assert float(data["quantity"]) == 1.5
     assert data["unit"] == "kg"
     assert data["is_completed"] is False
-    assert data["sync_status"] == "synced"
 
 
 async def test_create_item_validation_required_fields(
@@ -281,7 +280,6 @@ async def test_batch_complete_items(
         quantity=Decimal("2.0"),
         unit="kg",
         is_completed=False,
-        sync_status="synced",
     )
     session.add(item2)
     await session.commit()
@@ -323,7 +321,6 @@ async def test_batch_delete_items(
         quantity=Decimal("1.0"),
         unit="kg",
         is_completed=False,
-        sync_status="synced",
     )
     session.add(item2)
     await session.commit()

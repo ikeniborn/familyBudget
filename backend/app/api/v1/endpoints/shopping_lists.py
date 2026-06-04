@@ -20,7 +20,6 @@ Endpoints:
 """
 
 import logging
-import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -128,10 +127,6 @@ async def create_shopping_list(
         name=shopping_list_data.name,
         description=shopping_list_data.description,
     )
-
-    # Generate temp_id server-side for lists created via web UI (not offline).
-    # Offline-created lists already have client-generated temp_id.
-    shopping_list.temp_id = str(uuid.uuid4())
 
     session.add(shopping_list)
     await session.commit()

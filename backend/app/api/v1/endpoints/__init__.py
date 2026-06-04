@@ -54,7 +54,6 @@ from backend.app.api.v1.endpoints.shopping_lists import (
 )
 from backend.app.api.v1.endpoints.staging import router as staging_router
 from backend.app.api.v1.endpoints.stores import router as stores_router
-from backend.app.api.v1.endpoints.sync import router as sync_router
 from backend.app.api.v1.endpoints.transfers import router as transfers_router
 from backend.app.api.v1.endpoints.users import router as users_router
 from backend.app.api.v1.endpoints.webauthn import router as webauthn_router
@@ -83,7 +82,6 @@ __all__ = [
     "shopping_lists_router",
     "staging_router",
     "stores_router",
-    "sync_router",
     "transfers_router",
     "users_router",
     "webauthn_router",

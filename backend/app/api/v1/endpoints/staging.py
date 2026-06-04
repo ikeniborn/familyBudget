@@ -633,7 +633,6 @@ async def execute_import(
             description=fact.description,
             record_type=fact.record_type,
             transfer_id=None,
-            is_offline_sync=False,  # Import is always online
             valid_from=now,
             is_current=True,
             change_type="CREATE",

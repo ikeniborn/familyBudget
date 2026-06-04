@@ -476,7 +476,6 @@ async def execute_csv_import(
                 quantity=quantity,
                 unit=row.get("unit") if row.get("unit") else None,
                 comment=row.get("comment") if row.get("comment") else None,
-                sync_status="synced",  # Created online = synced
             )
 
             session.add(item)

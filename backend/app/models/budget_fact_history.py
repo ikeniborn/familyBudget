@@ -214,13 +214,6 @@ class BudgetFactHistory(SQLModel, table=True):
         description="Transfer ID snapshot (optional)"
     )
 
-    # Offline sync flag
-    is_offline_sync: bool = Field(
-        default=False,
-        nullable=False,
-        description="Offline sync flag snapshot"
-    )
-
     # SCD Type 2 fields
     valid_from: datetime = Field(
         sa_column=Column(DateTime(timezone=True), nullable=False, index=True),

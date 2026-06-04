@@ -2,25 +2,20 @@
 ShoppingListItem Service Layer.
 
 This module manages ShoppingListItem CRUD operations (lines in Header+Lines pattern).
-Shopping list items are SHARED across all users with offline sync support.
+Shopping list items are SHARED across all users.
 
 Key Features:
     - SHARED model: All users can add/edit/delete items
     - Batch operations: Complete/delete multiple items at once
-    - Offline sync: sync_status field ('synced', 'pending', 'conflict')
     - Soft delete: deleted_at timestamp, records kept for autocomplete
     - Optimistic locking: version field incremented on each update
 
 Key Functions:
     - batch_complete_items(): Mark multiple items as completed
     - batch_delete_items(): Soft-delete multiple items at once
-    - mark_items_pending(): Mark items as pending sync (offline create/update)
-    - detect_conflicts(): Detect offline sync conflicts
-    - resolve_conflict(): Resolve sync conflicts (server/client/merge)
 """
 from datetime import datetime
 
-from sqlalchemy import func
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -193,7 +188,6 @@ async def restore_item(
         - SHARED model: Any user can restore any item
         - Idempotent: If item is already active, returns it unchanged
         - Increments version for optimistic locking
-        - Sets sync_status to "synced"
     """
     statement = select(ShoppingListItem).where(ShoppingListItem.id == item_id)
     result = await session.execute(statement)
@@ -213,203 +207,10 @@ async def restore_item(
     item.completed_at = None
     item.version += 1
     item.updated_at = now
-    item.sync_status = "synced"
 
     if user_id:
         item.last_modified_by = user_id
 
-    session.add(item)
-    await session.commit()
-    await session.refresh(item)
-
-    return item
-
-
-async def mark_items_pending(
-    session: AsyncSession,
-    item_ids: list[int],
-) -> int:
-    """
-    Mark items as pending sync (offline create/update).
-
-    Used when items are created/updated offline and need to be synced to server.
-
-    Args:
-        session: AsyncSession for database operations
-        item_ids: List of ShoppingListItem IDs to mark as pending
-
-    Returns:
-        Number of items marked as pending
-
-    Example:
-        >>> # Mark items 1, 2 as pending sync
-        >>> count = await mark_items_pending(session=session, item_ids=[1, 2])
-        >>> print(f"Marked {count} items as pending sync")
-
-    Notes:
-        - Sets sync_status='pending'
-        - Used for offline-first functionality
-        - Items with sync_status='pending' need to be synced when online
-    """
-    if not item_ids:
-        return 0
-
-    # Get items
-    statement = select(ShoppingListItem).where(
-        ShoppingListItem.id.in_(item_ids)
-    )
-    result = await session.execute(statement)
-    items = result.scalars().all()
-
-    # Update each item
-    count = 0
-    for item in items:
-        item.sync_status = 'pending'
-        item.updated_at = func.now()
-        session.add(item)
-        count += 1
-
-    await session.commit()
-
-    return count
-
-
-async def get_pending_sync_items(
-    session: AsyncSession,
-    shopping_list_id: int | None = None,
-) -> list[ShoppingListItem]:
-    """
-    Get all items with pending sync status.
-
-    Used for offline sync queue processing.
-
-    Args:
-        session: AsyncSession for database operations
-        shopping_list_id: Optional filter by shopping list ID
-
-    Returns:
-        List of ShoppingListItem instances with sync_status='pending'
-
-    Example:
-        >>> # Get all pending items
-        >>> pending_items = await get_pending_sync_items(session)
-        >>> for item in pending_items:
-        ...     print(f"Item {item.id} needs sync: {item.product_name}")
-
-        >>> # Get pending items for specific list
-        >>> pending_items = await get_pending_sync_items(session, shopping_list_id=1)
-
-    Notes:
-        - Returns items with sync_status='pending'
-        - Excludes soft-deleted items (deleted_at IS NULL)
-        - Ordered by created_at ASC (oldest first)
-        - Used for background sync queue processing
-    """
-    statement = select(ShoppingListItem).where(
-        ShoppingListItem.sync_status == 'pending',
-        ShoppingListItem.deleted_at.is_(None),
-    )
-
-    if shopping_list_id is not None:
-        statement = statement.where(
-            ShoppingListItem.shopping_list_id == shopping_list_id
-        )
-
-    statement = statement.order_by(ShoppingListItem.created_at.asc())
-
-    result = await session.execute(statement)
-    return list(result.scalars().all())
-
-
-async def detect_conflicts(
-    session: AsyncSession,
-    shopping_list_id: int,
-) -> list[ShoppingListItem]:
-    """
-    Detect items with sync conflicts.
-
-    Conflicts occur when item is modified both offline and online.
-
-    Args:
-        session: AsyncSession for database operations
-        shopping_list_id: ShoppingList ID to check for conflicts
-
-    Returns:
-        List of ShoppingListItem instances with sync_status='conflict'
-
-    Example:
-        >>> conflicts = await detect_conflicts(session, shopping_list_id=1)
-        >>> if conflicts:
-        ...     print(f"Found {len(conflicts)} conflicts that need resolution")
-        ...     for item in conflicts:
-        ...         print(f"  Item {item.id}: {item.product_name}")
-
-    Notes:
-        - Returns items with sync_status='conflict'
-        - Excludes soft-deleted items (deleted_at IS NULL)
-        - Conflicts must be resolved manually (user chooses: server/client/merge)
-        - UI should show conflict indicators (⚠️ icon)
-    """
-    statement = select(ShoppingListItem).where(
-        ShoppingListItem.shopping_list_id == shopping_list_id,
-        ShoppingListItem.sync_status == 'conflict',
-        ShoppingListItem.deleted_at.is_(None),
-    )
-
-    result = await session.execute(statement)
-    return list(result.scalars().all())
-
-
-async def resolve_conflict(
-    session: AsyncSession,
-    item: ShoppingListItem,
-    strategy: str = 'server',
-) -> ShoppingListItem:
-    """
-    Resolve sync conflict.
-
-    Strategies:
-    - 'server': Use server version (discard local changes)
-    - 'client': Use client version (overwrite server)
-    - 'synced': Mark as synced without changes (manual merge completed)
-
-    Args:
-        session: AsyncSession for database operations
-        item: ShoppingListItem instance with conflict
-        strategy: Resolution strategy ('server', 'client', 'synced')
-
-    Returns:
-        Updated ShoppingListItem instance
-
-    Example:
-        >>> item = await session.get(ShoppingListItem, 5)
-        >>> if item.sync_status == 'conflict':
-        ...     # User chose to keep server version
-        ...     resolved_item = await resolve_conflict(
-        ...         session=session,
-        ...         item=item,
-        ...         strategy='server'
-        ...     )
-
-    Notes:
-        - 'server': Reload from server (client discards local changes)
-        - 'client': Client overwrites server (server accepts local changes)
-        - 'synced': Mark as synced (user manually merged)
-        - After resolution, sync_status set to 'synced'
-    """
-    if strategy == 'server':
-        # Server wins: reload item from DB (discard local changes)
-        await session.refresh(item)
-    elif strategy == 'client':
-        # Client wins: keep current item state (overwrite server)
-        pass  # No changes needed, local state is correct
-    elif strategy == 'synced':
-        # Manual merge completed: just mark as synced
-        pass  # No changes needed
-
-    # Mark as synced
-    item.sync_status = 'synced'
-    item.updated_at = func.now()
     session.add(item)
     await session.commit()
     await session.refresh(item)

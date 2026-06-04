@@ -1,7 +1,7 @@
 """Transfer endpoints for managing transfers between financial centers."""
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -132,13 +132,7 @@ async def validate_financial_center(
         "Creates a transfer by creating two linked transactions:\n"
         "1. Expense transaction (списание from source CFO)\n"
         "2. Income transaction (пополнение to destination CFO)\n\n"
-        "Both transactions share the same transfer_id for tracking.\n\n"
-        "**Deduplication (Offline Sync & Duplicate Prevention):**\n"
-        "- When is_offline_sync=true and sync_hash provided:\n"
-        "  - Checks if same sync_hash exists within last 24 hours\n"
-        "  - If found, returns existing transfer (idempotent operation)\n"
-        "  - Prevents duplicate creation from repeated sync or multiple clicks\n"
-        "- Same transfer next day = different sync_hash (legitimate duplicate)"
+        "Both transactions share the same transfer_id for tracking."
     )
 )
 async def create_transfer(
@@ -146,10 +140,10 @@ async def create_transfer(
     session: Annotated[AsyncSession, Depends(get_session)],
     current_user: CurrentUser
 ):
-    """Create a transfer between financial centers with deduplication support.
+    """Create a transfer between financial centers.
 
     Args:
-        transfer: Transfer data (date, amount, from/to CFOs, sync_hash, etc.)
+        transfer: Transfer data (date, amount, from/to CFOs, etc.)
         session: Database session
         current_user: Current authenticated user
 
@@ -159,86 +153,6 @@ async def create_transfer(
     Raises:
         HTTPException: If validation fails or database error
     """
-
-    # =========================================================================
-    # DEDUPLICATION: Check for duplicate transfer within 24 hours
-    # =========================================================================
-    # If sync_hash provided, search for existing transfer with same hash
-    # created within last 24 hours. If found, return existing transfer
-    # instead of creating duplicate (idempotent operation).
-    #
-    # This prevents:
-    # - Duplicate transfers from repeated offline sync
-    # - Duplicate transfers from multiple form submissions
-    # - Duplicate transfers from double-click on save button
-    if transfer.sync_hash:
-        from sqlmodel import and_, select
-
-        # Search for transfer with same sync_hash within 24 hours
-        # Transfer consists of 2 BudgetFact records (expense + income)
-        # Both facts have same sync_hash and transfer_id
-        duplicate_stmt = select(BudgetFact).where(
-            and_(
-                BudgetFact.sync_hash == transfer.sync_hash,
-                BudgetFact.transfer_id.isnot(None),  # Only transfer facts
-                BudgetFact.created_at >= datetime.utcnow() - timedelta(days=1)
-            )
-        ).order_by(BudgetFact.created_at.desc())
-
-        duplicate_result = await session.exec(duplicate_stmt)
-        existing_fact = duplicate_result.first()
-
-        if existing_fact:
-            # Found duplicate transfer - return existing transfer_id
-            existing_transfer_id = existing_fact.transfer_id
-
-            # Load both facts (expense + income) for this transfer
-            transfer_facts_stmt = select(BudgetFact).where(
-                BudgetFact.transfer_id == existing_transfer_id
-            )
-            transfer_facts_result = await session.exec(transfer_facts_stmt)
-            transfer_facts = transfer_facts_result.all()
-
-            if len(transfer_facts) != 2:
-                logger.error(
-                    "[DEDUP] Inconsistent transfer state: transfer_id=%s has %s facts instead of 2",
-                    existing_transfer_id, len(transfer_facts)
-                )
-                # Fall through to create new transfer
-            else:
-                # Identify expense and income facts by article type
-                expense_fact = None
-                income_fact = None
-
-                for fact in transfer_facts:
-                    article_stmt = select(Article).where(Article.id == fact.article_id)
-                    article_result = await session.exec(article_stmt)
-                    article = article_result.first()
-
-                    if article and article.type == "debit":
-                        expense_fact = fact
-                    elif article and article.type == "credit":
-                        income_fact = fact
-
-                if expense_fact and income_fact:
-                    logger.info(
-                        "[DEDUP] Transfer duplicate detected: sync_hash=%s, "
-                        "existing_transfer_id=%s, expense_fact_id=%s, "
-                        "income_fact_id=%s, user_id=%s, skipping creation (idempotent)",
-                        transfer.sync_hash, existing_transfer_id,
-                        expense_fact.id, income_fact.id, current_user.id
-                    )
-
-                    # Return existing transfer (idempotent response)
-                    return TransferResponse(
-                        transfer_id=existing_transfer_id,
-                        expense_fact_id=expense_fact.id,
-                        income_fact_id=income_fact.id,
-                        created_at=expense_fact.created_at.isoformat(),
-                        # Note: Response status will be 201 (not 200) to match schema
-                        # Frontend should check _duplicate_skipped flag if needed
-                    )
-
     # 1. Validate articles
     await validate_article_type(
         session,
@@ -280,9 +194,6 @@ async def create_transfer(
         description=expense_description,
         transfer_id=transfer_id,
         record_type=transfer.record_type,  # Use record_type from request
-        is_offline_sync=transfer.is_offline_sync,  # Preserve offline sync flag
-        sync_hash=transfer.sync_hash,  # Deduplication hash (offline sync)
-        content_hash=transfer.content_hash,  # Content hash (duplicate detection)
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -298,9 +209,6 @@ async def create_transfer(
         description=income_description,
         transfer_id=transfer_id,
         record_type=transfer.record_type,  # Use record_type from request
-        is_offline_sync=transfer.is_offline_sync,  # Preserve offline sync flag
-        sync_hash=transfer.sync_hash,  # Deduplication hash (offline sync)
-        content_hash=transfer.content_hash,  # Content hash (duplicate detection)
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow()
     )
@@ -389,7 +297,6 @@ async def delete_transfer(
     now = datetime.utcnow()
     for fact in facts:
         # Create history record (SCD Type 2)
-        # IMPORTANT: Copy ALL fields including sync_hash and content_hash
         delete_history = BudgetFactHistory(
             fact_id=fact.id,
             user_id=fact.user_id,
@@ -401,9 +308,6 @@ async def delete_transfer(
             description=fact.description,
             record_type=fact.record_type,
             transfer_id=fact.transfer_id,
-            is_offline_sync=fact.is_offline_sync,
-            sync_hash=fact.sync_hash,  # Preserve deduplication hash
-            content_hash=fact.content_hash,  # Preserve content hash
             valid_from=now,
             is_current=False,
             change_type="DELETE",

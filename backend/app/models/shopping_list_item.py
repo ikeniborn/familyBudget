@@ -7,7 +7,6 @@ Header is stored in ShoppingList table.
 
 Key features:
 - SHARED across all users (anyone can add/edit/delete items)
-- Offline sync support with sync_status field
 - Many-to-one relationship with ShoppingList (shopping_list_id FK)
 """
 from datetime import datetime
@@ -32,13 +31,6 @@ class ShoppingListItem(SQLModel, table=True):
         - creator_id tracks who created the item (audit only, NOT for filtering)
         - Items belong to a shopping list (shopping_list_id FK)
 
-    Offline Sync:
-        - sync_status field: 'synced', 'pending', 'conflict'
-        - 'synced': Item is synchronized with server
-        - 'pending': Item created/updated offline, not yet synced to server
-        - 'conflict': Item has conflicting changes (offline + online)
-        - Conflict resolution: user chooses 'server', 'client', or 'merge'
-
     Optimistic Locking:
         - version field: incremented on each update
         - Used for conflict detection during sync
@@ -61,7 +53,6 @@ class ShoppingListItem(SQLModel, table=True):
         comment: Optional comment or notes (e.g., "buy on sale", "specific brand")
         is_completed: Completion flag (True = marked as bought, False = still needed)
         completed_at: When item was marked as completed (for conflict resolution)
-        sync_status: Offline sync status ('synced', 'pending', 'conflict')
         version: Optimistic locking version (incremented on each update)
         deleted_at: Soft delete timestamp (NULL = active, NOT NULL = deleted)
         last_modified_by: User ID who last modified this item
@@ -79,28 +70,16 @@ class ShoppingListItem(SQLModel, table=True):
         ...     quantity=Decimal("2"),
         ...     unit="bottles",
         ...     is_completed=False,
-        ...     sync_status="synced"
         ... )
 
         # Mark item as completed
         >>> item.is_completed = True
         >>> await session.commit()
 
-        # Offline creation (pending sync)
-        >>> item = ShoppingListItem(
-        ...     creator_id=123,
-        ...     shopping_list_id=1,
-        ...     store_id=5,
-        ...     product_group_id=10,
-        ...     product_name="Bread",
-        ...     sync_status="pending"  # Not yet synced to server
-        ... )
-
     Notes:
         - store_id, product_group_id, product_name are REQUIRED
         - quantity, unit, comment are OPTIONAL
         - Deleting ShoppingList CASCADE deletes all associated items
-        - sync_status is used for offline-first functionality
         - All users can add/edit/delete any item (no permission checks)
     """
 
@@ -180,15 +159,6 @@ class ShoppingListItem(SQLModel, table=True):
         description="When item was marked as completed (for conflict resolution priority)"
     )
 
-    # Offline sync status
-    sync_status: str = Field(
-        default="synced",
-        nullable=False,
-        max_length=20,
-        index=True,
-        description="Offline sync status: 'synced', 'pending', 'conflict'"
-    )
-
     # Optimistic locking
     version: int = Field(
         default=1,
@@ -226,6 +196,5 @@ class ShoppingListItem(SQLModel, table=True):
         """String representation of ShoppingListItem model."""
         return (
             f"ShoppingListItem(id={self.id}, product_name='{self.product_name}', "
-            f"shopping_list_id={self.shopping_list_id}, is_completed={self.is_completed}, "
-            f"sync_status='{self.sync_status}')"
+            f"shopping_list_id={self.shopping_list_id}, is_completed={self.is_completed})"
         )
