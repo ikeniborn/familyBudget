@@ -75,7 +75,6 @@ export async function savePlanTransaction(form: HTMLFormElement): Promise<void> 
   // Update UI
   await refreshUIAfterPlanSave();
 
-  if (typeof window.loadRecentTransactions === 'function') {
-    await window.loadRecentTransactions();
-  }
+  // Refresh recent transactions via HTMX (single code path; fire-and-forget)
+  (window as any).HTMXWidgets?.refreshTransactions();
 }
