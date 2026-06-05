@@ -30,7 +30,9 @@ WebSocket client (`budgetWSClient.js`) handles all real-time events. Multi-tab s
 
 ## Push Notifications
 
-Web Push frontend lives at `frontend/web/static/js/notifications/pushManager.ts` — a self-contained bundle (zero imports) that sets the `window.budgetPushManager` singleton. Loaded in `base.html` for authenticated users only (`{% if user %}` block), before the inline push-permission banner logic which reads the singleton. Drives the permission banner and the notification bell. Push is **not** an offline feature — it survives the offline/Dexie removal; the backend (`push_service.py`, VAPID, scheduler) is independent. See [[api#Notifications + Push]].
+Web Push frontend singleton `window.budgetPushManager`, set by `frontend/web/static/js/notifications/pushManager.ts` (self-contained, zero imports). Drives the permission banner and the notification bell.
+
+Loaded in `base.html` for authenticated users only (`{% if user %}` block), before the inline push-permission banner logic that reads the singleton. Push is **not** an offline feature — it survives the offline/Dexie removal; the backend (`push_service.py`, VAPID, scheduler) is independent. See [[api#Key Endpoint Groups#Notifications + Push]].
 
 ## CSS
 
