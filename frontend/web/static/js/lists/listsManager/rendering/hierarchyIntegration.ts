@@ -8,8 +8,8 @@
  */
 
 import { getState, updateState } from '../core/ListsState';
-import { filterItemsBySearch, renderItemsTable } from './tableBuilder';
-import { loadShoppingListItems, loadStores, loadProductGroups } from '../core/stateManager';
+import { filterItemsBySearch, renderItemsTable, renderCurrentView } from './tableBuilder';
+import { loadShoppingListItems, loadShoppingLists, loadStores, loadProductGroups } from '../core/stateManager';
 import { deleteItem } from '../core/listOperations';
 import { initStoreChoices, initProductGroupChoices } from '../ui/modalManager';
 import { HierarchyView } from './HierarchyView';
@@ -102,6 +102,7 @@ export function updateHierarchyToggleButton(): void {
  * - filterItemsBySearch(): ShoppingItem[]
  * - updateHierarchyToggleButton(): void
  * - loadShoppingListItems(listId: number): Promise<void>
+ * - loadShoppingLists(): Promise<void>
  * - loadStores(): Promise<void>
  * - loadProductGroups(): Promise<void>
  * - deleteItem(itemId: number, skipConfirm?: boolean): Promise<void>
@@ -121,10 +122,12 @@ export function createListsManagerProxy(): any {
     filterItemsBySearch,
     updateHierarchyToggleButton,
     loadShoppingListItems,
+    loadShoppingLists,
     loadStores,
     loadProductGroups,
     deleteItem,
     renderItemsTable,
+    renderCurrentView,
     initStoreChoices,
     initProductGroupChoices,
 

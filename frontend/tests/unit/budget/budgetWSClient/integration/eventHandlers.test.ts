@@ -1,7 +1,7 @@
 /**
  * Unit tests for Event Handlers
  *
- * Tests WebSocket event dispatching and integration with offlineManager/listsManager
+ * Tests WebSocket event dispatching and integration with listsManager
  * Phase 2: Event Handlers Integration
  */
 
@@ -27,18 +27,11 @@ import { on, off, removeAllHandlers } from '@web/budget/budgetWSClient/integrati
 import * as WSState from '@web/budget/budgetWSClient/core/WSState';
 
 describe('Event Handlers', () => {
-  let mockOfflineManager: any;
   let mockListsManager: any;
 
   beforeEach(() => {
     // Reset WSState
     WSState.resetState();
-
-    // Mock offlineManager
-    mockOfflineManager = {
-      refreshUICallback: vi.fn(),
-      handleOfflineEvent: vi.fn(),
-    };
 
     // Mock listsManager
     mockListsManager = {
@@ -49,13 +42,11 @@ describe('Event Handlers', () => {
     };
 
     // Attach to window
-    (window as any).offlineManager = mockOfflineManager;
     (window as any).listsManager = mockListsManager;
   });
 
   afterEach(() => {
     removeAllHandlers();
-    delete (window as any).offlineManager;
     delete (window as any).listsManager;
     vi.clearAllMocks();
   });
@@ -69,7 +60,6 @@ describe('Event Handlers', () => {
       handleFactCreated(eventData as any);
 
       expect(handler).toHaveBeenCalledWith(eventData);
-      expect(mockOfflineManager.refreshUICallback).toHaveBeenCalledWith('fact_created', eventData);
     });
 
     it('should handle fact_updated event', () => {
@@ -80,7 +70,6 @@ describe('Event Handlers', () => {
       handleFactUpdated(eventData as any);
 
       expect(handler).toHaveBeenCalledWith(eventData);
-      expect(mockOfflineManager.refreshUICallback).toHaveBeenCalledWith('fact_updated', eventData);
     });
 
     it('should handle fact_deleted event', () => {
@@ -91,7 +80,6 @@ describe('Event Handlers', () => {
       handleFactDeleted(eventData as any);
 
       expect(handler).toHaveBeenCalledWith(eventData);
-      expect(mockOfflineManager.refreshUICallback).toHaveBeenCalledWith('fact_deleted', eventData);
     });
   });
 
@@ -104,7 +92,6 @@ describe('Event Handlers', () => {
       handlePlanCreated(eventData as any);
 
       expect(handler).toHaveBeenCalledWith(eventData);
-      expect(mockOfflineManager.refreshUICallback).toHaveBeenCalledWith('plan_created', eventData);
     });
 
     it('should handle plan_updated event', () => {
@@ -115,7 +102,6 @@ describe('Event Handlers', () => {
       handlePlanUpdated(eventData as any);
 
       expect(handler).toHaveBeenCalledWith(eventData);
-      expect(mockOfflineManager.refreshUICallback).toHaveBeenCalledWith('plan_updated', eventData);
     });
 
     it('should handle plan_deleted event', () => {
@@ -126,7 +112,6 @@ describe('Event Handlers', () => {
       handlePlanDeleted(eventData as any);
 
       expect(handler).toHaveBeenCalledWith(eventData);
-      expect(mockOfflineManager.refreshUICallback).toHaveBeenCalledWith('plan_deleted', eventData);
     });
   });
 
@@ -139,7 +124,6 @@ describe('Event Handlers', () => {
       handleTransferCreated(eventData as any);
 
       expect(handler).toHaveBeenCalledWith(eventData);
-      expect(mockOfflineManager.refreshUICallback).toHaveBeenCalledWith('transfer_created', eventData);
     });
 
     it('should handle transfer_deleted event', () => {
@@ -150,7 +134,6 @@ describe('Event Handlers', () => {
       handleTransferDeleted(eventData as any);
 
       expect(handler).toHaveBeenCalledWith(eventData);
-      expect(mockOfflineManager.refreshUICallback).toHaveBeenCalledWith('transfer_deleted', eventData);
     });
   });
 
@@ -209,7 +192,6 @@ describe('Event Handlers', () => {
       dispatchEvent('fact_created', eventData);
 
       expect(handler).toHaveBeenCalledWith(eventData);
-      expect(mockOfflineManager.refreshUICallback).toHaveBeenCalledWith('fact_created', eventData);
     });
 
     it('should route plan_created to handlePlanCreated', () => {
@@ -263,46 +245,6 @@ describe('Event Handlers', () => {
       handleEvent('custom_event', eventData);
 
       expect(handler).toHaveBeenCalledWith(eventData);
-    });
-  });
-
-  describe('offlineManager integration', () => {
-    it('should call refreshUICallback for all budget events', () => {
-      const events = [
-        { type: 'fact_created', handler: handleFactCreated },
-        { type: 'fact_updated', handler: handleFactUpdated },
-        { type: 'fact_deleted', handler: handleFactDeleted },
-        { type: 'plan_created', handler: handlePlanCreated },
-        { type: 'plan_updated', handler: handlePlanUpdated },
-        { type: 'plan_deleted', handler: handlePlanDeleted },
-        { type: 'transfer_created', handler: handleTransferCreated },
-        { type: 'transfer_deleted', handler: handleTransferDeleted },
-      ];
-
-      events.forEach(({ type, handler }) => {
-        mockOfflineManager.refreshUICallback.mockClear();
-
-        const eventData = { id: 123 };
-        handler(eventData as any);
-
-        expect(mockOfflineManager.refreshUICallback).toHaveBeenCalledWith(type, eventData);
-      });
-    });
-
-    it('should not crash if offlineManager is undefined', () => {
-      delete (window as any).offlineManager;
-
-      expect(() => {
-        handleFactCreated({ id: 123 } as any);
-      }).not.toThrow();
-    });
-
-    it('should not crash if refreshUICallback is undefined', () => {
-      (window as any).offlineManager = {};
-
-      expect(() => {
-        handleFactCreated({ id: 123 } as any);
-      }).not.toThrow();
     });
   });
 

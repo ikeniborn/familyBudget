@@ -60,7 +60,12 @@ class GoogleSheetsImporter {
      */
     async fetchSavedGoogleSheetsUrl() {
         try {
-            const response = await fetch('/api/v1/users/me/google-sheets-url', {
+            const listId = this.listsManager.currentListId;
+            if (!listId) {
+                debugLog('[GoogleSheetsImporter] No currentListId, skipping URL fetch');
+                return;
+            }
+            const response = await fetch(`/api/v1/shopping-lists/${listId}/google-sheets-url`, {
                 method: 'GET',
                 credentials: 'same-origin',
             });
@@ -89,7 +94,12 @@ class GoogleSheetsImporter {
      */
     async saveGoogleSheetsUrl(url) {
         try {
-            const response = await fetch('/api/v1/users/me/google-sheets-url', {
+            const listId = this.listsManager.currentListId;
+            if (!listId) {
+                debugLog('[GoogleSheetsImporter] No currentListId, cannot save URL');
+                return false;
+            }
+            const response = await fetch(`/api/v1/shopping-lists/${listId}/google-sheets-url`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',

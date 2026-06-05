@@ -35,26 +35,6 @@ export interface ILogger {
 }
 
 /**
- * Offline Manager interface
- * Provides UI refresh callbacks and network detection
- */
-export interface IOfflineManager {
-  /**
-   * UI refresh callback for real-time updates
-   * @param event - Event type (fact_created, fact_updated, etc.)
-   * @param data - Event data
-   */
-  refreshUICallback?: (event: string, data: any) => void;
-
-  /**
-   * Network detector for auto-offline mode detection
-   */
-  networkDetector?: {
-    autoOfflineMode: boolean;
-  };
-}
-
-/**
  * Lists Manager interface
  * Provides shopping list UI update methods
  */

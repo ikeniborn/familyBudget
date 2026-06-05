@@ -248,33 +248,3 @@ export async function loadRemindersForEdit(factIds: number[]): Promise<void> {
   }
 }
 
-// ============================================================================
-// Offline Mode Helpers
-// ============================================================================
-
-/**
- * Populate dropdowns with single option from pending record data (offline mode).
- */
-export function populateOfflineDropdowns(data: Record<string, any>): void {
-  // Populate financial center dropdown with single option
-  const fcSelect = document.getElementById('edit-financial-center') as HTMLSelectElement | null;
-  if (fcSelect && data.financial_center_id) {
-    while (fcSelect.options.length > 1) fcSelect.remove(1);
-    const option = document.createElement('option');
-    option.value = String(data.financial_center_id);
-    option.textContent = data.financial_center_name || `ФЦ ${data.financial_center_id}`;
-    option.selected = true;
-    fcSelect.appendChild(option);
-  }
-
-  // Populate cost center dropdown with single option
-  const ccSelect = document.getElementById('edit-cost-center') as HTMLSelectElement | null;
-  if (ccSelect && data.cost_center_id) {
-    while (ccSelect.options.length > 1) ccSelect.remove(1);
-    const option = document.createElement('option');
-    option.value = String(data.cost_center_id);
-    option.textContent = data.cost_center_name || `МЗ ${data.cost_center_id}`;
-    option.selected = true;
-    ccSelect.appendChild(option);
-  }
-}

@@ -17,13 +17,13 @@ Family Budget is a family budget management system with Telegram bot and web int
 **Key Features:**
 - 🔐 Authentication: Telegram OAuth, Email+Password, WebAuthn biometrics
 - 📊 Hierarchical budget categories (Closure Table pattern)
-- 💰 Transaction tracking with offline sync support
+- 💰 Transaction tracking
 - 🤖 Telegram bot with Web Apps
 - 🌐 Progressive Web App (HTMX + Tailwind CSS + DaisyUI)
 - 📈 Real-time updates via WebSocket + Redis Pub/Sub
 - 🔄 Change history (SCD Type 1 + History tables)
 
-**Stack:** FastAPI 0.121.2 | PostgreSQL 16 | python-telegram-bot 21.10 | Docker Compose | Dexie.js 4.0+ (offline)
+**Stack:** FastAPI 0.121.2 | PostgreSQL 16 | python-telegram-bot 21.10 | Docker Compose | Vite (32 IIFE bundles)
 
 ## Architecture
 
@@ -38,21 +38,24 @@ backend/app/
 ├── middleware/          # Auth, logging middleware
 └── main.py              # FastAPI app entry point
 
-frontend/web/
-├── templates/           # Jinja2 HTML templates (HTMX)
-├── static/css/          # CSS sources → .min.css (build time)
-└── static/js/           # TypeScript → .bundle.js/.min.js (Rollup)
+frontend/                # 3 roots — Vite bundles shared/ → web/static/js/
+├── web/                 # Main PWA (nginx serves /static/ from here)
+│   ├── templates/       # Jinja2 HTML templates (HTMX)
+│   ├── static/css/      # CSS sources → .min.css (build time)
+│   └── static/js/       # Bundle output (.min.js); per-module adapters/windowExports.ts
+├── shared/              # Shared TS → bundled into web/static/js (network/, static/js/)
+├── webapp/              # Telegram Web App pages
+└── tests/               # Vitest unit/integration (frontend)
 
 bot/
 ├── handlers/            # Telegram bot command handlers
 ├── jobs/                # Scheduled tasks
 └── main.py              # Bot entry point
 
-tests/
-├── unit/                # Vitest (frontend) + pytest (backend)
-├── integration/         # pytest backend integration
+tests/                   # Backend pytest + e2e (frontend Vitest lives in frontend/tests/)
+├── backend/, integration/, models/, migrations/   # pytest
 ├── e2e/                 # Playwright browser tests
-└── run-tests.sh         # Test runner helper
+└── run-tests.sh         # backend|frontend|e2e|all (runs alembic upgrade first)
 ```
 
 ## Core Rules
@@ -77,11 +80,11 @@ tests/
 ### 3. Architecture-First Workflow
 
 При каждой задаче доработки или правки:
-1. **До начала работы**: использовать индекс `docs/llms.txt` и `docs/llms-full.txt` для быстрого поиска по архитектуре и документации Sphinx. Прочитать связанные разделы для понимания контекста
+1. **До начала работы**: использовать doc-индекс в `lat.md/` (api, architecture, auth, bot, database, domain, frontend, realtime) через инструмент `lat`. Прочитать связанные разделы для понимания контекста
 2. **После внесения изменений**: перечитать затронутые модули и проверить:
    - Не нарушена ли существующая архитектура
    - Соответствуют ли изменения паттернам проекта (Window exports, Closure Table, SCD и т.д.)
-   - Нужно ли обновить документацию в `docs/` при изменении API, моделей или структуры
+   - Нужно ли обновить документацию в `lat.md/` при изменении API, моделей или структуры
 
 ## Environments
 
@@ -109,20 +112,20 @@ tests/
 ## Commands
 
 ```bash
-# Frontend
-npm run type-check          # TypeScript validation
+# Frontend build
+npm run type-check          # tsc --noEmit -p config/tsconfig.json
 npm run build:css           # Tailwind + CSS minification
-npm run bundle              # Rollup JS bundles
-npm run build               # type-check + CSS + bundles + verify
+npm run bundle              # node build-all.js (Vite, 32 IIFE entry points)
+npm run build               # type-check + build:css + build:vendor + bundle
 
 # Backend tests (из корня проекта)
-cd tests && ./run-tests.sh backend    # Backend integration tests
+cd tests && ./run-tests.sh backend    # alembic upgrade + pytest
 cd tests && ./run-tests.sh all        # Все тесты
 
 # Frontend tests
-npm run test:coverage                  # Vitest unit tests + coverage
-npm run test:e2e                       # Playwright E2E (headless)
-npm run test:e2e:headed                # Playwright E2E (с браузером)
+npm run test:coverage                  # Vitest unit + coverage (config/vitest.config.ts)
+npm run test:e2e:chromium              # Playwright E2E, один браузер
+npm run test:e2e:full                  # chromium+firefox+webkit+mobile
 
 # Lint
 npm run lint                           # ESLint

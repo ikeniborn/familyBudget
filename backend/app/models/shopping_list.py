@@ -12,8 +12,6 @@ Key features:
 """
 from datetime import datetime
 
-from sqlalchemy import Column
-from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlmodel import Field, SQLModel
 
 
@@ -83,15 +81,6 @@ class ShoppingList(SQLModel, table=True):
         description="Surrogate primary key"
     )
 
-    # Offline sync field
-    # PgUUID(as_uuid=False): stored as native UUID in PostgreSQL,
-    # returned as str by psycopg2 — keeps API/Dexie compatibility
-    temp_id: str | None = Field(
-        default=None,
-        sa_column=Column(PgUUID(as_uuid=False), index=True, unique=True, nullable=True),
-        description="Client-side UUID for offline sync (guaranteed unique)"
-    )
-
     # Foreign keys
     creator_id: int = Field(
         foreign_key="t_d_user.id",
@@ -110,6 +99,12 @@ class ShoppingList(SQLModel, table=True):
     description: str | None = Field(
         default=None,
         description="Optional description or notes about the shopping list"
+    )
+
+    google_sheets_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="Saved Google Sheets URL for this specific shopping list"
     )
 
     # Active status flag (completed/archived functionality)

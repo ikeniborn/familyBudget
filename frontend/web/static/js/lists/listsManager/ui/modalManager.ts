@@ -13,8 +13,7 @@ import { deleteItem, createItem, updateItem } from '../core/listOperations';
 import { renderDetailView, renderLandingView } from '../rendering/listRenderer';
 import { loadShoppingLists } from '../core/stateManager';
 import { setupProductAutocomplete, hideProductSuggestions } from '../features/autocomplete';
-import { getDexieManager, isDexieActive, db as dexieDb, createShoppingList, deleteShoppingList } from '@db/dexie';
-import { getNetworkDelay, isDexieDisabledForTesting, isVerboseLoggingEnabled } from '../testing/debugUtils';
+import { getNetworkDelay, isVerboseLoggingEnabled } from '../testing/debugUtils';
 
 // ============================================================================
 // Type Definitions
@@ -34,7 +33,6 @@ interface ChoicesInstance {
 /** API response interface for shopping list creation */
 interface CreateListAPIResponse {
   id: number;
-  temp_id?: string;
   name: string;
   description?: string;
   is_active?: boolean;
@@ -106,11 +104,9 @@ export async function handleCreateList(event: Event): Promise<void> {
     // Close modal
     closeCreateListModal();
 
-    // OPTIMISTIC UPDATE: Add new list to state directly (API response is source of truth)
-    // This eliminates race condition with Dexie sync latency
+    // OPTIMISTIC UPDATE: render before API responds for snappy UX
     const newList: ShoppingList = {
       id: result.id,
-      temp_id: result.temp_id, // Always use API (backend guarantees UUID)
       name: result.name,
       description: result.description || undefined,
       is_active: result.is_active ?? true,
@@ -139,93 +135,14 @@ export async function handleCreateList(event: Event): Promise<void> {
       debugLog('[ListsManager] Added new list to state', { listId: newList.id });
     }
 
-    // Start background sync (non-blocking, with proper error handling)
-    (async () => {
-      try {
-        // Validate creator_id (fallback to null if not available)
-        const creatorId = (window as any).userData?.id || null;
-        if (!creatorId) {
-          console.warn('[ListsManager] creator_id not available, using null');
-        }
-
-        // Validate temp_id (critical for Dexie consistency)
-        if (!newList.temp_id) {
-          console.error('[ListsManager] ❌ temp_id missing from API response, cannot sync to Dexie');
-          showToast('Оффлайн-синхронизация недоступна', 'warning');
-          return;
-        }
-
-        // Convert to LocalShoppingList type for Dexie
-        const localList = {
-          id: newList.id,
-          temp_id: newList.temp_id,  // ✅ Now guaranteed UUID from backend
-          name: newList.name,
-          description: newList.description || null,
-          is_active: newList.is_active,
-          creator_id: creatorId,
-          created_at: new Date(newList.created_at),
-          updated_at: new Date(newList.updated_at),
-          sync_status: 'synced' as const,
-          sync_hash: null,
-          content_hash: null,
-          synced_at: new Date(),
-          deleted_at: null
-        };
-
-        // Use Dexie db directly (public API, no private method access)
-        await dexieDb.shoppingLists.put(localList);
-        debugLog('[ListsManager] ✅ List synced to Dexie', {
-          listId: newList.id,
-          tempId: newList.temp_id
-        });
-
-      } catch (error) {
-        console.error('[ListsManager] ❌ Dexie sync failed:', error);
-
-        // Show user-facing warning if critical
-        if (error instanceof Error && error.message.includes('temp_id')) {
-          showToast('Оффлайн-синхронизация недоступна', 'warning');
-        }
-      }
-    })();
-
-    // Reload shopping lists from Dexie to ensure state is up-to-date before entering detail view
-    // This guarantees state.shoppingLists contains the new list with temp_id,
-    // which is required by createItem() for Dexie-first item creation
+    // Reload shopping lists from API so state.shoppingLists reflects server truth
     await loadShoppingLists();
 
     // Open the newly created list immediately
     await renderDetailView(newList.id);
   } catch (error) {
     console.error('[ListsManager] Error creating list:', error);
-
-    const isNetworkError = error instanceof TypeError &&
-      (error.message.toLowerCase().includes('fetch') || error.message.toLowerCase().includes('network'));
-
-    if (isNetworkError && isDexieActive()) {
-      try {
-        const creatorId = (window as any).userData?.id || null;
-        const temp_id = await createShoppingList({
-          name: data.name as string,
-          description: (data.description as string) || null,
-          is_active: true,
-          creator_id: creatorId,
-          sync_hash: null,
-          content_hash: null,
-          synced_at: null
-        });
-        closeCreateListModal();
-        showToast('Список сохранён офлайн — синхронизируется при восстановлении сети', 'warning');
-        debugLog('[ListsManager] List saved offline', { temp_id });
-        await loadShoppingLists();
-        renderLandingView();
-      } catch (dexieError) {
-        console.error('[ListsManager] Dexie offline fallback failed:', dexieError);
-        showToast('Ошибка создания списка', 'error');
-      }
-    } else {
-      showToast('Ошибка создания списка', 'error');
-    }
+    showToast('Ошибка создания списка', 'error');
   }
 }
 
@@ -470,7 +387,7 @@ export async function handleDeleteFromModal(): Promise<void> {
   closeItemModal();
 
   // Delete item using existing deleteItem method
-  // (already handles confirmation, offline support, cache update)
+  // (already handles confirmation)
   await deleteItem(itemId);
 
   debugLog('[DELETE_MODAL] Delete completed', { itemId });
@@ -601,12 +518,6 @@ export async function confirmDeleteList(): Promise<void> {
 
     debugLog('[DeleteList] Deleting list:', listId);
 
-    // CRITICAL: Get temp_id BEFORE DELETE API call to avoid race condition
-    // (WebSocket event may remove list from state before we can read it)
-    const state = getState();
-    const deletedList = state.shoppingLists.find(list => list.id === listId);
-    const deletedListTempId = deletedList?.temp_id;
-
     // DEBUG: Network delay simulation for race condition testing
     const networkDelay = getNetworkDelay();
     if (networkDelay > 0) {
@@ -647,53 +558,112 @@ export async function confirmDeleteList(): Promise<void> {
 
     debugLog('[DeleteList] List deleted successfully:', listId);
 
-    // Force Dexie cache invalidation + fresh API load
-    if (deletedListTempId) {
-      // DEBUG: Skip Dexie operations if disabled for testing
-      if (isDexieDisabledForTesting()) {
-        console.warn('[DeleteList] ⚠️  Dexie disabled for testing - skipping cache invalidation');
-      } else {
-        try {
-          const dexie = await getDexieManager();
-          if (isDexieActive() && dexie.isReady()) {
-            // Invalidate Dexie cache
-            const { deleteShoppingList } = await import('@db/dexie');
-            await deleteShoppingList(deletedListTempId);
-            debugLog('[DeleteList] Dexie cache invalidated for list:', deletedListTempId);
-          }
-        } catch (dexieError) {
-          // Log but don't fail - cache invalidation is non-critical
-          console.warn('[DeleteList] Failed to invalidate Dexie cache:', dexieError);
-        }
-      }
-    }
-
     // Reload landing view (will now fetch fresh data from API)
     await renderLandingView();
 
   } catch (error) {
     console.error('[DeleteList] Error deleting list:', error);
+    showToast(`❌ Ошибка удаления: ${(error as Error).message}`, 'error');
+  }
+}
 
-    const isNetworkError = error instanceof TypeError &&
-      (error.message.toLowerCase().includes('fetch') || error.message.toLowerCase().includes('network'));
+// ============================================================================
+// Edit List Modal
+// ============================================================================
 
-    const state = getState();
-    const deletedList = state.shoppingLists.find(list => list.id === listId);
-    const deletedListTempId = deletedList?.temp_id;
+/**
+ * Open edit list modal — reads current list from state, fills name/description
+ */
+export function openEditListModal(listId?: number): void {
+  const state = getState();
+  const id = listId ?? state.currentListId;
+  if (!id) {
+    showToast('Список не выбран', 'error');
+    return;
+  }
 
-    if (isNetworkError && isDexieActive() && deletedListTempId) {
-      try {
-        await deleteShoppingList(deletedListTempId);
-        showToast('Список удалён офлайн — синхронизируется при восстановлении сети', 'warning');
-        debugLog('[DeleteList] List soft-deleted offline:', deletedListTempId);
-        await renderLandingView();
-        return;
-      } catch (dexieError) {
-        console.error('[DeleteList] Dexie offline fallback failed:', dexieError);
-      }
+  const list = state.shoppingLists.find(l => l.id === id);
+  if (!list) {
+    showToast('Список не найден', 'error');
+    return;
+  }
+
+  const modal = document.getElementById('edit-list-modal') as HTMLDialogElement | null;
+  const nameInput = document.getElementById('edit-list-name') as HTMLInputElement | null;
+  const descInput = document.getElementById('edit-list-description') as HTMLTextAreaElement | null;
+  const hiddenId = document.getElementById('edit-list-id') as HTMLInputElement | null;
+
+  if (nameInput) nameInput.value = list.name;
+  if (descInput) descInput.value = list.description || '';
+  if (hiddenId) hiddenId.value = String(id);
+
+  if (modal) modal.showModal();
+}
+
+/**
+ * Close edit list modal
+ */
+export function closeEditListModal(): void {
+  const modal = document.getElementById('edit-list-modal') as HTMLDialogElement | null;
+  if (modal) modal.close();
+}
+
+/**
+ * Handle edit list form submission — PUT /api/v1/shopping-lists/{id}
+ */
+export async function handleEditList(event: Event): Promise<void> {
+  event.preventDefault();
+
+  const form = event.target as HTMLFormElement;
+  const formData = new FormData(form);
+
+  const listId = parseInt(formData.get('list_id') as string, 10);
+  const name = (formData.get('name') as string).trim();
+  const description = (formData.get('description') as string).trim() || null;
+
+  if (!listId || !name) {
+    showToast('Название обязательно', 'error');
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/v1/shopping-lists/${listId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ name, description })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    showToast(`❌ Ошибка удаления: ${(error as Error).message}`, 'error');
+    const updated = await response.json();
+
+    // Update in-memory state
+    const state = getState();
+    const idx = state.shoppingLists.findIndex(l => l.id === listId);
+    if (idx >= 0) {
+      const updatedList = { ...state.shoppingLists[idx], name: updated.name, description: updated.description };
+      const lists = [...state.shoppingLists];
+      lists[idx] = updatedList;
+      updateState({ shoppingLists: lists });
+    }
+
+    // Update breadcrumb title in detail view
+    const breadcrumb = document.getElementById('breadcrumb-list-name');
+    if (breadcrumb) breadcrumb.textContent = updated.name;
+
+    // Refresh landing page cards (for when user navigates back)
+    const { renderShoppingListCards } = await import('../rendering/listRenderer');
+    renderShoppingListCards();
+
+    closeEditListModal();
+    showToast('Список обновлён', 'success');
+
+  } catch (error) {
+    console.error('[EDIT_LIST] Error updating list:', error);
+    showToast('Ошибка обновления списка', 'error');
   }
 }
 

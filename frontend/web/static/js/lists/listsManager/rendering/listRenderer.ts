@@ -340,14 +340,22 @@ export function renderShoppingListCards(): void {
       <div class="shopping-list-card" data-list-id="${list.id}">
         <div class="flex justify-between items-start mb-2">
           <div class="card-title flex-1">${escapeHtml(list.name)}</div>
-          <button class="btn-delete-list btn btn-ghost btn-sm btn-circle text-error hover:bg-error hover:text-error-content ml-2"
-                  data-list-id="${list.id}"
-                  data-list-name="${escapeHtml(list.name)}"
-                  title="Удалить список"
-                  aria-label="Удалить список ${escapeHtml(list.name)}"
-                  style="transform: scale(1.25);">
-            🗑️
-          </button>
+          <div class="flex items-center gap-1 flex-shrink-0 ml-2">
+            <button class="btn-edit-list btn btn-ghost btn-sm btn-circle"
+                    data-list-id="${list.id}"
+                    title="Редактировать список"
+                    aria-label="Редактировать список ${escapeHtml(list.name)}">
+              ✏️
+            </button>
+            <button class="btn-delete-list btn btn-ghost btn-sm btn-circle text-error hover:bg-error hover:text-error-content"
+                    data-list-id="${list.id}"
+                    data-list-name="${escapeHtml(list.name)}"
+                    title="Удалить список"
+                    aria-label="Удалить список ${escapeHtml(list.name)}"
+                    style="transform: scale(1.25);">
+              🗑️
+            </button>
+          </div>
         </div>
         <div class="card-description truncate-2-lines">
           ${list.description ? escapeHtml(list.description) : 'Без описания'}
@@ -367,9 +375,9 @@ export function renderShoppingListCards(): void {
   // Добавить event listeners после рендеринга (безопасно, нет inline handlers)
   grid.querySelectorAll('.shopping-list-card').forEach(card => {
     card.addEventListener('click', (e: Event) => {
-      // Игнорировать клики по кнопке удаления
+      // Игнорировать клики по кнопкам редактирования и удаления
       const target = e.target as HTMLElement | null;
-      if (target && !target.closest('.btn-delete-list')) {
+      if (target && !target.closest('.btn-delete-list') && !target.closest('.btn-edit-list')) {
         const htmlCard = card as HTMLElement;
         const listId = htmlCard.dataset.listId;
         if (listId && window.listsManager) {
@@ -387,6 +395,18 @@ export function renderShoppingListCards(): void {
       const listName = htmlBtn.dataset.listName; // уже экранировано через escapeHtml
       if (listId && listName) {
         openDeleteListModal(parseInt(listId, 10), listName);
+      }
+    });
+  });
+
+  grid.querySelectorAll('.btn-edit-list').forEach(btn => {
+    btn.addEventListener('click', async (e: Event) => {
+      e.stopPropagation();
+      const htmlBtn = btn as HTMLElement;
+      const listId = htmlBtn.dataset.listId;
+      if (listId) {
+        const { openEditListModal } = await import('../ui/modalManager');
+        openEditListModal(parseInt(listId, 10));
       }
     });
   });

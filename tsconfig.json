@@ -27,8 +27,7 @@
       "@web/*": ["frontend/web/static/js/*"],
       "@webapp/*": ["frontend/webapp/static/js/*"],
       "@shared/*": ["frontend/shared/static/js/*"],
-      "@components/*": ["frontend/web/static/js/modules/uiComponents/*"],
-      "@db/*": ["frontend/shared/db/*"]
+      "@components/*": ["frontend/web/static/js/modules/uiComponents/*"]
     }
   },
 
@@ -36,7 +35,6 @@
     "frontend/web/static/js/**/*.ts",
     "frontend/webapp/static/js/**/*.ts",
     "frontend/shared/static/js/**/*.ts",
-    "frontend/shared/db/**/*.ts",
     "types/**/*.d.ts"
   ],
 

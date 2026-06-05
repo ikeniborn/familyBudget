@@ -33,7 +33,6 @@ export interface BudgetFact {
   cost_center_name?: string;
   description?: string;
   user_name?: string;
-  is_offline_sync?: boolean;
   recurring_plan_id?: number;
 }
 

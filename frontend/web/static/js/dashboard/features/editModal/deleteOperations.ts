@@ -4,8 +4,7 @@
  * Handles deletion of facts/plans from the edit modal and dashboard.
  */
 
-import { loadPendingRecords } from '../pendingRecords';
-import { closeEditModal, getCurrentEditingPendingId } from './formPopulation';
+import { closeEditModal } from './formPopulation';
 
 declare const debugLog: (...args: any[]) => void;
 // ============================================================================
@@ -90,27 +89,6 @@ export async function deleteFromEditModal(): Promise<void> {
     return;
   }
 
-  const currentEditingPendingId = getCurrentEditingPendingId();
-
-  // Handle pending record deletion
-  if (currentEditingPendingId !== null) {
-    try {
-      if (!window.offlineManager) {
-        throw new Error('OfflineManager не доступен');
-      }
-
-      await window.offlineManager.removePendingItem(currentEditingPendingId);
-      closeEditModal();
-      await loadPendingRecords();
-      showToast('Запись удалена из очереди', 'success');
-      return;
-    } catch (error) {
-      console.error('Error deleting pending record:', error);
-      showToast('Ошибка удаления: ' + (error as Error).message, 'error');
-      return;
-    }
-  }
-
   // Handle online record deletion
   try {
     const response = await fetch(`/api/v1/facts/${recordId}`, {
@@ -125,7 +103,6 @@ export async function deleteFromEditModal(): Promise<void> {
 
     closeEditModal();
     refreshDashboardWidgets();
-    await loadPendingRecords();
 
     showToast('Запись успешно удалена', 'success');
   } catch (error) {

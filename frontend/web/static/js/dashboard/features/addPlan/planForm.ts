@@ -5,13 +5,12 @@
  */
 
 import { getState, setPlanCategoryTreeSelect, isCacheValid } from '../../core/DashboardState';
-import { loadPendingRecords } from '../pendingRecords';
 import { loadFinancialCenters, loadCostCenters } from '../addTransaction/categoryLoader';
 import { loadPlanHints } from './planHints';
 import { setupPlanPeriodButtons } from './periodButtons';
 import { prefillReminderDateTime, togglePlanMode } from './reminderSettings';
 import { showModalWithSkeleton } from '../../utils/modalHelpers';
-import type { PlanFormData, Category } from '../../types/dashboard.d';
+import type { Category } from '../../types/dashboard.d';
 
 
 
@@ -111,92 +110,6 @@ export function savePlan(button: HTMLElement): void {
   }
 
   debugLog('[savePlan] ========== END ==========');
-}
-
-/**
- * Save plan to offline queue only (without uploading)
- */
-export async function savePlanOffline(button: HTMLElement): Promise<void> {
-  const formId = button.dataset.formId;
-  const modalId = button.dataset.modalId;
-  const form = formId ? document.getElementById(formId) as HTMLFormElement | null : null;
-  const modal = modalId ? document.getElementById(modalId) as HTMLDialogElement | null : null;
-
-  if (!form || !modal) {
-    console.error('[savePlanOffline] Form or modal not found:', formId, modalId);
-    return;
-  }
-
-  // Validate form
-  if (!form.checkValidity()) {
-    form.reportValidity();
-    return;
-  }
-
-  // Disable button and show loading
-  setButtonLoading(button, true);
-
-  try {
-    const formData = new FormData(form);
-
-    // Convert plan_month (YYYY-MM) to fact_date (YYYY-MM-01)
-    const planMonth = formData.get('plan_month') as string;
-    const factDate = `${planMonth}-01`;
-
-    // Helper to get selected option text
-    function getSelectedText(selectElement: HTMLSelectElement | null): string | null {
-      if (!selectElement) return null;
-      const selected = selectElement.options[selectElement.selectedIndex];
-      return selected ? selected.text : null;
-    }
-
-    // Get form elements for names
-    const fcSelect = form.querySelector('[name="financial_center_id"]') as HTMLSelectElement | null;
-    const ccSelect = form.querySelector('[name="cost_center_id"]') as HTMLSelectElement | null;
-
-    // Get article name from category tree
-    let articleName: string | null = null;
-    const state = getState();
-    if (state.planCategoryTreeSelect?.getSelectedCategory) {
-      const selected = state.planCategoryTreeSelect.getSelectedCategory();
-      articleName = selected ? selected.name : null;
-    }
-
-    const data: PlanFormData = {
-      record_type: 'plan',
-      fact_type: formData.get('plan_type') as 'income' | 'expense',
-      amount: Number.parseInt(formData.get('amount') as string, 10),
-      article_id: parseInt(formData.get('article_id') as string),
-      article_name: articleName || undefined,
-      financial_center_id: parseInt(formData.get('financial_center_id') as string),
-      financial_center_name: getSelectedText(fcSelect) || undefined,
-      cost_center_id: formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id') as string) : null,
-      cost_center_name: getSelectedText(ccSelect) || undefined,
-      fact_date: factDate,
-      plan_date: planMonth,  // Keep original for display
-      description: (formData.get('description') as string) || null,
-    };
-
-    // Force offline save (bypass online check)
-    if (window.offlineManager) {
-      const result = await window.offlineManager.createPlanOffline(data);
-
-      modal.close();
-      form.reset();
-
-      showToast('План сохранен локально (синхронизируется при подключении)', 'warning');
-      debugLog('[savePlanOffline] Saved:', result);
-      // Update pending records table
-      await loadPendingRecords();
-    } else {
-      showToast('Ошибка: OfflineManager не доступен', 'error');
-    }
-  } catch (error) {
-    console.error('[savePlanOffline] Error:', error);
-    showToast('Ошибка при сохранении: ' + (error as Error).message, 'error');
-  } finally {
-    setButtonLoading(button, false);
-  }
 }
 
 // ============================================================================

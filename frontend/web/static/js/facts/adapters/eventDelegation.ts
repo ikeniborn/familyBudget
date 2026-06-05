@@ -10,6 +10,7 @@
 import { applyFiltersAction, resetFiltersAction, collapseFilters } from '../operations/filterOperations';
 import { batchDelete, exportFilteredFacts, applyFiltersAndReload, resetFiltersAndReload, goToPreviousPage, goToNextPage } from '../operations/factsController';
 import { previousPage, nextPage } from '../operations/paginationOperations';
+import { resetFactsFilterArticle } from '../features/filterArticle/init';
 
 /**
  * Setup event delegation for all clickable elements
@@ -49,6 +50,7 @@ function handleClick(event: Event): void {
             // Prevent collapse toggle and default checkbox behavior
             event.stopPropagation();
             event.preventDefault();
+            resetFactsFilterArticle();
             resetFiltersAction();
             resetFiltersAndReload();
             break;

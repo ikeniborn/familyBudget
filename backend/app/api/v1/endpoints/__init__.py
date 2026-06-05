@@ -38,7 +38,6 @@ from backend.app.api.v1.endpoints.import_templates import router as import_templ
 from backend.app.api.v1.endpoints.notifications import (
     router as notifications_router,
 )
-from backend.app.api.v1.endpoints.p2p import router as p2p_router
 from backend.app.api.v1.endpoints.product_groups import (
     router as product_groups_router,
 )
@@ -54,7 +53,6 @@ from backend.app.api.v1.endpoints.shopping_lists import (
 )
 from backend.app.api.v1.endpoints.staging import router as staging_router
 from backend.app.api.v1.endpoints.stores import router as stores_router
-from backend.app.api.v1.endpoints.sync import router as sync_router
 from backend.app.api.v1.endpoints.transfers import router as transfers_router
 from backend.app.api.v1.endpoints.users import router as users_router
 from backend.app.api.v1.endpoints.webauthn import router as webauthn_router
@@ -74,7 +72,6 @@ __all__ = [
     "import_templates_router",
     "notifications_router",
     "product_groups_router",
-    "p2p_router",
     "push_router",
     "recurring_plans_router",
     "reminders_router",
@@ -83,7 +80,6 @@ __all__ = [
     "shopping_lists_router",
     "staging_router",
     "stores_router",
-    "sync_router",
     "transfers_router",
     "users_router",
     "webauthn_router",

@@ -9,7 +9,7 @@
  */
 
 import { getState } from '../core/ListsState';
-import { loadShoppingListItems, isOnline } from '../core/stateManager';
+import { loadShoppingListItems } from '../core/stateManager';
 
 // ============================================================================
 // Type Definitions
@@ -136,43 +136,31 @@ async function showProductSuggestions(query: string): Promise<void> {
   const state = getState();
 
   try {
-    let suggestions = [];
+    let suggestions: any[] = [];
 
-    if (isOnline()) {
-      // Online: fetch from API
-      // Include shopping_list_id to get deleted items for restore
-      const params = new URLSearchParams({
-        q: query,
-        limit: '10'
-      });
+    const params = new URLSearchParams({
+      q: query,
+      limit: '10'
+    });
 
-      // Add shopping_list_id if we have a current list (enables restore of deleted items)
-      if (state.currentListId) {
-        params.append('shopping_list_id', String(state.currentListId));
-        params.append('include_deleted', 'true');
-      }
+    // Include shopping_list_id if we have a current list (enables restore of deleted items)
+    if (state.currentListId) {
+      params.append('shopping_list_id', String(state.currentListId));
+      params.append('include_deleted', 'true');
+    }
 
-      const url = `/api/v1/shopping-list-items/products/suggest?${params}`;
-      const response = await fetch(url);
+    const url = `/api/v1/shopping-list-items/products/suggest?${params}`;
+    const response = await fetch(url, { credentials: 'include' });
 
-      if (response.ok) {
-        const data = await response.json();
-        suggestions = data.suggestions || [];
-
-        // Cache suggestions (deprecated - Dexie migration)
-        // Caching now handled by DataLayer shoppingListItems table
-      }
-    } else {
-      // Offline: search in cached suggestions
-      suggestions = await searchCachedSuggestions(query);
+    if (response.ok) {
+      const data = await response.json();
+      suggestions = data.suggestions || [];
     }
 
     renderSuggestionsDropdown(suggestions);
 
   } catch (error) {
     console.error('[Autocomplete] Error fetching suggestions:', error);
-    // Offline fallback removed - Dexie migration
-    // DataLayer handles offline suggestions automatically
   }
 }
 
@@ -421,23 +409,6 @@ function fillFormFromSuggestion(suggestion: any): void {
       });
     }
   }
-}
-
-// ============================================================================
-// Caching (Offline Support)
-// ============================================================================
-
-/**
- * Cache product suggestions for offline use
- */
-/**
- * Search cached suggestions (deprecated - Dexie migration)
- * Offline search now handled by DataLayer shoppingListItems table
- */
-async function searchCachedSuggestions(_query: string): Promise<any[]> {
-  // No-op: Legacy IndexedDB removed
-  debugLog('[Autocomplete] Cache search skipped (Dexie migration)');
-  return [];
 }
 
 // ============================================================================

@@ -59,10 +59,9 @@ describe('budgetWSClient.js — plan_created must not populate recurringPlans (B
     }
   });
 
-  it('handler still notifies UI handlers and offlineManager', () => {
+  it('handler still notifies UI handlers', () => {
     // Non-regression: we did not accidentally strip other side-effects.
     const created = extractMethod(source, '_handlePlanCreated');
     expect(created).toMatch(/_notifyHandlers\(\s*['"]plan_created['"]/);
-    expect(created).toMatch(/offlineManager/);
   });
 });

@@ -10,6 +10,7 @@
 import type { FilterValidationResult } from '../types/models';
 import { getFilters, updateFilters, resetFilters as resetFiltersState, setCurrentPage } from '../core/stateManager';
 import { getBudgetShared } from '../types/dependencies';
+import { factsFilterArticleWidget } from '../features/filterArticle/init';
 
 // ============================================================================
 // Filter Building
@@ -206,6 +207,7 @@ export function writeFiltersToUI(): void {
 
     if (userSelect) userSelect.value = filters.user_id ? String(filters.user_id) : '';
     if (articleSelect) articleSelect.value = filters.article_id ? String(filters.article_id) : '';
+    factsFilterArticleWidget.clearValue();
     if (articleTypeSelect) articleTypeSelect.value = filters.article_type || '';
     if (fcSelect) fcSelect.value = filters.financial_center_id ? String(filters.financial_center_id) : '';
     if (ccSelect) ccSelect.value = filters.cost_center_id ? String(filters.cost_center_id) : '';

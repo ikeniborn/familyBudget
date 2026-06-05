@@ -13,7 +13,6 @@ import { updateItemsCache } from '../core/listOperations';
 import { renderCurrentView } from '../rendering/tableBuilder';
 import { updateFABVisibility, renderLandingView, renderShoppingListCards } from '../rendering/listRenderer';
 import { updateFABButtons } from '../features/searchFilter';
-import { db } from '@db/dexie';
 
 // ============================================================================
 // Type Definitions
@@ -21,31 +20,6 @@ import { db } from '@db/dexie';
 
 declare const debugLog: (...args: any[]) => void;
 declare const showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void;
-
-// ============================================================================
-// Dexie Sync Helpers
-// ----------------------------------------------------------------------------
-// Item create/update/delete persistence lives in budgetWSClient/integration/
-// eventHandlers.ts (upsertShoppingItemInDexie / hardDeleteShoppingItemInDexie),
-// which is always loaded. This layer only handles the is_completed toggle —
-// the budget-layer does not have a handler for `item_completed`.
-// ============================================================================
-
-/**
- * Update is_completed on a Dexie row by server id.
- */
-async function toggleItemCompletedInDexie(itemId: number, isCompleted: boolean): Promise<void> {
-  try {
-    await db.shoppingListItems.where('id').equals(itemId).modify({
-      is_completed: isCompleted,
-      completed_at: isCompleted ? new Date() : null,
-      sync_status: 'synced',
-      updated_at: new Date(),
-    });
-  } catch (error) {
-    debugLog('[ListsManager] Dexie toggle-complete failed for item:', itemId, error);
-  }
-}
 
 // ============================================================================
 // Event Handlers
@@ -73,21 +47,10 @@ export function handleItemCreated(item: any): void {
   }
 
   // Check if item already exists (avoid duplicates).
-  // Extended deduplication: match by server id OR by temp_id when local item
-  // has a virtual negative id (pending sync). This handles the race where:
-  // 1. createItem() writes to Dexie with id=null → convertShoppingListItem()
-  //    assigns a virtual negative id via tempIdToVirtualId(temp_id)
-  // 2. WS event arrives with the real positive server id → old check
-  //    (i.id === item.id) fails because virtual id ≠ server id → duplicate
-  const existingIndex = state.currentItems.findIndex(
-    i => i.id === item.id ||
-         (item.temp_id && i.temp_id && i.temp_id === item.temp_id)
-  );
+  const existingIndex = state.currentItems.findIndex(i => i.id === item.id);
 
   if (existingIndex !== -1) {
-    // Replace the pending virtual-id item with the server item so the id
-    // transitions from negative virtual → real positive without a full reload.
-    debugLog('[ListsManager] Replacing pending item with server item (temp_id match):', item.id, item.temp_id);
+    debugLog('[ListsManager] Replacing existing item with server item:', item.id);
     const newItems = [...state.currentItems];
     newItems[existingIndex] = { ...newItems[existingIndex], ...item };
     updateState({ currentItems: newItems });
@@ -252,9 +215,6 @@ export function handleItemCompletedToggled(itemId: number, isCompleted: boolean,
 
   updateState({ currentItems: newItems });
   debugLog('[ListsManager] Toggled item from WebSocket:', itemId, isCompleted);
-
-  // Persist to Dexie (BUG #4)
-  void toggleItemCompletedInDexie(itemId, isCompleted);
 
   // Re-render and update UI
   renderCurrentView();

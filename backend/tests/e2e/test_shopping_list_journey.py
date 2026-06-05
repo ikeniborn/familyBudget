@@ -5,7 +5,6 @@ Complete user workflows:
 1. Happy path: Create list → Add items → Complete → Delete
 2. CSV import: Upload → Analyze → Preview → Import
 3. Hierarchy view: Navigate tree structure
-4. Offline scenario: Create offline → Sync online
 """
 
 import base64
@@ -334,7 +333,6 @@ async def test_hierarchy_view_journey(
             quantity=Decimal(data["qty"]),
             unit="kg",
             is_completed=False,
-            sync_status="synced",
         )
         session.add(item)
     await session.commit()
@@ -355,66 +353,6 @@ async def test_hierarchy_view_journey(
     assert len(walmart_items) == 2
     assert len(target_items) == 2
     assert len(whole_foods_items) == 1
-
-
-# ============================================================================
-# Offline Scenario Journey
-# ============================================================================
-
-
-async def test_offline_sync_scenario(
-    auth_client: AsyncClient,
-    test_user: User,
-    test_shopping_list,
-    test_store,
-    test_product_group_root,
-):
-    """
-    Test offline → online sync workflow:
-    1. Create item (simulating offline creation with temp_id)
-    2. Mark as pending sync
-    3. Sync to server
-    4. Verify sync status updated
-
-    Note: This is a simplified E2E test. Real offline sync happens
-    in the browser via IndexedDB and is tested in frontend tests.
-    """
-
-    # Step 1: Create item with sync_status = 'pending'
-    response = await auth_client.post(
-        f"/api/v1/shopping-lists/{test_shopping_list.id}/items",
-        json={
-            "store_id": test_store.id,
-            "product_group_id": test_product_group_root.id,
-            "product_name": "Offline Item",
-            "quantity": "1.0",
-            "unit": "kg",
-            "sync_status": "pending",  # Simulating offline creation
-        },
-    )
-    assert response.status_code == 201
-    item = response.json()
-    item_id = item["id"]
-
-    # Step 2: Verify item marked as pending
-    assert item["sync_status"] == "pending"
-
-    # Step 3: Update sync status (simulating successful sync)
-    response = await auth_client.put(
-        f"/api/v1/shopping-list-items/{item_id}",
-        json={"sync_status": "synced"},
-    )
-    assert response.status_code == 200
-    updated_item = response.json()
-    assert updated_item["sync_status"] == "synced"
-
-    # Step 4: Verify sync completed
-    response = await auth_client.get(
-        f"/api/v1/shopping-lists/{test_shopping_list.id}/items"
-    )
-    items = response.json()["items"]
-    offline_item = next(i for i in items if i["id"] == item_id)
-    assert offline_item["sync_status"] == "synced"
 
 
 # ============================================================================

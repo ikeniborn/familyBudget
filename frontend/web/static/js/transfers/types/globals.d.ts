@@ -22,15 +22,6 @@ declare global {
     showToast(message: string, type?: 'success' | 'error' | 'warning' | 'info'): void;
     setSubmitLoading(loading: boolean): void;
 
-    // Offline manager
-    offlineManager?: {
-      createTransfer(data: any): Promise<void>;
-      db?: {
-        cacheData(key: string, data: any, ttl: number): Promise<void>;
-        getCachedData(key: string): Promise<any>;
-      };
-    };
-
     // HTMX
     htmx?: {
       ajax(method: string, url: string, options: any): void;

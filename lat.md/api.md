@@ -24,10 +24,6 @@ CRUD for [[domain#Article (Budget Category)]]. Tree operations use [[database#Cl
 
 Admin-only write; read for all users. See [[domain#Cost Center]].
 
-### Sync
-
-Offline sync protocol for Dexie.js clients. Accepts batched create/update/delete operations. Returns server-side changes since `last_sync` timestamp. See [[frontend#Dexie Offline Sync]].
-
 ### WebSocket (`/api/v1/budget_ws`)
 
 Real-time event stream per user. Client connects with JWT, receives JSON events on budget changes. See [[realtime#WebSocket Protocol]].

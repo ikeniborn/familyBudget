@@ -2,14 +2,14 @@
 
 > Семейный бюджет под контролем! Простой учёт доходов и расходов для всей семьи.
 
-**Family Budget** — это веб-приложение для управления семейными финансами с поддержкой офлайн-режима, автоматическими напоминаниями и интеграцией с Telegram.
+**Family Budget** — это веб-приложение для управления семейными финансами с real-time синхронизацией, автоматическими напоминаниями и интеграцией с Telegram.
 
 ## ✨ Что умеет
 
 ### 📊 Учёт и планирование
 - **Быстрый ввод транзакций** — добавляйте доходы и расходы за секунды
 - **Планирование бюджета** — устанавливайте лимиты по категориям
-- **Списки покупок** — планируйте покупки с offline sync и категоризацией товаров
+- **Списки покупок** — планируйте покупки с категоризацией товаров
 - **Регулярные платежи** — настройте автонапоминания для аренды, ЖКХ, кредитов, подписок
 - **Переводы между счетами** — учитывайте перемещение денег между картами и кошельками
 
@@ -32,9 +32,8 @@
 - **Bulk операции** — массовое редактирование импортированных записей
 
 ### 📱 Мобильная версия (PWA)
-- **Работает офлайн** — добавляйте транзакции без интернета
 - **Установка как приложение** — на главный экран iPhone/Android
-- **Синхронизация** — автоматическая отправка данных при подключении
+- **Real-Time обновления** — WebSocket, данные синхронизируются мгновенно
 - **Web Workers** — быстрая обработка импорта и расчетов в фоне
 - **Биометрия** — вход по TouchID/FaceID (WebAuthn)
 - **Push уведомления** — работают даже когда приложение закрыто
@@ -50,14 +49,14 @@
 
 **Что отличает Family Budget от других budget trackers:**
 
-- **⚡ Offline-First архитектура** — работает без интернета, синхронизация автоматическая при подключении
+- **⚡ PWA** — работает в браузере, сервис-воркер кэширует страницы для быстрой загрузки
 - **🔄 Real-Time обновления** — WebSocket с Long Polling fallback, данные обновляются мгновенно во всех вкладках
 - **🚀 Web Workers** — обработка импорта CSV, расчеты категорий и синхронизация не замедляют интерфейс
 - **📦 Агрессивное кэширование** — Redis + Service Worker + HTTP cache = молниеносная загрузка страниц
-- **📚 Полная история изменений** — SCD Type 2, каждое изменение записи сохраняется навечно
+- **📚 Полная история изменений** — SCD (Type 1/2) + History таблицы, каждое изменение записи сохраняется навечно
 - **🌳 Closure Table** — быстрые иерархические запросы по категориям любой вложенности
-- **🔒 Deduplication** — защита от дубликатов при offline sync и network retries
-- **🎯 Write-Behind паттерн** — мгновенная запись в IndexedDB, асинхронная отправка на сервер
+- **🔒 Deduplication** — защита от дубликатов при network retries через уникальные ключи
+- **🎯 Real-Time синхронизация** — WebSocket + Redis Pub/Sub, изменения моментально во всех вкладках
 
 ---
 
@@ -65,7 +64,7 @@
 
 | Проблема | Решение |
 |----------|---------|
-| 😓 Забываете вносить расходы | **Офлайн-режим** — вводите сразу, синхронизация потом |
+| 😓 Забываете вносить расходы | **Быстрый ввод** — транзакция за несколько нажатий |
 | 📊 Не понимаете куда уходят деньги | **Визуальная аналитика** — графики, категории, тренды |
 | 💸 Превышаете бюджет незаметно | **Автоматические уведомления** — алерты в Telegram/браузере |
 | ⏰ Забываете про регулярные платежи | **Напоминания** — за день до аренды, кредита, подписок |
@@ -86,55 +85,15 @@
 
 ---
 
-## 🚀 Быстрый старт
+## 🚀 Установка
 
-Для развёртывания на своём сервере:
-
-```bash
-# 1️⃣ Клонировать репозиторий
-git clone https://github.com/ikeniborn/familyBudget.git ~/familyBudget
-cd ~/familyBudget
-
-# 2️⃣ Установить зависимости (Docker, Docker Compose)
-sudo bash install.sh
-
-# 3️⃣ Настроить окружение (интерактивно)
-sudo bash setup.sh
-
-# 4️⃣ Запустить! 🎉
-sudo bash deploy.sh
-```
-
-**Требования:**
-- Сервер Ubuntu 20.04+ / Debian 11+
-- 1 CPU, 2 GB RAM, 20 GB диск (минимум)
-- Домен с SSL (для Telegram OAuth и HTTPS)
-- ✅ **Node.js НЕ требуется** на сервере (v9.0: registry-first архитектура)
-
-**Registry-First Deployment (v9.0+):**
-- Все сборки (frontend, Docker) происходят в GitHub Actions CI/CD
-- На сервере только pull готовых образов из ghcr.io
-- Деплой ВСЕГДА занимает 2-3 минуты (только pull)
-
-**VERSION Bump Workflow:**
-```bash
-# Локально bumps VERSION перед push
-echo "6.6.1" > VERSION
-git add VERSION
-git commit -m "chore: bump to 6.6.1"
-git push origin test
-
-# GitHub Actions собирает образы (5-8 мин)
-# Затем деплой на сервер (2-3 мин)
-```
-
-📖 Подробнее: [START.md](START.md)
+Family Budget разворачивается на своём сервере через Docker. Пошаговая инструкция (требования, настройка домена и SSL, запуск) — в [START.md](docs/START.md).
 
 ---
 
 ## 🛠 Технологии
 
-**Backend**: FastAPI 0.121, SQLModel, PostgreSQL 16, Redis 7
+**Backend**: FastAPI 0.121, SQLModel, PostgreSQL 16, Redis 7 (Argon2id, JWT)
 **Frontend**: HTMX, Tailwind CSS 3, DaisyUI 4, ECharts
 **Mobile**: PWA (Service Worker, Web Workers, Push API, WebAuthn)
 **Realtime**: WebSocket (primary) + Long Polling (fallback)
@@ -147,18 +106,16 @@ git push origin test
 
 | Документ | Описание |
 |----------|----------|
-| [START.md](START.md) | Установка и настройка сервера |
-| [CI-CD-REGISTRY-SUMMARY.md](CI-CD-REGISTRY-SUMMARY.md) | Registry-First архитектура (v9.0) |
-| [docs/architecture/ci-cd-build-deploy.md](docs/architecture/ci-cd-build-deploy.md) | CI/CD Pipeline (GitHub Actions) |
-| [docs/architecture/docker.md](docs/architecture/docker.md) | Docker Multi-Stage Builds |
-| `/docs` (Swagger) | Интерактивная документация REST API |
+| [docs/START.md](docs/START.md) | Установка и настройка сервера |
+| [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md) | Резервное копирование и восстановление |
+| [lat.md/](lat.md/) | Архитектурная вики (API, auth, БД, frontend, realtime, bot) |
 
 ---
 
 ## 🆘 Поддержка
 
 - 🐛 **Нашли баг?** → [GitHub Issues](https://github.com/ikeniborn/familyBudget/issues)
-- 💬 **Вопросы по установке?** → [START.md](START.md)
+- 💬 **Вопросы по установке?** → [START.md](docs/START.md)
 - 📚 **Документация** → [docs/](docs/)
 
 ---
@@ -170,5 +127,4 @@ MIT License — делайте что хотите! 🎉
 ---
 
 Made with ❤️ for families who want to save money 💰
-# Test: VERSION unchanged workflow stop
 

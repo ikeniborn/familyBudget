@@ -18,7 +18,6 @@ export { loadFactHints } from './factHints';
 // Form operations
 export {
   saveTransaction,
-  saveTransactionOffline,
   setTransactionDate,
   setupTransactionTypeButtons,
 } from './transactionForm';

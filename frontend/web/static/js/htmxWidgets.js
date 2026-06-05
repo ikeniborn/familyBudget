@@ -152,13 +152,29 @@
                 this.refreshAll();
             });
 
-            // Refresh on custom network-status-change event
-            window.addEventListener('network-status-change', (event) => {
-                if (event.detail && event.detail.status === 'online') {
-                    console.debug('[HTMXWidgets] Network status change to online - refreshing widgets');
-                    this.refreshAll();
+            // Show an error alert inside a widget when its HTMX load fails.
+            // htmx:responseError = non-2xx response; htmx:sendError = network failure.
+            // Scoped to known widget IDs so unrelated HTMX targets are untouched.
+            const widgetIds = new Set(Object.keys(this.widgets));
+            const errorHTML = `
+                <div class="alert alert-error">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"
+                         class="stroke-current shrink-0 w-6 h-6">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <span>Ошибка загрузки. Попробуйте обновить страницу.</span>
+                </div>`;
+
+            const handleError = (event) => {
+                const elt = event.detail && event.detail.elt;
+                if (elt && widgetIds.has(elt.id)) {
+                    elt.innerHTML = errorHTML;
                 }
-            });
+            };
+
+            document.body.addEventListener('htmx:responseError', handleError);
+            document.body.addEventListener('htmx:sendError', handleError);
         }
     };
 

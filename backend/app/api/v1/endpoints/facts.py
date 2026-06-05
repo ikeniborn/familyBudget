@@ -165,7 +165,7 @@ def _build_fact_response(
         "financial_center_name": financial_center.name if financial_center else None,
         "cost_center_id": fact.cost_center_id,
         "cost_center_name": cost_center.name if cost_center else None,
-        "record_type": fact.record_type, "is_offline_sync": fact.is_offline_sync,
+        "record_type": fact.record_type,
         "recurring_plan_id": fact.recurring_plan_id, "recurring_plan": recurring_plan_data,
         "created_at": fact.created_at, "updated_at": fact.updated_at,
     }
@@ -184,7 +184,7 @@ async def create_fact(
     x_tab_id: str | None = Header(default=None),
 ) -> BudgetFact:
     """
-    Create a new budget fact (transaction) with offline sync deduplication.
+    Create a new budget fact (transaction).
 
     **User Isolation:**
     - Fact is created with current user as owner
@@ -196,93 +196,11 @@ async def create_fact(
     - fact_date cannot be in future
     - amount must be > 0
 
-    **Deduplication (Offline Sync):**
-    - When is_offline_sync=true and sync_hash provided:
-      - Checks if same sync_hash exists within last 24 hours
-      - If found, returns existing record (idempotent operation)
-      - Prevents duplicate creation from repeated sync button clicks
-    - Same transaction next day = different sync_hash (legitimate duplicate)
-
     **Returns:**
     - 201 Created: Fact created successfully
-    - 200 OK: Duplicate skipped, returns existing fact
     - 404 Not Found: Article not found
     - 403 Forbidden: Article not accessible
     """
-    # ✅ DEDUPLICATION: Check for duplicate offline sync within 24 hours
-    if fact_data.is_offline_sync and fact_data.sync_hash:
-        duplicate_stmt = select(BudgetFact).where(
-            BudgetFact.sync_hash == fact_data.sync_hash,
-            BudgetFact.is_offline_sync,
-            BudgetFact.created_at >= datetime.utcnow() - timedelta(days=1)
-        ).order_by(desc(BudgetFact.created_at))
-
-        duplicate_result = await session.execute(duplicate_stmt)
-        existing_fact = duplicate_result.scalar_one_or_none()
-
-        if existing_fact:
-            logger.info(
-                f"[DEDUP] Sync duplicate detected: sync_hash={fact_data.sync_hash}, "
-                f"existing_fact_id={existing_fact.id}, user_id={current_user.id}, "
-                f"skipping creation (idempotent)"
-            )
-
-            # Load article for response
-            article_stmt = select(Article).where(Article.id == existing_fact.article_id)
-            article_result = await session.execute(article_stmt)
-            article = article_result.scalar_one()
-
-            # Load financial center if present
-            financial_center_name = None
-            if existing_fact.financial_center_id:
-                fc_stmt = select(FinancialCenter).where(
-                    FinancialCenter.id == existing_fact.financial_center_id
-                )
-                fc_result = await session.execute(fc_stmt)
-                fc = fc_result.scalar_one_or_none()
-                financial_center_name = fc.name if fc else None
-
-            # Load cost center if present
-            cost_center_name = None
-            if existing_fact.cost_center_id:
-                cc_stmt = select(CostCenter).where(
-                    CostCenter.id == existing_fact.cost_center_id
-                )
-                cc_result = await session.execute(cc_stmt)
-                cc = cc_result.scalar_one_or_none()
-                cost_center_name = cc.name if cc else None
-
-            # Check if reminder exists for this fact
-            reminder_stmt = select(ScheduledReminder).where(
-                ScheduledReminder.fact_id == existing_fact.id,
-                ScheduledReminder.status == "pending"
-            )
-            reminder_result = await session.execute(reminder_stmt)
-            has_reminder = reminder_result.scalar_one_or_none() is not None
-
-            # Return existing fact (idempotent response)
-            return {
-                "id": existing_fact.id,
-                "user_id": existing_fact.user_id,
-                "article_id": existing_fact.article_id,
-                "article_type": article.type,
-                "article_name": article.name,
-                "fact_date": existing_fact.fact_date,
-                "amount": existing_fact.amount,
-                "description": existing_fact.description,
-                "financial_center_id": existing_fact.financial_center_id,
-                "financial_center_name": financial_center_name,
-                "cost_center_id": existing_fact.cost_center_id,
-                "cost_center_name": cost_center_name,
-                "record_type": existing_fact.record_type,
-                "is_offline_sync": existing_fact.is_offline_sync,
-                "recurring_plan_id": existing_fact.recurring_plan_id,
-                "has_reminder": has_reminder,
-                "created_at": existing_fact.created_at,
-                "updated_at": existing_fact.updated_at,
-                "_duplicate_skipped": True,  # ✅ Indicates duplicate was skipped
-            }
-
     # Log fact creation
     logger.info(
         f"[FACTS CREATE] Creating new fact: "
@@ -369,9 +287,6 @@ async def create_fact(
                 financial_center_id=fact_data.financial_center_id,
                 cost_center_id=fact_data.cost_center_id,
                 record_type=fact_data.record_type,
-                is_offline_sync=fact_data.is_offline_sync,
-                sync_hash=fact_data.sync_hash,
-                content_hash=fact_data.content_hash,
                 changed_by_user_id=current_user.id,
             )
 
@@ -399,7 +314,6 @@ async def create_fact(
                     "cost_center_id": fact_data.cost_center_id,
                     "cost_center_name": cost_center_name,
                     "record_type": fact_data.record_type,
-                    "is_offline_sync": fact_data.is_offline_sync,
                     "recurring_plan_id": None,  # Not set during creation
                     "has_reminder": False,  # New fact has no reminder yet
                     "created_at": now,
@@ -484,7 +398,6 @@ async def create_fact(
         "cost_center_id": fact.cost_center_id,
         "cost_center_name": cost_center_name,
         "record_type": fact.record_type,
-        "is_offline_sync": fact.is_offline_sync,
         "recurring_plan_id": fact.recurring_plan_id,
         "has_reminder": False,  # New fact has no reminder yet
         "created_at": fact.created_at,
@@ -703,7 +616,6 @@ async def list_facts(
             "cost_center_id": fact.cost_center_id,
             "cost_center_name": cost_center.name if cost_center else None,
             "record_type": fact.record_type,
-            "is_offline_sync": fact.is_offline_sync,
             "recurring_plan_id": fact.recurring_plan_id,
             "created_at": fact.created_at,
             "updated_at": fact.updated_at,
@@ -834,7 +746,6 @@ async def get_recent_facts(
                 "cost_center_id": fact.cost_center_id,
                 "cost_center_name": cost_center.name if cost_center else None,
                 "record_type": fact.record_type,
-                "is_offline_sync": fact.is_offline_sync,
                 "recurring_plan_id": fact.recurring_plan_id,
                 "recurring_plan": None,  # Not loaded for performance (list endpoint)
                 "has_reminder": reminders.get(fact.id, False),
@@ -978,9 +889,7 @@ async def get_recent_facts_html(
                         <th>Описание</th>
                         <th title="Напоминание">🔔</th>
                         <th title="Регламентный платеж">🔄</th>
-                        <th title="Создано offline">☁️</th>
-                        <th class="w-8"></th>
-                        <th class="w-8"></th>
+                        <th class="text-center">⚙️ Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -1034,10 +943,6 @@ async def get_recent_facts_html(
             else:
                 description_truncated = description
 
-            # Offline sync indicator
-            offline_icon = "☁️" if fact.is_offline_sync else ""
-            offline_title = "Создано offline" if fact.is_offline_sync else ""
-
             # Recurring plan indicator
             recurring_icon = "🔄" if fact.recurring_plan_id else ""
             recurring_title = "Регламентный платеж" if fact.recurring_plan_id else ""
@@ -1053,7 +958,7 @@ async def get_recent_facts_html(
             else:
                 reminder_title = ""
 
-            # Desktop table row with edit and delete buttons (at the end, after ☁️)
+            # Desktop table row with edit and delete buttons
             edit_button = f'''<button class="btn btn-xs btn-primary gap-1" onclick="openEditFromDashboard({fact.id})">✏️</button>'''
             delete_button = f'''<button class="btn btn-xs btn-error gap-1" onclick="event.stopPropagation(); deleteFactFromDashboard({fact.id}, {1 if fact.recurring_plan_id else 0})">🗑️</button>'''
             table_html += f"""
@@ -1066,9 +971,9 @@ async def get_recent_facts_html(
                         <td class="max-w-xs truncate" title="{description_full}">{description_truncated}</td>
                         <td class="text-center" title="{reminder_title}">{reminder_icon}</td>
                         <td class="text-center" title="{recurring_title}">{recurring_icon}</td>
-                        <td class="text-center" title="{offline_title}">{offline_icon}</td>
-                        <td class="text-center">{edit_button}</td>
-                        <td class="text-center">{delete_button}</td>
+                        <td class="text-center">
+                            <div class="flex gap-1 justify-center">{edit_button}{delete_button}</div>
+                        </td>
                     </tr>
             """
 
@@ -1081,8 +986,6 @@ async def get_recent_facts_html(
                 line2_parts.append(description)
             line2_text = " • ".join(line2_parts)
 
-            # Offline icon for mobile (next to category name)
-            offline_span = f'<span class="text-xs" title="{offline_title}">{offline_icon}</span>' if offline_icon else ""
             # Recurring icon for mobile
             recurring_span = f'<span class="text-secondary text-xs" title="{recurring_title}">{recurring_icon}</span>' if recurring_icon else ""
             # Reminder icon for mobile
@@ -1096,7 +999,6 @@ async def get_recent_facts_html(
                     <span class="flex-1 font-medium truncate">{article.name}</span>
                     {reminder_span}
                     {recurring_span}
-                    {offline_span}
                     <span class="{amount_class} whitespace-nowrap">{format_money(fact.amount, article.type)}</span>
                 </div>
                 <div class="text-xs text-base-content/60 mt-1 truncate">
@@ -1418,9 +1320,6 @@ async def get_fact_row_html(
         if fact.recurring_plan_id else ""
     )
 
-    # Offline icon
-    offline_icon = '<span class="text-xs" title="Создано offline">☁️</span>' if fact.is_offline_sync else ""
-
     # Data attribute and onclick handlers differ by record_type:
     # - fact: data-id + window.FactsManager namespace (facts page)
     # - plan: data-plan-id + global functions (plan page)
@@ -1467,7 +1366,7 @@ async def get_fact_row_html(
   </div>
 </div>"""
     else:
-        # Plan branch — unchanged from prior implementation.
+        # Plan branch — aligned with TypeScript renderFactsTable (14 columns).
         data_attr = f'data-plan-id="{fact.id}"'
         edit_onclick = f"showEditModal({fact.id})"
         delete_onclick = f"event.stopPropagation(); deleteFact({fact.id})"
@@ -1478,17 +1377,17 @@ async def get_fact_row_html(
         desktop_row = f"""
 <tr {data_attr}>
   <td><input type="checkbox" class="checkbox checkbox-sm fact-checkbox" value="{fact.id}" onchange="{checkbox_onchange}"></td>
-  <td><code class="badge badge-ghost">{fact.id}</code></td>
+  <td class="text-base-content/50 text-xs">{fact.id}</td>
   <td>{formatted_date}</td>
   <td class="max-w-xs truncate" title="{fc_name}">{fc_name}</td>
   <td class="max-w-xs truncate" title="{cc_name}">{cc_name}</td>
-  <td><span class="{article_color_class}">{article_name}</span></td>
+  <td>{article_name}</td>
   <td class="{article_color_class} font-bold">{formatted_amount}</td>
   <td class="max-w-xs truncate" title="{description}">{description_truncated}</td>
   <td>{user_name}</td>
+  <td class="text-xs text-base-content/60">{updated_at_formatted}</td>
   <td class="text-center">{reminder_icon}</td>
   <td class="text-center">{recurring_icon}</td>
-  <td class="text-center">{offline_icon}</td>
   <td>
     <div class="flex gap-1">
       <button class="btn btn-xs btn-primary gap-1" onclick="{edit_onclick}">✏️</button>
@@ -1501,7 +1400,7 @@ async def get_fact_row_html(
   </td>
 </tr>"""
 
-        mobile_icons = " ".join(filter(None, [recurring_icon, reminder_icon, offline_icon]))
+        mobile_icons = " ".join(filter(None, [recurring_icon, reminder_icon]))
         mobile_row = f"""
 <div class="transaction-item py-2" {data_attr} onclick="{mobile_onclick}">
   <div class="flex items-center gap-2">
@@ -1716,7 +1615,6 @@ async def update_fact(
         "cost_center_id": fact.cost_center_id,
         "cost_center_name": cost_center_name,
         "record_type": fact.record_type,
-        "is_offline_sync": fact.is_offline_sync,
         "recurring_plan_id": fact.recurring_plan_id,
         "created_at": fact.created_at,
         "updated_at": fact.updated_at,
@@ -1814,7 +1712,6 @@ async def delete_fact(
         description=fact.description,
         record_type=fact.record_type,
         transfer_id=fact.transfer_id,
-        is_offline_sync=fact.is_offline_sync,
         valid_from=now,
         valid_to=FAR_FUTURE_DATETIME,
         is_current=False,  # Deleted records are never current
@@ -1837,7 +1734,6 @@ async def delete_fact(
             description=paired_fact.description,
             record_type=paired_fact.record_type,
             transfer_id=paired_fact.transfer_id,
-            is_offline_sync=paired_fact.is_offline_sync,
             valid_from=now,
             valid_to=FAR_FUTURE_DATETIME,
             is_current=False,
@@ -1998,7 +1894,6 @@ async def batch_delete_facts(
             description=fact.description,
             record_type=fact.record_type,
             transfer_id=fact.transfer_id,
-            is_offline_sync=fact.is_offline_sync,
             valid_from=now,
             valid_to=FAR_FUTURE_DATETIME,
             is_current=False,  # Deleted records are never current

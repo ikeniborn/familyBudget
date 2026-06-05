@@ -746,7 +746,6 @@ class RecurringPlanService:
                     description=plan.description,
                     record_type=plan.record_type,
                     recurring_plan_id=plan.id,
-                    is_offline_sync=False,
                     created_at=now_utc().replace(tzinfo=None),
                     updated_at=now_utc().replace(tzinfo=None),
                 )

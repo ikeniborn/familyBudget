@@ -8,7 +8,6 @@
  */
 
 import type { User, Article, FinancialCenter, CostCenter, ArticleTreeNode } from '../types/models';
-import { dataLayer } from '../../data/DataLayer';
 import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 // ============================================================================
@@ -42,14 +41,11 @@ export async function loadUsers(): Promise<User[]> {
  * Load all articles (categories)
  */
 export async function loadArticles(): Promise<Article[]> {
-    // Use DataLayer (Dexie-first with API fallback)
-    const articles = await dataLayer.getArticles() as unknown as Article[];
-
-    if (!Array.isArray(articles)) {
-        console.error('Invalid response format:', articles);
-        throw new Error('Expected array of articles');
-    }
-
+    const response = await fetch('/api/v1/articles', { credentials: 'include' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const articles = data.articles ?? data;
+    if (!Array.isArray(articles)) throw new Error('Expected array of articles');
     return articles;
 }
 
@@ -61,11 +57,11 @@ export async function loadArticles(): Promise<Article[]> {
  * Load all financial centers (accounts)
  */
 export async function loadFinancialCenters(): Promise<FinancialCenter[]> {
-    // Get user ID for data layer queries
     const userId = await getCurrentUserId();
-
-    // Use DataLayer (Dexie-first with API fallback)
-    return await dataLayer.getFinancialCenters(userId, true) as unknown as FinancialCenter[];
+    const response = await fetch(`/api/v1/financial-centers?user_id=${userId}&include_global=true`, { credentials: 'include' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return data.financial_centers ?? data;
 }
 
 // ============================================================================
@@ -76,11 +72,11 @@ export async function loadFinancialCenters(): Promise<FinancialCenter[]> {
  * Load all cost centers
  */
 export async function loadCostCenters(): Promise<CostCenter[]> {
-    // Get user ID for data layer queries
     const userId = await getCurrentUserId();
-
-    // Use DataLayer (Dexie-first with API fallback)
-    return await dataLayer.getCostCenters(userId, null, true) as unknown as CostCenter[];
+    const response = await fetch(`/api/v1/cost-centers?user_id=${userId}&include_global=true`, { credentials: 'include' });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    return data.cost_centers ?? data;
 }
 
 /**

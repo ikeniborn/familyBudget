@@ -5,6 +5,7 @@
 {% from "components/lists/modal_item.html" import item_modal %}
 {% from "components/lists/modal_delete_confirm.html" import delete_confirm_modal %}
 {% from "components/lists/modal_delete_list.html" import delete_list_modal %}
+{% from "components/lists/modal_edit_list.html" import edit_list_modal %}
 {% from "components/lists/modal_fab_confirm.html" import fab_confirm_modal %}
 
 {% block extra_head %}
@@ -53,6 +54,9 @@
 
 {# Delete List Confirmation Modal #}
 {{ delete_list_modal() }}
+
+{# Edit Shopping List Modal #}
+{{ edit_list_modal() }}
 
 {# FAB Actions Confirmation Modal #}
 {{ fab_confirm_modal() }}

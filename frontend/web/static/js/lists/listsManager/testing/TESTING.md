@@ -2,6 +2,8 @@
 
 Инструкции по тестированию синхронизации удаления списков покупок.
 
+> **Note:** Offline cache удалён. Все операции идут через REST API + WebSocket.
+
 ## Quick Start
 
 1. Открыть https://fbd.ikeniborn.ru/lists
@@ -10,86 +12,30 @@
 
 ## Test Scenarios
 
-### 1. 🐌 Race Condition Test
+### 1. Slow Network Test
 
-**Цель:** Проверить, что Dexie cache инвалидируется даже при медленном DELETE запросе.
+**Цель:** Проверить, что UI корректно обрабатывает медленный DELETE запрос.
 
 **Шаги:**
 ```javascript
 // 1. Включить slow network (3 секунды задержки)
 window.shoppingListDebug.enableSlowNetwork(3000);
 
-// 2. Проверить текущий список
-window.shoppingListDebug.getAllDexieLists();
-
-// 3. Удалить список через UI (кнопка "Удалить")
+// 2. Удалить список через UI (кнопка "Удалить")
 // Наблюдение: 3 секунды между кликом и удалением
 
-// 4. Проверить, что список удалён из Dexie
-window.shoppingListDebug.inspectDexieCache(123);  // ID удалённого списка
-
-// 5. Отключить slow network
+// 3. Отключить slow network
 window.shoppingListDebug.disableSlowNetwork();
 ```
 
 **Ожидаемый результат:**
 - ✅ Удаление занимает ~3 секунды
-- ✅ `inspectDexieCache(123)` показывает "NOT found" или `is_active: false`
-- ✅ UI обновляется корректно
+- ✅ UI обновляется корректно после ответа сервера
 - ✅ Нет ошибок в консоли
-
-**Проверка race condition:**
-```javascript
-// Включить verbose logging для детального анализа
-window.shoppingListDebug.enableVerboseLogging();
-window.shoppingListDebug.enableSlowNetwork(5000);
-
-// Удалить список
-// Смотреть логи:
-// [DeleteList] 🐌 Simulating slow network: 5000ms delay
-// [DeleteList] Dexie cache invalidated for list: temp_xxx
-```
 
 ---
 
-### 2. 🔧 Error Resilience Test
-
-**Цель:** Проверить, что удаление работает даже если Dexie недоступен.
-
-**Шаги:**
-```javascript
-// 1. Отключить Dexie
-window.shoppingListDebug.disableDexie();
-
-// 2. Удалить список через UI
-// Наблюдение: должно работать без ошибок
-
-// 3. Проверить консоль
-// Должно быть: ⚠️ Dexie disabled for testing - skipping cache invalidation
-
-// 4. Включить Dexie обратно
-window.shoppingListDebug.enableDexie();
-```
-
-**Ожидаемый результат:**
-- ✅ Удаление успешно выполняется
-- ✅ UI обновляется корректно
-- ✅ В консоли warning: "Dexie disabled for testing"
-- ✅ Нет ошибок в консоли
-- ✅ Успешный toast "Список успешно удален"
-
-**Альтернативный сценарий (симуляция Dexie ошибки):**
-```javascript
-// Отключить Dexie manager
-window.dexieManager = null;
-
-// Удалить список
-// Ожидается: UI работает, в консоли warning о failed cache invalidation
-```
-
----
-
-### 3. 🔄 Cross-Tab Sync Test
+### 2. Cross-Tab Sync Test
 
 **Цель:** Проверить синхронизацию удаления между вкладками через WebSocket.
 
@@ -131,7 +77,7 @@ TAB 2 Console:
 
 ---
 
-### 4. ❌ Async Error Test
+### 3. Async Error Test
 
 **Цель:** Проверить fallback при ошибке загрузки списков.
 
@@ -164,15 +110,6 @@ window.shoppingListDebug.disableLoadError();
 - ✅ Console.error с текстом "Failed to render landing view"
 - ✅ Приложение остаётся функциональным
 
-**Альтернативный сценарий (удаление неактивного списка):**
-```javascript
-// Симуляция ошибки НЕ влияет на удаление неактивного списка
-window.shoppingListDebug.simulateLoadError();
-
-// Удалить список, который НЕ просматриваете
-// Ожидается: renderShoppingListCards() вызывается напрямую (без ошибки)
-```
-
 ---
 
 ## Debug Commands Reference
@@ -190,24 +127,11 @@ window.shoppingListDebug.disableSlowNetwork()      // Убрать задерж�
 window.shoppingListDebug.getNetworkDelay()         // Проверить задержку
 ```
 
-### Dexie Testing
-```javascript
-window.shoppingListDebug.disableDexie()                 // Отключить Dexie
-window.shoppingListDebug.enableDexie()                  // Включить Dexie
-window.shoppingListDebug.isDexieDisabledForTesting()    // Проверить статус
-```
-
 ### Error Simulation
 ```javascript
 window.shoppingListDebug.simulateLoadError()         // Включить ошибку
 window.shoppingListDebug.disableLoadError()          // Выключить ошибку
 window.shoppingListDebug.shouldSimulateLoadError()   // Проверить статус
-```
-
-### Cache Inspection
-```javascript
-window.shoppingListDebug.inspectDexieCache(123)   // Проверить список ID=123
-window.shoppingListDebug.getAllDexieLists()       // Все списки в Dexie
 ```
 
 ### Logging
@@ -220,29 +144,7 @@ window.shoppingListDebug.disableVerboseLogging()  // Стандартные ло
 
 ## Integration Test Scenarios
 
-### Scenario A: Full Flow Test
-Проверка полного цикла удаления с race condition + error handling.
-
-```javascript
-// 1. Setup
-window.shoppingListDebug.enableVerboseLogging();
-window.shoppingListDebug.enableSlowNetwork(2000);
-
-// 2. Проверить начальное состояние
-window.shoppingListDebug.getAllDexieLists();
-
-// 3. Удалить список
-// Ожидается: 2 секунды задержки, затем успешное удаление
-
-// 4. Проверить финальное состояние
-window.shoppingListDebug.getAllDexieLists();
-// Список должен быть помечен is_active: false
-
-// 5. Cleanup
-window.shoppingListDebug.resetDebugConfig();
-```
-
-### Scenario B: Multi-Tab Stress Test
+### Scenario A: Multi-Tab Stress Test
 Проверка синхронизации при быстрых изменениях.
 
 ```javascript
@@ -258,25 +160,6 @@ window.shoppingListDebug.enableVerboseLogging();
 // - UI корректно обновляется
 ```
 
-### Scenario C: Error Recovery
-Проверка восстановления после ошибок.
-
-```javascript
-// 1. Симулировать ошибку Dexie
-window.shoppingListDebug.disableDexie();
-
-// 2. Удалить список (должно работать)
-
-// 3. Включить Dexie обратно
-window.shoppingListDebug.enableDexie();
-
-// 4. Удалить ещё один список (должна быть cache invalidation)
-
-// Проверка логов:
-// Первое удаление: warning "Dexie disabled"
-// Второе удаление: "Dexie cache invalidated"
-```
-
 ---
 
 ## Expected Console Output
@@ -285,7 +168,6 @@ window.shoppingListDebug.enableDexie();
 ```
 [DeleteList] Deleting list: 123
 [DeleteList] List deleted successfully: 123
-[DeleteList] Dexie cache invalidated for list: temp_abc123
 [ListsManager] Loaded shopping lists: 5
 ```
 
@@ -294,15 +176,6 @@ window.shoppingListDebug.enableDexie();
 [DeleteList] Deleting list: 123
 [DeleteList] 🐌 Simulating slow network: 3000ms delay
 [DeleteList] List deleted successfully: 123
-[DeleteList] Dexie cache invalidated for list: temp_abc123
-```
-
-### Successful Deletion (Dexie Disabled)
-```
-[DeleteList] Deleting list: 123
-[DeleteList] List deleted successfully: 123
-[DeleteList] ⚠️ Dexie disabled for testing - skipping cache invalidation
-[ListsManager] Loaded shopping lists: 5
 ```
 
 ### Cross-Tab Sync (TAB 2)
@@ -333,16 +206,6 @@ console.log(window.shoppingListDebug);
 location.reload();
 ```
 
-### Dexie cache не обновляется
-```javascript
-// Проверить, активен ли Dexie
-window.dexieManager?.isActive();
-
-// Проверить, есть ли temp_id
-window.shoppingListDebug.getAllDexieLists();
-// Искать temp_id удалённого списка
-```
-
 ### WebSocket не работает
 ```javascript
 // Проверить подключение
@@ -358,14 +221,12 @@ window.budgetWS?.reconnect();
 
 После всех тестов должны быть выполнены:
 
-- [x] Race Condition Test: Cache инвалидирован даже при slow network
-- [x] Error Resilience Test: Удаление работает без Dexie
+- [x] Slow Network Test: UI корректно обрабатывает 3-секундную задержку
 - [x] Cross-Tab Sync Test: Список исчезает в Tab 2 автоматически
 - [x] Async Error Test: Fallback на renderShoppingListCards() работает
 - [x] Нет console.error в любом сценарии
 - [x] UI остаётся функциональным после ошибок
 - [x] Toast уведомления показываются корректно
-- [x] Dexie cache синхронизирован с server state
 
 ---
 
@@ -375,7 +236,7 @@ window.budgetWS?.reconnect();
 
 ```typescript
 // tests/e2e/webapp/lists/shopping-list-deletion-sync.spec.ts
-test('race condition test', async ({ page }) => {
+test('slow network deletion', async ({ page }) => {
   await page.goto('/lists');
 
   // Enable slow network via debug utilities
@@ -386,17 +247,12 @@ test('race condition test', async ({ page }) => {
   // Delete list
   await page.click('[data-list-id="1"] .btn-delete');
 
-  // Verify cache invalidation
-  const cacheResult = await page.evaluate((listId) => {
-    return (window as any).shoppingListDebug.inspectDexieCache(listId);
-  }, 1);
-
+  // Verify UI updated after slow response
   // Assert...
 });
 ```
 
 ---
 
-**Версия:** 1.0
+**Версия:** 2.0 (offline sync removed)
 **Автор:** Claude Code Team
-**Дата:** 2026-02-16

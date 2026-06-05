@@ -11,7 +11,6 @@
         - fact_date: date object
         - description: string (nullable)
         - record_type: 'fact' or 'plan'
-        - is_offline_sync: boolean
     - articles: dict of {article_id: article} with:
         - name: article name
         - type: 'expense', 'income', 'debit', 'credit'
@@ -45,7 +44,6 @@
                 <th>Категория</th>
                 <th>Сумма</th>
                 <th>Описание</th>
-                <th class="text-center" title="Создано offline">☁️</th>
                 <th class="text-center">⚙️ Действия</th>
             </tr>
         </thead>
@@ -70,9 +68,6 @@
                 <td>{{ article.name }}</td>
                 <td class="{{ article.type|amount_color }} whitespace-nowrap">{{ fact.amount|format_money_recent(article.type) }}</td>
                 <td class="max-w-xs truncate" title="{{ description }}">{{ description_truncated }}</td>
-                <td class="text-center" title="{{ 'Создано offline' if fact.is_offline_sync else '' }}">
-                    {% if fact.is_offline_sync %}☁️{% endif %}
-                </td>
                 <td class="text-center">
                     <div class="flex gap-1 justify-center">
                         <!-- Edit button -->
@@ -109,9 +104,6 @@
             <span class="badge badge-success badge-xs">Факт</span>
             {% endif %}
             <span class="flex-1 font-medium truncate">{{ article.name }}</span>
-            {% if fact.is_offline_sync %}
-            <span class="text-xs" title="Создано offline">☁️</span>
-            {% endif %}
             <span class="{{ article.type|amount_color }} whitespace-nowrap">{{ fact.amount|format_money_recent(article.type) }}</span>
         </div>
         <div class="text-xs text-base-content/60 mt-1 truncate">

@@ -195,15 +195,9 @@ export async function handleTransferSubmit(event: Event): Promise<void> {
   setSubmitLoading(true);
 
   try {
-    if (navigator.onLine) {
-      const { createTransfer } = await import('../integration/apiService');
-      await createTransfer(transferData);
-      showToast('Перевод создан', 'success');
-    } else {
-      const { createTransferOffline } = await import('../integration/offlineIntegration');
-      await createTransferOffline(transferData);
-      showToast('Перевод сохранён (оффлайн)', 'info');
-    }
+    const { createTransfer } = await import('../integration/apiService');
+    await createTransfer(transferData);
+    showToast('Перевод создан', 'success');
 
     closeTransferModal();
 

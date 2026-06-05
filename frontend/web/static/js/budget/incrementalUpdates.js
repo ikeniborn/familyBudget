@@ -337,8 +337,6 @@
             const recordTypeBadge = fact.record_type === 'plan'
                 ? '<span class="badge badge-info badge-sm">План</span>'
                 : '<span class="badge badge-success badge-sm">Факт</span>';
-            const offlineIcon = fact.is_offline_sync ? '☁️' : '';
-
             return `
                 <tr data-fact-id="${fact.id}">
                     <td>${recordTypeBadge}</td>
@@ -347,7 +345,6 @@
                     <td>${article.name}</td>
                     <td class="${colorClass} whitespace-nowrap">${amountFormatted}</td>
                     <td class="max-w-xs truncate" title="${description}">${descTruncated}</td>
-                    <td class="text-center" title="${offlineIcon ? 'Создано offline' : ''}">${offlineIcon}</td>
                 </tr>
             `;
         },
@@ -358,10 +355,6 @@
             const recordTypeBadge = fact.record_type === 'plan'
                 ? '<span class="badge badge-info badge-xs">План</span>'
                 : '<span class="badge badge-success badge-xs">Факт</span>';
-            const offlineIcon = fact.is_offline_sync
-                ? '<span class="text-xs" title="Создано offline">☁️</span>'
-                : '';
-
             // Build line2 parts
             const line2Parts = [this.formatDateShort(fact.fact_date)];
             if (fc) line2Parts.push(fc.name);
@@ -372,7 +365,6 @@
                     <div class="flex items-center gap-2">
                         ${recordTypeBadge}
                         <span class="flex-1 font-medium truncate">${article.name}</span>
-                        ${offlineIcon}
                         <span class="${colorClass} whitespace-nowrap">${amountFormatted}</span>
                     </div>
                     <div class="text-xs text-base-content/60 mt-1 truncate">

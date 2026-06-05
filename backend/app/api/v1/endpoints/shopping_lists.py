@@ -20,7 +20,6 @@ Endpoints:
 """
 
 import logging
-import uuid
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -38,6 +37,8 @@ from backend.app.models import User
 from backend.app.models.shopping_list import ShoppingList
 from backend.app.schemas.errors import get_common_responses
 from backend.app.schemas.shopping_list import (
+    GoogleSheetsUrlResponse,
+    GoogleSheetsUrlUpdate,
     ShoppingListCardResponse,
     ShoppingListCreate,
     ShoppingListListResponse,
@@ -126,10 +127,6 @@ async def create_shopping_list(
         name=shopping_list_data.name,
         description=shopping_list_data.description,
     )
-
-    # Generate temp_id server-side for lists created via web UI (not offline).
-    # Offline-created lists already have client-generated temp_id.
-    shopping_list.temp_id = str(uuid.uuid4())
 
     session.add(shopping_list)
     await session.commit()
@@ -437,3 +434,72 @@ async def delete_shopping_list(
     )
 
     return None  # 204 No Content
+
+
+@router.get(
+    "/{shopping_list_id}/google-sheets-url",
+    response_model=GoogleSheetsUrlResponse,
+    summary="Get Google Sheets URL for list",
+    description="Get the saved Google Sheets URL for a specific shopping list",
+)
+async def get_list_google_sheets_url(
+    shopping_list_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> GoogleSheetsUrlResponse:
+    """Get saved Google Sheets URL for a specific shopping list."""
+    query = select(ShoppingList).where(ShoppingList.id == shopping_list_id)
+    result = await session.execute(query)
+    shopping_list = result.scalar_one_or_none()
+
+    if not shopping_list:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Shopping list {shopping_list_id} not found",
+        )
+
+    return GoogleSheetsUrlResponse(
+        google_sheets_url=shopping_list.google_sheets_url,
+        has_saved_url=shopping_list.google_sheets_url is not None and len(shopping_list.google_sheets_url) > 0,
+    )
+
+
+@router.patch(
+    "/{shopping_list_id}/google-sheets-url",
+    response_model=GoogleSheetsUrlResponse,
+    summary="Update Google Sheets URL for list",
+    description="Save or clear the Google Sheets URL for a specific shopping list",
+)
+async def update_list_google_sheets_url(
+    shopping_list_id: int,
+    update_data: GoogleSheetsUrlUpdate,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> GoogleSheetsUrlResponse:
+    """Save or clear Google Sheets URL for a specific shopping list."""
+    query = select(ShoppingList).where(ShoppingList.id == shopping_list_id)
+    result = await session.execute(query)
+    shopping_list = result.scalar_one_or_none()
+
+    if not shopping_list:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Shopping list {shopping_list_id} not found",
+        )
+
+    if shopping_list.google_sheets_url != update_data.google_sheets_url:
+        shopping_list.google_sheets_url = update_data.google_sheets_url
+        shopping_list.updated_at = datetime.utcnow()
+        session.add(shopping_list)
+        await session.commit()
+        await session.refresh(shopping_list)
+
+        logger.info(
+            "Updated google_sheets_url for list %s by user %s",
+            shopping_list_id, current_user.id
+        )
+
+    return GoogleSheetsUrlResponse(
+        google_sheets_url=shopping_list.google_sheets_url,
+        has_saved_url=shopping_list.google_sheets_url is not None and len(shopping_list.google_sheets_url) > 0,
+    )

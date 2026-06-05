@@ -10,6 +10,7 @@
 import * as PlanFilters from './filters';
 import * as PlanAnalytics from './analytics';
 import * as PlanFactsTable from './factsTable';
+import { planFilterArticleWidget } from './features/filterArticle/init';
 
 // Import BudgetShared from global
 declare const BudgetShared: {
@@ -158,6 +159,11 @@ export interface SyncOptions {
    * Update date range from month (default: true, for analytics → filters sync)
    */
   updateDateRange?: boolean;
+  /**
+   * Skip syncing article/type/FC filters to facts table (default: false).
+   * Use when only the date range should change, e.g. when switching analytics month.
+   */
+  skipFiltersSync?: boolean;
 }
 
 // ============================================================================
@@ -278,7 +284,7 @@ export async function syncFiltersToAnalytics(options: SyncOptions = {}): Promise
  * @param options.updateDateRange - Update date range from month (default: true)
  */
 export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise<void> {
-  const { skipReload = false, updateDateRange = true } = options;
+  const { skipReload = false, updateDateRange = true, skipFiltersSync = false } = options;
 
   // Prevent infinite loops
   if (isSyncInProgress) {
@@ -315,59 +321,62 @@ export async function syncAnalyticsToFilters(options: SyncOptions = {}): Promise
       }
     }
 
-    // 2. Sync article type
-    const analyticsArticleType = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
-    const filterArticleType = document.getElementById('filter-article-type') as HTMLSelectElement | null;
-    const filterArticle = document.getElementById('filter-article') as HTMLSelectElement | null;
+    if (!skipFiltersSync) {
+      // 2. Sync article type
+      const analyticsArticleType = document.getElementById('analytics-article-type') as HTMLSelectElement | null;
+      const filterArticleType = document.getElementById('filter-article-type') as HTMLSelectElement | null;
+      const filterArticle = document.getElementById('filter-article') as HTMLSelectElement | null;
 
-    if (analyticsArticleType && filterArticleType) {
-      const newValue = analyticsArticleType.value || '';
-      if (filterArticleType.value !== newValue) {
-        filterArticleType.value = newValue;
+      if (analyticsArticleType && filterArticleType) {
+        const newValue = analyticsArticleType.value || '';
+        if (filterArticleType.value !== newValue) {
+          filterArticleType.value = newValue;
 
-        // Update filters object immediately
-        PlanFilters.setFilters({ article_type: newValue || null });
+          // Update filters object immediately
+          PlanFilters.setFilters({ article_type: newValue || null });
 
-        // Reset article filter (category list changed)
-        if (filterArticle) {
-          filterArticle.value = '';
-          PlanFilters.setFilters({ article_id: null });
+          // Reset article filter (category list changed)
+          if (filterArticle) {
+            filterArticle.value = '';
+            PlanFilters.setFilters({ article_id: null });
+            planFilterArticleWidget.clearValue();
+          }
+
+          needsReload = true;
         }
-
-        needsReload = true;
       }
-    }
 
-    // 3. Sync article (category)
-    const analyticsArticle = document.getElementById('analytics-article') as HTMLSelectElement | null;
+      // 3. Sync article (category)
+      const analyticsArticle = document.getElementById('analytics-article') as HTMLSelectElement | null;
 
-    if (analyticsArticle && filterArticle) {
-      const newValue = analyticsArticle.value || '';
-      // Check if option exists in filter dropdown
-      const optionExists = filterArticle.querySelector(`option[value="${newValue}"]`);
-      if (optionExists && filterArticle.value !== newValue) {
-        filterArticle.value = newValue;
-        PlanFilters.setFilters({ article_id: parseInt(newValue) || null });
-        needsReload = true;
+      if (analyticsArticle && filterArticle) {
+        const newValue = analyticsArticle.value || '';
+        // Check if option exists in filter dropdown
+        const optionExists = filterArticle.querySelector(`option[value="${newValue}"]`);
+        if (optionExists && filterArticle.value !== newValue) {
+          filterArticle.value = newValue;
+          PlanFilters.setFilters({ article_id: parseInt(newValue) || null });
+          planFilterArticleWidget.setValue(newValue || null);
+          needsReload = true;
+        }
       }
-    }
 
-    // 4. Sync financial center
-    const analyticsCFO = document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null;
-    const filterFC = document.getElementById('filter-financial-center') as HTMLSelectElement | null;
+      // 4. Sync financial center
+      const analyticsCFO = document.getElementById('analytics-cfo-filter') as HTMLSelectElement | null;
+      const filterFC = document.getElementById('filter-financial-center') as HTMLSelectElement | null;
 
-    if (analyticsCFO && filterFC) {
-      const newValue = analyticsCFO.value || '';
-      if (filterFC.value !== newValue) {
-        filterFC.value = newValue;
-        PlanFilters.setFilters({ financial_center_id: parseInt(newValue) || null });
-        needsReload = true;
+      if (analyticsCFO && filterFC) {
+        const newValue = analyticsCFO.value || '';
+        if (filterFC.value !== newValue) {
+          filterFC.value = newValue;
+          PlanFilters.setFilters({ financial_center_id: parseInt(newValue) || null });
+          needsReload = true;
+        }
       }
     }
 
     // 5. Reload facts table if any value changed
     if (needsReload && !skipReload) {
-      PlanFactsTable.setCurrentPage(0);
       await PlanFactsTable.loadFacts();
       PlanFilters.updateFilterIndicator();
     }

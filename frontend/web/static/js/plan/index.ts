@@ -16,12 +16,12 @@ import * as FilterAnalyticsSync from './filterAnalyticsSync';
 import * as PlanCRUD from './crud';
 import { setupEventDelegation } from './adapters/eventDelegation';
 import { setupWindowExports } from './adapters/windowExports';
+import { initPlanFilterArticle } from './features/filterArticle/init';
 import { registerWSHandlers } from './wsEventHandlers';
 import { savePlanTransfer } from '../dashboard/features/modalPlan/saveTransfer';
 import { syncPlanPeriodFromActive } from '../dashboard/features/addPlan/periodButtons';
 import { setButtonLoading } from '../dashboard/shared/utils/buttonState';
 import { APIError } from '../dashboard/shared/utils/apiHelpers';
-import { getDexieManager } from '@db/dexie';
 
 // Logger из utils/logger.js (загружается глобально через bundle)
 declare class Logger {
@@ -33,6 +33,10 @@ declare class Logger {
 }
 
 const log = new Logger('[PLAN]', 'PLAN');
+
+declare const BudgetShared: {
+  CalendarWidget: any;
+};
 
 // Re-export modules for external use
 export { PlanHelpers, PlanFilters, PlanFactsTable, PlanAnalytics, FilterAnalyticsSync, PlanCRUD };
@@ -64,8 +68,7 @@ interface PlanAppGlobal {
 
   // Facts Table Actions (exposed for onclick handlers)
   loadFacts: () => Promise<void>;
-  previousPage: () => void;
-  nextPage: () => void;
+  loadMoreFacts: () => Promise<void>;
 
   // Analytics Actions (exposed for onclick handlers)
   selectAnalyticsMonth: (month: string, btn: HTMLButtonElement) => Promise<void>;
@@ -117,23 +120,23 @@ declare global {
 // Page Initialization
 // ============================================================================
 
-/**
- * Initialize plan page
- * Called on DOMContentLoaded from inline script
- */
-async function ensureDexieReady(): Promise<void> {
+function initFilterCalendar(): void {
+  const startInputElement = document.getElementById('filter-date-from') as HTMLInputElement | null;
+  const endInputElement = document.getElementById('filter-date-to') as HTMLInputElement | null;
+  if (!startInputElement || !endInputElement) return;
+
   try {
-    const mgr = getDexieManager();
-    if (!mgr || typeof mgr.isReady !== 'function') return;
-    if (!mgr.isReady() && typeof mgr.init === 'function') {
-      await mgr.init();
-    }
-    const userId = (window as any).userData?.id;
-    if (userId && typeof (mgr as any).syncReferenceData === 'function') {
-      await (mgr as any).syncReferenceData(userId);
-    }
+    new BudgetShared.CalendarWidget({
+      mode: 'range',
+      startInputElement,
+      endInputElement,
+      triggerContainer: '#date-range-calendar-trigger',
+      onSelect: async () => {
+        await applyFiltersAndLoadData();
+      }
+    });
   } catch (err) {
-    log.warn('Dexie init failed (non-critical):', err);
+    log.warn('CalendarWidget init failed (non-critical):', err);
   }
 }
 
@@ -147,11 +150,11 @@ export async function initialize(): Promise<void> {
     // Initialize default period filter UI
     PlanFilters.initDefaultPeriodFilter();
 
+    // Initialize CalendarWidget for filter date range
+    initFilterCalendar();
+
     // Initialize analytics month buttons
     PlanAnalytics.initAnalyticsMonthButtons();
-
-    // Ensure Dexie is ready before loading any data (non-critical: loadFacts falls back to API)
-    await ensureDexieReady();
 
     // Load dropdown data in parallel
     log.debug('Loading dropdown data...');
@@ -162,6 +165,16 @@ export async function initialize(): Promise<void> {
       loadCostCentersDropdown(),
       PlanAnalytics.populateAllAnalyticsFilters()
     ]);
+
+    // Initialize ChoicesCategoryTree for #filter-article
+    initPlanFilterArticle();
+
+    const filterArticleTypeEl = document.getElementById('filter-article-type') as HTMLSelectElement | null;
+    filterArticleTypeEl?.addEventListener('change', () => {
+      const newType = filterArticleTypeEl.value || null;
+      initPlanFilterArticle(newType);
+      PlanFilters.setFilters({ article_id: null });
+    });
 
     // Apply filters and load initial data
     log.debug('Applying initial filters...');
@@ -218,106 +231,13 @@ async function loadUsersDropdown(): Promise<void> {
 }
 
 /**
- * Group articles by type while preserving hierarchical order
- *
- * @param flatNodes - Flattened article tree nodes
- * @returns Articles sorted by type (expense → income → debit → credit)
- */
-function groupArticlesByType(flatNodes: PlanHelpers.FlatArticle[]): PlanHelpers.FlatArticle[] {
-  const groupedByType: Record<string, PlanHelpers.FlatArticle[]> = {
-    'expense': [],
-    'income': [],
-    'debit': [],
-    'credit': []
-  };
-
-  flatNodes.forEach(node => {
-    if (groupedByType[node.type]) {
-      groupedByType[node.type].push(node);
-    }
-  });
-
-  // Flatten back in type order: expense → income → debit → credit
-  return [
-    ...groupedByType['expense'],
-    ...groupedByType['income'],
-    ...groupedByType['debit'],
-    ...groupedByType['credit']
-  ];
-}
-
-/**
- * Create article option element with styling and metadata
- *
- * @param node - Article node data
- * @returns Configured option element
- */
-function createArticleOption(node: PlanHelpers.FlatArticle): HTMLOptionElement {
-  const option = document.createElement('option');
-  option.value = String(node.id);
-
-  // Simplified indentation: use single symbol per level
-  const indent = '›  '.repeat(node.level);
-  const icon = node.isLeaf ? '▸' : '📂';
-  option.textContent = `${indent}${icon} ${node.name}`;
-
-  // Add data-type attribute for category filter colors
-  if (node.type) {
-    option.dataset.type = node.type;
-  }
-
-  // Color coding by article type
-  const colorMap: Record<string, string> = {
-    'expense': 'rgb(239, 68, 68)', // Red (DaisyUI error)
-    'income': 'rgb(34, 197, 94)', // Green (DaisyUI success)
-    'debit': 'rgb(59, 130, 246)', // Blue (DaisyUI info)
-    'credit': 'rgb(251, 146, 60)' // Orange (DaisyUI warning)
-  };
-  if (colorMap[node.type]) {
-    option.style.color = colorMap[node.type];
-  }
-
-  // Disable parent categories with visual styling
-  if (!node.isLeaf) {
-    option.disabled = true;
-    option.classList.add('category-parent');
-    option.style.fontWeight = 'bold';
-    option.style.opacity = '0.7';
-  } else {
-    option.classList.add('category-leaf');
-  }
-
-  return option;
-}
-
-/**
- * Load articles and populate filter dropdown with tree structure
+ * Load articles and store in global allCategories (used by crud.ts)
  */
 async function loadArticlesDropdown(): Promise<void> {
   try {
     const articles = await PlanHelpers.loadArticles();
-
-    // Populate global allCategories used by crud.ts (declare let allCategories)
     (window as any).allCategories = articles;
-
-    const tree = PlanHelpers.buildArticleTree(articles);
-    const flatNodes = PlanHelpers.flattenArticleTree(tree);
-    const sortedNodes = groupArticlesByType(flatNodes);
-
-    // Populate filter dropdown
-    const filterSelect = document.getElementById('filter-article') as HTMLSelectElement | null;
-
-    if (!filterSelect) {
-      log.warn('Article dropdown not found');
-      return;
-    }
-
-    sortedNodes.forEach(node => {
-      const option = createArticleOption(node);
-      filterSelect.appendChild(option);
-    });
-
-    log.debug(`Loaded ${sortedNodes.length} articles (${articles.length} total)`);
+    log.debug(`Loaded ${articles.length} articles`);
   } catch (error) {
     log.error('Error loading articles:', error);
   }
@@ -543,8 +463,7 @@ const planApp: typeof window.PlanApp = {
 
   // Facts Table Actions (for onclick handlers)
   loadFacts: PlanFactsTable.loadFacts,
-  previousPage: PlanFactsTable.previousPage,
-  nextPage: PlanFactsTable.nextPage,
+  loadMoreFacts: PlanFactsTable.loadMoreFacts,
 
   // Analytics Actions (for onclick handlers)
   selectAnalyticsMonth: PlanAnalytics.selectAnalyticsMonth,

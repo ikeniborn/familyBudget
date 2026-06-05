@@ -18,7 +18,7 @@ Differences from add.py (facts):
 - UI messaging adapted for planning context
 """
 
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from typing import Dict, Optional
 
@@ -368,12 +368,21 @@ async def amount_entered(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         # Ask for date
         article_name = context.user_data.get(KEY_ARTICLE_NAME, "категория")
 
+        today = date.today()
+        planning_month = (
+            (today.replace(day=1) + timedelta(days=32)).replace(day=1)
+            if today.day >= 20
+            else today.replace(day=1)
+        )
+        hint = planning_month.strftime("01.%m.%Y")
+
         await update.message.reply_text(
             f"📊 **Планирование бюджета**\n\n"
             f"📋 Шаг 3/4: Введите период планирования\n\n"
             f"Категория: **{article_name}**\n"
             f"Плановая сумма: **{format_amount(amount)}**\n\n"
             f"Введите дату (период) плана:\n\n"
+            f"💡 Рекомендуемый период: {hint}\n\n"
             f"_Примеры: 01.11.2025, 01.12, 2026-01-01_\n"
             f"_Можно указывать будущие даты для планирования_\n\n"
             f"Отправьте /cancel для отмены",

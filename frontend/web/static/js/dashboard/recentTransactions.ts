@@ -16,7 +16,6 @@ interface RecentTransaction {
   article_type: 'expense' | 'income' | 'debit' | 'credit';
   amount: string;
   description: string | null;
-  is_offline_sync: boolean;
   recurring_plan_id: number | null;
   has_reminder: boolean;
 }
@@ -77,7 +76,6 @@ export function buildRecentTransactionsHTML(facts: RecentTransaction[]): string 
             <th>Описание</th>
             <th title="Напоминание">🔔</th>
             <th title="Регламентный платеж">🔄</th>
-            <th title="Создано offline">☁️</th>
             <th>⚙️ Действия</th>
           </tr>
         </thead>
@@ -130,8 +128,6 @@ export function buildRecentTransactionsHTML(facts: RecentTransaction[]): string 
     const descriptionTruncated = description.length > 30 ? description.substring(0, 30) + '...' : description;
 
     // Icons
-    const offlineIcon = fact.is_offline_sync ? '☁️' : '';
-    const offlineTitle = fact.is_offline_sync ? 'Создано offline' : '';
     const recurringIcon = fact.recurring_plan_id ? '🔄' : '';
     const recurringTitle = fact.recurring_plan_id ? 'Регламентный платеж' : '';
     const reminderIcon = fact.has_reminder ? '🔔' : '';
@@ -155,7 +151,6 @@ export function buildRecentTransactionsHTML(facts: RecentTransaction[]): string 
         <td class="max-w-xs truncate" title="${descriptionFull}">${descriptionTruncated}</td>
         <td class="text-center" title="${reminderTitle}">${reminderIcon}</td>
         <td class="text-center" title="${recurringTitle}">${recurringIcon}</td>
-        <td class="text-center" title="${offlineTitle}">${offlineIcon}</td>
         <td>
           <div class="flex gap-1">
             ${editButton}
@@ -171,7 +166,6 @@ export function buildRecentTransactionsHTML(facts: RecentTransaction[]): string 
     if (description !== '—') line2Parts.push(description);
     const line2Text = line2Parts.join(' • ');
 
-    const offlineSpan = offlineIcon ? `<span class="text-xs" title="${offlineTitle}">${offlineIcon}</span>` : '';
     const recurringSpan = recurringIcon ? `<span class="text-secondary text-xs" title="${recurringTitle}">${recurringIcon}</span>` : '';
     const reminderSpan = reminderIcon ? `<span class="text-warning text-xs" title="${reminderTitle}">${reminderIcon}</span>` : '';
 
@@ -184,7 +178,6 @@ export function buildRecentTransactionsHTML(facts: RecentTransaction[]): string 
           <span class="flex-1 font-medium truncate">${fact.article_name}</span>
           ${reminderSpan}
           ${recurringSpan}
-          ${offlineSpan}
           <span class="${amountClass} whitespace-nowrap">${amountDisplay}</span>
         </div>
         <div class="text-xs text-base-content/60 mt-1 truncate">

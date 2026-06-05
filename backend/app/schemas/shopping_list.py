@@ -104,6 +104,13 @@ class ShoppingListUpdate(BaseModel):
         examples=[True, False]
     )
 
+    google_sheets_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="Google Sheets URL for this list (None = not provided, not cleared)",
+        examples=["https://docs.google.com/spreadsheets/d/abc123/edit"]
+    )
+
     @field_validator("name")
     @classmethod
     def name_not_empty(cls, v: str | None) -> str | None:
@@ -125,6 +132,30 @@ class ShoppingListUpdate(BaseModel):
         return trimmed
 
 
+class GoogleSheetsUrlResponse(BaseModel):
+    """Response schema for google-sheets-url endpoints."""
+
+    google_sheets_url: str | None = Field(
+        default=None,
+        description="Saved Google Sheets URL for this list",
+    )
+    has_saved_url: bool = Field(
+        description="Whether a URL has been saved for this list"
+    )
+
+    model_config = {"from_attributes": True}
+
+
+class GoogleSheetsUrlUpdate(BaseModel):
+    """Request schema for updating google-sheets-url."""
+
+    google_sheets_url: str | None = Field(
+        default=None,
+        max_length=2048,
+        description="New Google Sheets URL (None to clear)",
+    )
+
+
 class ShoppingListResponse(BaseModel):
     """
     Schema for shopping list responses.
@@ -139,12 +170,6 @@ class ShoppingListResponse(BaseModel):
     id: int = Field(
         description="Shopping list ID (surrogate key)",
         examples=[1]
-    )
-
-    temp_id: str | None = Field(
-        default=None,
-        description="Client-side UUID for offline sync",
-        examples=["550e8400-e29b-41d4-a716-446655440000"]
     )
 
     creator_id: int = Field(
@@ -199,18 +224,12 @@ class ShoppingListCardResponse(BaseModel):
     Schema for shopping list card responses (landing page grid).
 
     Includes shopping list data plus item count and completion statistics.
-    Used for grid of cards on landing page AND for Dexie offline sync
-    (LocalShoppingList in frontend).
+    Used for grid of cards on landing page.
     """
 
     id: int = Field(
         description="Shopping list ID",
         examples=[1]
-    )
-
-    temp_id: str | None = Field(
-        default=None,
-        description="Client-side UUID for offline sync"
     )
 
     creator_id: int = Field(

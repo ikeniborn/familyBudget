@@ -354,7 +354,17 @@ class CSVImporter {
 
             if (!response.ok) {
                 const error = await response.json();
-                throw new Error(error.detail || 'Failed to analyze CSV file');
+                let detail: string;
+                if (Array.isArray(error.detail)) {
+                    detail = error.detail.map((e: any) => e.msg || JSON.stringify(e)).join(', ');
+                } else if (typeof error.detail === 'string') {
+                    detail = error.detail;
+                } else if (error.detail) {
+                    detail = JSON.stringify(error.detail);
+                } else {
+                    detail = `HTTP ${response.status}`;
+                }
+                throw new Error(detail || 'Failed to analyze CSV file');
             }
 
             this.detectionResult = await response.json();
@@ -1641,23 +1651,31 @@ class CSVImporter {
                     5000
                 );
 
-                // ✅ FIX: Load stores and product groups BEFORE rendering items table
-                // Otherwise new stores/groups won't be found in cache and show "N/A"
+                // Reload shopping list items FIRST from API
+                await this.listsManager.loadShoppingListItems(currentListId);
+
+                // Overwrite with fresh data AFTER items load (fixes hierarchy tree)
                 if (result.created_stores && result.created_stores.length > 0) {
-                    debugLog('[CSVImporter] Reloading stores (before render)...', result.created_stores);
+                    debugLog('[CSVImporter] Reloading stores (after items load)...', result.created_stores);
                     await this.listsManager.loadStores();
                 }
 
                 if (result.created_product_groups && result.created_product_groups.length > 0) {
-                    debugLog('[CSVImporter] Reloading product groups (before render)...', result.created_product_groups);
+                    debugLog('[CSVImporter] Reloading product groups (after items load)...', result.created_product_groups);
                     await this.listsManager.loadProductGroups();
                 }
 
-                // Reload shopping list items
-                await this.listsManager.loadShoppingListItems(currentListId);
+                // Re-render current view (table or hierarchy) with updated data
+                if (typeof this.listsManager.renderCurrentView === 'function') {
+                    this.listsManager.renderCurrentView();
+                } else {
+                    this.listsManager.renderItemsTable();
+                }
 
-                // Re-render items table (now with updated stores/productGroups cache)
-                this.listsManager.renderItemsTable();
+                // Refresh landing page counters AFTER render (total_items/completed_items/completion_percentage)
+                if (typeof this.listsManager.loadShoppingLists === 'function') {
+                    await this.listsManager.loadShoppingLists();
+                }
 
                 // Reinitialize Choices.js dropdowns for modal forms
                 if (result.created_stores && result.created_stores.length > 0) {

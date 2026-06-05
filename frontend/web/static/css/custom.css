@@ -772,37 +772,6 @@ body.modal-open .fab-common-wrapper {
  */
 
 /* ============================================== */
-/* PGlite Indicator Pulse Animation              */
-/* ============================================== */
-
-/**
- * Pulse animation for PGlite syncing state
- * GPU-accelerated with transform + opacity
- */
-@keyframes dexie-pulse {
-    0%, 100% {
-        opacity: 0.5;
-        transform: scale(1);
-    }
-    50% {
-        opacity: 1;
-        transform: scale(1.1);
-    }
-}
-
-.dexie-pulse {
-    animation: dexie-pulse 1.5s ease-in-out infinite;
-}
-
-/* Respect reduced motion preferences (accessibility) */
-@media (prefers-reduced-motion: reduce) {
-    .dexie-pulse {
-        animation: none;
-        opacity: 1;
-    }
-}
-
-/* ============================================== */
 /* Tabbed Modals Styling                         */
 /* ============================================== */
 

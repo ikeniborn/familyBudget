@@ -72,20 +72,6 @@ export function isRetryableError(error: any): boolean {
 }
 
 /**
- * Check if 503 error indicates offline mode
- *
- * @param consecutive503Count Number of consecutive 503 errors
- * @param offlineModeActive Whether offline mode is active
- * @returns True if should stop retrying
- */
-export function shouldStopOn503(
-  consecutive503Count: number,
-  offlineModeActive: boolean
-): boolean {
-  return consecutive503Count >= 3 && offlineModeActive;
-}
-
-/**
  * Get retry configuration
  *
  * @returns Retry configuration object

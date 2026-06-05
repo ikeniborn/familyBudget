@@ -8,69 +8,6 @@
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Show Dexie initialization progress if enabled
-        let progressCheckInterval = null;
-        const showProgress = window.showDexieProgress || (() => {
-            console.debug('[LISTS_INIT] showDexieProgress not available, progress UI disabled');
-        });
-        const hideProgress = window.hideDexieProgress || (() => {
-            console.debug('[LISTS_INIT] hideDexieProgress not available');
-        });
-
-        // Fallback: Set default if not initialized (edge case if this runs before base.html)
-        // DEFAULT: enabled (matches TypeScript logic in frontend/shared/db/dexie/index.ts)
-        if (localStorage.getItem('dexieActive') === null) {
-            localStorage.setItem('dexieActive', 'true');
-            console.info('[LISTS_INIT] dexieActive flag initialized to true (fallback)');
-        }
-
-        if (localStorage.getItem('dexieActive') === 'true' &&
-            typeof showProgress === 'function' &&
-            typeof hideProgress === 'function') {
-            try {
-                // Listen to state changes via polling
-                // TODO: Replace with EventEmitter or BroadcastChannel for real-time updates
-                progressCheckInterval = setInterval(async () => {
-                    try {
-                        // Use window.Dexie IIFE global (loaded in base.html:459)
-                        const state = window.Dexie?.getState ? await window.Dexie.getState() : null;
-
-                        if (!state?.db) {
-                            console.warn('[LISTS_INIT] Dexie state not available yet');
-                            return;
-                        }
-
-                        const initStatus = state.db.initializationStatus;
-
-                        if (initStatus === 'initializing' || initStatus === 'validating') {
-                            // Show generic message (actual progress comes from progressCallback)
-                            showProgress({
-                                phase: 'Initializing',
-                                message: 'Загрузка данных...'
-                            });
-                        } else if (initStatus === 'ready') {
-                            hideProgress();
-                            clearInterval(progressCheckInterval);
-                        } else if (initStatus === 'error') {
-                            hideProgress();
-                            clearInterval(progressCheckInterval);
-                        }
-                    } catch (err) {
-                        console.warn('[LISTS_INIT] Progress check failed:', err);
-                    }
-                }, 500);
-
-                // Cleanup after 30 seconds (timeout)
-                setTimeout(() => {
-                    if (progressCheckInterval) {
-                        clearInterval(progressCheckInterval);
-                    }
-                }, 30000);
-            } catch (err) {
-                console.warn('[LISTS_INIT] Progress monitoring failed:', err);
-            }
-        }
-
         // Scripts load synchronously - no polling needed
         if (typeof window.loadShoppingLists !== 'function') {
             console.error('[LISTS_INIT] ❌ Lists bundle failed to load');

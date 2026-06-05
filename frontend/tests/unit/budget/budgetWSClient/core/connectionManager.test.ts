@@ -75,13 +75,11 @@ describe('Connection Manager', () => {
       value: true,
     });
 
-    // Mock window.offlineManager
     (global as any).window = {
       location: {
         protocol: 'https:',
         host: 'localhost:8000',
       },
-      offlineManager: undefined,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     };
@@ -417,36 +415,4 @@ describe('Connection Manager', () => {
     });
   });
 
-  describe('Offline Mode Detection', () => {
-    it('should skip connection if offline mode active', async () => {
-      (global as any).window.offlineManager = {
-        isOffline: () => true,
-      };
-
-      WSState.updateState({ enabled: true });
-      await connect();
-      await vi.runAllTimersAsync();
-
-      expect(mockFetch).not.toHaveBeenCalled();
-      expect(global.WebSocket).not.toHaveBeenCalled();
-    });
-
-    it('should allow connection if offline mode not active', async () => {
-      (global as any).window.offlineManager = {
-        isOffline: () => false,
-      };
-
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: async () => ({ token: 'test-token-123' }),
-      });
-
-      WSState.updateState({ enabled: true });
-      await connect();
-      await vi.runAllTimersAsync();
-
-      expect(mockFetch).toHaveBeenCalled();
-    });
-  });
 });

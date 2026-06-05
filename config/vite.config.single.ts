@@ -97,37 +97,20 @@ export default defineConfig({
         [entryName]: resolve(__dirname, '..', entryInput)
       },
 
-      // External dependencies (modules that should NOT be bundled)
-      // Dexie is bundled in dashboard, dexie, and lists bundles (dynamic import('dexie') requires bundling)
-      // '@db/dexie' path alias must also be external to prevent bundling shared/db/dexie/ code
-      external: (entryName === 'dexie' || entryName === 'dashboard' || entryName === 'lists') ? [] : ['dexie', '@db/dexie'],
-
       // Tree-shaking configuration (v10.1.48: prevent removal of window exports)
       // CRITICAL: dashboard bundle uses side-effect-based window assignments via initWindowExports()
-      // dexie bundle also uses window.Dexie assignment (side-effect) → disable for these bundles
-      // lists bundle now includes dexie (dynamic import fix) → also disable tree-shaking
-      // Production tree-shaking removes these assignments → disable for dashboard, dexie, and lists
-      treeshake: (entryName === 'dashboard' || entryName === 'dexie' || entryName === 'lists') ? false : 'recommended',
+      // Production tree-shaking removes these assignments → disable for dashboard
+      treeshake: entryName === 'dashboard' ? false : 'recommended',
 
       output: {
         // All modules use IIFE format for synchronous window global creation
-        // PGlite uses dynamic import() inside IIFE for lazy loading
         format: 'iife',
         name: globalName,
         entryFileNames: '[name].js', // [name] = entryName из input object key
         generatedCode: {
           constBindings: true
-        },
-        // Map external modules to global variables (only for IIFE modules)
-        // Dexie is bundled in dashboard, dexie, and lists bundles
-        // For other bundles (facts, plans, etc.), 'dexie' is external → mapped to window.Dexie
-        // '@db/dexie' path alias also mapped to window.Dexie to prevent bundling
-        globals: {
-          'dexie': 'window.Dexie',
-          '@db/dexie': 'window.Dexie'
         }
         // Note: manualChunks not supported for IIFE format
-        // PGlite uses dynamic import() for lazy loading instead
       }
     }
   },
@@ -163,8 +146,7 @@ export default defineConfig({
       '@web': resolve(__dirname, '..', 'frontend/web/static/js'),
       '@webapp': resolve(__dirname, '..', 'frontend/webapp/static/js'),
       '@shared': resolve(__dirname, '..', 'frontend/shared/static/js'),
-      '@components': resolve(__dirname, '..', 'frontend/web/static/js/modules/uiComponents'),
-      '@db': resolve(__dirname, '..', 'frontend/shared/db')
+      '@components': resolve(__dirname, '..', 'frontend/web/static/js/modules/uiComponents')
     }
   },
 

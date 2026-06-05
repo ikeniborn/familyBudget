@@ -1,6 +1,6 @@
 # Frontend
 
-Progressive Web App built with HTMX + Tailwind CSS + DaisyUI. TypeScript compiled via Rollup into bundles. Supports offline via Dexie.js IndexedDB.
+Progressive Web App built with HTMX + Tailwind CSS + DaisyUI. TypeScript compiled via Rollup into bundles. Real-time sync via WebSocket + Redis Pub/Sub.
 
 ## Architecture
 
@@ -24,13 +24,15 @@ Bundle configs: `config/` directory. Output: `frontend/web/static/js/**/*.min.js
 
 Server returns HTML fragments to HTMX `hx-target`. Partial endpoints in `backend/app/api/v1/endpoints/facts_partials.py`. WebSocket events trigger `htmx.trigger()` to refresh specific components. See [[realtime#WebSocket Protocol]].
 
-## Dexie Offline Sync
+## Real-Time Sync
 
-IndexedDB via Dexie.js 4.0+ for offline-first operations. Shopping lists and facts can be created offline; sync runs on reconnect via [[api#Key Endpoint Groups#Sync]].
+WebSocket client (`budgetWSClient.js`) handles all real-time events. Multi-tab sync via Redis Pub/Sub — events from any tab/device propagate to all open sessions instantly. No local IndexedDB — all data fetched from REST API. See [[realtime#WebSocket Protocol]].
 
-Schema defined in TypeScript `frontend/web/static/js/data/`. Delete sync uses soft-delete flags, not physical removal, to avoid sync conflicts. Edit persistence requires re-fetching from IndexedDB after save — not from DOM.
+## Push Notifications
 
-Shopping list item upload (`shoppingSync.ts`): if PUT returns 404 (item deleted server-side), the sync falls back to POST to recreate it. This preserves offline edits that would otherwise be silently lost.
+Web Push frontend singleton `window.budgetPushManager`, set by `frontend/web/static/js/notifications/pushManager.ts` (self-contained, zero imports). Drives the permission banner and the notification bell.
+
+Loaded in `base.html` for authenticated users only (`{% if user %}` block), before the inline push-permission banner logic that reads the singleton. Push is **not** an offline feature — it survives the offline/Dexie removal; the backend (`push_service.py`, VAPID, scheduler) is independent. See [[api#Key Endpoint Groups#Notifications + Push]].
 
 ## CSS
 
@@ -39,6 +41,18 @@ Tailwind CSS + DaisyUI component library. Source → minified via PostCSS + cssn
 ## Responsive Breakpoints
 
 All features must work at 375px (mobile), 768px (tablet), 1280px (desktop) before marking as done. PWA manifest enables install on iOS/Android. Browser targets: Chrome, Safari 14+, Yandex Browser.
+
+## Plan Page Analytics Sync
+
+Bidirectional filter↔analytics sync on the plan page. Module: `frontend/web/static/js/plan/filterAnalyticsSync.ts`.
+
+**Filters → Analytics** (`syncFiltersToAnalytics`): propagates date range, article type, article, financial center from the filter section to the analytics section, then reloads charts.
+
+**Analytics → Filters** (`syncAnalyticsToFilters`): propagates analytics UI state back to the filter section, then reloads the facts table.
+
+**Mutex**: `isSyncInProgress` flag prevents cascading loops. **Debounce**: `debouncedSyncFiltersToAnalytics` delays 300ms.
+
+**`SyncOptions.skipFiltersSync`**: when `true`, `syncAnalyticsToFilters` only updates the date range — article type, article, and financial center are NOT carried over. Used by `selectAnalyticsMonth` so switching a month doesn't silently apply analytics filters to the facts table. Without this guard, selecting June 2026 would propagate e.g. `article_id=484` and reduce visible plan records.
 
 ## Admin UI
 

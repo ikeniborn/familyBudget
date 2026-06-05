@@ -3,7 +3,6 @@
  * Extracted from saveOperations.ts to improve maintainability
  */
 
-import { getState } from '../../core/DashboardState';
 import { remindersMap } from './dropdownCache';
 
 // ============================================================================
@@ -54,78 +53,6 @@ export function buildFactDataFromForm(formData: FormData): Record<string, any> {
   }
 
   return data;
-}
-
-/**
- * Get display names from form selects for pending records
- */
-export function getDisplayNamesFromForm(originalData: any): {
-  articleName: string;
-  financialCenterName: string;
-  costCenterName: string;
-} {
-  // Get display names from form selects
-  const fcSelect = document.getElementById('edit-financial-center') as HTMLSelectElement | null;
-  const ccSelect = document.getElementById('edit-cost-center') as HTMLSelectElement | null;
-  const financialCenterName = fcSelect?.selectedOptions[0]?.text || originalData.financial_center_name;
-  const costCenterName = ccSelect?.selectedOptions[0]?.text || originalData.cost_center_name;
-
-  // Get article name from category tree
-  const state = getState();
-  let articleName = originalData.article_name;
-  if (state.editCategoryTreeSelect?.getSelectedCategory) {
-    const selected = state.editCategoryTreeSelect.getSelectedCategory();
-    if (selected) articleName = selected.name;
-  }
-
-  return { articleName, financialCenterName, costCenterName };
-}
-
-// ============================================================================
-// Pending Record Update
-// ============================================================================
-
-/**
- * Update pending record in IndexedDB
- */
-export async function updatePendingRecord(
-  pendingId: number,
-  data: Record<string, any>,
-  formData: FormData,
-  recordType: string
-): Promise<void> {
-  if (!window.offlineManager) {
-    throw new Error('OfflineManager не доступен');
-  }
-
-  // Get original pending item to preserve display names
-  const { items } = await window.offlineManager.getAllUnsyncedItems();
-  const originalItem = items.find((i: { id: number }) => i.id === pendingId);
-  const originalData = originalItem?.data || {};
-
-  // Get display names
-  const { articleName, financialCenterName, costCenterName } = getDisplayNamesFromForm(originalData);
-
-  // Merge new data with original
-  const mergedData = {
-    ...originalData,
-    ...data,
-    article_name: articleName,
-    financial_center_name: financialCenterName,
-    cost_center_name: costCenterName,
-  };
-
-  // Get reminder settings for plans
-  if (recordType === 'plan') {
-    const enableReminder = formData.get('enable_reminder') === 'on';
-    const reminderDatetime = formData.get('reminder_datetime') as string;
-    if (enableReminder && reminderDatetime) {
-      mergedData.reminder_datetime = reminderDatetime;
-    }
-  }
-
-  // Update pending record in IndexedDB
-  await (window.offlineManager as any).updatePendingItemData(pendingId, mergedData);
 }
 
 // ============================================================================

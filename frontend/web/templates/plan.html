@@ -5,7 +5,6 @@
 {% from "components/plan/filters_section.html" import filters_section %}
 {% from "components/plan/stats_widget.html" import stats_widget %}
 {% from "components/plan/analytics_section.html" import analytics_section %}
-{% from "components/plan/pagination.html" import pagination_controls %}
 
 {# v9.0 Tabbed Modals #}
 {% from "components/modal_plan.html" import modal_plan %}
@@ -116,8 +115,15 @@
 
             {% include "partials/plan/facts_table_container.html" %}
 
-            <!-- Pagination -->
-            {{ pagination_controls() }}
+            <!-- Load More -->
+            <div id="load-more-container" class="flex justify-center py-4 hidden">
+              <button id="load-more-btn"
+                class="btn btn-outline btn-sm"
+                onclick="window.PlanApp.FactsTable.loadMoreFacts()">
+                Загрузить ещё
+                <span id="load-more-counter" class="ml-1 text-base-content/60"></span>
+              </button>
+            </div>
         </div>
     </div>
 </div>
@@ -165,9 +171,6 @@
 
 <!-- Dashboard bundle (modal_plan, modal_fact, edit modal with v10.x tab-based architecture) -->
 <script src="/static/js/dashboard.min.js?v=PLACEHOLDER"></script>
-
-<!-- Dexie.js for IndexedDB (required by plan.bundle.js) -->
-<script src="/shared/db/dexie.min.js?v=PLACEHOLDER"></script>
 
 <!-- Plan bundle (Phase 1: Helpers + Filters modules) -->
 <script src="/static/js/dist/plan.bundle.js?v=PLACEHOLDER"></script>

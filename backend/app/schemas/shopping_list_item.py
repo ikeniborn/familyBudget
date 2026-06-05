@@ -86,13 +86,6 @@ class ShoppingListItemCreate(BaseModel):
         examples=[False]
     )
 
-    temp_id: str | None = Field(
-        default=None,
-        max_length=255,
-        description="Client-side temporary ID for offline sync deduplication",
-        examples=["item_abc123_1707409123456", None]
-    )
-
     @field_validator("product_name")
     @classmethod
     def product_name_not_empty(cls, v: str) -> str:
@@ -197,8 +190,7 @@ class ShoppingListItemResponse(BaseModel):
 
     Notes:
         - SHARED model: All users can view/edit all items
-        - sync_status is used for offline functionality
-        - version is used for optimistic locking (conflict detection)
+        - version is used for optimistic locking
         - completed_at tracks when item was marked as completed
     """
 
@@ -215,12 +207,6 @@ class ShoppingListItemResponse(BaseModel):
     shopping_list_id: int = Field(
         description="Shopping list ID (foreign key)",
         examples=[1]
-    )
-
-    temp_id: str | None = Field(
-        default=None,
-        description="Client-side temporary ID for offline sync (format: item_{id}_{timestamp})",
-        examples=["item_123_1707409123456"]
     )
 
     store_id: int = Field(
@@ -266,13 +252,8 @@ class ShoppingListItemResponse(BaseModel):
 
     completed_at: datetime | None = Field(
         default=None,
-        description="When item was marked as completed (for conflict resolution)",
+        description="When item was marked as completed",
         examples=["2025-01-10T14:30:00Z", None]
-    )
-
-    sync_status: str = Field(
-        description="Offline sync status: 'synced', 'pending', 'conflict'",
-        examples=["synced"]
     )
 
     # Optimistic locking
@@ -321,7 +302,6 @@ class ShoppingListItemResponse(BaseModel):
                 "position": 1,
                 "is_completed": False,
                 "completed_at": None,
-                "sync_status": "synced",
                 "version": 1,
                 "deleted_at": None,
                 "last_modified_by": None,
@@ -410,270 +390,6 @@ class ShoppingListItemListResponse(BaseModel):
     offset: int = Field(
         description="Number of items skipped",
         examples=[0]
-    )
-
-
-# ============== Sync API Schemas ==============
-
-
-class SyncDeltaResponse(BaseModel):
-    """
-    Schema for delta sync response.
-
-    Returns items changed since last sync timestamp.
-    """
-
-    items: list[ShoppingListItemResponse] = Field(
-        description="List of changed items (created/updated since timestamp)"
-    )
-
-    deleted_ids: list[int] = Field(
-        description="List of soft-deleted item IDs (deleted_at IS NOT NULL since timestamp)"
-    )
-
-    server_time: datetime = Field(
-        description="Server timestamp (use as 'since' for next sync)"
-    )
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "items": [],
-                "deleted_ids": [45, 67],
-                "server_time": "2025-01-15T10:05:00Z"
-            }
-        }
-    }
-
-
-class SyncItemCreate(BaseModel):
-    """
-    Schema for creating item during batch sync.
-
-    Similar to ShoppingListItemCreate but with temp_id for client tracking.
-    """
-
-    temp_id: str = Field(
-        ...,
-        description="Temporary client-side ID for tracking",
-        examples=["temp_item_1736935500_abc123"]
-    )
-
-    store_id: int = Field(..., description="Store ID")
-    product_group_id: int = Field(..., description="Product group ID")
-    product_name: str = Field(..., max_length=255, min_length=1)
-    quantity: Decimal | None = Field(default=None)
-    unit: str | None = Field(default=None, max_length=50)
-    comment: str | None = Field(default=None)
-    position: int | None = Field(default=None, description="Position in list")
-    is_completed: bool = Field(default=False)
-    completed_at: datetime | None = Field(default=None)
-
-
-class SyncItemUpdate(BaseModel):
-    """
-    Schema for updating item during batch sync.
-
-    Includes client_version for optimistic locking check.
-    """
-
-    id: int = Field(..., description="Server item ID")
-    client_version: int = Field(
-        ...,
-        description="Client's version of the item (for conflict detection)"
-    )
-
-    # Fields to update (all optional)
-    store_id: int | None = Field(default=None)
-    product_group_id: int | None = Field(default=None)
-    product_name: str | None = Field(default=None, max_length=255)
-    quantity: Decimal | None = Field(default=None)
-    unit: str | None = Field(default=None, max_length=50)
-    comment: str | None = Field(default=None)
-    position: int | None = Field(default=None)
-    is_completed: bool | None = Field(default=None)
-    completed_at: datetime | None = Field(default=None)
-
-
-class SyncItemDelete(BaseModel):
-    """
-    Schema for deleting item during batch sync.
-
-    Includes client_version for optimistic locking check.
-    """
-
-    id: int = Field(..., description="Server item ID")
-    client_version: int = Field(
-        ...,
-        description="Client's version of the item (for conflict detection)"
-    )
-
-
-class BatchSyncRequest(BaseModel):
-    """
-    Schema for batch sync request.
-
-    Allows creating, updating, and deleting multiple items in one request.
-    """
-
-    shopping_list_id: int = Field(
-        ...,
-        description="Shopping list ID for all operations"
-    )
-
-    creates: list[SyncItemCreate] = Field(
-        default=[],
-        description="Items to create (new items from offline)"
-    )
-
-    updates: list[SyncItemUpdate] = Field(
-        default=[],
-        description="Items to update (modified offline)"
-    )
-
-    deletes: list[SyncItemDelete] = Field(
-        default=[],
-        description="Items to delete (deleted offline)"
-    )
-
-    client_last_sync: datetime | None = Field(
-        default=None,
-        description="Client's last sync timestamp (for conflict detection)"
-    )
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "shopping_list_id": 1,
-                "creates": [
-                    {
-                        "temp_id": "temp_item_1736935500_abc123",
-                        "store_id": 5,
-                        "product_group_id": 10,
-                        "product_name": "Milk",
-                        "quantity": 2,
-                        "unit": "bottles",
-                        "is_completed": False
-                    }
-                ],
-                "updates": [
-                    {"id": 5, "client_version": 2, "is_completed": True}
-                ],
-                "deletes": [
-                    {"id": 7, "client_version": 3}
-                ],
-                "client_last_sync": "2025-01-15T10:00:00Z"
-            }
-        }
-    }
-
-
-class SyncConflict(BaseModel):
-    """
-    Schema for sync conflict details.
-
-    Returned when server version differs from client version.
-    """
-
-    item_id: int = Field(description="Server item ID")
-
-    conflict_type: str = Field(
-        description="Type of conflict: 'update_update', 'update_delete', 'delete_update'"
-    )
-
-    server_item: ShoppingListItemResponse | None = Field(
-        default=None,
-        description="Current server state (None if deleted)"
-    )
-
-    merged_item: ShoppingListItemResponse | None = Field(
-        default=None,
-        description="Auto-merged result (if applicable)"
-    )
-
-    client_version: int = Field(description="Client's version")
-    server_version: int = Field(description="Server's version")
-
-
-class SyncCreatedItem(BaseModel):
-    """
-    Schema for created item result in batch sync.
-
-    Maps temp_id to server-assigned ID.
-    """
-
-    temp_id: str = Field(description="Client's temporary ID")
-    item: ShoppingListItemResponse = Field(description="Created item with server ID")
-
-
-class BatchSyncResponse(BaseModel):
-    """
-    Schema for batch sync response.
-
-    Contains results of all operations and any conflicts.
-    """
-
-    created: list[SyncCreatedItem] = Field(
-        default=[],
-        description="Successfully created items (with temp_id mapping)"
-    )
-
-    updated: list[ShoppingListItemResponse] = Field(
-        default=[],
-        description="Successfully updated items"
-    )
-
-    deleted: list[int] = Field(
-        default=[],
-        description="Successfully deleted item IDs"
-    )
-
-    conflicts: list[SyncConflict] = Field(
-        default=[],
-        description="Items with conflicts (require resolution)"
-    )
-
-    server_time: datetime = Field(
-        description="Server timestamp (use as 'since' for next sync)"
-    )
-
-    model_config = {
-        "json_schema_extra": {
-            "example": {
-                "created": [
-                    {"temp_id": "temp_item_123", "item": {"id": 100}}
-                ],
-                "updated": [],
-                "deleted": [7],
-                "conflicts": [
-                    {
-                        "item_id": 5,
-                        "conflict_type": "update_update",
-                        "server_item": {},
-                        "merged_item": {},
-                        "client_version": 2,
-                        "server_version": 4
-                    }
-                ],
-                "server_time": "2025-01-15T10:05:00Z"
-            }
-        }
-    }
-
-
-class ConflictResolutionRequest(BaseModel):
-    """
-    Schema for conflict resolution request.
-    """
-
-    strategy: str = Field(
-        ...,
-        description="Resolution strategy: 'server' (keep server), 'client' (force client), 'merge' (auto-merge)"
-    )
-
-    client_data: dict | None = Field(
-        default=None,
-        description="Client data to merge (required for 'merge' strategy)"
     )
 
 

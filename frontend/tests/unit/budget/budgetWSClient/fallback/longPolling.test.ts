@@ -23,9 +23,6 @@ describe('Long Polling Fallback Module', () => {
     // Reset state
     WSState.resetState();
 
-    // Clear offlineManager
-    delete (window as any).offlineManager;
-
     // Mock fetch
     mockFetch = vi.fn();
     vi.stubGlobal('fetch', mockFetch);
@@ -112,20 +109,6 @@ describe('Long Polling Fallback Module', () => {
 
       // Should not dispatch events again (state already set)
       expect(global.dispatchEvent).not.toHaveBeenCalled();
-    });
-
-    it('should skip if offline mode active', () => {
-      // Mock offlineManager
-      (window as any).offlineManager = {
-        networkDetector: {
-          autoOfflineMode: true,
-        },
-      };
-
-      startLongPolling();
-
-      const state = WSState.getState();
-      expect(state.pollingActive).toBe(false);
     });
 
     it('should skip if navigator.onLine is false', () => {
@@ -234,26 +217,6 @@ describe('Long Polling Fallback Module', () => {
         (call: any) => call[0]?.type === 'ws:status-changed'
       );
       expect(statusChangedCalls.length).toBe(0);
-    });
-
-    it('should handle offline manager changes', () => {
-      // Set offline manager before starting
-      (window as any).offlineManager = {
-        networkDetector: {
-          autoOfflineMode: true,
-        },
-      };
-
-      // Try to start polling - should skip
-      startLongPolling();
-      expect(WSState.getState().pollingActive).toBe(false);
-
-      // Remove offline manager
-      delete (window as any).offlineManager;
-
-      // Now should start successfully
-      startLongPolling();
-      expect(WSState.getState().pollingActive).toBe(true);
     });
 
     it('should handle navigator.onLine changes', () => {
