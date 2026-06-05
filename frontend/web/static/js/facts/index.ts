@@ -120,8 +120,10 @@ async function initializeUI(): Promise<void> {
         logger.error(' Ошибка загрузки dropdown:', error);
     }
 
-    // Initialize ChoicesCategoryTree for #filter-article
-    initFactsFilterArticle();
+    // Initialize ChoicesCategoryTree for #filter-article (facts page only)
+    if (document.getElementById('filter-article')) {
+        initFactsFilterArticle();
+    }
 
     const articleTypeEl = document.getElementById('filter-article-type') as HTMLSelectElement | null;
     articleTypeEl?.addEventListener('change', () => {
