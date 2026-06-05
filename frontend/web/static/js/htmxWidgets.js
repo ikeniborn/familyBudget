@@ -151,14 +151,6 @@
                 console.debug('[HTMXWidgets] Network online - refreshing widgets');
                 this.refreshAll();
             });
-
-            // Refresh on custom network-status-change event
-            window.addEventListener('network-status-change', (event) => {
-                if (event.detail && event.detail.status === 'online') {
-                    console.debug('[HTMXWidgets] Network status change to online - refreshing widgets');
-                    this.refreshAll();
-                }
-            });
         }
     };
 

@@ -28,6 +28,12 @@ Server returns HTML fragments to HTMX `hx-target`. Partial endpoints in `backend
 
 WebSocket client (`budgetWSClient.js`) handles all real-time events. Multi-tab sync via Redis Pub/Sub — events from any tab/device propagate to all open sessions instantly. No local IndexedDB — all data fetched from REST API. See [[realtime#WebSocket Protocol]].
 
+## Push Notifications
+
+Web Push frontend singleton `window.budgetPushManager`, set by `frontend/web/static/js/notifications/pushManager.ts` (self-contained, zero imports). Drives the permission banner and the notification bell.
+
+Loaded in `base.html` for authenticated users only (`{% if user %}` block), before the inline push-permission banner logic that reads the singleton. Push is **not** an offline feature — it survives the offline/Dexie removal; the backend (`push_service.py`, VAPID, scheduler) is independent. See [[api#Key Endpoint Groups#Notifications + Push]].
+
 ## CSS
 
 Tailwind CSS + DaisyUI component library. Source → minified via PostCSS + cssnano (`npm run build:css`). `.min.css` not committed. Config: `config/tailwind.config.js`.

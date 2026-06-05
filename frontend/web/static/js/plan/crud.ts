@@ -1357,7 +1357,7 @@ export async function createPlan(event: Event): Promise<void> {
       const planMonth = formData.get('plan_month') as string; // "2025-11"
       const startDate = `${planMonth}-01`; // "2025-11-01"
 
-      // Get names from select elements for offline display
+      // Parse IDs from form
       const articleId = parseInt(formData.get('article_id') as string);
       const financialCenterId = parseInt(formData.get('financial_center_id') as string);
       const costCenterId = formData.get('cost_center_id') ? parseInt(formData.get('cost_center_id') as string) : null;
@@ -1380,29 +1380,6 @@ export async function createPlan(event: Event): Promise<void> {
         return;
       }
 
-      const articleSelect = document.querySelector(`#${modalId} select[name="article_id"]`) as HTMLSelectElement | null;
-      const financialCenterSelect = document.querySelector(`#${modalId} select[name="financial_center_id"]`) as HTMLSelectElement | null;
-      const costCenterSelect = document.querySelector(`#${modalId} select[name="cost_center_id"]`) as HTMLSelectElement | null;
-
-      const articleName = articleSelect?.selectedOptions[0]?.textContent || null;
-      const financialCenterName = financialCenterSelect?.selectedOptions[0]?.textContent || null;
-      const costCenterName = costCenterId ? (costCenterSelect?.selectedOptions[0]?.textContent || null) : null;
-
-      // Try to get article type from data attribute or fetch (for offline display color)
-      let articleType = articleSelect?.selectedOptions[0]?.dataset?.type || null;
-      if (!articleType && articleId) {
-        try {
-          const articleResp = await fetch(`/api/v1/articles/${articleId}`, { credentials: 'include' });
-          if (articleResp.ok) {
-            const articleData = await articleResp.json();
-            articleType = articleData.type;
-          }
-        } catch (err) {
-          // Ignore error - type is optional for offline display
-          logCrud.warn('[createPlan] Failed to fetch article type:', err);
-        }
-      }
-
       // Build recurring plan data
       const recurringData: any = {
         article_id: articleId,
@@ -1416,12 +1393,6 @@ export async function createPlan(event: Event): Promise<void> {
         start_date: startDate,
         end_date: recurringSettings.end_date,
         occurrences_count: recurringSettings.occurrences_count,
-        // Add names, type, and date for offline display in pending-records-card
-        article_name: articleName,
-        article_type: articleType,
-        financial_center_name: financialCenterName,
-        cost_center_name: costCenterName,
-        plan_date: startDate,  // For pending records date display
         // Reminder settings
         enable_reminder: formData.get('recurring_enable_reminder') === 'on',
         reminder_hour: formData.get('recurring_enable_reminder') === 'on'
