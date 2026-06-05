@@ -25,7 +25,6 @@ from backend.app.api.v1.endpoints import (
     import_router,
     import_templates_router,
     notifications_router,
-    p2p_router,
     product_groups_router,
     push_router,
     recurring_plans_router,
@@ -106,9 +105,6 @@ api_router.include_router(staging_router)
 
 # Transfers endpoints (Transfer Feature) ✅
 api_router.include_router(transfers_router)
-
-# P2P Sync endpoints (WebRTC peer-to-peer sync) ✅
-api_router.include_router(p2p_router)
 
 # Push Notification endpoints (PWA Offline Mode) ✅
 api_router.include_router(push_router)
