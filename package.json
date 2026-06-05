@@ -1,6 +1,6 @@
 {
   "name": "family-budget",
-  "version": "0.7.4",
+  "version": "0.7.5",
   "description": "Family Budget - Telegram-based personal finance management system",
   "main": "index.js",
   "scripts": {
