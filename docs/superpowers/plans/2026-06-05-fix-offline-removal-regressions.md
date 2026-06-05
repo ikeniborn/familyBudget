@@ -723,6 +723,46 @@ After deploy to `fbd.ikeniborn.ru` via CI (no server build), confirm:
 
 ---
 
+## Task 9: Clean stale offline ServiceWorker + test references (Spec Out-of-Scope follow-up)
+
+**Files:**
+- Modify: `sw.js:69`
+- Modify: `frontend/tests/unit/websocket/budgetWSClient-plan.test.ts:59-67`
+
+> **Context:** Added after Task 8 to close two regressions surfaced by the offline removal that the original 8 tasks did not cover. The spec's **Out of Scope** explicitly anticipated the first: *"the stale `offline/offlineManager.min.js` precache entry on `sw.js:69` is harmless via `Promise.allSettled` and may be cleaned opportunistically."* In practice the entry produced a SW install-time 404 (the file no longer exists), so it was promoted from "opportunistic" to a real fix. The second is the consequential unit-test update — a `budgetWSClient` assertion still required the removed `offlineManager` side-effect.
+
+- [x] **Step 1: Drop the deleted-module precache entry in `sw.js`**
+
+In `sw.js`, inside `OFFLINE_PAGE_ASSETS`, remove the orphan precache line:
+
+```javascript
+  // JS - offline support
+  '/static/js/offline/offlineManager.min.js',
+```
+
+(`offline/` was deleted in `7637d373`; precaching a 404 fails SW install.)
+
+- [x] **Step 2: Drop the stale `offlineManager` assertion in the WS plan test**
+
+In `frontend/tests/unit/websocket/budgetWSClient-plan.test.ts`, the `_handlePlanCreated` non-regression test asserted the handler still notifies `offlineManager` — a side-effect removed with the offline layer. Rename the test and drop the dead assertion:
+
+```typescript
+  it('handler still notifies UI handlers', () => {
+    // Non-regression: we did not accidentally strip other side-effects.
+    const created = extractMethod(source, '_handlePlanCreated');
+    expect(created).toMatch(/_notifyHandlers\(\s*['"]plan_created['"]/);
+  });
+```
+
+- [x] **Step 3: Commits (already landed)**
+
+```
+2f59db2d test(ws): drop stale offlineManager assertion removed with offline cleanup
+ae4993ba fix(sw): drop precache of deleted offline/offlineManager.min.js (install 404)
+```
+
+---
+
 ## Self-Review
 
 **Spec coverage:**
@@ -733,8 +773,10 @@ After deploy to `fbd.ikeniborn.ru` via CI (no server build), confirm:
 - E (guard `#filter-article`) → Task 6 ✓
 - F (Redis monitoring clarity) → Task 7 ✓ (scoped down: headline cards already exist; only relabel needed — documented in task context)
 - Verification + VERSION bump + lat sync → Task 8 ✓
+- Out-of-Scope follow-up (stale SW precache + WS test) → Task 9 ✓ (sw.js install 404 + dead `offlineManager` assertion)
 
 **Deviations from spec, with rationale:**
+- **Task 9 added post-plan.** Two regressions outside the original 8 tasks: the `sw.js` precache 404 (anticipated by spec Out-of-Scope, promoted to a real fix because it broke SW install) and the dependent `budgetWSClient-plan.test.ts` assertion on the removed `offlineManager` side-effect. Both are direct consequences of the offline removal, not scope creep.
 - **F is smaller than the spec describes.** The spec asks to "surface `total_keys` and `hit_ratio` as headline metrics" — but `renderRedisStats()` in `admin_monitoring.html:619-651` already renders both as headline `stat-value` cards (`Ключей в кеше`, `Cache Hit Ratio`). Adding them again would duplicate. Only the relabel of the cumulative hits/misses remains. This is the honest surgical scope.
 - **C touches more of `crud.ts` than line 1419 alone.** The spec points at line 1419, but with `noUnusedLocals: true` the upstream extraction (lines 1383-1404) becomes unused once the payload fields are removed, so it must be removed in the same change or type-check fails. Documented in Task 4 Steps 3-5.
 - **No red/green unit tests added.** This plan is deletion + wiring of dead code; the codebase has no existing tests for the touched render/init paths, and adding harness-heavy tests for code being removed violates the project's "Simplicity First" rule. Verification is build + type-check + existing test suite + manual smoke (Task 8). This is a deliberate, stated choice.
