@@ -311,7 +311,6 @@ docker compose logs -f bot
 
 **Basic профиль:**
 - Backend API: `http://localhost:8000` или `http://your-domain:8000`
-- Swagger docs: `http://localhost:8000/docs`
 - Health check: `http://localhost:8000/health`
 
 **Full профиль:**
@@ -597,8 +596,6 @@ sudo ./install.sh
 tail -f /var/log/familybudget_install.log
 ```
 
-**См. подробную документацию:** `/docs/architecture/installation-resilience.md`
-
 ### Ошибка: "Pool overlaps with other one on this address space"
 
 **Решение:** Используйте новую функцию очистки и автоматического подбора подсетей:
@@ -825,24 +822,12 @@ TODO: Настроить cron для автоматических бэкапов
 
 ## Дополнительная информация
 
-### PRD документация
-- **Индекс PRD:** [docs/prd/README.md](docs/prd/README.md)
-- **Архитектура:** [docs/prd/03-system-architecture.md](docs/prd/03-system-architecture.md)
-- **API спецификация:** [docs/prd/07-api-specification.md](docs/prd/07-api-specification.md)
-- **UI дизайн:** [docs/prd/08-ui-design.md](docs/prd/08-ui-design.md)
-
-### Руководства
-- **Импорт из Tinkoff:** [docs/guides/TINKOFF_IMPORT.md](docs/guides/TINKOFF_IMPORT.md)
-- **Troubleshooting импорта:** [docs/guides/TROUBLESHOOTING_IMPORT.md](docs/guides/TROUBLESHOOTING_IMPORT.md)
-
-### Аудиты и анализ
-- **Security audit:** [docs/audits/security-audit-report.md](docs/audits/security-audit-report.md)
-- **Offline mode:** [docs/audits/offline-mode-analysis.md](docs/audits/offline-mode-analysis.md)
+- **Архитектурная вики:** [../lat.md/](../lat.md/) — API, auth, БД, frontend, realtime, bot
+- **Резервное копирование:** [BACKUP_RESTORE.md](BACKUP_RESTORE.md)
 
 ---
 
 ## Версия
 
-- **Приложение:** v5.1.x
-- **Документация:** v2.0.0
-- **Дата обновления:** 2025-12-06
+- **Приложение:** см. файл `VERSION` в корне репозитория
+- **Дата обновления:** 2026-06-05

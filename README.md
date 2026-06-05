@@ -106,12 +106,9 @@ Family Budget разворачивается на своём сервере че
 
 | Документ | Описание |
 |----------|----------|
-| [START.md](docs/START.md) | Установка и настройка сервера |
-| [docs/architecture/operations/ci-cd-build-deploy.md](docs/architecture/operations/ci-cd-build-deploy.md) | CI/CD Pipeline (GitHub Actions) |
-| [docs/architecture/operations/versioning.md](docs/architecture/operations/versioning.md) | Стратегия версионирования |
-| [docs/architecture/core/docker.md](docs/architecture/core/docker.md) | Docker Multi-Stage Builds |
+| [docs/START.md](docs/START.md) | Установка и настройка сервера |
 | [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md) | Резервное копирование и восстановление |
-| `/docs` (Swagger) | Интерактивная документация REST API |
+| [lat.md/](lat.md/) | Архитектурная вики (API, auth, БД, frontend, realtime, bot) |
 
 ---
 

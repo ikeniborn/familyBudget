@@ -281,7 +281,6 @@ sync_mirror() {
         --exclude='install.sh' \
         --exclude='deploy.sh' \
         --exclude='README.md' \
-        --exclude='START.md' \
         --exclude='SKILLS.md' \
         --exclude='.claude/' \
         --exclude='.gitignore' \
@@ -314,7 +313,6 @@ sync_mirror() {
         --exclude='install.sh' \
         --exclude='deploy.sh' \
         --exclude='README.md' \
-        --exclude='START.md' \
         --exclude='SKILLS.md' \
         --exclude='.claude/' \
         --exclude='.gitignore' \
@@ -373,7 +371,6 @@ sync_update() {
         --exclude='install.sh' \
         --exclude='deploy.sh' \
         --exclude='README.md' \
-        --exclude='START.md' \
         --exclude='SKILLS.md' \
         --exclude='.claude/' \
         --exclude='.gitignore' \
@@ -414,7 +411,6 @@ sync_update() {
         --exclude='install.sh' \
         --exclude='deploy.sh' \
         --exclude='README.md' \
-        --exclude='START.md' \
         --exclude='SKILLS.md' \
         --exclude='.claude/' \
         --exclude='.gitignore' \
@@ -452,7 +448,6 @@ sync_update() {
         ! -name "install.sh" \
         ! -name "deploy.sh" \
         ! -name "README.md" \
-        ! -name "START.md" \
         ! -name "SKILLS.md" \
         ! -path "./.claude/*" \
         ! -name ".gitignore" \
@@ -484,7 +479,6 @@ sync_update() {
         ! -name "install.sh" \
         ! -name "deploy.sh" \
         ! -name "README.md" \
-        ! -name "START.md" \
         ! -name "SKILLS.md" \
         ! -path "./.claude/*" \
         ! -name ".gitignore" \
