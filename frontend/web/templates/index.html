@@ -58,11 +58,15 @@
 
         <!-- Full Width Layout: Quick Stats, Quick Actions, Recent Transactions -->
         <div class="grid grid-cols-1 gap-6">
-            <!-- Recent Records (hidden when offline) -->
-            <div id="recent-transactions-card" class="card bg-base-100 shadow-xl" data-offline-hidden="true">
+            <!-- Recent Records -->
+            <div id="recent-transactions-card" class="card bg-base-100 shadow-xl">
                 <div class="card-body">
                     <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📈 Последние записи</h2>
-                    <div id="recent-transactions" class="min-h-[200px]" data-offline-hidden="true">
+                    <div id="recent-transactions"
+                         class="min-h-[200px]"
+                         hx-get="/api/v1/facts/recent-html?limit=10"
+                         hx-trigger="load"
+                         hx-swap="innerHTML">
                         <div class="flex items-center justify-center py-8">
                             <span class="loading loading-spinner loading-lg text-primary"></span>
                         </div>
