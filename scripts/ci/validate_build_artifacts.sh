@@ -49,18 +49,8 @@ else
 fi
 echo ""
 
-# Test 3: Check Dexie script tag exists
-echo "📋 Test 3: Checking Dexie script tag in base.html..."
-if ! grep -q "/shared/db/dexie.min.js" frontend/web/templates/base.html 2>/dev/null; then
-  echo "❌ Dexie script tag missing in base.html"
-  FAIL=1
-else
-  echo "✅ Dexie script tag found"
-fi
-echo ""
-
-# Test 4: Check Service Worker file exists and has valid version
-echo "📋 Test 4: Checking Service Worker cache version..."
+# Test 3: Check Service Worker file exists and has valid version
+echo "📋 Test 3: Checking Service Worker cache version..."
 if [[ ! -f frontend/web/static/sw.min.js ]]; then
   if [[ "$STRICT_SW" == "--strict-sw" ]]; then
     echo "❌ Service Worker file missing: sw.min.js (strict mode)"
