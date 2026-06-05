@@ -217,6 +217,12 @@ const builds = [
     output: 'frontend/web/static/js/dashboard.min.js',
     globalName: 'Dashboard'
   },
+  {
+    name: 'pushManager',
+    input: 'frontend/web/static/js/notifications/pushManager.ts',
+    output: 'frontend/web/static/js/notifications/pushManager.min.js',
+    globalName: 'PushManager'
+  },
 
   // === Service Worker ===
   {
