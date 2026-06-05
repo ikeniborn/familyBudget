@@ -252,3 +252,31 @@ CVE-2026-7210
 # Risk assessment: MEDIUM (controlled XML paths only)
 # Next review: 2026-06-30 (monthly check for Debian DSA on libexpat1)
 CVE-2025-59375
+
+# ============================================================================
+# New Vulnerabilities (Added 2026-06-05)
+# ============================================================================
+
+# CVE-2026-3644: cpython incomplete control character validation in http.cookies (HIGH)
+# Status: affected in Debian 12 (bookworm) - no fix available in 3.11.2-6+deb12u6 (FixedVersion=null in Trivy DB)
+# Impact: Cookie header injection via incomplete control character validation in http.cookies
+# Package: libpython3.11-minimal, libpython3.11-stdlib, python3.11-minimal v3.11.2-6+deb12u6
+# Mitigation: Accept risk temporarily - awaiting Debian DSA on python3.11
+#   - FastAPI/Starlette manages cookie set/parse paths (not stdlib http.cookies directly)
+#   - Auth cookies issued server-side with HttpOnly, Secure, SameSite=Lax
+#   - SlowAPI rate limiting (100 req/min per IP) caps abuse
+# Risk assessment: MEDIUM (cookie surface controlled by framework, not stdlib)
+# Next review: 2026-07-05 (monthly check for Debian DSA on python3.11)
+CVE-2026-3644
+
+# CVE-2026-4224: cpython stack overflow parsing XML with deeply nested DTD content models (HIGH)
+# Status: affected in Debian 12 (bookworm) - no fix available in 3.11.2-6+deb12u6 (FixedVersion=null in Trivy DB)
+# Impact: Stack overflow → DoS via deeply nested DTD content models in XML parser
+# Package: libpython3.11-minimal, libpython3.11-stdlib, python3.11-minimal v3.11.2-6+deb12u6
+# Mitigation: Accept risk - same XML path controls as CVE-2026-7210 / CVE-2025-59375
+#   - No untrusted XML parsed from external users (whitelist: .xlsx via openpyxl, .csv, .json)
+#   - openpyxl handles XLSX XML internally with size limits (50 MB FastAPI body cap)
+#   - DTD processing disabled by default in stdlib XML modules used transitively
+# Risk assessment: LOW (no user-controlled XML/DTD parsing paths)
+# Next review: 2026-07-05 (monthly check for Debian DSA on python3.11)
+CVE-2026-4224
