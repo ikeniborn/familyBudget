@@ -35,7 +35,6 @@ from backend.app.api.v1.endpoints import (
     shopping_lists_router,
     staging_router,
     stores_router,
-    sync_router,
     transfers_router,
     users_router,
     webauthn_router,
@@ -143,9 +142,6 @@ api_router.include_router(google_sheets_import_router)
 
 # Import Templates endpoints (Shopping Lists Feature) ✅
 api_router.include_router(import_templates_router)
-
-# Sync endpoints (PGlite Offline-First - task-012) ✅
-api_router.include_router(sync_router)
 
 # Budget WebSocket endpoints (Real-time Updates with Long Polling fallback) ✅
 # Primary: WebSocket (bidirectional, no buffering)

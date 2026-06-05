@@ -119,7 +119,7 @@ export class SmartNetworkDetector {
   }
 
   // =========================================================================
-  // Request Tracking (for OfflineManager integration)
+  // Request Tracking
   // =========================================================================
 
   /**

@@ -60,7 +60,6 @@ export { BaseModal } from './modals/BaseModal';
 export { FormModal } from './modals/FormModal';
 export { CrudModal } from './modals/CrudModal';
 export { ConfirmDialog, getConfirmDialogHTML } from './modals/ConfirmDialog';
-export { DexieDiagnosticModal, openDexieDiagnostic } from './modals/DexieDiagnosticModal';
 
 // ============================================================================
 // Types - Core

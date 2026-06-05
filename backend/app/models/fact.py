@@ -126,30 +126,6 @@ class BudgetFact(SQLModel, table=True):
         description="Reference to recurring plan template (t_d_recurring_plan.id)"
     )
 
-    # Offline sync flag
-    is_offline_sync: bool = Field(
-        default=False,
-        nullable=False,
-        description="True if record was created via offline synchronization"
-    )
-
-    # Deduplication support for offline sync
-    content_hash: str | None = Field(
-        default=None,
-        max_length=32,
-        nullable=True,
-        index=True,
-        description="MD5 hash of content (article_id|amount|fact_date|description|record_type) for duplicate detection"
-    )
-
-    sync_hash: str | None = Field(
-        default=None,
-        max_length=32,
-        nullable=True,
-        index=True,
-        description="MD5 hash for offline sync deduplication (content_hash|user_id|created_date). Prevents duplicate records during repeated sync attempts."
-    )
-
     # Audit fields
     created_at: datetime = Field(
         default_factory=datetime.utcnow,

@@ -13,21 +13,11 @@
 import { defineReactiveProperties, initializeStateFromGlobals } from '../core/stateManager';
 import { getState, isCacheValid } from '../core/DashboardState';
 import { showModalWithSkeleton } from '../utils/modalHelpers';
-import { getDexieManager, isDexieActive } from '@db/dexie';
-import { openDexieDiagnostic } from '@components/index';
 
 
 
 declare const debugLog: (...args: any[]) => void;
 declare const showToast: (message: string, type: 'success' | 'error' | 'info' | 'warning', duration?: number) => void;
-// Pending Records imports (Phase 2)
-import {
-  loadPendingRecords as loadPendingRecordsImpl,
-  deletePendingRecord as deletePendingRecordImpl,
-  retryFailedItems as retryFailedItemsImpl,
-  deleteFailedRecords as deleteFailedRecordsImpl,
-  handleTransferEditClick as handleTransferEditClickImpl,
-} from '../features/pendingRecords';
 
 // Add Transaction imports (Phase 3)
 import {
@@ -37,7 +27,6 @@ import {
   filterCostCenterDropdown as filterCostCenterDropdownImpl,
   loadFactHints as loadFactHintsImpl,
   saveTransaction as saveTransactionImpl,
-  saveTransactionOffline as saveTransactionOfflineImpl,
   setTransactionDate as setTransactionDateImpl,
   // v10.1.51: setupTransactionTypeButtons moved to modal open handler
 } from '../features/addTransaction';
@@ -62,7 +51,6 @@ import {
 // Edit Modal imports (Phase 4)
 import {
   openEditModal as openEditModalImpl,
-  openEditPendingRecord as openEditPendingRecordImpl,
   closeEditModal as closeEditModalImpl,
   updateFact as updateFactImpl,
   deleteFromEditModal as deleteFromEditModalImpl,
@@ -136,40 +124,8 @@ async function init(): Promise<void> {
   // Initialize state from existing globals
   initializeStateFromGlobals();
 
-  // Initialize Dexie early (BLOCKING)
-  if (isDexieActive()) {
-    try {
-      const manager = await getDexieManager();
-
-      if (!manager.isReady()) {
-        const justLoggedIn = sessionStorage.getItem('just_logged_in');
-
-        // Show initialization notification for first-time users
-        if (justLoggedIn) {
-          debugLog('[Dashboard] First login detected - initializing Dexie (blocking)...');
-          if (window.showToast) {
-            window.showToast('Инициализация offline режима...', 'info');
-          }
-        }
-
-        // BLOCKING await - ensures Dexie ready before modal opens
-        await manager.init();
-        debugLog('[Dashboard] Dexie initialized successfully');
-      }
-    } catch (err) {
-      console.error('[Dashboard] Failed to initialize Dexie:', err);
-      // Non-fatal: continue with API-only mode
-      if (window.showToast) {
-        window.showToast('Offline режим недоступен. Работа в online режиме.', 'warning');
-      }
-    }
-  }
-
   // Define reactive properties on window
   defineReactiveProperties();
-
-  // Set up event listeners for pending records
-  setupPendingRecordsListeners();
 
   // Set up form initialization
   setupFormInitialization();
@@ -181,69 +137,6 @@ async function init(): Promise<void> {
   registerWSEventHandlersImpl();
 
   debugLog('[Dashboard] Module initialized');
-}
-
-/**
- * Set up event listeners for pending records auto-refresh
- */
-function setupPendingRecordsListeners(): void {
-  // Wait for DOM to be ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(() => loadPendingRecordsImpl(), 500);
-    });
-  } else {
-    // DOM already ready
-    setTimeout(() => loadPendingRecordsImpl(), 500);
-  }
-
-  // Listen for online/offline events
-  window.addEventListener('online', () => loadPendingRecordsImpl());
-  window.addEventListener('offline', () => loadPendingRecordsImpl());
-
-  // Auto-sync pending operations when connection is restored
-  window.addEventListener('network-status-change', async (event: Event) => {
-    const customEvent = event as CustomEvent<{ status: string; previousStatus: string }>;
-    if (customEvent.detail?.status === 'online' && customEvent.detail?.previousStatus !== 'online') {
-      if (!window.offlineManager) return;
-      try {
-        const { items } = await window.offlineManager.getAllUnsyncedItems();
-        if (items.length > 0) {
-          debugLog('[Dashboard] Connection restored — auto-syncing', items.length, 'pending items');
-          retryFailedItemsImpl().catch(err => {
-            debugLog('[Dashboard] Auto-sync on reconnect failed:', err);
-          });
-        }
-      } catch (err) {
-        debugLog('[Dashboard] Auto-sync check failed:', err);
-      }
-    }
-  });
-
-  // Listen for offline-sync-complete event
-  window.addEventListener('offline-sync-complete', async (event: Event) => {
-    const customEvent = event as CustomEvent<{ synced?: number; status?: string }>;
-    await loadPendingRecordsImpl();
-
-    const synced = customEvent.detail?.synced || 0;
-    if (synced > 0 || customEvent.detail?.status === 'online') {
-      // Refresh dashboard widgets
-      if (window.htmx) {
-        window.htmx.ajax('GET', '/api/v1/facts/recent-html?limit=10', {
-          target: '#recent-transactions',
-          swap: 'innerHTML',
-        });
-        window.htmx.ajax('GET', '/api/v1/analytics/quick-stats-html', {
-          target: '#quick-stats',
-          swap: 'innerHTML',
-        });
-        window.htmx.ajax('GET', '/api/v1/analytics/account-balances-html', {
-          target: '#account-balances',
-          swap: 'innerHTML',
-        });
-      }
-    }
-  });
 }
 
 /**
@@ -278,10 +171,6 @@ function initializeForms(): void {
 
 async function openEditModal(recordType: 'fact' | 'plan', recordId: number): Promise<void> {
   return openEditModalImpl(recordType, recordId);
-}
-
-async function openEditPendingRecord(itemId: number, entity: string): Promise<void> {
-  return openEditPendingRecordImpl(itemId, entity);
 }
 
 function closeEditModal(): void {
@@ -466,10 +355,6 @@ function saveTransaction(button: HTMLElement): void {
   return saveTransactionImpl(button);
 }
 
-async function saveTransactionOffline(button: HTMLElement): Promise<void> {
-  return saveTransactionOfflineImpl(button);
-}
-
 function setTransactionDate(daysOffset: number): void {
   return setTransactionDateImpl(daysOffset);
 }
@@ -579,26 +464,6 @@ function collectRecurringSettings(modalId: string): ReturnType<typeof collectRec
 }
 
 // ============================================================================
-// Pending Records (Phase 2 - IMPLEMENTED)
-// ============================================================================
-
-async function loadPendingRecords(): Promise<void> {
-  return loadPendingRecordsImpl();
-}
-
-async function deletePendingRecord(id: number): Promise<void> {
-  return deletePendingRecordImpl(id);
-}
-
-async function retryFailedItems(): Promise<void> {
-  return retryFailedItemsImpl();
-}
-
-async function deleteFailedRecords(): Promise<void> {
-  return deleteFailedRecordsImpl();
-}
-
-// ============================================================================
 // Recent Transactions (Table Optimization v2.0)
 // ============================================================================
 
@@ -647,7 +512,6 @@ export const dashboardExports: DashboardExports = {
 
   // Edit modal (Phase 4 - IMPLEMENTED)
   openEditModal,
-  openEditPendingRecord,
   closeEditModal,
   updateEditFact,
   deleteFact,
@@ -659,7 +523,6 @@ export const dashboardExports: DashboardExports = {
   // Add transaction (Phase 3 - IMPLEMENTED)
   loadTransactionCategories,
   saveTransaction,
-  saveTransactionOffline,
   setTransactionDate,
   loadFinancialCenters,
   loadCostCenters,
@@ -681,12 +544,6 @@ export const dashboardExports: DashboardExports = {
   updateYearlyFrequencyValue,
   updateRecurringPreview,
   collectRecurringSettings,
-
-  // Pending records (Phase 2 - IMPLEMENTED)
-  loadPendingRecords,
-  deletePendingRecord,
-  retryFailedItems,
-  deleteFailedRecords,
 
   // Recent Transactions (Table Optimization v2.0)
   loadRecentTransactions,
@@ -726,14 +583,6 @@ export function initWindowExports(): void {
   // Attach to window.Dashboard
   window.Dashboard = dashboardExports;
 
-  // Also expose handleTransferEditClick globally for onclick handlers
-  window.handleTransferEditClick = handleTransferEditClickImpl;
-
-  // Expose pending records functions globally for onclick handlers
-  window.loadPendingRecords = loadPendingRecords;
-  window.deletePendingRecord = deletePendingRecord;
-  window.retryFailedItems = retryFailedItems;
-
   // Expose add transaction functions globally for onclick handlers
   window.loadTransactionCategories = loadTransactionCategories;
   window.saveTransaction = saveTransaction;
@@ -757,7 +606,6 @@ export function initWindowExports(): void {
 
   // Expose edit modal functions globally for onclick handlers (Phase 4)
   window.openEditModal = openEditModal;
-  window.openEditPendingRecord = openEditPendingRecord;
   window.closeEditModal = closeEditModal;
   window.updateEditFact = updateEditFact;
   // Note: window.deleteFact is exported by facts module with signature (factId: number)
@@ -778,9 +626,6 @@ export function initWindowExports(): void {
   window.refreshAccountBalances = refreshAccountBalancesImpl;
   window.loadRecentTransactions = loadRecentTransactions;
 
-  // Expose pending records delete function globally (Phase 2)
-  window.deleteFailedRecords = deleteFailedRecords;
-
   // Expose dashboard-specific functions globally for HTML onclick handlers
   window.openEditFromDashboard = openEditFromDashboard;
   window.deleteRecordFromDashboard = deleteRecordFromDashboard;
@@ -798,9 +643,6 @@ export function initWindowExports(): void {
 
   // Expose simplified FAB function globally (v9.0)
   window.openContextModal = openContextModal;
-
-  // Expose Dexie diagnostic modal globally (for triple-click on green database icon)
-  window.openDexieDiagnostic = openDexieDiagnostic;
 
   debugLog('[Dashboard] Window exports initialized');
 }

@@ -1990,7 +1990,6 @@ async def delete_article(
                 description=fact.description,
                 record_type=fact.record_type,
                 transfer_id=fact.transfer_id,
-                is_offline_sync=fact.is_offline_sync,
                 valid_from=now,
                 valid_to=FAR_FUTURE_DATETIME,
                 is_current=False,

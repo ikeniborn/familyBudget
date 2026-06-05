@@ -16,7 +16,6 @@ export {}; // Force module scope
 
 export interface ShoppingList {
   id: number;
-  temp_id?: string;              // Dexie temp_id for offline operations (task-015 Phase 4)
   name: string;
   is_active: boolean;
   created_at: string;
@@ -30,7 +29,6 @@ export interface ShoppingList {
 export interface ShoppingItem {
   id: number;
   list_id: number;
-  temp_id?: string;               // Dexie temp_id for offline operations (task-015 Phase 4)
   product_name: string;
   quantity: number | null;
   unit: string | null;
@@ -86,9 +84,6 @@ export interface ListsState {
   // Hierarchy view instance (HierarchyView class)
   hierarchyView: any | null;
 
-  // Dexie manager (offline support via Dexie.js)
-  dexieManager: any | null;
-
   // Debounced functions
   debouncedSearch: (() => void) | null;
   quantityChangeHandler: ((e: Event) => void) | null;
@@ -116,7 +111,6 @@ let state: ListsState = {
   currentDuplicateItem: null,
   choicesInstances: {},
   hierarchyView: null,
-  dexieManager: null,
   debouncedSearch: null,
   quantityChangeHandler: null,
   handleUnitChange: null,
@@ -167,7 +161,6 @@ export const resetState = (): void => {
     currentDuplicateItem: null,
     choicesInstances: {},
     hierarchyView: null,
-    dexieManager: null,
     debouncedSearch: null,
     quantityChangeHandler: null,
     handleUnitChange: null,

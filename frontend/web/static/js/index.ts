@@ -22,10 +22,9 @@ import * as listsManager from './lists/listsManager/index';
 // Phase 2.4: csvImporter (foundation complete)
 import * as csvImporter from './lists/csvImporter/index';
 
-// Note: budgetWSClient and offlineManager migrations ABANDONED (v7.x.x)
+// Note: budgetWSClient migration ABANDONED (v7.x.x)
 // - budgetWSClient: Too complex, keeping monolithic .js (production-stable)
-// - offlineManager: Too complex, keeping monolithic .js (production-stable)
-// These modules are built separately via build-all.js, not part of modular index.ts
+// budgetWSClient is built separately via build-all.js, not part of modular index.ts
 
 // ============================================================================
 // Shared Utilities
@@ -77,10 +76,6 @@ async function initializeApp(): Promise<void> {
     // const wsClient = new BudgetWSClient(getWebSocketURL());
     // await wsClient.connect();
 
-    // TODO Phase 2.4: Initialize offline manager
-    // const offlineManager = new OfflineManager();
-    // await offlineManager.initialize();
-
     // TODO Phase 2.2: Complete listsManager initialization
     // await listsManager.initializeListsManager();
 
@@ -89,8 +84,8 @@ async function initializeApp(): Promise<void> {
     (window as any).listsManager = listsManager;
     (window as any).csvImporter = csvImporter;
 
-    // Note: budgetWSClient and offlineManager NOT exposed here
-    // They are monolithic .js files loaded separately via build-all.js
+    // Note: budgetWSClient NOT exposed here
+    // It is a monolithic .js file loaded separately via build-all.js
 
     debugLog('[APP] Application initialized successfully (Phase 2.1-2.4 complete)');
   } catch (error) {

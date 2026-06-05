@@ -84,8 +84,6 @@ export type {
   FactHintsResponse
 } from './integration/apiService';
 
-export { createTransferOffline } from './integration/offlineIntegration';
-
 export {
   updateRecentTransactions,
   updateQuickStats

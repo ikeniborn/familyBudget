@@ -29,7 +29,7 @@ from backend.app.models.product_group_hierarchy import ProductGroupHierarchy
 
 
 async def get_all(session: AsyncSession) -> list[ProductGroupHierarchy]:
-    """Return all rows from the closure table (for Dexie sync)."""
+    """Return all rows from the closure table."""
     result = await session.exec(select(ProductGroupHierarchy))
     return list(result.all())
 

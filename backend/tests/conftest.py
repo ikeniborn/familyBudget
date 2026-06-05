@@ -579,7 +579,6 @@ async def test_shopping_list_item(
         unit="kg",
         comment="Fresh red tomatoes",
         is_completed=False,
-        sync_status="synced",
     )
     session.add(item)
     await session.commit()

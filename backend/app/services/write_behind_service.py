@@ -174,9 +174,6 @@ class WriteBehindService:
         financial_center_id: int | None = None,
         cost_center_id: int | None = None,
         record_type: str = "fact",
-        is_offline_sync: bool = False,
-        sync_hash: str | None = None,
-        content_hash: str | None = None,
         changed_by_user_id: int | None = None,
     ) -> str | None:
         """
@@ -192,9 +189,6 @@ class WriteBehindService:
             financial_center_id: Optional financial center ID.
             cost_center_id: Optional cost center ID.
             record_type: Record type ('fact' or 'plan').
-            is_offline_sync: True if created via offline sync.
-            sync_hash: Offline sync deduplication hash.
-            content_hash: Content hash for duplicate detection.
             changed_by_user_id: User who initiated the change (for history).
 
         Returns:
@@ -215,9 +209,6 @@ class WriteBehindService:
                 "financial_center_id": financial_center_id,
                 "cost_center_id": cost_center_id,
                 "record_type": record_type,
-                "is_offline_sync": is_offline_sync,
-                "sync_hash": sync_hash,
-                "content_hash": content_hash,
                 "changed_by_user_id": changed_by_user_id,
             },
             user_id=user_id,
@@ -354,9 +345,6 @@ class WriteBehindService:
                 financial_center_id=item.data.get("financial_center_id"),
                 cost_center_id=item.data.get("cost_center_id"),
                 record_type=item.data.get("record_type", "fact"),
-                is_offline_sync=item.data.get("is_offline_sync", False),
-                sync_hash=item.data.get("sync_hash"),
-                content_hash=item.data.get("content_hash"),
             )
             session.add(fact)
             await session.flush()
@@ -376,7 +364,6 @@ class WriteBehindService:
                 description=fact.description,
                 record_type=fact.record_type,
                 transfer_id=fact.transfer_id,
-                is_offline_sync=fact.is_offline_sync,
                 valid_from=now,
                 valid_to=FAR_FUTURE_DATETIME,
                 is_current=True,
@@ -438,7 +425,6 @@ class WriteBehindService:
                 description=fact.description,
                 record_type=fact.record_type,
                 transfer_id=fact.transfer_id,
-                is_offline_sync=fact.is_offline_sync,
                 valid_from=now,
                 valid_to=FAR_FUTURE_DATETIME,
                 is_current=True,
@@ -484,7 +470,6 @@ class WriteBehindService:
                 description=fact.description,
                 record_type=fact.record_type,
                 transfer_id=fact.transfer_id,
-                is_offline_sync=fact.is_offline_sync,
                 valid_from=now,
                 valid_to=now,  # DELETE records have same valid_from and valid_to
                 is_current=False,  # DELETE records are never current

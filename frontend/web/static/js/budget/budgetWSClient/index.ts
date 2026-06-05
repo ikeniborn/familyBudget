@@ -78,7 +78,6 @@ export {
 export {
   calculateRetryDelay,
   isRetryableError,
-  shouldStopOn503,
   getRetryConfig,
 } from './fallback/pollRetry';
 
@@ -163,7 +162,6 @@ export {
 // ============================================================================
 export type {
   ILogger,
-  IOfflineManager,
   IListsManager,
   ShoppingItemData,
 } from './types/dependencies';

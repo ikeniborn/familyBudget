@@ -96,7 +96,6 @@ export function updateOfflineVisibility(): void {
 
   if (isOffline) {
     // Скрыть "Добавить план" (требует сервер)
-    // Оставить "Добавить факт" (работает offline через Dexie.js)
     const planButton = desktopFab.querySelector('[onclick*="openModalPlan"]') as HTMLElement | null;
     const planMenuItem = planButton?.closest('.fab-menu-item') as HTMLElement | null;
     if (planMenuItem) {

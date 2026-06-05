@@ -22,7 +22,6 @@ import { savePlanTransfer } from '../dashboard/features/modalPlan/saveTransfer';
 import { syncPlanPeriodFromActive } from '../dashboard/features/addPlan/periodButtons';
 import { setButtonLoading } from '../dashboard/shared/utils/buttonState';
 import { APIError } from '../dashboard/shared/utils/apiHelpers';
-import { getDexieManager } from '@db/dexie';
 
 // Logger из utils/logger.js (загружается глобально через bundle)
 declare class Logger {
@@ -121,26 +120,6 @@ declare global {
 // Page Initialization
 // ============================================================================
 
-/**
- * Initialize plan page
- * Called on DOMContentLoaded from inline script
- */
-async function ensureDexieReady(): Promise<void> {
-  try {
-    const mgr = getDexieManager();
-    if (!mgr || typeof mgr.isReady !== 'function') return;
-    if (!mgr.isReady() && typeof mgr.init === 'function') {
-      await mgr.init();
-    }
-    const userId = (window as any).userData?.id;
-    if (userId && typeof (mgr as any).syncReferenceData === 'function') {
-      await (mgr as any).syncReferenceData(userId);
-    }
-  } catch (err) {
-    log.warn('Dexie init failed (non-critical):', err);
-  }
-}
-
 function initFilterCalendar(): void {
   const startInputElement = document.getElementById('filter-date-from') as HTMLInputElement | null;
   const endInputElement = document.getElementById('filter-date-to') as HTMLInputElement | null;
@@ -176,9 +155,6 @@ export async function initialize(): Promise<void> {
 
     // Initialize analytics month buttons
     PlanAnalytics.initAnalyticsMonthButtons();
-
-    // Ensure Dexie is ready before loading any data (non-critical: loadFacts falls back to API)
-    await ensureDexieReady();
 
     // Load dropdown data in parallel
     log.debug('Loading dropdown data...');

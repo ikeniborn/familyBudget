@@ -203,26 +203,10 @@ class CacheMetricsCollector {
      */
     async _getIndexedDBMetrics() {
         try {
-            // Check if IndexedDBManager available (from idb.js)
-            if (typeof window.offlineManager === 'undefined' ||
-                typeof window.offlineManager.db === 'undefined') {
-                this.logger.warn('IndexedDBManager not available');
-                return {
-                    db_version: 0,
-                    pending_count: 0,
-                    store_stats: {}
-                };
-            }
-
-            // Use existing getInfo() method
-            const dbInfo = await window.offlineManager.db.getInfo();
-
-            this.logger.debug('IndexedDB info retrieved:', dbInfo);
-
             return {
-                db_version: dbInfo.version || 0,
-                pending_count: dbInfo.pendingCount || 0,
-                store_stats: dbInfo.stats || {}
+                db_version: 0,
+                pending_count: 0,
+                store_stats: {}
             };
         } catch (error) {
             this.logger.error('Failed to get IndexedDB metrics:', error);

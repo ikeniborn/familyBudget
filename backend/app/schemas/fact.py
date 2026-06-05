@@ -79,26 +79,6 @@ class FactCreate(BaseModel):
         examples=["fact", "plan"]
     )
 
-    is_offline_sync: bool = Field(
-        default=False,
-        description="True if record created via offline synchronization",
-        examples=[False, True]
-    )
-
-    content_hash: str | None = Field(
-        default=None,
-        max_length=32,
-        description="MD5 hash of content (article_id|amount|fact_date|description|record_type) for duplicate detection",
-        examples=[None, "a1b2c3d4e5f6789012345678901234"]
-    )
-
-    sync_hash: str | None = Field(
-        default=None,
-        max_length=32,
-        description="MD5 hash for offline sync deduplication (content_hash|user_id|created_date). Prevents duplicate records during repeated sync attempts.",
-        examples=[None, "x7y8z9w1v2u3t4s5r6q7p8o9n0m1l2"]
-    )
-
     @field_validator("record_type")
     @classmethod
     def record_type_validation(cls, v: str) -> str:
@@ -223,12 +203,6 @@ class FactUpdate(BaseModel):
         max_length=10,
         description="Record type: 'fact' or 'plan'",
         examples=["fact", "plan"]
-    )
-
-    is_offline_sync: bool | None = Field(
-        default=None,
-        description="Offline sync flag (usually not updated)",
-        examples=[None, True, False]
     )
 
     @field_validator("record_type")
@@ -371,12 +345,6 @@ class FactResponse(BaseModel):
         examples=["fact", "plan"]
     )
 
-    is_offline_sync: bool = Field(
-        default=False,
-        description="True if record was created via offline synchronization",
-        examples=[False, True]
-    )
-
     recurring_plan_id: int | None = Field(
         default=None,
         description="ID of recurring plan that generated this fact (None for manual entries)",
@@ -429,7 +397,6 @@ class FactResponse(BaseModel):
                 "cost_center_id": None,
                 "cost_center_name": None,
                 "record_type": "fact",
-                "is_offline_sync": False,
                 "recurring_plan_id": None,
                 "recurring_plan": None,
                 "created_at": "2025-10-13T12:00:00Z",

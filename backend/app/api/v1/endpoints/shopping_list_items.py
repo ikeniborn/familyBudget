@@ -2,7 +2,7 @@
 ShoppingListItem API endpoints.
 
 This module provides REST API endpoints for managing shopping list items (lines)
-with batch operations and offline sync support.
+with batch operations.
 
 ShoppingListItems are SHARED across all users (any user can add/edit/delete items).
 
@@ -14,7 +14,6 @@ Endpoints:
     DELETE /api/v1/shopping-list-items/{id}    - Soft-delete item
     POST   /api/v1/shopping-list-items/batch-complete - Mark multiple items as completed
     POST   /api/v1/shopping-list-items/batch-delete   - Soft-delete multiple items
-    GET    /api/v1/shopping-list-items/pending-sync   - Get items pending offline sync
 """
 
 import asyncio
@@ -36,18 +35,12 @@ from backend.app.schemas.errors import get_common_responses
 from backend.app.schemas.shopping_list_item import (
     BatchCompleteRequest,
     BatchDeleteRequest,
-    BatchSyncRequest,
-    BatchSyncResponse,
-    ConflictResolutionRequest,
     ProductSuggestion,
     ProductSuggestionsResponse,
     ShoppingListItemCreate,
     ShoppingListItemListResponse,
     ShoppingListItemResponse,
     ShoppingListItemUpdate,
-    SyncConflict,
-    SyncCreatedItem,
-    SyncDeltaResponse,
 )
 from backend.app.services import shopping_list_item_service
 from backend.app.services.scd2_service import has_changes
@@ -215,17 +208,7 @@ async def list_shopping_list_items(
     count_result = await session.execute(count_query)
     total = len(count_result.all())
 
-    # Generate temp_id for items if not exists (for offline compatibility)
-    import time
-    response_items = []
-    for item in items:
-        item_dict = ShoppingListItemResponse.model_validate(item).model_dump()
-
-        # Generate temp_id if missing (format: item_{id}_{timestamp})
-        if not item_dict.get('temp_id'):
-            item_dict['temp_id'] = f"item_{item.id}_{int(time.time() * 1000)}"
-
-        response_items.append(ShoppingListItemResponse(**item_dict))
+    response_items = [ShoppingListItemResponse.model_validate(item) for item in items]
 
     return ShoppingListItemListResponse(
         items=response_items,
@@ -280,7 +263,6 @@ async def create_shopping_list_item(
         quantity=item_data.quantity,
         unit=item_data.unit,
         comment=item_data.comment,
-        sync_status="synced",  # Created online = synced
     )
 
     session.add(item)
@@ -303,9 +285,6 @@ async def create_shopping_list_item(
 
     # Broadcast SSE event to all connected clients
     response = ShoppingListItemResponse.model_validate(item)
-    # Propagate client temp_id for WS deduplication (prevents duplicate rendering)
-    if item_data.temp_id:
-        response.temp_id = item_data.temp_id
     try:
         ws = _get_ws_broadcast()
         await ws.broadcast_item_created(item_data=response.model_dump(mode="json"))
@@ -659,7 +638,6 @@ async def update_shopping_list_item(
     - Updates item IN-PLACE
     - Increments version for optimistic locking
     - Sets completed_at when is_completed changes to True
-    - Updates sync_status to 'synced' (online update)
     """
     # Fetch item (exclude soft-deleted)
     query = select(ShoppingListItem).where(
@@ -711,9 +689,6 @@ async def update_shopping_list_item(
 
     # Track who made the change
     item.last_modified_by = current_user.id
-
-    # Mark as synced (online update)
-    item.sync_status = "synced"
 
     # Update timestamp
     item.updated_at = datetime.utcnow()
@@ -1027,467 +1002,3 @@ async def batch_delete_items(
         await _broadcast_list_stats_update(session, list_id)
 
     return {"message": f"Deleted {count} items", "count": count}
-
-
-@router.get(
-    "/pending-sync",
-    response_model=ShoppingListItemListResponse,
-    summary="Get pending sync items",
-    description="Get items pending offline sync (sync_status='pending')",
-)
-async def get_pending_sync_items(
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
-    shopping_list_id: int | None = Query(
-        None, description="Optional filter by shopping list ID"
-    ),
-) -> ShoppingListItemListResponse:
-    """
-    Get all items with pending sync status.
-
-    Used for offline sync queue processing.
-
-    **Shared references architecture:** Returns all pending items (no user filtering).
-
-    **Returns:**
-    - Items with sync_status='pending'
-    - Ordered by created_at ASC (oldest first)
-
-    **Use Cases:**
-    - Offline sync queue processing
-    - Display sync indicator in UI
-    - Background sync job
-    """
-    # Get pending items using service
-    pending_items = await shopping_list_item_service.get_pending_sync_items(
-        session=session, shopping_list_id=shopping_list_id
-    )
-
-    return ShoppingListItemListResponse(
-        items=[ShoppingListItemResponse.model_validate(item) for item in pending_items],
-        total=len(pending_items),
-        limit=len(pending_items),
-        offset=0,
-    )
-
-
-# ============== Sync API Endpoints ==============
-
-
-@router.get(
-    "/sync",
-    response_model=SyncDeltaResponse,
-    summary="Delta sync",
-    description="Get items changed since last sync timestamp",
-)
-async def delta_sync(
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
-    shopping_list_id: int = Query(..., description="Shopping list ID"),
-    since: datetime | None = Query(
-        None, description="Get changes since this timestamp (ISO 8601)"
-    ),
-) -> SyncDeltaResponse:
-    """
-    Delta sync: Get items changed since last sync.
-
-    Returns:
-    - items: Active items created/updated since timestamp
-    - deleted_ids: IDs of items soft-deleted since timestamp
-    - server_time: Current server time (use for next sync)
-
-    **Use Case:**
-    - Initial sync (since=None): Get all active items
-    - Incremental sync: Get only changes since last sync
-    """
-    server_time = datetime.utcnow()
-
-    # Build query for active items
-    query = select(ShoppingListItem).where(
-        ShoppingListItem.shopping_list_id == shopping_list_id,
-        ShoppingListItem.deleted_at.is_(None),
-    )
-
-    # If 'since' provided, filter by updated_at
-    if since:
-        query = query.where(ShoppingListItem.updated_at > since)
-
-    query = query.order_by(ShoppingListItem.updated_at.asc())
-    result = await session.execute(query)
-    items = result.scalars().all()
-
-    # Get deleted IDs (soft-deleted since timestamp)
-    deleted_ids: list[int] = []
-    if since:
-        deleted_query = select(ShoppingListItem.id).where(
-            ShoppingListItem.shopping_list_id == shopping_list_id,
-            ShoppingListItem.deleted_at.is_not(None),
-            ShoppingListItem.deleted_at > since,
-        )
-        deleted_result = await session.execute(deleted_query)
-        deleted_ids = list(deleted_result.scalars().all())
-
-    return SyncDeltaResponse(
-        items=[ShoppingListItemResponse.model_validate(item) for item in items],
-        deleted_ids=deleted_ids,
-        server_time=server_time,
-    )
-
-
-@router.post(
-    "/sync/batch",
-    response_model=BatchSyncResponse,
-    summary="Batch sync",
-    description="Sync multiple create/update/delete operations in one request",
-)
-async def batch_sync(
-    request: BatchSyncRequest,
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
-) -> BatchSyncResponse:
-    """
-    Batch sync: Process multiple operations in one request.
-
-    **Creates:** New items with temp_id mapping
-    **Updates:** With version check (conflict if version mismatch)
-    **Deletes:** With version check (conflict if version mismatch)
-
-    **Conflict Resolution:**
-    - update_update: Server and client both modified (auto-merge where possible)
-    - update_delete: Client updated, server deleted (UI conflict)
-    - delete_update: Client deleted, server updated (UI conflict)
-
-    **Auto-merge Rules:**
-    - Content fields (product_name, quantity, etc.): Server wins
-    - is_completed: true wins (if either side is completed)
-    """
-    server_time = datetime.utcnow()
-    created: list[SyncCreatedItem] = []
-    updated: list[ShoppingListItemResponse] = []
-    deleted: list[int] = []
-    conflicts: list[SyncConflict] = []
-
-    # Process CREATES
-    for create_req in request.creates:
-        item = ShoppingListItem(
-            creator_id=current_user.id,
-            shopping_list_id=request.shopping_list_id,
-            store_id=create_req.store_id,
-            product_group_id=create_req.product_group_id,
-            product_name=create_req.product_name,
-            quantity=create_req.quantity,
-            unit=create_req.unit,
-            comment=create_req.comment,
-            is_completed=create_req.is_completed,
-            completed_at=create_req.completed_at,
-            sync_status="synced",
-            last_modified_by=current_user.id,
-        )
-
-        session.add(item)
-        await session.flush()  # Get ID without committing
-        await session.refresh(item)
-
-        created.append(SyncCreatedItem(
-            temp_id=create_req.temp_id,
-            item=ShoppingListItemResponse.model_validate(item),
-        ))
-
-    # Process UPDATES
-    for update_req in request.updates:
-        # Fetch item
-        query = select(ShoppingListItem).where(ShoppingListItem.id == update_req.id)
-        result = await session.execute(query)
-        item = result.scalar_one_or_none()
-
-        if not item:
-            # Item not found - check if deleted
-            conflicts.append(SyncConflict(
-                item_id=update_req.id,
-                conflict_type="update_delete",
-                server_item=None,
-                merged_item=None,
-                client_version=update_req.client_version,
-                server_version=0,
-            ))
-            continue
-
-        if item.deleted_at:
-            # Item was soft-deleted on server - conflict
-            conflicts.append(SyncConflict(
-                item_id=update_req.id,
-                conflict_type="update_delete",
-                server_item=None,  # Deleted
-                merged_item=None,
-                client_version=update_req.client_version,
-                server_version=item.version,
-            ))
-            continue
-
-        # Version check
-        if item.version != update_req.client_version:
-            # Version mismatch - attempt auto-merge
-            merged_item = _auto_merge_items(item, update_req)
-
-            if merged_item:
-                # Auto-merge successful
-                for key, value in merged_item.items():
-                    setattr(item, key, value)
-                item.version += 1
-                item.last_modified_by = current_user.id
-                item.updated_at = server_time
-                session.add(item)
-                await session.flush()
-                await session.refresh(item)
-                updated.append(ShoppingListItemResponse.model_validate(item))
-            else:
-                # Cannot auto-merge - return conflict
-                conflicts.append(SyncConflict(
-                    item_id=update_req.id,
-                    conflict_type="update_update",
-                    server_item=ShoppingListItemResponse.model_validate(item),
-                    merged_item=None,
-                    client_version=update_req.client_version,
-                    server_version=item.version,
-                ))
-            continue
-
-        # No conflict - apply update
-        update_dict = update_req.model_dump(exclude_unset=True, exclude={"id", "client_version"})
-
-        # Track if is_completed changed to True
-        is_completing = (
-            "is_completed" in update_dict
-            and update_dict["is_completed"]
-            and not item.is_completed
-        )
-
-        for key, value in update_dict.items():
-            setattr(item, key, value)
-
-        item.version += 1
-        item.last_modified_by = current_user.id
-        item.updated_at = server_time
-
-        if is_completing and not item.completed_at:
-            item.completed_at = server_time
-
-        session.add(item)
-        await session.flush()
-        await session.refresh(item)
-        updated.append(ShoppingListItemResponse.model_validate(item))
-
-    # Process DELETES
-    for delete_req in request.deletes:
-        # Fetch item
-        query = select(ShoppingListItem).where(ShoppingListItem.id == delete_req.id)
-        result = await session.execute(query)
-        item = result.scalar_one_or_none()
-
-        if not item:
-            # Already deleted - success
-            deleted.append(delete_req.id)
-            continue
-
-        if item.deleted_at:
-            # Already soft-deleted - success
-            deleted.append(delete_req.id)
-            continue
-
-        # Version check
-        if item.version != delete_req.client_version:
-            # Item was modified on server - conflict
-            conflicts.append(SyncConflict(
-                item_id=delete_req.id,
-                conflict_type="delete_update",
-                server_item=ShoppingListItemResponse.model_validate(item),
-                merged_item=None,
-                client_version=delete_req.client_version,
-                server_version=item.version,
-            ))
-            continue
-
-        # Soft delete
-        item.deleted_at = server_time
-        item.version += 1
-        item.last_modified_by = current_user.id
-        item.updated_at = server_time
-        session.add(item)
-        deleted.append(delete_req.id)
-
-    await session.commit()
-
-    logger.info(
-        f"Batch sync for list {request.shopping_list_id}: "
-        f"created={len(created)}, updated={len(updated)}, "
-        f"deleted={len(deleted)}, conflicts={len(conflicts)} "
-        f"by user {current_user.id}"
-    )
-
-    return BatchSyncResponse(
-        created=created,
-        updated=updated,
-        deleted=deleted,
-        conflicts=conflicts,
-        server_time=server_time,
-    )
-
-
-def _auto_merge_items(server_item: ShoppingListItem, client_update) -> dict | None:
-    """
-    Attempt to auto-merge server and client changes.
-
-    Rules:
-    - Content fields (product_name, quantity, unit, comment, store_id, product_group_id): Server wins
-    - is_completed: true wins (if either is completed, result is completed)
-
-    Returns:
-        Merged dict if auto-merge possible, None if manual resolution needed
-    """
-    merged = {}
-
-    # Check is_completed - true wins
-    client_is_completed = getattr(client_update, "is_completed", None)
-
-    if client_is_completed is not None:
-        # Client wants to change is_completed
-        if client_is_completed and not server_item.is_completed:
-            # Client marking as completed - accept
-            merged["is_completed"] = True
-            merged["completed_at"] = getattr(client_update, "completed_at", None) or datetime.utcnow()
-        elif not client_is_completed and server_item.is_completed:
-            # Client wants to uncomplete, but server already completed - server wins
-            pass  # Don't include in merged (keep server value)
-        # else: both same value, no change needed
-
-    # For other fields, we could implement more complex merge logic
-    # For now, server wins for all content fields (no auto-merge)
-
-    # If only is_completed changed and we handled it, return merged
-    # Otherwise, if client tried to change other fields, return None (conflict)
-    update_dict = client_update.model_dump(exclude_unset=True, exclude={"id", "client_version"})
-
-    # Remove is_completed from check (we handled it above)
-    content_fields = {k: v for k, v in update_dict.items() if k not in ("is_completed", "completed_at")}
-
-    if content_fields:
-        # Client tried to change content fields - cannot auto-merge
-        # Return conflict so user can decide
-        return None
-
-    # Only is_completed was changed - auto-merge successful
-    return merged if merged else {}
-
-
-@router.post(
-    "/{item_id}/resolve-conflict",
-    response_model=ShoppingListItemResponse,
-    summary="Resolve sync conflict",
-    description="Resolve conflict for a specific item",
-)
-async def resolve_conflict(
-    item_id: int,
-    request: ConflictResolutionRequest,
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
-) -> ShoppingListItemResponse:
-    """
-    Resolve sync conflict for a specific item.
-
-    **Strategies:**
-    - `server`: Keep server version (discard client changes)
-    - `client`: Force client version (overwrite server)
-    - `merge`: Apply merged data from client_data field
-
-    **Note:** For delete conflicts, use batch_sync with appropriate action.
-    """
-    # Fetch item (including soft-deleted for conflict resolution)
-    query = select(ShoppingListItem).where(ShoppingListItem.id == item_id)
-    result = await session.execute(query)
-    item = result.scalar_one_or_none()
-
-    if not item:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Shopping list item {item_id} not found",
-        )
-
-    if request.strategy == "server":
-        # Server wins - just return current server state
-        # If item was deleted, restore it (conflict resolved)
-        if item.deleted_at:
-            item.deleted_at = None
-            item.version += 1
-            item.last_modified_by = current_user.id
-            item.updated_at = datetime.utcnow()
-            item.sync_status = "synced"
-            session.add(item)
-            await session.commit()
-            await session.refresh(item)
-
-        logger.info("Conflict resolved (server wins) for item %s by user %s", item_id, current_user.id)
-        return ShoppingListItemResponse.model_validate(item)
-
-    elif request.strategy == "client":
-        # Client wins - apply client_data
-        if not request.client_data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="client_data is required for 'client' strategy",
-            )
-
-        # If item was deleted, restore it first
-        if item.deleted_at:
-            item.deleted_at = None
-
-        # Apply client data
-        for key, value in request.client_data.items():
-            if key not in ("id", "version", "created_at", "creator_id"):
-                setattr(item, key, value)
-
-        item.version += 1
-        item.last_modified_by = current_user.id
-        item.updated_at = datetime.utcnow()
-        item.sync_status = "synced"
-
-        session.add(item)
-        await session.commit()
-        await session.refresh(item)
-
-        logger.info("Conflict resolved (client wins) for item %s by user %s", item_id, current_user.id)
-        return ShoppingListItemResponse.model_validate(item)
-
-    elif request.strategy == "merge":
-        # Merge - apply specific fields from client_data
-        if not request.client_data:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="client_data is required for 'merge' strategy",
-            )
-
-        # If item was deleted, restore it first
-        if item.deleted_at:
-            item.deleted_at = None
-
-        # Apply only specified fields from client_data
-        for key, value in request.client_data.items():
-            if key not in ("id", "version", "created_at", "creator_id"):
-                setattr(item, key, value)
-
-        item.version += 1
-        item.last_modified_by = current_user.id
-        item.updated_at = datetime.utcnow()
-        item.sync_status = "synced"
-
-        session.add(item)
-        await session.commit()
-        await session.refresh(item)
-
-        logger.info("Conflict resolved (merge) for item %s by user %s", item_id, current_user.id)
-        return ShoppingListItemResponse.model_validate(item)
-
-    else:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid strategy: {request.strategy}. Use 'server', 'client', or 'merge'",
-        )

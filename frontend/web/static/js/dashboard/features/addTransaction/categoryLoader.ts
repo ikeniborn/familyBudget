@@ -10,8 +10,6 @@ import {
   setTransactionCategoryTreeSelect,
 } from '../../core/DashboardState';
 import type { Category, CostCenter } from '../../types/dashboard.d';
-import { dataLayer } from '../../../data/DataLayer';
-import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 /**
  * Safe wrapper for showToast (handles case when not loaded yet)
@@ -123,11 +121,13 @@ export async function loadFinancialCenters(targetSelectors?: string[]): Promise<
     try {
       console.info(`[loadFinancialCenters] Attempt ${attempt}/${MAX_RETRIES}`);
 
-      // Get user ID for data layer queries
-      const userId = await getCurrentUserId();
-
-      // Use DataLayer (Dexie-first with API fallback)
-      centers = await dataLayer.getFinancialCenters(userId, true);
+      // Direct API fetch
+      const response = await fetch('/api/v1/financial-centers?limit=1000&include_global=true', {
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      centers = data.financial_centers ?? data;
 
       if (centers.length === 0) {
         if (attempt < MAX_RETRIES) {
@@ -315,11 +315,13 @@ function setupFinancialCenterListeners(): void {
  */
 export async function loadCostCenters(): Promise<void> {
   try {
-    // Get user ID for data layer queries
-    const userId = await getCurrentUserId();
-
-    // Use DataLayer (Dexie-first with API fallback)
-    const centers: CostCenter[] = await dataLayer.getCostCenters(userId, null, true);
+    // Direct API fetch
+    const response = await fetch('/api/v1/cost-centers?limit=1000&include_global=true', {
+      credentials: 'include',
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const centers: CostCenter[] = data.cost_centers ?? data;
 
     // Save to state for filtering
     updateState({ allCostCenters: centers });
@@ -455,26 +457,15 @@ export async function filterCostCenterDropdown(formSelector: string, financialCe
     return;
   }
 
-  // If offline - use cached data, don't make API request
-  if (!navigator.onLine || (window.offlineManager && !window.offlineManager.isOnline)) {
-    debugLog('[CostCenter] Offline mode - using cached data');
-    allCostCenters.forEach(cc => {
-      const option = document.createElement('option');
-      option.value = String(cc.id);
-      option.textContent = cc.name;
-      select.appendChild(option);
-    });
-    if (currentValue) select.value = currentValue;
-    return;
-  }
-
-  // Fetch filtered cost centers using DataLayer
+  // Fetch filtered cost centers from API
   try {
-    // Get user ID for data layer queries
-    const userId = await getCurrentUserId();
-
-    // Use DataLayer (Dexie-first with API fallback)
-    const filteredCenters: CostCenter[] = await dataLayer.getCostCenters(userId, financialCenterId, true);
+    const response = await fetch(
+      `/api/v1/cost-centers?limit=1000&include_global=true&financial_center_id=${financialCenterId}`,
+      { credentials: 'include' },
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    const filteredCenters: CostCenter[] = data.cost_centers ?? data;
 
     filteredCenters.forEach(cc => {
       const option = document.createElement('option');
@@ -489,14 +480,7 @@ export async function filterCostCenterDropdown(formSelector: string, financialCe
       if (exists) select.value = currentValue;
     }
   } catch (error) {
-    // Don't log as error in offline mode - this is expected behavior
-    if (!navigator.onLine || (window.offlineManager && !window.offlineManager.isOnline)) {
-      if (window.DEBUG_MODE) {
-        debugLog('[CostCenter] Network error in offline mode (expected):', (error as Error).message);
-      }
-    } else {
-      console.warn('[CostCenter] Error filtering cost centers:', (error as Error).message);
-    }
+    console.warn('[CostCenter] Error filtering cost centers:', (error as Error).message);
     // Fallback to showing all
     allCostCenters.forEach(cc => {
       const option = document.createElement('option');

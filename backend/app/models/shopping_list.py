@@ -12,8 +12,6 @@ Key features:
 """
 from datetime import datetime
 
-from sqlalchemy import Column
-from sqlalchemy.dialects.postgresql import UUID as PgUUID
 from sqlmodel import Field, SQLModel
 
 
@@ -81,15 +79,6 @@ class ShoppingList(SQLModel, table=True):
         default=None,
         primary_key=True,
         description="Surrogate primary key"
-    )
-
-    # Offline sync field
-    # PgUUID(as_uuid=False): stored as native UUID in PostgreSQL,
-    # returned as str by psycopg2 — keeps API/Dexie compatibility
-    temp_id: str | None = Field(
-        default=None,
-        sa_column=Column(PgUUID(as_uuid=False), index=True, unique=True, nullable=True),
-        description="Client-side UUID for offline sync (guaranteed unique)"
     )
 
     # Foreign keys

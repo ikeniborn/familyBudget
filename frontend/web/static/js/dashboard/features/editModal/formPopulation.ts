@@ -10,7 +10,6 @@ import {
   loadEditFinancialCenters,
   loadEditCostCenters,
   loadRemindersForEdit,
-  populateOfflineDropdowns,
   remindersMap,
 } from './dropdownCache';
 import {
@@ -26,19 +25,13 @@ import type { EditRecordType, FactType } from '../../types/dashboard.d';
 
 // Current editing state
 let currentEditingRecordType: EditRecordType = null;
-let currentEditingPendingId: number | null = null;
 
 export function getCurrentEditingRecordType(): EditRecordType {
   return currentEditingRecordType;
 }
 
-export function getCurrentEditingPendingId(): number | null {
-  return currentEditingPendingId;
-}
-
-export function setCurrentEditingState(recordType: EditRecordType, pendingId: number | null): void {
+export function setCurrentEditingState(recordType: EditRecordType): void {
   currentEditingRecordType = recordType;
-  currentEditingPendingId = pendingId;
 }
 
 // ============================================================================
@@ -192,133 +185,6 @@ export function initEditCategoryTreeSelect(
 }
 
 // ============================================================================
-// Open Edit Pending Record
-// ============================================================================
-
-/**
- * Open edit modal for pending (offline) record with skeleton loader.
- * Shows skeleton during data loading for better perceived performance.
- */
-/**
- * Open edit modal for pending (offline) record.
- *
- * Loads record from IndexedDB and populates form for editing.
- * Handles offline mode gracefully (shows cached dropdowns if API unavailable).
- * Always shows skeleton during data loading.
- *
- * @param itemId - IndexedDB record ID
- * @param entity - Record type ('fact' or 'plan')
- * @returns Promise that resolves when modal is ready
- */
-export async function openEditPendingRecord(itemId: number, entity: string): Promise<void> {
-  const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
-  const skeleton = document.getElementById('edit-loading-skeleton');
-  const formFields = document.getElementById('edit-form-fields');
-
-  if (!modal) {
-    console.error('[openEditPendingRecord] Modal not found');
-    return;
-  }
-
-  try {
-    if (!window.offlineManager) {
-      showToast('OfflineManager не доступен', 'error');
-      return;
-    }
-
-    // Get pending items from IndexedDB
-    const { items } = await window.offlineManager.getAllUnsyncedItems();
-    const item = items.find((i: { id: number }) => i.id === itemId);
-
-    if (!item) {
-      showToast('Запись не найдена', 'error');
-      return;
-    }
-
-    const recordType = (entity || item.entity || 'fact') as 'fact' | 'plan';
-    currentEditingPendingId = itemId;
-
-    // Set mode (show/hide reminder section)
-    setEditModalMode(recordType);
-
-    // Open modal immediately with skeleton
-    modal.showModal();
-    if (skeleton) skeleton.classList.remove('hidden');
-    if (formFields) formFields.classList.add('hidden');
-
-    // Get data for loading selects
-    const data = item.data || {};
-
-    // Try to load from API, but gracefully handle offline mode
-    const results = await Promise.allSettled([
-      loadCategoriesForEdit(),
-      loadEditFinancialCenters(data.financial_center_id),
-      loadEditCostCenters(data.cost_center_id),
-    ]);
-
-    // Check if we're offline (all requests failed)
-    const allFailed = results.every(r => r.status === 'rejected');
-    if (allFailed) {
-      populateOfflineDropdowns(data);
-    }
-
-    // Fill basic fields from pending data
-    const editIdEl = document.getElementById('edit-id') as HTMLInputElement | null;
-    const editAmountEl = document.getElementById('edit-amount') as HTMLInputElement | null;
-    const editDateEl = document.getElementById('edit-date') as HTMLInputElement | null;
-    const editDescEl = document.getElementById('edit-description') as HTMLTextAreaElement | null;
-
-    if (editIdEl) editIdEl.value = String(item.id);
-    if (editAmountEl) editAmountEl.value = String(Number.parseInt(String(data.amount), 10) || 0);
-    if (editDateEl && data.fact_date && window.BudgetShared?.DateFormatter) {
-      editDateEl.value = window.BudgetShared.DateFormatter.formatForDisplay(data.fact_date);
-    }
-    if (editDescEl) editDescEl.value = data.description || '';
-
-    // Determine category type
-    const state = getState();
-    let selectedArticle = state.allCategories.find(a => a.id === data.article_id);
-    if (!selectedArticle && data.fact_type) {
-      selectedArticle = { type: data.fact_type } as any;
-    }
-    const categoryType = (selectedArticle?.type as FactType) || 'expense';
-
-    // Set category type radio buttons
-    document.querySelectorAll('.edit-category-type-btn').forEach(btn => {
-      const radio = (btn as HTMLElement).querySelector('input[type="radio"]') as HTMLInputElement | null;
-      const btnEl = btn as HTMLElement;
-      if (btnEl.dataset.type === categoryType) {
-        btn.classList.add('btn-active');
-        if (radio) radio.checked = true;
-      } else {
-        btn.classList.remove('btn-active');
-        if (radio) radio.checked = false;
-      }
-    });
-
-    // Initialize category tree select
-    initEditCategoryTreeSelect(categoryType, data.financial_center_id, data.article_id);
-
-    // Setup category type button handlers
-    setupEditCategoryTypeButtons();
-
-    // Hide skeleton, show form
-    if (skeleton) skeleton.classList.add('hidden');
-    if (formFields) formFields.classList.remove('hidden');
-
-    // Modal already opened above (with skeleton)
-  } catch (error) {
-    console.error('[openEditPendingRecord] Error:', error);
-
-    // Close modal on error
-    const modal = document.getElementById('edit-modal') as HTMLDialogElement | null;
-    modal?.close();
-
-    showToast('Ошибка открытия записи: ' + (error as Error).message, 'error');
-  }
-}
-
-// ============================================================================
 // Open Edit Modal for Online Record
 // ============================================================================
 
@@ -348,8 +214,6 @@ export async function openEditModal(recordType: 'fact' | 'plan', recordId: numbe
   }
 
   try {
-    currentEditingPendingId = null;
-
     // Set mode
     setEditModalMode(recordType);
 
@@ -467,6 +331,5 @@ export function closeEditModal(): void {
   modal?.close();
   form?.reset();
 
-  currentEditingPendingId = null;
   currentEditingRecordType = null;
 }

@@ -87,7 +87,7 @@ export interface BudgetWSState {
   pollRetryCount: number;
   MAX_POLL_RETRIES: number; // 10
   BASE_POLL_RETRY_DELAY: number; // 1000ms
-  consecutive503Count: number; // Track consecutive 503 errors → offline mode
+  consecutive503Count: number; // Track consecutive 503 errors → stop polling
 
   // ============================================================================
   // Client ping (bidirectional communication)

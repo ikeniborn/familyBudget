@@ -21,13 +21,7 @@
     // Initialize post-auth flags BEFORE checking PWA mode
     // This ensures flags are set even if splash is skipped
     function initializePostAuthFlags() {
-        const flags = { dexieAutoEnabled: false, justLoggedIn: false };
-
-        // Auto-enable Dexie for new users (only if not already set)
-        if (localStorage.getItem('dexieActive') === null) {
-            localStorage.setItem('dexieActive', 'true');
-            flags.dexieAutoEnabled = true;
-        }
+        const flags = { justLoggedIn: false };
 
         // Session flag for WebAuthn onboarding (from URL query parameter)
         const urlParams = new URLSearchParams(window.location.search);
@@ -36,7 +30,6 @@
             flags.justLoggedIn = true;
 
             // Clean URL (remove query parameter from browser history)
-            // Prevents Dexie sync errors when query parameter triggers initialization on pages with no modals
             const cleanUrl = window.location.origin + window.location.pathname;
             window.history.replaceState({}, document.title, cleanUrl);
             console.log('[PWA_SPLASH] Cleaned URL after reading just_logged_in flag');
@@ -47,51 +40,7 @@
     }
 
     // Execute flag initialization immediately
-    const flags = initializePostAuthFlags();
-
-    // Trigger initial Dexie sync for new users
-    // Guard: if sw_post_update_sync is active, base.html will handle sync — skip here
-    // to avoid double-sync race condition after PWA update (R5 mitigation)
-    const isPostUpdateSync = localStorage.getItem('sw_post_update_sync') !== null;
-    if (isPostUpdateSync) {
-        console.info('[PWA_SPLASH] Skipping sync — post-update sync delegated to base.html (sw_post_update_sync active)');
-    }
-    if (!isPostUpdateSync && (flags.dexieAutoEnabled || flags.justLoggedIn)) {
-        console.info('[PWA_SPLASH] Triggering initial Dexie sync...');
-
-        // Sync handler (extracted to avoid race condition)
-        const syncReferenceData = async () => {
-            if (typeof window.Dexie !== 'undefined') {
-                try {
-                    const dexie = await window.Dexie.getDexieManager();
-                    await dexie.init();
-
-                    // Check userId availability before sync (prevents errors on login page)
-                    const userId = window.userData?.id || window.user?.id;
-                    if (!userId) {
-                        console.warn('[PWA_SPLASH] Skipping sync - userId not available (not authenticated yet)');
-                        return;
-                    }
-
-                    console.info('[PWA_SPLASH] Syncing reference data...', { userId });
-                    await dexie.syncReferenceData();
-
-                    console.info('[PWA_SPLASH] Initial sync complete');
-                } catch (error) {
-                    console.error('[PWA_SPLASH] Initial sync failed:', error);
-                    // Non-critical - user can work via API fallback
-                }
-            }
-        };
-
-        // Fix race condition: check if DOM already loaded
-        if (document.readyState === 'loading') {
-            window.addEventListener('DOMContentLoaded', syncReferenceData);
-        } else {
-            // DOM already loaded, execute immediately
-            syncReferenceData();
-        }
-    }
+    initializePostAuthFlags();
 
     const splashEl = document.getElementById('pwa-splash');
     if (!splashEl) return;

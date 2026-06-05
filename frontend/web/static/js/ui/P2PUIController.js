@@ -141,13 +141,7 @@ class P2PUIController {
 
     // Load actual pending count async
     try {
-      const dataLayer = window.dataLayer || window.DataLayer?.getInstance?.();
-      let pendingCount = 0;
-      if (dataLayer && typeof dataLayer.getPendingFactsForP2P === 'function') {
-        const pending = await dataLayer.getPendingFactsForP2P();
-        pendingCount = pending.length;
-      }
-      this._renderRoleSelect(pendingCount);
+      this._renderRoleSelect(0);
     } catch {
       this._renderRoleSelect(0);
     }
@@ -396,20 +390,8 @@ class P2PUIController {
     this._stopOfferTimer();
 
     try {
-      // Get pending facts from DataLayer
-      const dataLayer = window.dataLayer || window.DataLayer?.getInstance?.();
-      let pendingFacts = [];
-      if (dataLayer && typeof dataLayer.getPendingFactsForP2P === 'function') {
-        pendingFacts = await dataLayer.getPendingFactsForP2P();
-      } else {
-        console.warn('[P2PUIController] DataLayer.getPendingFactsForP2P not available');
-      }
-
-      // Get all local facts for merge comparison
-      let localFacts = [];
-      if (dataLayer && typeof dataLayer.getAllFactsForP2PMerge === 'function') {
-        localFacts = await dataLayer.getAllFactsForP2PMerge();
-      }
+      const pendingFacts = [];
+      const localFacts = [];
 
       this._updateProgress(20, 'Отправляем данные...');
 

@@ -302,16 +302,12 @@ class BudgetWSClient {
     // ==================== OFFLINE MODE DETECTION ====================
 
     /**
-     * Check if auto offline mode is active via OfflineManager or localStorage fallback
-     * This prevents WebSocket from attempting connections when offline mode is enabled
-     * Fallback to localStorage is needed for timing issues during page navigation
-     * when offlineManager may not be initialized yet
+     * Check if auto offline mode is active via localStorage flag.
      * @returns {boolean}
      * @private
      */
     _isOfflineModeActive() {
         // CRITICAL FIX (v11.3.7): Skip offline mode check during initial login
-        // offlineManager may not be fully initialized yet, causing WebSocket connection failure
         // This ensures WebSocket connects immediately after authentication
         try {
             const justLoggedIn = sessionStorage.getItem('just_logged_in');
@@ -324,14 +320,6 @@ class BudgetWSClient {
             // Continue with normal checks
         }
 
-        // Check offlineManager if available (preferred)
-        if (window.offlineManager &&
-            window.offlineManager.networkDetector &&
-            window.offlineManager.networkDetector.autoOfflineMode) {
-            return true;
-        }
-        // Fallback: check localStorage directly for timing issues during page navigation
-        // offlineManager may not be initialized yet when budgetWSClient.connect() is called
         try {
             return localStorage.getItem('budget_auto_offline_mode') === 'true';
         } catch (e) {
@@ -1810,39 +1798,18 @@ class BudgetWSClient {
 
     _handleFactCreated(data) {
         this._notifyHandlers('fact_created', data);
-        if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
-            window.offlineManager.refreshUICallback('fact_created', data);
-        }
     }
 
     _handleFactUpdated(data) {
         this._notifyHandlers('fact_updated', data);
-        if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
-            window.offlineManager.refreshUICallback('fact_updated', data);
-        }
     }
 
     _handleFactDeleted(data) {
         this._notifyHandlers('fact_deleted', data);
-        if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
-            window.offlineManager.refreshUICallback('fact_deleted', data);
-        }
-        if (data && data.id && typeof window.Dexie !== 'undefined') {
-            try {
-                const db = window.Dexie.getDatabase();
-                db && db.budgetFacts && db.budgetFacts.where('id').equals(data.id).modify({
-                    sync_status: 'deleted',
-                    updated_at: new Date()
-                }).catch(function() {});
-            } catch (e) {}
-        }
     }
 
     _handlePlanCreated(data) {
         this._notifyHandlers('plan_created', data);
-        if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
-            window.offlineManager.refreshUICallback('plan_created', data);
-        }
         // BUG-004 (2026-04-22): one-time plans live in budgetFacts only. The
         // recurringPlans table is populated exclusively by `recurring_plan_created`
         // events (backend budget_ws.py:1036). Earlier this handler wrote every
@@ -1851,32 +1818,20 @@ class BudgetWSClient {
 
     _handlePlanUpdated(data) {
         this._notifyHandlers('plan_updated', data);
-        if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
-            window.offlineManager.refreshUICallback('plan_updated', data);
-        }
     }
 
     _handlePlanDeleted(data) {
         this._notifyHandlers('plan_deleted', data);
-        if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
-            window.offlineManager.refreshUICallback('plan_deleted', data);
-        }
         // Symmetric to _handlePlanCreated (BUG-004): do not touch recurringPlans
         // on plan_deleted — the id namespace belongs to budgetFacts.
     }
 
     _handleTransferCreated(data) {
         this._notifyHandlers('transfer_created', data);
-        if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
-            window.offlineManager.refreshUICallback('transfer_created', data);
-        }
     }
 
     _handleTransferDeleted(data) {
         this._notifyHandlers('transfer_deleted', data);
-        if (typeof window.offlineManager !== 'undefined' && window.offlineManager.refreshUICallback) {
-            window.offlineManager.refreshUICallback('transfer_deleted', data);
-        }
     }
 
     _handleItemCreated(data) {
@@ -2450,7 +2405,6 @@ if (typeof window !== 'undefined') {
     window.budgetWSClient = new BudgetWSClient();
 
     // Auto-connect after initialization (v11.4.1)
-    // Delayed to allow page to fully load and offlineManager to initialize
     setTimeout(() => {
         if (window.budgetWSClient && window.budgetWSClient.enabled) {
             window.budgetWSClient.connect();
@@ -2481,23 +2435,9 @@ if (typeof window !== 'undefined') {
         }
     });
 
-    // Admin sync helper — triggers full reference data re-sync after CRUD operations
+    // Admin sync helper — no-op (offline sync removed)
     if (!window.BudgetSync) window.BudgetSync = {};
-    window.BudgetSync.triggerEntitySync = async function(entityType) {
-        if (typeof window.Dexie === 'undefined') return;
-        try {
-            const dexie = window.Dexie.getDexieManager();
-            if (!dexie) return;
-            if (typeof dexie.isReady === 'function' && !dexie.isReady()) {
-                await dexie.init();
-            }
-            if (typeof dexie.syncReferenceData === 'function') {
-                await dexie.syncReferenceData();
-            }
-        } catch (err) {
-            console.warn('[BudgetSync] Re-sync failed for', entityType, err);
-        }
-    };
+    window.BudgetSync.triggerEntitySync = function(_entityType) {};
 
 }
 

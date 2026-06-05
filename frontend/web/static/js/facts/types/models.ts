@@ -16,7 +16,6 @@
  */
 export interface BudgetFact {
     id: number;
-    temp_id?: string;              // Dexie temp_id for offline operations (task-015 Phase 4.4)
     fact_date: string; // ISO date (YYYY-MM-DD)
     article_id: number;
     article_name: string;
@@ -32,14 +31,6 @@ export interface BudgetFact {
     record_type: 'spend' | 'income' | 'open' | 'close';
     created_at: string; // ISO datetime
     updated_at: string; // ISO datetime
-}
-
-/**
- * Offline Fact Response
- * Extends BudgetFact with offline flag for offline mode support
- */
-export interface OfflineFactResponse extends BudgetFact {
-    _offline: true;
 }
 
 /**
@@ -122,6 +113,21 @@ export interface FactHint {
 // ============================================================================
 // API Data Transfer Objects
 // ============================================================================
+
+/**
+ * Fact filters for list/count API queries
+ */
+export interface FactFilters {
+    record_type?: 'fact' | 'plan';
+    user_id?: number;
+    article_id?: number;
+    article_type?: 'expense' | 'income' | 'debit' | 'credit';
+    date_from?: string;
+    date_to?: string;
+    financial_center_id?: number;
+    cost_center_id?: number;
+    search?: string;
+}
 
 /**
  * Data for creating a new fact

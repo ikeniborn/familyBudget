@@ -6,8 +6,6 @@
 
 import { refreshUIAfterFactSave } from '../../shared/utils/uiRefresh';
 import { parseIntOrNull, postAPI } from '../../shared/utils/apiHelpers';
-import { isDexieActive, factRepo, getTabId, logger as dbLogger } from '@db/dexie';
-import { getCurrentUserId } from '@shared/utils/userHelpers';
 
 /**
  * Save fact transaction
@@ -34,54 +32,9 @@ export async function saveFactTransaction(form: HTMLFormElement): Promise<void> 
     description: formData.get('description') || null
   };
 
-  try {
-    // POST /api/v1/facts
-    const responseData = await postAPI<any>('/api/v1/facts', data, 'SaveFactModal', {
-      'X-Tab-Id': getTabId(),
-    });
+  // POST /api/v1/facts
+  await postAPI<any>('/api/v1/facts', data, 'SaveFactModal');
 
-    // Write to local Dexie DB immediately after successful API call
-    if (isDexieActive()) {
-      try {
-        await factRepo.createFromAPI(responseData);
-      } catch (dexieError) {
-        dbLogger.warn('[SaveFactModal] Failed to write to Dexie (non-critical):', dexieError);
-      }
-    }
-
-    // Update UI
-    await refreshUIAfterFactSave();
-  } catch (error) {
-    // Offline fallback: enqueue in Dexie pendingOperations instead of losing data
-    const isOffline = !navigator.onLine
-      || (error instanceof TypeError && /fetch/i.test(error.message));
-
-    if (isOffline && isDexieActive()) {
-      try {
-        const userId = await getCurrentUserId();
-        await factRepo.createOffline({
-          user_id: userId,
-          article_id: data.article_id,
-          financial_center_id: data.financial_center_id,
-          cost_center_id: data.cost_center_id ?? null,
-          date: data.fact_date,
-          amount: data.amount,
-          record_type: 'fact',
-          comment: data.description as string | null,
-          transfer_group_id: null,
-          is_transfer: false,
-          sync_hash: null
-        });
-        if (typeof (window as any).showToast === 'function') {
-          (window as any).showToast('Сохранено offline — отправится при подключении', 'info');
-        }
-        await refreshUIAfterFactSave();
-        return;
-      } catch (offlineError) {
-        dbLogger.error('[SaveFactModal] Failed to save offline:', offlineError);
-      }
-    }
-
-    throw error; // Re-throw for upper layer handling
-  }
+  // Update UI
+  await refreshUIAfterFactSave();
 }

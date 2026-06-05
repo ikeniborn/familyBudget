@@ -43,11 +43,6 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, Query, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel
 
-from backend.app.api.v1.endpoints.sync_handlers import (
-    handle_sync_client_changes,
-    handle_sync_incremental_request,
-    handle_sync_initial,
-)
 from backend.app.core.dependencies import get_current_user
 from backend.app.core.json_utils import dumps as json_dumps
 from backend.app.core.json_utils import loads as json_loads
@@ -613,65 +608,6 @@ async def budget_websocket_endpoint(
                             "timestamp": datetime.utcnow().isoformat(),
                         })
 
-                    elif msg_type == "sync_initial":
-                        # PGlite initial sync request
-                        await ws_manager.update_activity(connection_id)
-                        logger.info("[SYNC] Received sync_initial request from user %s", user_id)
-
-                        async with get_session_context() as session:
-                            sync_data = await handle_sync_initial(session, user_id)
-                            await ws_manager.send_to_connection(connection_id, "sync_initial", sync_data)
-
-                    elif msg_type == "sync_incremental":
-                        # PGlite incremental sync request
-                        await ws_manager.update_activity(connection_id)
-
-                        # Extract data from message
-                        msg_data = msg.get("data", {})
-                        last_sync_timestamp_str = msg_data.get("last_sync_timestamp")
-
-                        if not last_sync_timestamp_str:
-                            logger.warning("[SYNC] Missing last_sync_timestamp in sync_incremental from user %s", user_id)
-                            continue
-
-                        # Parse ISO 8601 timestamp
-                        try:
-                            last_sync_timestamp = datetime.fromisoformat(last_sync_timestamp_str.replace('Z', '+00:00'))
-                        except ValueError as e:
-                            logger.warning("[SYNC] Invalid timestamp format in sync_incremental: %s", e)
-                            continue
-
-                        logger.info(
-                            "[SYNC] Received sync_incremental request from user %s, since %s",
-                            user_id, last_sync_timestamp.isoformat()
-                        )
-
-                        async with get_session_context() as session:
-                            delta_data = await handle_sync_incremental_request(session, user_id, last_sync_timestamp)
-                            await ws_manager.send_to_connection(connection_id, "sync_incremental", delta_data)
-
-                    elif msg_type == "sync_client_changes":
-                        # Client upload request (task-008)
-                        await ws_manager.update_activity(connection_id)
-
-                        msg_data = msg.get("data", {})
-                        operations = msg_data.get("operations", [])
-
-                        logger.info(
-                            "[SYNC] Received client upload from user %s, %s operations",
-                            user_id, len(operations)
-                        )
-
-                        async with get_session_context() as session:
-                            upload_result = await handle_sync_client_changes(
-                                session, user_id, operations
-                            )
-                            await ws_manager.send_to_connection(
-                                connection_id,
-                                "sync_client_changes_response",
-                                upload_result
-                            )
-
                     else:
                         logger.debug("Budget WS unknown message type: %s", msg_type)
 
@@ -929,7 +865,6 @@ SAFE_TRANSFER_FIELDS = {
 SAFE_ITEM_FIELDS = {
     "id", "shopping_list_id", "product_name", "quantity", "unit",
     "is_completed", "store_id", "product_group_id", "sort_order",
-    "temp_id",  # Required for client-side deduplication (virtual id → server id swap)
 }
 
 SAFE_SHOPPING_LIST_FIELDS = {

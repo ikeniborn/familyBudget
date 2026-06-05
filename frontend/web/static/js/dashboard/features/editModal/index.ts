@@ -13,7 +13,6 @@ export {
   loadRemindersForEdit,
   populateFinancialCentersDropdown,
   populateCostCentersDropdown,
-  populateOfflineDropdowns,
 } from './dropdownCache';
 
 // Reminder helpers
@@ -29,13 +28,11 @@ export {
 // Form population
 export {
   getCurrentEditingRecordType,
-  getCurrentEditingPendingId,
   setCurrentEditingState,
   setEditModalMode,
   updateEditCategoryTypeBadge,
   setupEditCategoryTypeButtons,
   initEditCategoryTreeSelect,
-  openEditPendingRecord,
   openEditModal,
   closeEditModal,
 } from './formPopulation';
