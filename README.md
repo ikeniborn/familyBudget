@@ -2,7 +2,7 @@
 
 > Семейный бюджет под контролем! Простой учёт доходов и расходов для всей семьи.
 
-**Family Budget** — это веб-приложение для управления семейными финансами с поддержкой офлайн-режима, автоматическими напоминаниями и интеграцией с Telegram.
+**Family Budget** — это веб-приложение для управления семейными финансами с real-time синхронизацией, автоматическими напоминаниями и интеграцией с Telegram.
 
 ## ✨ Что умеет
 
@@ -53,7 +53,7 @@
 - **🔄 Real-Time обновления** — WebSocket с Long Polling fallback, данные обновляются мгновенно во всех вкладках
 - **🚀 Web Workers** — обработка импорта CSV, расчеты категорий и синхронизация не замедляют интерфейс
 - **📦 Агрессивное кэширование** — Redis + Service Worker + HTTP cache = молниеносная загрузка страниц
-- **📚 Полная история изменений** — SCD Type 2, каждое изменение записи сохраняется навечно
+- **📚 Полная история изменений** — SCD (Type 1/2) + History таблицы, каждое изменение записи сохраняется навечно
 - **🌳 Closure Table** — быстрые иерархические запросы по категориям любой вложенности
 - **🔒 Deduplication** — защита от дубликатов при network retries через уникальные ключи
 - **🎯 Real-Time синхронизация** — WebSocket + Redis Pub/Sub, изменения моментально во всех вкладках
@@ -85,55 +85,15 @@
 
 ---
 
-## 🚀 Быстрый старт
+## 🚀 Установка
 
-Для развёртывания на своём сервере:
-
-```bash
-# 1️⃣ Клонировать репозиторий
-git clone https://github.com/ikeniborn/familyBudget.git ~/familyBudget
-cd ~/familyBudget
-
-# 2️⃣ Установить зависимости (Docker, Docker Compose)
-sudo bash install.sh
-
-# 3️⃣ Настроить окружение (интерактивно)
-sudo bash setup.sh
-
-# 4️⃣ Запустить! 🎉
-sudo bash deploy.sh
-```
-
-**Требования:**
-- Сервер Ubuntu 20.04+ / Debian 11+
-- 1 CPU, 2 GB RAM, 20 GB диск (минимум)
-- Домен с SSL (для Telegram OAuth и HTTPS)
-- ✅ **Node.js НЕ требуется** на сервере (v9.0: registry-first архитектура)
-
-**Registry-First Deployment (v9.0+):**
-- Все сборки (frontend, Docker) происходят в GitHub Actions CI/CD
-- На сервере только pull готовых образов из ghcr.io
-- Деплой ВСЕГДА занимает 2-3 минуты (только pull)
-
-**VERSION Bump Workflow:**
-```bash
-# Локально bumps VERSION перед push
-echo "6.6.1" > VERSION
-git add VERSION
-git commit -m "chore: bump to 6.6.1"
-git push origin test
-
-# GitHub Actions собирает образы (5-8 мин)
-# Затем деплой на сервер (2-3 мин)
-```
-
-📖 Подробнее: [START.md](START.md)
+Family Budget разворачивается на своём сервере через Docker. Пошаговая инструкция (требования, настройка домена и SSL, запуск) — в [START.md](docs/START.md).
 
 ---
 
 ## 🛠 Технологии
 
-**Backend**: FastAPI 0.121, SQLModel, PostgreSQL 16, Redis 7
+**Backend**: FastAPI 0.121, SQLModel, PostgreSQL 16, Redis 7 (Argon2id, JWT)
 **Frontend**: HTMX, Tailwind CSS 3, DaisyUI 4, ECharts
 **Mobile**: PWA (Service Worker, Web Workers, Push API, WebAuthn)
 **Realtime**: WebSocket (primary) + Long Polling (fallback)
@@ -146,10 +106,11 @@ git push origin test
 
 | Документ | Описание |
 |----------|----------|
-| [START.md](START.md) | Установка и настройка сервера |
-| [CI-CD-REGISTRY-SUMMARY.md](CI-CD-REGISTRY-SUMMARY.md) | Registry-First архитектура (v9.0) |
-| [docs/architecture/ci-cd-build-deploy.md](docs/architecture/ci-cd-build-deploy.md) | CI/CD Pipeline (GitHub Actions) |
-| [docs/architecture/docker.md](docs/architecture/docker.md) | Docker Multi-Stage Builds |
+| [START.md](docs/START.md) | Установка и настройка сервера |
+| [docs/architecture/operations/ci-cd-build-deploy.md](docs/architecture/operations/ci-cd-build-deploy.md) | CI/CD Pipeline (GitHub Actions) |
+| [docs/architecture/operations/versioning.md](docs/architecture/operations/versioning.md) | Стратегия версионирования |
+| [docs/architecture/core/docker.md](docs/architecture/core/docker.md) | Docker Multi-Stage Builds |
+| [docs/BACKUP_RESTORE.md](docs/BACKUP_RESTORE.md) | Резервное копирование и восстановление |
 | `/docs` (Swagger) | Интерактивная документация REST API |
 
 ---
@@ -157,7 +118,7 @@ git push origin test
 ## 🆘 Поддержка
 
 - 🐛 **Нашли баг?** → [GitHub Issues](https://github.com/ikeniborn/familyBudget/issues)
-- 💬 **Вопросы по установке?** → [START.md](START.md)
+- 💬 **Вопросы по установке?** → [START.md](docs/START.md)
 - 📚 **Документация** → [docs/](docs/)
 
 ---
@@ -169,5 +130,4 @@ MIT License — делайте что хотите! 🎉
 ---
 
 Made with ❤️ for families who want to save money 💰
-# Test: VERSION unchanged workflow stop
 
