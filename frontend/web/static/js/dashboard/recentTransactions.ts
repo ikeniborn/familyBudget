@@ -76,7 +76,6 @@ export function buildRecentTransactionsHTML(facts: RecentTransaction[]): string 
             <th>Описание</th>
             <th title="Напоминание">🔔</th>
             <th title="Регламентный платеж">🔄</th>
-            <th title="Создано offline">☁️</th>
             <th>⚙️ Действия</th>
           </tr>
         </thead>
