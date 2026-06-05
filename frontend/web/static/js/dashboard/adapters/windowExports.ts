@@ -80,10 +80,8 @@ import {
   savePlanModal as savePlanModalImpl,
 } from '../features/modalPlan/saveOperations';
 
-// Recent Transactions (Table Optimization v2.0)
-import {
-  loadRecentTransactions as loadRecentTransactionsImpl,
-} from '../recentTransactions';
+// Recent Transactions: loadRecentTransactions removed (HTMX-only loading).
+// Named export still available from ../recentTransactions for test use.
 
 import {
   togglePlanMode as togglePlanModeNewImpl,
@@ -464,12 +462,8 @@ function collectRecurringSettings(modalId: string): ReturnType<typeof collectRec
 }
 
 // ============================================================================
-// Recent Transactions (Table Optimization v2.0)
+// Recent Transactions: loadRecentTransactions removed — widget loads via HTMX
 // ============================================================================
-
-async function loadRecentTransactions(): Promise<void> {
-  return loadRecentTransactionsImpl();
-}
 
 // ============================================================================
 // Transfer placeholders (handled by transfers module)
@@ -544,9 +538,6 @@ export const dashboardExports: DashboardExports = {
   updateYearlyFrequencyValue,
   updateRecurringPreview,
   collectRecurringSettings,
-
-  // Recent Transactions (Table Optimization v2.0)
-  loadRecentTransactions,
 
   // Transfer (delegated to transfers module)
   setTransferRecordType,
@@ -624,7 +615,6 @@ export function initWindowExports(): void {
   window.refreshRecentTransactions = refreshRecentTransactionsImpl;
   window.refreshQuickStats = refreshQuickStatsImpl;
   window.refreshAccountBalances = refreshAccountBalancesImpl;
-  window.loadRecentTransactions = loadRecentTransactions;
 
   // Expose dashboard-specific functions globally for HTML onclick handlers
   window.openEditFromDashboard = openEditFromDashboard;

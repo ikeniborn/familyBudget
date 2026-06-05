@@ -221,9 +221,6 @@ declare global {
     refreshQuickStats?: () => void;
     refreshAccountBalances?: () => void;
 
-    // Recent Transactions (client-side refresh)
-    loadRecentTransactions?: () => Promise<void>;
-
     // Dashboard-specific (HTML onclick handlers)
     openEditFromDashboard?: (factId: number) => Promise<void>;
     deleteRecordFromDashboard?: (factId: number) => Promise<void>;
@@ -314,9 +311,6 @@ export interface DashboardExports {
   updateYearlyFrequencyValue(modalId: string): void;
   updateRecurringPreview(modalId: string): void;
   collectRecurringSettings(modalId: string): RecurringSettings | null;
-
-  // Recent Transactions (Table Optimization v2.0)
-  loadRecentTransactions(): Promise<void>;
 
   // Transfer (delegated to transfers module)
   setTransferRecordType(type: RecordType): void;

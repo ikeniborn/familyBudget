@@ -29,8 +29,10 @@
                      hx-get="/api/v1/analytics/quick-stats-html"
                      hx-trigger="load"
                      hx-swap="innerHTML"
-                     class="min-h-[100px] flex items-center justify-center">
-                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                     class="min-h-[100px]">
+                    <div class="flex items-center justify-center py-4">
+                        <span class="loading loading-spinner loading-lg text-primary"></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -50,8 +52,10 @@
                      hx-get="/api/v1/analytics/account-balances-html"
                      hx-trigger="load"
                      hx-swap="innerHTML"
-                     class="min-h-[100px] flex items-center justify-center">
-                    <span class="loading loading-spinner loading-lg text-primary"></span>
+                     class="min-h-[100px]">
+                    <div class="flex items-center justify-center py-4">
+                        <span class="loading loading-spinner loading-lg text-primary"></span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -185,19 +189,11 @@
 <!-- Confirm Dialog (custom modal for delete confirmations) -->
 <script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
 
-<!-- Recent Transactions Module (from dashboard bundle) -->
+<!-- Recent transactions load via HTMX hx-trigger="load" on #recent-transactions. -->
 <script>
-  document.addEventListener('DOMContentLoaded', async () => {
-    if (window.Dashboard && window.Dashboard.loadRecentTransactions) {
-      await window.Dashboard.loadRecentTransactions();
-    }
-  });
-
-  // Reload on WebSocket update
-  window.addEventListener('fact:created', async () => {
-    if (window.Dashboard && window.Dashboard.loadRecentTransactions) {
-      await window.Dashboard.loadRecentTransactions();
-    }
+  // Refresh recent transactions on WebSocket fact creation (HTMX, single code path)
+  window.addEventListener('fact:created', () => {
+    window.HTMXWidgets?.refreshTransactions();
   });
 </script>
 
