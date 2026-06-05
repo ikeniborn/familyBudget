@@ -889,8 +889,7 @@ async def get_recent_facts_html(
                         <th>Описание</th>
                         <th title="Напоминание">🔔</th>
                         <th title="Регламентный платеж">🔄</th>
-                        <th class="w-8"></th>
-                        <th class="w-8"></th>
+                        <th class="text-center">⚙️ Действия</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -972,8 +971,9 @@ async def get_recent_facts_html(
                         <td class="max-w-xs truncate" title="{description_full}">{description_truncated}</td>
                         <td class="text-center" title="{reminder_title}">{reminder_icon}</td>
                         <td class="text-center" title="{recurring_title}">{recurring_icon}</td>
-                        <td class="text-center">{edit_button}</td>
-                        <td class="text-center">{delete_button}</td>
+                        <td class="text-center">
+                            <div class="flex gap-1 justify-center">{edit_button}{delete_button}</div>
+                        </td>
                     </tr>
             """
 
