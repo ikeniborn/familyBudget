@@ -120,9 +120,6 @@
     <!-- Loading Dots Animation (Navigation Progress) -->
     <link rel="stylesheet" href="/static/css/loading-dots.min.css?v=PLACEHOLDER">
 
-    <!-- P2P Sync UI styles (modal, QR scanner, status overlay) -->
-    <link rel="stylesheet" href="/static/css/p2p.min.css?v=PLACEHOLDER">
-
     <!-- Inline Custom Styles -->
     <style>
         /* Скрыть checkbox у переключателя темы */
@@ -438,20 +435,6 @@
                         <path stroke-linecap="round" stroke-linejoin="round" d="M14 11l-4 4m0-4l4 4" />
                     </svg>
                 </div>
-            </div>
-
-            <!-- P2P Sync Button (mobile/tablet only, shown when WebRTC available) -->
-            <div id="p2p-sync-btn-wrapper"
-                 class="tooltip tooltip-bottom hidden lg:!hidden"
-                 data-tip="P2P синхронизация (без интернета)">
-                <button id="p2p-sync-btn"
-                        class="btn btn-ghost btn-circle btn-sm sm:btn-md"
-                        onclick="window.p2pUI?.open()"
-                        aria-label="P2P синхронизация">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"/>
-                    </svg>
-                </button>
             </div>
 
             <!-- Push Bell Button (visual indicator with navigation to settings) -->
@@ -892,7 +875,6 @@
 
     {% if user %}
     {% include 'scripts/push-bell-manager.html' %}
-    {% include 'p2p/p2p-status.html' %}
 
     <!-- WS Indicator: single click opens diagnostics -->
     <script>
@@ -1275,21 +1257,5 @@
 
     <!-- WebAuthn Onboarding -->
     <script src="{{ url_for('static', path='/js/webauthn-onboarding.min.js') }}?v=PLACEHOLDER"></script>
-
-    <!-- P2P Sync: show button if WebRTC available -->
-    <script type="module">
-        import { p2pUIController } from '/static/js/ui/P2PUIController.js?v=PLACEHOLDER';
-        // Show P2P button if RTCPeerConnection is supported and HTTPS
-        const isHttps = location.protocol === 'https:' || location.hostname === 'localhost';
-        if (typeof RTCPeerConnection !== 'undefined' && isHttps) {
-            const wrapper = document.getElementById('p2p-sync-btn-wrapper');
-            if (wrapper) wrapper.classList.remove('hidden');
-        }
-        // Also show on p2p-capability-change event from networkDetector
-        window.addEventListener('p2p-capability-change', (e) => {
-            const wrapper = document.getElementById('p2p-sync-btn-wrapper');
-            if (wrapper && e.detail?.capable) wrapper.classList.remove('hidden');
-        });
-    </script>
 </body>
 </html>
