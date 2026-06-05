@@ -65,8 +65,6 @@ const OFFLINE_PAGE_ASSETS = [
   // === Страница /lists ===
   // CSS
   '/static/css/lists.min.css',
-  // JS - offline support
-  '/static/js/offline/offlineManager.min.js',
   // JS - lists functionality (единый бандл с v7.0.1+)
   '/static/js/lists.min.js',
   // JS - WebSocket client
