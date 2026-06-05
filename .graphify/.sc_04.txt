@@ -1,0 +1,6 @@
+/home/ikeniborn/Documents/Project/familyBudget/docs/superpowers/specs/2026-06-01-plan-page-improvements-design.md
+/home/ikeniborn/Documents/Project/familyBudget/docs/superpowers/specs/2026-06-01-waterfall-transfers-line-chart-design.md
+/home/ikeniborn/Documents/Project/familyBudget/docs/superpowers/specs/2026-06-05-fix-offline-removal-regressions-design.md
+/home/ikeniborn/Documents/Project/familyBudget/docs/superpowers/specs/2026-06-05-htmx-everywhere-dashboard-design.md
+/home/ikeniborn/Documents/Project/familyBudget/frontend/web/templates/admin_monitoring.html
+/home/ikeniborn/Documents/Project/familyBudget/frontend/web/templates/base.html

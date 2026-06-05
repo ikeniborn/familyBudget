@@ -1,0 +1,6 @@
+/home/ikeniborn/Documents/Project/familyBudget/docs/superpowers/plans/2026-06-05-htmx-everywhere-dashboard.md
+/home/ikeniborn/Documents/Project/familyBudget/docs/superpowers/specs/2026-05-15-facts-delete-stat-and-row-render-design.md
+/home/ikeniborn/Documents/Project/familyBudget/docs/superpowers/specs/2026-05-24-update-prod-server-design.md
+/home/ikeniborn/Documents/Project/familyBudget/docs/superpowers/specs/2026-05-29-analytics-dynamics-waterfall-design.md
+/home/ikeniborn/Documents/Project/familyBudget/docs/superpowers/specs/2026-05-29-shopping-lists-download-fix-design.md
+/home/ikeniborn/Documents/Project/familyBudget/docs/superpowers/specs/2026-05-31-github-workflows-cleanup-design.md

@@ -1,0 +1,5 @@
+/home/ikeniborn/Documents/Project/familyBudget/lat.md/architecture.md
+/home/ikeniborn/Documents/Project/familyBudget/lat.md/domain.md
+/home/ikeniborn/Documents/Project/familyBudget/lat.md/frontend.md
+/home/ikeniborn/Documents/Project/familyBudget/lat.md/lat.md
+/home/ikeniborn/Documents/Project/familyBudget/test-results/setup-auth.setup.ts-authenticate-setup/error-context.md

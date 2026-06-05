@@ -1,0 +1,6 @@
+/home/ikeniborn/Documents/Project/familyBudget/frontend/web/templates/components/lists/modal_edit_list.html
+/home/ikeniborn/Documents/Project/familyBudget/frontend/web/templates/components/plan/stats_widget.html
+/home/ikeniborn/Documents/Project/familyBudget/frontend/web/templates/index.html
+/home/ikeniborn/Documents/Project/familyBudget/frontend/web/templates/lists.html
+/home/ikeniborn/Documents/Project/familyBudget/frontend/web/templates/partials/lists/detail_view.html
+/home/ikeniborn/Documents/Project/familyBudget/lat.md/api.md
