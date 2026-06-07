@@ -459,7 +459,7 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Recalculate Article Usage Statistics",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: recalculate_article_usage_stats (daily at 00:00 SYSTEM_TIMEZONE)")
+    logger.info(f"[SCHEDULER] Registered job: recalculate_article_usage_stats (daily at 00:00 {settings.SYSTEM_TIMEZONE})")
 
     # Job 2: Refresh balance aggregates (daily at 01:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
@@ -469,7 +469,7 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Refresh Monthly Balance Aggregates",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: refresh_balance_aggregates (daily at 01:00 SYSTEM_TIMEZONE)")
+    logger.info(f"[SCHEDULER] Registered job: refresh_balance_aggregates (daily at 01:00 {settings.SYSTEM_TIMEZONE})")
 
     # Job 3: Send weekly budget reports (every Monday at 09:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
@@ -479,7 +479,7 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Send Weekly Budget Reports (FR-005)",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: send_weekly_reports (every Monday at 09:00 SYSTEM_TIMEZONE)")
+    logger.info(f"[SCHEDULER] Registered job: send_weekly_reports (every Monday at 09:00 {settings.SYSTEM_TIMEZONE})")
 
     # Job 4: Check budget thresholds (daily at 18:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
@@ -489,7 +489,7 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Check Budget Thresholds (FR-006)",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: check_budget_thresholds (daily at 18:00 SYSTEM_TIMEZONE)")
+    logger.info(f"[SCHEDULER] Registered job: check_budget_thresholds (daily at 18:00 {settings.SYSTEM_TIMEZONE})")
 
     # Job 5: Send plan reminders (every 5 minutes)
     scheduler.add_job(
@@ -509,7 +509,7 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Generate Recurring Plan Facts",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: generate_recurring_facts (daily at 02:00 SYSTEM_TIMEZONE)")
+    logger.info(f"[SCHEDULER] Registered job: generate_recurring_facts (daily at 02:00 {settings.SYSTEM_TIMEZONE})")
 
     # Job 7: Cleanup expired WebAuthn challenges (every hour)
     scheduler.add_job(
