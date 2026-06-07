@@ -10,7 +10,7 @@ Uses AsyncIOScheduler for async compatibility with FastAPI.
 
 IMPORTANT: When running with multiple workers (uvicorn --workers N),
 each worker initializes its own scheduler. To prevent duplicate job
-execution, we use PostgreSQL advisory locks (pg_try_advisory_lock).
+execution, we use a transaction-scoped PostgreSQL advisory lock (pg_try_advisory_xact_lock).
 Only one worker can acquire the lock and execute the job.
 """
 
@@ -112,7 +112,7 @@ async def send_weekly_reports_job():
     Sends summary of previous week (Mon-Sun) to all active users.
     Includes plan vs actual, expense/income breakdown, usage percentage.
 
-    Schedule: Every Monday at 09:00 UTC
+    Schedule: Every Monday at 09:00 SYSTEM_TIMEZONE
 
     Uses PostgreSQL advisory lock to prevent duplicate execution
     when running with multiple uvicorn workers.
@@ -145,7 +145,7 @@ async def check_budget_thresholds_job():
     Checks current month budget vs actual for all expense categories.
     Sends broadcast notification if threshold exceeded (default 90%).
 
-    Schedule: Daily at 18:00 UTC
+    Schedule: Daily at 18:00 SYSTEM_TIMEZONE
 
     Uses PostgreSQL advisory lock to prevent duplicate execution
     when running with multiple uvicorn workers.
@@ -189,7 +189,7 @@ async def refresh_balance_aggregates_job():
     4. Count transactions in that month
     5. Upsert into aggregate table
 
-    Schedule: Daily at 01:00 UTC (after article stats at 00:00)
+    Schedule: Daily at 01:00 SYSTEM_TIMEZONE (after article stats at 00:00)
 
     Uses PostgreSQL advisory lock to prevent duplicate execution
     when running with multiple uvicorn workers.
@@ -296,7 +296,7 @@ async def generate_recurring_facts_job():
     2. For each plan, generate facts until horizon reached or end_date/count limit
     3. Update plan's next_generation_date and occurrences_generated
 
-    Schedule: Daily at 02:00 UTC (after balance aggregates at 01:00)
+    Schedule: Daily at 02:00 SYSTEM_TIMEZONE (after balance aggregates at 01:00)
 
     Uses PostgreSQL advisory lock to prevent duplicate execution
     when running with multiple uvicorn workers.
@@ -451,7 +451,7 @@ def init_scheduler() -> AsyncIOScheduler:
 
     # Register jobs
 
-    # Job 1: Recalculate article usage statistics (daily at 00:00 UTC)
+    # Job 1: Recalculate article usage statistics (daily at 00:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
         recalculate_article_usage_stats_job,
         trigger=CronTrigger(hour=0, minute=0),
@@ -459,9 +459,9 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Recalculate Article Usage Statistics",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: recalculate_article_usage_stats (daily at 00:00 UTC)")
+    logger.info("[SCHEDULER] Registered job: recalculate_article_usage_stats (daily at 00:00 SYSTEM_TIMEZONE)")
 
-    # Job 2: Refresh balance aggregates (daily at 01:00 UTC)
+    # Job 2: Refresh balance aggregates (daily at 01:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
         refresh_balance_aggregates_job,
         trigger=CronTrigger(hour=1, minute=0),
@@ -469,9 +469,9 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Refresh Monthly Balance Aggregates",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: refresh_balance_aggregates (daily at 01:00 UTC)")
+    logger.info("[SCHEDULER] Registered job: refresh_balance_aggregates (daily at 01:00 SYSTEM_TIMEZONE)")
 
-    # Job 3: Send weekly budget reports (every Monday at 09:00 UTC)
+    # Job 3: Send weekly budget reports (every Monday at 09:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
         send_weekly_reports_job,
         trigger=CronTrigger(day_of_week='mon', hour=9, minute=0),
@@ -479,9 +479,9 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Send Weekly Budget Reports (FR-005)",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: send_weekly_reports (every Monday at 09:00 UTC)")
+    logger.info("[SCHEDULER] Registered job: send_weekly_reports (every Monday at 09:00 SYSTEM_TIMEZONE)")
 
-    # Job 4: Check budget thresholds (daily at 18:00 UTC)
+    # Job 4: Check budget thresholds (daily at 18:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
         check_budget_thresholds_job,
         trigger=CronTrigger(hour=18, minute=0),
@@ -489,7 +489,7 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Check Budget Thresholds (FR-006)",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: check_budget_thresholds (daily at 18:00 UTC)")
+    logger.info("[SCHEDULER] Registered job: check_budget_thresholds (daily at 18:00 SYSTEM_TIMEZONE)")
 
     # Job 5: Send plan reminders (every 5 minutes)
     scheduler.add_job(
@@ -501,7 +501,7 @@ def init_scheduler() -> AsyncIOScheduler:
     )
     logger.info("[SCHEDULER] Registered job: send_plan_reminders (every 5 minutes)")
 
-    # Job 6: Generate recurring facts (daily at 02:00 UTC)
+    # Job 6: Generate recurring facts (daily at 02:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
         generate_recurring_facts_job,
         trigger=CronTrigger(hour=2, minute=0),
@@ -509,7 +509,7 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Generate Recurring Plan Facts",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: generate_recurring_facts (daily at 02:00 UTC)")
+    logger.info("[SCHEDULER] Registered job: generate_recurring_facts (daily at 02:00 SYSTEM_TIMEZONE)")
 
     # Job 7: Cleanup expired WebAuthn challenges (every hour)
     scheduler.add_job(
