@@ -39,41 +39,6 @@ LOCK_ID_RECURRING_PLANS = 1007
 LOCK_ID_WEBAUTHN_CLEANUP = 1008
 
 
-async def try_advisory_lock(session, lock_id: int) -> bool:
-    """
-    Try to acquire PostgreSQL advisory lock (non-blocking).
-
-    Advisory locks are session-level locks that prevent multiple workers
-    from executing the same job simultaneously.
-
-    Args:
-        session: Database session
-        lock_id: Unique lock identifier
-
-    Returns:
-        bool: True if lock acquired, False if another process holds it
-    """
-    result = await session.execute(
-        text("SELECT pg_try_advisory_lock(:lock_id)"),
-        {"lock_id": lock_id}
-    )
-    return result.scalar()
-
-
-async def release_advisory_lock(session, lock_id: int):
-    """
-    Release PostgreSQL advisory lock.
-
-    Args:
-        session: Database session
-        lock_id: Lock identifier to release
-    """
-    await session.execute(
-        text("SELECT pg_advisory_unlock(:lock_id)"),
-        {"lock_id": lock_id}
-    )
-
-
 @asynccontextmanager
 async def advisory_xact_lock(lock_id: int):
     """
