@@ -10,9 +10,11 @@ Uses AsyncIOScheduler for async compatibility with FastAPI.
 
 IMPORTANT: When running with multiple workers (uvicorn --workers N),
 each worker initializes its own scheduler. To prevent duplicate job
-execution, we use PostgreSQL advisory locks (pg_try_advisory_lock).
+execution, we use a transaction-scoped PostgreSQL advisory lock (pg_try_advisory_xact_lock).
 Only one worker can acquire the lock and execute the job.
 """
+
+from contextlib import asynccontextmanager
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -20,7 +22,7 @@ from sqlalchemy import text
 
 from backend.app.core.config import get_settings
 from backend.app.core.logging import get_logger
-from backend.app.db.session import get_session_context
+from backend.app.db.session import async_session_maker, get_session_context
 from backend.app.services.notification_service import NotificationService
 from backend.app.services.reminder_service import ReminderService
 
@@ -37,39 +39,31 @@ LOCK_ID_RECURRING_PLANS = 1007
 LOCK_ID_WEBAUTHN_CLEANUP = 1008
 
 
-async def try_advisory_lock(session, lock_id: int) -> bool:
+@asynccontextmanager
+async def advisory_xact_lock(lock_id: int):
     """
-    Try to acquire PostgreSQL advisory lock (non-blocking).
+    Acquire a transaction-scoped PostgreSQL advisory lock on a dedicated
+    lock-holder session, held open for the whole job.
 
-    Advisory locks are session-level locks that prevent multiple workers
-    from executing the same job simultaneously.
-
-    Args:
-        session: Database session
-        lock_id: Unique lock identifier
-
-    Returns:
-        bool: True if lock acquired, False if another process holds it
+    Yields True if the lock was acquired, False if another worker holds it.
+    The lock auto-releases when this session's transaction ends (rollback on
+    exit, or connection drop on crash) - zero leak by design, no manual unlock.
+    Job work must run on a SEPARATE session so its internal commits never
+    release this lock.
     """
-    result = await session.execute(
-        text("SELECT pg_try_advisory_lock(:lock_id)"),
-        {"lock_id": lock_id}
-    )
-    return result.scalar()
+    async with async_session_maker() as lock_session:
+        result = await lock_session.execute(
+            text("SELECT pg_try_advisory_xact_lock(:lock_id)"),
+            {"lock_id": lock_id},
+        )
+        acquired = bool(result.scalar())
+        try:
+            yield acquired
+        finally:
+            # Ends the transaction -> releases the xact lock. The lock-holder
+            # session does no writes, so rollback is the clean choice.
+            await lock_session.rollback()
 
-
-async def release_advisory_lock(session, lock_id: int):
-    """
-    Release PostgreSQL advisory lock.
-
-    Args:
-        session: Database session
-        lock_id: Lock identifier to release
-    """
-    await session.execute(
-        text("SELECT pg_advisory_unlock(:lock_id)"),
-        {"lock_id": lock_id}
-    )
 
 # Global scheduler instance
 scheduler: AsyncIOScheduler | None = None
@@ -92,24 +86,20 @@ async def recalculate_article_usage_stats_job():
     logger.info("[SCHEDULER] Starting article usage statistics recalculation job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_ARTICLE_STATS):
+        async with advisory_xact_lock(LOCK_ID_ARTICLE_STATS) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Article stats job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
+            async with get_session_context() as session:
                 # Call PostgreSQL function
                 await session.execute(text("SELECT recalculate_article_usage_stats()"))
                 await session.commit()
 
                 logger.info("[SCHEDULER] Article usage statistics recalculated successfully")
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_ARTICLE_STATS)
     except Exception as e:
         logger.error("[SCHEDULER] Error recalculating article usage statistics: %s", e, exc_info=True)
         raise
@@ -122,7 +112,7 @@ async def send_weekly_reports_job():
     Sends summary of previous week (Mon-Sun) to all active users.
     Includes plan vs actual, expense/income breakdown, usage percentage.
 
-    Schedule: Every Monday at 09:00 UTC
+    Schedule: Every Monday at 09:00 SYSTEM_TIMEZONE
 
     Uses PostgreSQL advisory lock to prevent duplicate execution
     when running with multiple uvicorn workers.
@@ -130,24 +120,19 @@ async def send_weekly_reports_job():
     logger.info("[SCHEDULER] Starting weekly reports job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_WEEKLY_REPORTS):
+        async with advisory_xact_lock(LOCK_ID_WEEKLY_REPORTS) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Weekly reports job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
-                settings = get_settings()
-                notification_service = NotificationService(settings)
-                sent_count = await notification_service.send_weekly_reports()
+            settings = get_settings()
+            notification_service = NotificationService(settings)
+            sent_count = await notification_service.send_weekly_reports()
 
-                logger.info("[SCHEDULER] Weekly reports job completed: %s reports sent", sent_count)
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_WEEKLY_REPORTS)
+            logger.info("[SCHEDULER] Weekly reports job completed: %s reports sent", sent_count)
     except Exception as e:
         logger.error("[SCHEDULER] Error in weekly reports job: %s", e, exc_info=True)
         raise
@@ -160,7 +145,7 @@ async def check_budget_thresholds_job():
     Checks current month budget vs actual for all expense categories.
     Sends broadcast notification if threshold exceeded (default 90%).
 
-    Schedule: Daily at 18:00 UTC
+    Schedule: Daily at 18:00 SYSTEM_TIMEZONE
 
     Uses PostgreSQL advisory lock to prevent duplicate execution
     when running with multiple uvicorn workers.
@@ -168,27 +153,22 @@ async def check_budget_thresholds_job():
     logger.info("[SCHEDULER] Starting budget threshold check job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_BUDGET_THRESHOLDS):
+        async with advisory_xact_lock(LOCK_ID_BUDGET_THRESHOLDS) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Budget threshold job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
-                settings = get_settings()
-                notification_service = NotificationService(settings)
-                notifications_sent = await notification_service.check_all_budget_thresholds()
+            settings = get_settings()
+            notification_service = NotificationService(settings)
+            notifications_sent = await notification_service.check_all_budget_thresholds()
 
-                logger.info(
-                    "[SCHEDULER] Budget threshold check completed: %s notifications sent",
-                    notifications_sent
-                )
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_BUDGET_THRESHOLDS)
+            logger.info(
+                "[SCHEDULER] Budget threshold check completed: %s notifications sent",
+                notifications_sent
+            )
 
     except Exception as e:
         logger.error("[SCHEDULER] Error in budget threshold check job: %s", e, exc_info=True)
@@ -209,7 +189,7 @@ async def refresh_balance_aggregates_job():
     4. Count transactions in that month
     5. Upsert into aggregate table
 
-    Schedule: Daily at 01:00 UTC (after article stats at 00:00)
+    Schedule: Daily at 01:00 SYSTEM_TIMEZONE (after article stats at 00:00)
 
     Uses PostgreSQL advisory lock to prevent duplicate execution
     when running with multiple uvicorn workers.
@@ -217,16 +197,15 @@ async def refresh_balance_aggregates_job():
     logger.info("[SCHEDULER] Starting balance aggregates refresh job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_BALANCE_AGGREGATES):
+        async with advisory_xact_lock(LOCK_ID_BALANCE_AGGREGATES) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Balance aggregates job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
+            async with get_session_context() as session:
                 from backend.app.services.balance_aggregation_service import refresh_monthly_balances
 
                 # Refresh all aggregates (full refresh daily)
@@ -239,9 +218,6 @@ async def refresh_balance_aggregates_job():
                     result['financial_centers'],
                     result['months_processed']
                 )
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_BALANCE_AGGREGATES)
 
     except Exception as e:
         logger.error("[SCHEDULER] Error refreshing balance aggregates: %s", e, exc_info=True)
@@ -264,16 +240,15 @@ async def send_plan_reminders_job():
     logger.info("[SCHEDULER] Starting plan reminders job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_PLAN_REMINDERS):
+        async with advisory_xact_lock(LOCK_ID_PLAN_REMINDERS) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Plan reminders job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
+            async with get_session_context() as session:
                 reminder_service = ReminderService()
 
                 # Get due reminders
@@ -304,10 +279,6 @@ async def send_plan_reminders_job():
                     len(due_reminders)
                 )
 
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_PLAN_REMINDERS)
-
     except Exception as e:
         logger.error("[SCHEDULER] Error in plan reminders job: %s", e, exc_info=True)
         raise
@@ -325,7 +296,7 @@ async def generate_recurring_facts_job():
     2. For each plan, generate facts until horizon reached or end_date/count limit
     3. Update plan's next_generation_date and occurrences_generated
 
-    Schedule: Daily at 02:00 UTC (after balance aggregates at 01:00)
+    Schedule: Daily at 02:00 SYSTEM_TIMEZONE (after balance aggregates at 01:00)
 
     Uses PostgreSQL advisory lock to prevent duplicate execution
     when running with multiple uvicorn workers.
@@ -333,16 +304,15 @@ async def generate_recurring_facts_job():
     logger.info("[SCHEDULER] Starting recurring facts generation job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_RECURRING_PLANS):
+        async with advisory_xact_lock(LOCK_ID_RECURRING_PLANS) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Recurring facts job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
+            async with get_session_context() as session:
                 from backend.app.services.recurring_plan_service import RecurringPlanService
 
                 service = RecurringPlanService()
@@ -381,10 +351,6 @@ async def generate_recurring_facts_job():
                         result['plans_processed']
                     )
 
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_RECURRING_PLANS)
-
     except Exception as e:
         logger.error("[SCHEDULER] Error in recurring facts generation job: %s", e, exc_info=True)
         raise
@@ -405,16 +371,15 @@ async def cleanup_expired_webauthn_challenges_job():
     logger.info("[SCHEDULER] Starting WebAuthn challenge cleanup job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_WEBAUTHN_CLEANUP):
+        async with advisory_xact_lock(LOCK_ID_WEBAUTHN_CLEANUP) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] WebAuthn cleanup job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
+            async with get_session_context() as session:
                 from datetime import datetime
 
                 from sqlalchemy import delete, func, select
@@ -451,10 +416,6 @@ async def cleanup_expired_webauthn_challenges_job():
                     count_before
                 )
 
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_WEBAUTHN_CLEANUP)
-
     except Exception as e:
         logger.error("[SCHEDULER] Error in WebAuthn challenge cleanup job: %s", e, exc_info=True)
         raise
@@ -490,7 +451,7 @@ def init_scheduler() -> AsyncIOScheduler:
 
     # Register jobs
 
-    # Job 1: Recalculate article usage statistics (daily at 00:00 UTC)
+    # Job 1: Recalculate article usage statistics (daily at 00:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
         recalculate_article_usage_stats_job,
         trigger=CronTrigger(hour=0, minute=0),
@@ -498,9 +459,9 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Recalculate Article Usage Statistics",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: recalculate_article_usage_stats (daily at 00:00 UTC)")
+    logger.info("[SCHEDULER] Registered job: recalculate_article_usage_stats (daily at 00:00 SYSTEM_TIMEZONE)")
 
-    # Job 2: Refresh balance aggregates (daily at 01:00 UTC)
+    # Job 2: Refresh balance aggregates (daily at 01:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
         refresh_balance_aggregates_job,
         trigger=CronTrigger(hour=1, minute=0),
@@ -508,9 +469,9 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Refresh Monthly Balance Aggregates",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: refresh_balance_aggregates (daily at 01:00 UTC)")
+    logger.info("[SCHEDULER] Registered job: refresh_balance_aggregates (daily at 01:00 SYSTEM_TIMEZONE)")
 
-    # Job 3: Send weekly budget reports (every Monday at 09:00 UTC)
+    # Job 3: Send weekly budget reports (every Monday at 09:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
         send_weekly_reports_job,
         trigger=CronTrigger(day_of_week='mon', hour=9, minute=0),
@@ -518,9 +479,9 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Send Weekly Budget Reports (FR-005)",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: send_weekly_reports (every Monday at 09:00 UTC)")
+    logger.info("[SCHEDULER] Registered job: send_weekly_reports (every Monday at 09:00 SYSTEM_TIMEZONE)")
 
-    # Job 4: Check budget thresholds (daily at 18:00 UTC)
+    # Job 4: Check budget thresholds (daily at 18:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
         check_budget_thresholds_job,
         trigger=CronTrigger(hour=18, minute=0),
@@ -528,7 +489,7 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Check Budget Thresholds (FR-006)",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: check_budget_thresholds (daily at 18:00 UTC)")
+    logger.info("[SCHEDULER] Registered job: check_budget_thresholds (daily at 18:00 SYSTEM_TIMEZONE)")
 
     # Job 5: Send plan reminders (every 5 minutes)
     scheduler.add_job(
@@ -540,7 +501,7 @@ def init_scheduler() -> AsyncIOScheduler:
     )
     logger.info("[SCHEDULER] Registered job: send_plan_reminders (every 5 minutes)")
 
-    # Job 6: Generate recurring facts (daily at 02:00 UTC)
+    # Job 6: Generate recurring facts (daily at 02:00 SYSTEM_TIMEZONE)
     scheduler.add_job(
         generate_recurring_facts_job,
         trigger=CronTrigger(hour=2, minute=0),
@@ -548,7 +509,7 @@ def init_scheduler() -> AsyncIOScheduler:
         name="Generate Recurring Plan Facts",
         replace_existing=True,
     )
-    logger.info("[SCHEDULER] Registered job: generate_recurring_facts (daily at 02:00 UTC)")
+    logger.info("[SCHEDULER] Registered job: generate_recurring_facts (daily at 02:00 SYSTEM_TIMEZONE)")
 
     # Job 7: Cleanup expired WebAuthn challenges (every hour)
     scheduler.add_job(
