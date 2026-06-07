@@ -33,7 +33,9 @@ def make_telegram_client() -> httpx.AsyncClient:
     """Create httpx client with optional proxy for Telegram API requests."""
     proxy_url = settings.TELEGRAM_PROXY_URL
     if proxy_url:
-        return httpx.AsyncClient(proxies={"all://": proxy_url})
+        # httpx >= 0.28 removed the `proxies=` kwarg; `proxy=` applies one
+        # proxy to all requests (the old {"all://": ...} mapping equivalent).
+        return httpx.AsyncClient(proxy=proxy_url)
     return httpx.AsyncClient()
 
 
