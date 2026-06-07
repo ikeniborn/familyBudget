@@ -280,3 +280,24 @@ CVE-2026-3644
 # Risk assessment: LOW (no user-controlled XML/DTD parsing paths)
 # Next review: 2026-07-05 (monthly check for Debian DSA on python3.11)
 CVE-2026-4224
+
+# ============================================================================
+# New Vulnerabilities (Added 2026-06-07)
+# ============================================================================
+
+# CVE-2025-13462: cpython tarfile misinterprets crafted multi-block tar archives (CRITICAL)
+# Status: affected in Debian 12 (bookworm) - marked <no-dsa> "Minor issue", no fix planned
+#   (security-tracker.debian.org/tracker/CVE-2025-13462)
+# Impact: tarfile applies AREGTYPE (\x00) normalization to DIRTYPE while processing a
+#   multi-block member (GNUTYPE_LONGNAME/LONGLINK) → crafted tar misinterpreted vs other
+#   implementations → data integrity issues
+# CVSS: 9.8 (NVD) - generic tarfile exposure score, not reflective of our usage
+# Package: libpython3.11-minimal, libpython3.11-stdlib, python3.11-minimal v3.11.2-6+deb12u6
+# Fixed in: upstream cpython patched; no fix in Debian 12 bookworm (no DSA)
+# Mitigation: Accept risk - application does NOT use the tarfile module
+#   - No `import tarfile` anywhere in backend/app (verified by grep)
+#   - File uploads restricted to .csv / .xlsx / .json (no tar archives accepted)
+#   - Same module/path controls as CVE-2025-8194 (tarfile DoS) already accepted
+# Risk assessment: LOW (tarfile module unused; no tar ingestion path)
+# Next review: 2026-09-07 (quarterly - re-check Debian DSA / Python 3.12+ migration)
+CVE-2025-13462
