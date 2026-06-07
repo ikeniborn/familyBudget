@@ -557,20 +557,37 @@ jobs:
 
             # Collect protected sub-manifest digests: multi-platform images store per-platform
             # manifests as untagged versions referenced by the tagged parent manifest list.
-            # Deleting these untagged children breaks the parent tag. Protect them explicitly.
+            # Deleting these untagged children breaks the parent tag, so a later `docker pull`
+            # fails with "manifests/<digest> not found". Protect the pinned version's children.
+            #
+            # $PACKAGE already carries the "familybudget-" prefix, so the image reference must
+            # NOT prepend it again (the previous "familybudget-${PACKAGE}" produced a doubled
+            # name that never resolved, leaving protection silently empty — the root cause of
+            # recurring redis/postgres corruption).
+            #
+            # Fail-safe: only this package's OWN pinned version must be inspectable. The global
+            # PROTECTED_TAGS union holds other services' versions that legitimately don't exist
+            # as tags here, so we cannot require all of them to resolve. If the pinned tag
+            # cannot be inspected (registry unreachable or already partially broken), abort
+            # cleanup for this package rather than delete sub-manifests we cannot prove are
+            # unreferenced.
+            PKG_KEY="${PACKAGE#familybudget-}"
+            OWN_VERSION=$(jq -r ".${PKG_KEY}.version // empty" IMAGE_VERSIONS.json 2>/dev/null)
             PROTECTED_DIGESTS=""
-            while IFS= read -r TAG; do
-              [[ -z "$TAG" ]] && continue
-              IMAGE="ghcr.io/${{ github.repository_owner }}/familybudget-${PACKAGE}:${TAG}"
-              CHILD_DIGESTS=$(docker manifest inspect "$IMAGE" 2>/dev/null \
-                | jq -r '.manifests[]?.digest // empty' 2>/dev/null || echo "")
-              if [[ -n "$CHILD_DIGESTS" ]]; then
-                PROTECTED_DIGESTS=$(printf "%s\n%s" "$PROTECTED_DIGESTS" "$CHILD_DIGESTS" \
-                  | grep -v '^$' | sort -u)
+            if [[ -n "$OWN_VERSION" ]]; then
+              OWN_IMAGE="ghcr.io/${{ github.repository_owner }}/${PACKAGE}:${OWN_VERSION}"
+              OWN_MANIFEST=$(docker manifest inspect "$OWN_IMAGE" 2>/dev/null) || true
+              if [[ -z "$OWN_MANIFEST" ]]; then
+                echo "   ⚠️ Cannot inspect pinned tag ${PACKAGE}:${OWN_VERSION} — aborting cleanup for this package (fail-safe)"
+                continue
               fi
-            done <<< "$PROTECTED_TAGS"
+              CHILD_DIGESTS=$(echo "$OWN_MANIFEST" | jq -r '.manifests[]?.digest // empty' 2>/dev/null || echo "")
+              if [[ -n "$CHILD_DIGESTS" ]]; then
+                PROTECTED_DIGESTS=$(printf "%s" "$CHILD_DIGESTS" | grep -v '^$' | sort -u)
+              fi
+            fi
             PROTECTED_DIGEST_COUNT=$(echo "$PROTECTED_DIGESTS" | grep -c 'sha256:' 2>/dev/null || echo "0")
-            echo "   Protected sub-manifest digests: $PROTECTED_DIGEST_COUNT"
+            echo "   Protected sub-manifest digests for ${PACKAGE}:${OWN_VERSION}: $PROTECTED_DIGEST_COUNT"
 
             # Get total version count for this package (to protect the last one)
             TOTAL_VERSIONS=$(gh api \
