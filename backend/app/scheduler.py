@@ -14,13 +14,15 @@ execution, we use PostgreSQL advisory locks (pg_try_advisory_lock).
 Only one worker can acquire the lock and execute the job.
 """
 
+from contextlib import asynccontextmanager
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import text
 
 from backend.app.core.config import get_settings
 from backend.app.core.logging import get_logger
-from backend.app.db.session import get_session_context
+from backend.app.db.session import async_session_maker, get_session_context
 from backend.app.services.notification_service import NotificationService
 from backend.app.services.reminder_service import ReminderService
 
@@ -70,6 +72,33 @@ async def release_advisory_lock(session, lock_id: int):
         text("SELECT pg_advisory_unlock(:lock_id)"),
         {"lock_id": lock_id}
     )
+
+
+@asynccontextmanager
+async def advisory_xact_lock(lock_id: int):
+    """
+    Acquire a transaction-scoped PostgreSQL advisory lock on a dedicated
+    lock-holder session, held open for the whole job.
+
+    Yields True if the lock was acquired, False if another worker holds it.
+    The lock auto-releases when this session's transaction ends (rollback on
+    exit, or connection drop on crash) - zero leak by design, no manual unlock.
+    Job work must run on a SEPARATE session so its internal commits never
+    release this lock.
+    """
+    async with async_session_maker() as lock_session:
+        result = await lock_session.execute(
+            text("SELECT pg_try_advisory_xact_lock(:lock_id)"),
+            {"lock_id": lock_id},
+        )
+        acquired = bool(result.scalar())
+        try:
+            yield acquired
+        finally:
+            # Ends the transaction -> releases the xact lock. The lock-holder
+            # session does no writes, so rollback is the clean choice.
+            await lock_session.rollback()
+
 
 # Global scheduler instance
 scheduler: AsyncIOScheduler | None = None
