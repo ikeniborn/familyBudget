@@ -121,24 +121,20 @@ async def recalculate_article_usage_stats_job():
     logger.info("[SCHEDULER] Starting article usage statistics recalculation job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_ARTICLE_STATS):
+        async with advisory_xact_lock(LOCK_ID_ARTICLE_STATS) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Article stats job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
+            async with get_session_context() as session:
                 # Call PostgreSQL function
                 await session.execute(text("SELECT recalculate_article_usage_stats()"))
                 await session.commit()
 
                 logger.info("[SCHEDULER] Article usage statistics recalculated successfully")
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_ARTICLE_STATS)
     except Exception as e:
         logger.error("[SCHEDULER] Error recalculating article usage statistics: %s", e, exc_info=True)
         raise
@@ -159,24 +155,19 @@ async def send_weekly_reports_job():
     logger.info("[SCHEDULER] Starting weekly reports job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_WEEKLY_REPORTS):
+        async with advisory_xact_lock(LOCK_ID_WEEKLY_REPORTS) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Weekly reports job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
-                settings = get_settings()
-                notification_service = NotificationService(settings)
-                sent_count = await notification_service.send_weekly_reports()
+            settings = get_settings()
+            notification_service = NotificationService(settings)
+            sent_count = await notification_service.send_weekly_reports()
 
-                logger.info("[SCHEDULER] Weekly reports job completed: %s reports sent", sent_count)
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_WEEKLY_REPORTS)
+            logger.info("[SCHEDULER] Weekly reports job completed: %s reports sent", sent_count)
     except Exception as e:
         logger.error("[SCHEDULER] Error in weekly reports job: %s", e, exc_info=True)
         raise
@@ -197,27 +188,22 @@ async def check_budget_thresholds_job():
     logger.info("[SCHEDULER] Starting budget threshold check job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_BUDGET_THRESHOLDS):
+        async with advisory_xact_lock(LOCK_ID_BUDGET_THRESHOLDS) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Budget threshold job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
-                settings = get_settings()
-                notification_service = NotificationService(settings)
-                notifications_sent = await notification_service.check_all_budget_thresholds()
+            settings = get_settings()
+            notification_service = NotificationService(settings)
+            notifications_sent = await notification_service.check_all_budget_thresholds()
 
-                logger.info(
-                    "[SCHEDULER] Budget threshold check completed: %s notifications sent",
-                    notifications_sent
-                )
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_BUDGET_THRESHOLDS)
+            logger.info(
+                "[SCHEDULER] Budget threshold check completed: %s notifications sent",
+                notifications_sent
+            )
 
     except Exception as e:
         logger.error("[SCHEDULER] Error in budget threshold check job: %s", e, exc_info=True)
@@ -246,16 +232,15 @@ async def refresh_balance_aggregates_job():
     logger.info("[SCHEDULER] Starting balance aggregates refresh job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_BALANCE_AGGREGATES):
+        async with advisory_xact_lock(LOCK_ID_BALANCE_AGGREGATES) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Balance aggregates job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
+            async with get_session_context() as session:
                 from backend.app.services.balance_aggregation_service import refresh_monthly_balances
 
                 # Refresh all aggregates (full refresh daily)
@@ -268,9 +253,6 @@ async def refresh_balance_aggregates_job():
                     result['financial_centers'],
                     result['months_processed']
                 )
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_BALANCE_AGGREGATES)
 
     except Exception as e:
         logger.error("[SCHEDULER] Error refreshing balance aggregates: %s", e, exc_info=True)
@@ -293,16 +275,15 @@ async def send_plan_reminders_job():
     logger.info("[SCHEDULER] Starting plan reminders job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_PLAN_REMINDERS):
+        async with advisory_xact_lock(LOCK_ID_PLAN_REMINDERS) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Plan reminders job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
+            async with get_session_context() as session:
                 reminder_service = ReminderService()
 
                 # Get due reminders
@@ -333,10 +314,6 @@ async def send_plan_reminders_job():
                     len(due_reminders)
                 )
 
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_PLAN_REMINDERS)
-
     except Exception as e:
         logger.error("[SCHEDULER] Error in plan reminders job: %s", e, exc_info=True)
         raise
@@ -362,16 +339,15 @@ async def generate_recurring_facts_job():
     logger.info("[SCHEDULER] Starting recurring facts generation job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_RECURRING_PLANS):
+        async with advisory_xact_lock(LOCK_ID_RECURRING_PLANS) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] Recurring facts job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
+            async with get_session_context() as session:
                 from backend.app.services.recurring_plan_service import RecurringPlanService
 
                 service = RecurringPlanService()
@@ -410,10 +386,6 @@ async def generate_recurring_facts_job():
                         result['plans_processed']
                     )
 
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_RECURRING_PLANS)
-
     except Exception as e:
         logger.error("[SCHEDULER] Error in recurring facts generation job: %s", e, exc_info=True)
         raise
@@ -434,16 +406,15 @@ async def cleanup_expired_webauthn_challenges_job():
     logger.info("[SCHEDULER] Starting WebAuthn challenge cleanup job")
 
     try:
-        async with get_session_context() as session:
-            # Try to acquire advisory lock (non-blocking)
-            if not await try_advisory_lock(session, LOCK_ID_WEBAUTHN_CLEANUP):
+        async with advisory_xact_lock(LOCK_ID_WEBAUTHN_CLEANUP) as acquired:
+            if not acquired:
                 logger.info(
                     "[SCHEDULER] WebAuthn cleanup job skipped - "
                     "another worker is already executing"
                 )
                 return
 
-            try:
+            async with get_session_context() as session:
                 from datetime import datetime
 
                 from sqlalchemy import delete, func, select
@@ -479,10 +450,6 @@ async def cleanup_expired_webauthn_challenges_job():
                     "[SCHEDULER] WebAuthn challenge cleanup completed: %s challenges deleted",
                     count_before
                 )
-
-            finally:
-                # Always release the lock
-                await release_advisory_lock(session, LOCK_ID_WEBAUTHN_CLEANUP)
 
     except Exception as e:
         logger.error("[SCHEDULER] Error in WebAuthn challenge cleanup job: %s", e, exc_info=True)
