@@ -1,3 +1,33 @@
+---
+review:
+  spec_hash: c9bc85964fc96b0d
+  last_run: 2026-06-07
+  phases:
+    structure:   { status: passed }
+    coverage:    { status: passed }
+    clarity:     { status: passed }
+    consistency: { status: passed }
+  findings:
+    - id: F-001
+      phase: clarity
+      severity: INFO
+      section: Design
+      section_hash: 87a410af2c370b98
+      text: "Lock-holder session is named three ways (lock session / lock-holder session / dedicated lock session); unify the term."
+      verdict: fixed
+      verdict_at: 2026-06-07
+    - id: F-002
+      phase: clarity
+      severity: INFO
+      section: Edge Cases
+      section_hash: 9e5966b71129b7da
+      text: "'daily jobs barely overlap' is not backed by an explicit schedule-overlap analysis."
+      verdict: fixed
+      verdict_at: 2026-06-07
+chain:
+  intent: docs/superpowers/intents/2026-06-07-scheduler-advisory-lock-tz-intent.md
+---
+
 # Design: Scheduler advisory-lock leak fix + timezone comment clarity
 
 **Date:** 2026-06-07
@@ -71,7 +101,7 @@ Why this over alternatives:
   under pooling, and the intent hard-mandates a transaction-scoped lock with
   "zero leak by design".
 
-The dedicated lock session opens its own transaction with
+The dedicated lock-holder session opens its own transaction with
 `pg_try_advisory_xact_lock`, never commits it mid-job, and rolls back on exit.
 Because the lock is transaction-scoped, it auto-releases when that transaction
 ends (rollback on normal/error exit) or when the connection drops (process
@@ -93,7 +123,8 @@ from backend.app.db.session import async_session_maker
 async def advisory_xact_lock(lock_id: int):
     """
     Acquire a transaction-scoped PostgreSQL advisory lock on a dedicated
-    session, held open for the whole job. Yields True if acquired, False if
+    lock-holder session, held open for the whole job. Yields True if acquired,
+    False if
     another worker holds it. The lock auto-releases when this session's
     transaction ends (rollback on exit, or connection drop on crash) — zero
     leak by design, no manual unlock.
@@ -107,8 +138,8 @@ async def advisory_xact_lock(lock_id: int):
         try:
             yield acquired
         finally:
-            # Ends the transaction → releases the xact lock. The lock session
-            # does no writes, so rollback is the clean choice.
+            # Ends the transaction → releases the xact lock. The lock-holder
+            # session does no writes, so rollback is the clean choice.
             await lock_session.rollback()
 ```
 
@@ -178,10 +209,10 @@ Do **not** change:
 | Case | Behaviour |
 |------|-----------|
 | Work raises | Outer `try/except` logs + re-raises; `advisory_xact_lock` finally rolls back → lock released. |
-| `idle_in_transaction_session_timeout` kills the lock session mid-job | Lock released early, but dedup was already decided at job start (other workers skipped) → harmless. |
+| `idle_in_transaction_session_timeout` kills the lock-holder session mid-job | Lock released early, but dedup was already decided at job start (other workers skipped) → harmless. |
 | N workers fire simultaneously | Exactly one wins `pg_try_advisory_xact_lock`; the rest get `False` → `skipped`. Holds for any N. |
 | Process crash mid-job | Connection drops → PostgreSQL auto-releases the xact lock. No leak. |
-| Pool pressure | Each running job holds 2 connections (lock + work). Pool is 5+10=15 per worker; daily jobs barely overlap → ample headroom. |
+| Pool pressure | Each running job holds 2 connections (lock + work). Pool is 5+10=15 per worker. Heavy daily jobs run at distinct times (00:00, 01:00, 02:00, 18:00 SYSTEM_TIMEZONE); only the `*/5`-min reminders and hourly WebAuthn cleanup can coincide, both short → at most ~3 jobs (6 connections) concurrent → ample headroom. |
 
 ## Testing
 
