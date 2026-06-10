@@ -13,9 +13,11 @@
 
 ## Сущности
 
-### 1. `t_d_medicine` — справочник лекарств (Dimension, SCD Type 1)
+### 1. `t_d_medicine` — справочник лекарств (Dimension, SCD Type 1 + history)
 
-Один общий справочник на семью. История — отдельная таблица `t_d_medicine_history` (паттерн как `product_group_history`).
+Один общий справочник на семью. Основная таблица хранит текущее состояние (SCD Type 1). Полная история изменений — отдельная таблица `t_d_medicine_history` (SCD Type 2, паттерн как `product_group_history`).
+
+Удаление: **только soft-archive** (`is_active=False`). Hard delete запрещён, если есть связанные `stock`/`course` с `deleted_at IS NULL`.
 
 | Поле | Тип | Описание |
 |---|---|---|
@@ -54,7 +56,8 @@
 | `unit` | str(50) | «шт», «мл», «доз» |
 | `expiry_date` | date **indexed** | Срок годности — алерт <30 дней |
 | `purchase_date` | date? | |
-| `purchase_price` | Decimal(10,2)? | Опц. — связь с фактами расходов |
+| `purchase_price` | Decimal(10,2)? | Цена покупки (заполняется до создания fact-записи) |
+| `fact_id` | int? | Ссылка на `t_f_budget_fact` после интеграции (Итерация 4). До неё — NULL. |
 | `location` | str(100)? | «Кухня, шкаф», «Аптечка в спальне» |
 | `creator_id`, `version`, `deleted_at`, `last_modified_by`, `created_at`, `updated_at` | | как в `shopping_list_item` |
 
@@ -68,18 +71,17 @@
 | `prescribed_by` | str(255)? | Врач / самолечение |
 | `dose_amount` | Decimal(10,3) | Сколько за приём |
 | `dose_unit` | str(50) | |
-| `frequency_per_day` | int | 1–6 раз в день |
-| `intake_times` | JSON | `["08:00", "14:00", "20:00"]` |
+| `intake_times` | JSON | `["08:00", "14:00", "20:00"]` — времена в SYSTEM_TIMEZONE; частота = `len(intake_times)` (не хранится отдельно) |
 | `with_food` | enum? | before / with / after / any |
 | `start_date` | date | Начало курса |
-| `end_date` | date? | Конец курса (NULL = постоянный) |
-| `duration_days` | int? | Длительность (альтернатива end_date) |
+| `end_date` | date? | Конец курса (NULL = постоянный). При создании курса по «длительности» вычисляется на сервере. |
 | `schedule_type` | enum | daily / every_n_days / weekdays |
 | `schedule_config` | JSON? | `{"n": 2}` или `{"days": ["mon","wed","fri"]}` |
 | `is_active` | bool | Идёт / завершён / приостановлен |
 | `reminders_enabled` | bool | |
 | `notification_channels` | JSON | `["telegram", "web_push"]` |
 | `comment` | text? | |
+| `deleted_at` | datetime? | Soft delete (архивация завершённого курса) |
 | `creator_id`, `created_at`, `updated_at` | | |
 
 ### 5. `t_f_medicine_intake_log` — журнал приёма
@@ -91,16 +93,19 @@
 | `id` | int PK | |
 | `course_id` | FK course CASCADE | |
 | `patient_id` | FK family_member | Дублируем для быстрого фильтра |
-| `scheduled_at` | datetime | Когда запланирован приём |
+| `scheduled_at` | datetime | Когда запланирован приём (naive datetime в SYSTEM_TIMEZONE, как в `ScheduledReminder`) |
 | `taken_at` | datetime? | Когда фактически принят (NULL = не отмечено) |
 | `status` | enum | scheduled / taken / skipped / late |
-| `dose_taken` | Decimal? | Если отличается от плановой |
+| `dose_taken` | Decimal(10,3)? | Если отличается от плановой |
 | `stock_id` | FK stock? | Из какой упаковки приняли (для списания) |
 | `comment` | text? | |
-| `marked_by` | FK user | Кто отметил приём (родитель за ребёнка) |
+| `marked_by` | int? FK `t_d_user.id` | Кто отметил приём (родитель за ребёнка) |
+| `version` | int | Optimistic locking — конкурентные отметки от разных взрослых |
 | `created_at`, `updated_at` | | |
 
 Индексы: `(patient_id, scheduled_at)`, `(course_id, scheduled_at)`, `(status)`.
+Constraints: `UNIQUE (course_id, scheduled_at)` — идемпотентность генерации.
+Soft delete не нужен (журнал неизменный).
 
 ### 6. `t_medicine_reminder` — напоминания
 
@@ -109,13 +114,14 @@
 | Поле | Тип | Описание |
 |---|---|---|
 | `id` | int PK | |
-| `intake_log_id` | int unique | One-to-one с приёмом |
-| `recipient_user_id` | FK user | Кому слать (пациент или опекун) |
-| `reminder_datetime` | datetime indexed | |
+| `intake_log_id` | int indexed | FK на intake_log (без UNIQUE — может быть несколько получателей на один приём) |
+| `recipient_user_id` | int FK `t_d_user.id`, NOT NULL | Кому слать. Для пациента без `linked_user_id` → `family_member.guardian_user_id`. |
+| `reminder_datetime` | datetime indexed | Naive в SYSTEM_TIMEZONE |
 | `status` | str(20) | pending / sent / failed / cancelled |
 | `sent_at`, `telegram_sent`, `web_push_sent`, `error_message`, `retry_count` | | как в `ScheduledReminder` |
 
-Можно создать несколько записей на один `intake_log` — отдельная для пациента и для опекуна.
+Constraints: `UNIQUE (intake_log_id, recipient_user_id)` — один пуш одному получателю на один приём.
+На один `intake_log` создаются отдельные записи для пациента (если есть аккаунт) и для опекуна.
 
 ## Архитектурные решения
 
@@ -128,23 +134,26 @@
 
 ### Списание остатков
 При `mark_intake_taken`:
-- Если `stock_id` указан → `stock.quantity_remaining -= dose_amount` атомарно (SELECT FOR UPDATE).
-- FIFO по `expiry_date` — выбираем упаковку с ближайшим сроком.
-- Если остатков нет → уведомление «закончилось X» + опц. автодобавление в `shopping_list`.
+- Если в запросе указан `stock_id` → списываем именно из этой упаковки атомарно (`SELECT … FOR UPDATE`, `quantity_remaining -= dose_amount`).
+- Если `stock_id` **не** указан → сервис сам выбирает упаковку по FIFO: `medicine_id = course.medicine_id AND quantity_remaining > 0 AND deleted_at IS NULL ORDER BY expiry_date ASC LIMIT 1`.
+- Если подходящих остатков нет → запись о приёме создаётся без `stock_id` + уведомление «закончилось X» + опц. автодобавление в `shopping_list`.
 
 ### Генерация intake_log
-Не хранить весь курс на год вперёд. Ночной cron-job (как `bot/jobs/weekly_report.py`):
+Не хранить весь курс на год вперёд. Ночной cron-job:
 - Генерит `intake_log` на 7 дней вперёд для всех активных курсов.
-- Сразу создаёт `t_medicine_reminder` на каждый log.
-- Идемпотентность: UNIQUE на `(course_id, scheduled_at)`.
+- Сразу создаёт `t_medicine_reminder` на каждый log (по одной записи на каждого получателя — пациент и/или опекун).
+- Идемпотентность через UNIQUE `(course_id, scheduled_at)`.
+- При открытии дашборда сервис догенеривает пропущенные дни (если пользователь не открывал приложение дольше недели) и переводит просроченные `scheduled` → `late`, если `scheduled_at < now() - 24h`.
 
 ### Напоминания
-- Переиспользуем механизм `ScheduledReminder` (есть `is_due()`, `mark_sent()`, telegram + web_push).
-- Новый job `bot/jobs/medicine_reminders.py`: каждую минуту берёт `status='pending' AND reminder_datetime <= now()`, шлёт, ставит статус.
+- Переиспользуем существующий диспетчер `backend/app/scheduler.py` (он уже опрашивает `ScheduledReminder.get_due_reminders` и шлёт через telegram + web_push).
+- В `scheduler.py` добавляем параллельный цикл по `t_medicine_reminder` — тот же паттерн `get_due → send → mark_sent`.
+- Сервис рассылки (`MedicineReminderService.send`) переиспользует telegram-bot и web-push-клиент из `ReminderService`.
 - Inline-кнопки в пуше: «Принял ✅» / «Пропустить» / «Отложить 30 мин» → callback → API → update `intake_log`.
+- Snooze: создаёт новую запись в `t_medicine_reminder` с `reminder_datetime = now() + 30 мин` (значение по умолчанию, конфигурируется на уровне курса).
 
 ### Алерты по сроку годности
-Ежедневный job: `expiry_date <= today + 30 days` → пуш + значок на странице аптечки. Расширение `notifications.py`.
+Ежедневный job в `scheduler.py`: выборка stock-записей с `expiry_date <= today + 30 days AND quantity_remaining > 0 AND deleted_at IS NULL`. Отправка пуша + значок на странице аптечки. Расширение `notifications.py`.
 
 ## API эндпоинты
 
@@ -185,7 +194,7 @@ POST   /api/v1/medicine-intakes/{id}/snooze  # отложить на 30 мин
 4. `/medicines/courses` — список активных/завершённых курсов.
 5. `/medicines/courses/{id}` — карточка курса + календарь приёма + журнал.
 
-Real-time: WebSocket-канал `medicine:{family}` — отметка приёма мгновенно обновляет UI у всех.
+Real-time: WebSocket-канал `medicine:all` (shared, как `shopping_lists`) — отметка приёма мгновенно обновляет UI у всех. Клиент фильтрует события по `patient_id` для отображения только релевантного члена семьи.
 
 Bundle: новые IIFE-entry-points в `frontend/web/`, по образцу `shopping_lists.ts`.
 
@@ -218,22 +227,21 @@ Bundle: новые IIFE-entry-points в `frontend/web/`, по образцу `sh
 
 **Итерация 3 — Напоминания:**
 - Миграция: `t_medicine_reminder`.
-- Cron-job `bot/jobs/medicine_reminders.py`.
+- Расширение `backend/app/scheduler.py` новым циклом диспетчеризации.
 - Inline-кнопки в Telegram + Web Push.
 
 **Итерация 4 — Интеграции:**
 - Списание остатков при отметке приёма.
 - Автодобавление «закончилось» в `shopping_list`.
-- Интеграция расходов аптечки с `t_f_budget_fact` (article = «Медицина»).
+- Интеграция расходов аптечки с `t_f_budget_fact`: заводим отдельную статью в `t_d_article` («Медицина / Лекарства»). При добавлении stock с `purchase_price` сервис создаёт fact-запись с этой статьёй. Связь храним через nullable `fact_id` в `t_f_medicine_stock` (избегаем дублирования цены).
 - Аналитика: сколько потрачено на лекарства за месяц, кто чаще болеет.
 
 ## Открытые вопросы
 
-1. **Расписание** — поддерживаем сложные схемы (через день, по нечётным дням недели) или только N раз в день? *(см. `schedule_type` в курсе)*
-2. **Один справочник или у каждого свой?** *(рекомендация: один общий — как `t_d_store`)*
-3. **Связь с бюджетом** — расход на аптеке должен автоматически приходить в `t_f_budget_fact`?
-4. **«Отложить» напоминание** — на сколько по умолчанию (15 / 30 / 60 мин)?
-5. **Несколько получателей одного напоминания** — слать и пациенту, и опекуну?
+1. **Связь с бюджетом** — расход на аптеке должен автоматически приходить в `t_f_budget_fact` (через nullable `fact_id` в stock)?
+2. **«Отложить» напоминание** — значение по умолчанию (15 / 30 / 60 мин) и можно ли переопределить на уровне курса?
+3. **Несколько получателей одного напоминания** — слать всегда и пациенту, и опекуну, или только опекуну если у пациента нет аккаунта?
+4. **`frequency_per_day` без ограничений** — позволяем любые `intake_times` (например, каждые 2 часа = 8+ приёмов) или ставим soft-limit на UI?
 
 ## Связанные документы
 
@@ -241,4 +249,5 @@ Bundle: новые IIFE-entry-points в `frontend/web/`, по образцу `sh
 - `lat.md/architecture.md` — общая архитектура.
 - `backend/app/models/shopping_list.py`, `shopping_list_item.py` — образец Header+Lines.
 - `backend/app/models/scheduled_reminder.py` — образец напоминаний.
-- `bot/jobs/weekly_report.py` — образец cron-job.
+- `backend/app/scheduler.py` — диспетчер due-reminders (расширяется в Итерации 3).
+- `backend/app/services/reminder_service.py` — образец сервиса (get_due / send / mark_sent).
