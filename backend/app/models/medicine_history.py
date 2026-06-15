@@ -1,7 +1,7 @@
 """Medicine SCD Type 2 audit history (mirrors product_group_history)."""
 from datetime import datetime, timezone
 
-from sqlalchemy import ARRAY, String
+from sqlalchemy import ARRAY, DateTime, String
 from sqlmodel import Column, Field, SQLModel
 
 FAR_FUTURE_DATETIME = datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc)
@@ -26,8 +26,12 @@ class MedicineHistory(SQLModel, table=True):
     is_active: bool = Field(nullable=False)
 
     # SCD2 temporal
-    valid_from: datetime = Field(nullable=False, index=True)
-    valid_to: datetime = Field(default=FAR_FUTURE_DATETIME, nullable=False)
+    valid_from: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False, index=True),
+    )
+    valid_to: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False, default=FAR_FUTURE_DATETIME),
+    )
     is_current: bool = Field(nullable=False, index=True)
 
     # Change metadata
