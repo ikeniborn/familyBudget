@@ -72,6 +72,10 @@ from backend.app.models.refresh_token import RefreshToken
 from backend.app.models.scheduled_reminder import ScheduledReminder
 from backend.app.models.shopping_list import ShoppingList
 from backend.app.models.shopping_list_item import ShoppingListItem
+from backend.app.models.medicine import Medicine
+from backend.app.models.medicine_history import MedicineHistory
+from backend.app.models.family_member import FamilyMember
+from backend.app.models.medicine_stock import MedicineStock
 from backend.app.models.store import Store
 from backend.app.models.store_history import StoreHistory
 from backend.app.models.two_factor_session import TwoFactorSession
@@ -109,4 +113,8 @@ __all__ = [
     "ProductGroupHierarchy",
     "ShoppingList",
     "ShoppingListItem",
+    "Medicine",
+    "MedicineHistory",
+    "FamilyMember",
+    "MedicineStock",
 ]
