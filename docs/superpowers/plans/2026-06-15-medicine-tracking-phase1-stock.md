@@ -77,6 +77,10 @@ review:
 chain:
   intent: null
   spec: docs/superpowers/specs/2026-06-15-medicine-tracking-design.md
+result_check:
+  verdict: OK
+  plan_hash: dca42ceb73830649
+  last_run: 2026-06-16
 ---
 
 # Medicine Tracking — Phase 1: MVP «Аптечка» Implementation Plan
