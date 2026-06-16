@@ -1116,6 +1116,16 @@ async def broadcast_shopping_list_deleted(list_id: int):
     await _broadcast_and_buffer("shopping_list_deleted", {"id": list_id})
 
 
+async def broadcast_medicine_changed(entity: str, data: dict):
+    """Broadcast a medicine-domain change. entity ∈ {catalog, family_member, stock}.
+
+    All connected clients receive every event (no channels/subscriptions, like
+    shopping_list_*). The client filters by entity/patient on its side.
+    """
+    event_type = "medicine_stock_changed" if entity == "stock" else f"medicine_{entity}_changed"
+    await _broadcast_and_buffer(event_type, data)
+
+
 # Financial center broadcast functions
 
 async def broadcast_financial_center_created(fc_data: dict):
