@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 ---
 review:
   spec_hash: 5354578b794e4c5c
@@ -38,7 +36,6 @@ chain:
   intent: null
 ---
 
->>>>>>> 58743c43 (docs: medicine tracking implementation spec)
 # Семейная аптечка — спецификация реализации
 
 **Дата:** 2026-06-15
@@ -163,11 +160,7 @@ chain:
 |---|---|---|
 | `id` | int PK | |
 | `course_id` | FK course CASCADE | |
-<<<<<<< HEAD
-| `patient_id` | FK family_member | Дубль для быстрого фильтра |
-=======
 | `patient_id` | FK family_member | Денормализация под индекс `(patient_id, scheduled_at)` — фильтр без join к course |
->>>>>>> 58743c43 (docs: medicine tracking implementation spec)
 | `scheduled_at` | datetime | Плановое время (naive, SYSTEM_TIMEZONE) |
 | `taken_at` | datetime? | Факт приёма (NULL = не отмечено) |
 | `status` | enum | scheduled/taken/skipped/late |
@@ -204,11 +197,7 @@ Constraint: `UNIQUE(intake_log_id, recipient_user_id)` — один пуш од�
 - **Создание курса (мягкая связь):** селектор лекарства показывает каталог; элементы с активным остатком (`quantity_remaining > 0`) помечены и подняты наверх. Если у выбранного лекарства остатка нет — предупреждение «нет в аптечке» + кнопка «добавить в аптечку». Создание не блокируется.
 - **Остаток на приёмах:** на карточке курса и в списке «на сегодня» показываем агрегат
   `remaining = Σ stock.quantity_remaining WHERE medicine_id = course.medicine_id AND deleted_at IS NULL AND quantity_remaining > 0`
-<<<<<<< HEAD
-  и оценку: `хватит на ⌊remaining / dose_amount⌋ приёмов` (≈ дней = приёмы / `len(intake_times)` для `schedule_type=daily`). Это read-only агрегат, отдельных полей не хранит.
-=======
   и оценку: `приёмов_хватит = ⌊remaining / dose_amount⌋`, `≈ дней = ⌊приёмов_хватит / приёмов_в_день⌋`, где `приёмов_в_день` зависит от расписания: `daily` → `len(intake_times)`; `every_n_days` → `len(intake_times) / n`; `weekdays` → `len(intake_times) * len(days) / 7`. Это read-only агрегат, отдельных полей не хранит.
->>>>>>> 58743c43 (docs: medicine tracking implementation spec)
 - **Фактическое списание** — Фаза 4 (`intake_log.stock_id`, FIFO по `expiry_date`).
 
 ### Получатели напоминаний
@@ -223,11 +212,7 @@ Callback `med:snooze:{log_id}` → создаётся новая запись `t
 ### Web Push payload
 Все пуши модуля задают `data.url = "/medicines"` и `data.type = "medicine_reminder"` / `"medicine_expiry"` — **не** `"sync_completed"` (иначе `sw.js` увёл бы на `/facts`). Кнопок-действий в Web Push нет: клик открывает дашборд.
 
-<<<<<<< HEAD
-### Списание остатков (Итерация 4)
-=======
 ### Списание остатков (Фаза 4)
->>>>>>> 58743c43 (docs: medicine tracking implementation spec)
 При `POST /medicine-intakes/{id}/take`:
 - если задан `stock_id` → списываем из этой упаковки атомарно (`SELECT … FOR UPDATE`, `quantity_remaining -= dose_taken`);
 - если не задан → FIFO: `medicine_id = course.medicine_id AND quantity_remaining > 0 AND deleted_at IS NULL ORDER BY expiry_date ASC LIMIT 1`;
