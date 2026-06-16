@@ -19,9 +19,14 @@ This package contains all API endpoint routers organized by domain:
 - shopping_list_items: ShoppingListItems CRUD endpoints with batch ops (Shopping Lists Feature)
 - shopping_csv_import: Shopping Lists CSV import endpoints (Shopping Lists Feature)
 - import_templates: Import templates CRUD endpoints (Shopping Lists Feature)
+- medicines: Medicine catalog + stock CRUD endpoints (Medicine Tracking Feature)
+- family_members: Family member CRUD endpoints (Medicine Tracking Feature)
 """
 
 from backend.app.api.v1.endpoints.articles import router as articles_router
+from backend.app.api.v1.endpoints.family_members import router as family_members_router
+from backend.app.api.v1.endpoints.medicines import router as medicines_router
+from backend.app.api.v1.endpoints.medicines import stock_router as medicine_stock_router
 from backend.app.api.v1.endpoints.auth import router as auth_router
 from backend.app.api.v1.endpoints.budget_ws import router as budget_ws_router
 from backend.app.api.v1.endpoints.cache_metrics import router as cache_metrics_router
@@ -60,6 +65,9 @@ from backend.app.api.v1.endpoints.webauthn import router as webauthn_router
 __all__ = [
     "auth_router",
     "articles_router",
+    "family_members_router",
+    "medicines_router",
+    "medicine_stock_router",
     "budget_ws_router",
     "cache_metrics_router",
     "consent_router",
