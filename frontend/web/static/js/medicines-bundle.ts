@@ -16,10 +16,11 @@ try {
       if (document.getElementById('medicines-catalog-body')) loadCatalog();
       if (document.getElementById('medicines-stock-body')) loadStock();
     });
+    // budgetWSClient exposes `.on(eventType, handler)` (same API facts/dashboard managers use).
     const ws = (window as any).budgetWSClient;
-    if (ws && typeof ws.addEventListener === 'function') {
+    if (ws && typeof ws.on === 'function') {
       ['medicine_catalog_changed', 'medicine_stock_changed'].forEach(t =>
-        ws.addEventListener(t, () => handleMedicineEvent(t)));
+        ws.on(t, () => handleMedicineEvent(t)));
     }
   }
 } catch (e) {
