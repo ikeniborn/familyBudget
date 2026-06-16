@@ -61,10 +61,12 @@ async def send_expiry_alerts(session: AsyncSession, settings) -> int:
         if u.telegram_id and u.enable_telegram_notifications:
             if await svc.send_telegram_message(telegram_id=u.telegram_id, message=message):
                 sent += 1
-    # Web Push (spec decision #5: click opens /medicines, no action buttons)
+    # Web Push (spec decision #5: opens the medicines view, no action buttons).
+    # Phase 1 has no /medicines dashboard yet (Phase 2) — target /medicines/stock,
+    # the page that actually lists expiring items (⏰ badges). Switch to /medicines in Phase 2.
     push_title = "💊 Скоро истекает срок годности"
     push_body = f"{len(items)} позиций в аптечке требуют внимания."
-    push_data = {"type": "medicine_expiry", "url": "/medicines"}
+    push_data = {"type": "medicine_expiry", "url": "/medicines/stock"}
     for u in users:
         if u.enable_push_notifications:
             sent += await PushService.send_to_user(session, u.id, push_title, push_body, push_data)
