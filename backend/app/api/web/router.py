@@ -489,6 +489,26 @@ async def shopping_list_detail_page(
     )
 
 
+@web_router.get("/medicines/catalog", response_class=HTMLResponse)
+async def medicines_catalog_page(request: Request, current_user: CurrentUser):
+    """Medicine catalog page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_catalog.html",
+        {"request": request, "user": current_user, "page_title": "Справочник лекарств"},
+    )
+
+
+@web_router.get("/medicines/stock", response_class=HTMLResponse)
+async def medicines_stock_page(request: Request, current_user: CurrentUser):
+    """Medicine stock (аптечка) page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_stock.html",
+        {"request": request, "user": current_user, "page_title": "Аптечка"},
+    )
+
+
 # =============================================================================
 # Authentication Web Pages (Public and Authenticated)
 # =============================================================================

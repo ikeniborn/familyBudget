@@ -206,6 +206,12 @@ const builds = [
     globalName: 'PlanApp'
   },
   {
+    name: 'medicines',
+    input: 'frontend/web/static/js/medicines-bundle.ts',
+    output: 'frontend/web/static/js/medicines.min.js',
+    globalName: 'MedicinesApp'
+  },
+  {
     name: 'facts',
     input: 'frontend/web/static/js/facts/index.ts',
     output: 'frontend/web/static/js/facts.min.js',
