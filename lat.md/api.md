@@ -40,6 +40,10 @@ CSV import pipeline: upload → analyze columns → map to articles → stage �
 
 Web Push subscriptions and in-app notifications. Service: `notification_service.py`, `push_service.py`.
 
+### Medicines (`/api/v1/medicines`, `/medicine-stock`, `/family-members`)
+
+Medicine inventory, shared across all family users (no per-user filtering). Catalog CRUD + `/medicines/search`; DELETE = soft-archive (200, blocked 409 while active stock exists). Stock CRUD with soft-delete (DELETE → 204) + expiry filter (`?expiring_in_days=`). Family members CRUD with soft-archive. Mutations broadcast `medicine_catalog_changed` / `medicine_stock_changed` / `medicine_family_member_changed` via [[realtime#WebSocket Protocol]]. Web pages: `/medicines/catalog`, `/medicines/stock`. Daily expiry-alert job: `medicine_alert_service.py`. See [[database#Medicine Tracking (Phase 1)]].
+
 ## Web Routes
 
 HTML page routes in `backend/app/api/web/`. Return full Jinja2 templates or HTMX partials. No JSON — only HTML fragments for HTMX swap targets.

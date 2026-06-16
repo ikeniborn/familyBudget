@@ -22,6 +22,17 @@ Main table holds only current data (in-place UPDATE, no new rows). Full history 
 
 Used by: `CostCenter` → `t_d_cost_center` + `t_d_cost_center_history`. Motivation: fact table FKs to cost centers must remain stable; SCD2 on main table would break them on every update.
 
+## Medicine Tracking (Phase 1)
+
+Family medicine inventory. Four tables (migration `m1a2b3c4d5e6`):
+
+- `t_d_medicine` — shared catalog (Dimension, [[#SCD Type 1 with History]]). Soft-archive via `is_active`. `form` is `VARCHAR(20) + CHECK` (tablet/capsule/syrup/drops/ointment/spray/injection/other). Model: `backend/app/models/medicine.py`.
+- `t_d_medicine_history` — SCD Type 2 audit of catalog changes; `change_type` ∈ CREATE/UPDATE/ARCHIVE/RESTORE. `valid_from`/`valid_to` are `TIMESTAMPTZ` (`valid_to=9999-12-31 UTC`), matching the project-wide tz-aware history convention. A row is appended on every catalog mutation by `medicine_service.py`.
+- `t_d_family_member` — people courses are assigned to (incl. children without an account). `guardian_user_id` always receives reminders. Soft-archive via `is_active`.
+- `t_f_medicine_stock` — one physical package = one row (mirrors `shopping_list_item`: soft-delete via `deleted_at` + optimistic `version`). `quantity_*` `NUMERIC(10,3)`, `expiry_date` indexed (expiry alerts < 30 days). `purchase_price` is module analytics only — NOT budget.
+
+Delete-guard: archiving a medicine returns 409 while non-deleted stock references it (`has_active_links`). Daily 03:00 maintenance job emits expiry alerts via Telegram + Web Push (`medicine_alert_service.py`).
+
 ## Closure Table
 
 Stores ALL ancestor-descendant paths for a tree, enabling O(1) subtree queries. Each row: `(ancestor_id, descendant_id, depth)`. Self-references (depth=0) for every node. Maintained by DB triggers.
