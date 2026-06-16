@@ -37,6 +37,8 @@ LOCK_ID_PLAN_REMINDERS = 1005
 LOCK_ID_BALANCE_AGGREGATES = 1006
 LOCK_ID_RECURRING_PLANS = 1007
 LOCK_ID_WEBAUTHN_CLEANUP = 1008
+LOCK_ID_MEDICINE_DISPATCH = 1009      # reserved for Phase 3 (every 5 min)
+LOCK_ID_MEDICINE_MAINTENANCE = 1010   # daily medicine maintenance (expiry + Phase 2 generation)
 
 
 @asynccontextmanager
@@ -356,6 +358,24 @@ async def generate_recurring_facts_job():
         raise
 
 
+async def medicine_maintenance_job():
+    """Daily medicine maintenance. Phase 1: expiry alerts. Phase 2 adds intake_log generation + scheduled→late."""
+    logger.info("[SCHEDULER] Starting medicine maintenance job")
+    try:
+        async with advisory_xact_lock(LOCK_ID_MEDICINE_MAINTENANCE) as acquired:
+            if not acquired:
+                logger.info("[SCHEDULER] Medicine maintenance skipped - another worker is executing")
+                return
+            settings = get_settings()
+            from backend.app.services.medicine_alert_service import send_expiry_alerts
+            async with get_session_context() as session:
+                sent = await send_expiry_alerts(session, settings)
+            logger.info("[SCHEDULER] Medicine maintenance done: %s expiry alerts sent", sent)
+    except Exception as e:
+        logger.error("[SCHEDULER] Error in medicine maintenance job: %s", e, exc_info=True)
+        raise
+
+
 async def cleanup_expired_webauthn_challenges_job():
     """
     Job: Delete expired WebAuthn challenges from database.
@@ -520,6 +540,16 @@ def init_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
     logger.info("[SCHEDULER] Registered job: cleanup_expired_webauthn_challenges (every hour)")
+
+    # Job 8: Medicine maintenance (daily at 03:00 SYSTEM_TIMEZONE, after recurring facts at 02:00)
+    scheduler.add_job(
+        medicine_maintenance_job,
+        trigger=CronTrigger(hour=3, minute=0),
+        id="medicine_maintenance",
+        name="Medicine Maintenance (expiry alerts)",
+        replace_existing=True,
+    )
+    logger.info(f"[SCHEDULER] Registered job: medicine_maintenance (daily at 03:00 {settings.SYSTEM_TIMEZONE})")
 
     return scheduler
 
