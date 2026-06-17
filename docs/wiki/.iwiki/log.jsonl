@@ -1,0 +1,10 @@
+{"op":"init","source":"backend/app/main.py,scheduler.py,core,middleware,docker-compose.yml","page":"architecture.md","date":"2026-06-17"}
+{"op":"init","source":"backend/app/api/v1/endpoints,api/web,api/v1/webapp","page":"api.md","date":"2026-06-17"}
+{"op":"init","source":"backend/app/services/auth*,core/auth.py,middleware/jwt_middleware.py","page":"auth.md","date":"2026-06-17"}
+{"op":"init","source":"backend/app/db,models,services/scd2_service.py,backend/db/migrations","page":"database.md","date":"2026-06-17"}
+{"op":"init","source":"backend/app/services+models (budget domain)","page":"domain.md","date":"2026-06-17"}
+{"op":"init","source":"backend/app/services/medicine*,models/medicine*,endpoints/medicines.py","page":"medicine.md","date":"2026-06-17"}
+{"op":"init","source":"backend/app/services/csv*+import*,bank_provider,google_sheets","page":"import.md","date":"2026-06-17"}
+{"op":"init","source":"backend/app/endpoints/budget_ws.py,services/redis*+cache*+push*","page":"realtime.md","date":"2026-06-17"}
+{"op":"init","source":"bot/","page":"bot.md","date":"2026-06-17"}
+{"op":"init","source":"frontend/web,shared,webapp,build-all.js","page":"frontend.md","date":"2026-06-17"}
