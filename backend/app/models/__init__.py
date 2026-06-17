@@ -68,7 +68,9 @@ from backend.app.models.import_file_upload import ImportFileUpload
 from backend.app.models.import_staging import ImportStaging
 from backend.app.models.import_template import ImportTemplate
 from backend.app.models.medicine import Medicine
+from backend.app.models.medicine_course import MedicineCourse
 from backend.app.models.medicine_history import MedicineHistory
+from backend.app.models.medicine_intake_log import MedicineIntakeLog
 from backend.app.models.medicine_stock import MedicineStock
 from backend.app.models.notification import Notification
 from backend.app.models.product_group import ProductGroup
@@ -102,7 +104,9 @@ __all__ = [
     "RefreshToken",
     "TwoFactorSession",
     "Medicine",
+    "MedicineCourse",
     "MedicineHistory",
+    "MedicineIntakeLog",
     "MedicineStock",
     "Notification",
     "BankProvider",
