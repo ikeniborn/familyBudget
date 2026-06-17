@@ -1126,6 +1126,16 @@ async def broadcast_medicine_changed(entity: str, data: dict):
     await _broadcast_and_buffer(event_type, data)
 
 
+async def broadcast_medicine_course_changed(data: dict):
+    """Course created/updated/paused/completed."""
+    await _broadcast_and_buffer("medicine_course_changed", data)
+
+
+async def broadcast_medicine_intake_marked(data: dict):
+    """Intake taken/skipped. Clients filter by patient_id on their side."""
+    await _broadcast_and_buffer("medicine_intake_marked", data)
+
+
 # Financial center broadcast functions
 
 async def broadcast_financial_center_created(fc_data: dict):
