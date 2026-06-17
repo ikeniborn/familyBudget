@@ -147,6 +147,8 @@ api_router.include_router(import_templates_router)
 # Medicine Tracking endpoints (Medicine Tracking Feature) ✅
 api_router.include_router(medicines_router)
 api_router.include_router(medicine_stock_router)
+api_router.include_router(medicine_courses_router)
+api_router.include_router(medicine_intakes_router)
 api_router.include_router(family_members_router)
 api_router.include_router(medicine_courses_router)
 api_router.include_router(medicine_intakes_router)
