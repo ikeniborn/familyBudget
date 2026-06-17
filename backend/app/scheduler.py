@@ -359,7 +359,7 @@ async def generate_recurring_facts_job():
 
 
 async def medicine_maintenance_job():
-    """Daily medicine maintenance. Phase 1: expiry alerts. Phase 2 adds intake_log generation + scheduled→late."""
+    """Daily medicine maintenance: (а) generate intake_log 7d ahead, (б) scheduled→late, (в) expiry alerts."""
     logger.info("[SCHEDULER] Starting medicine maintenance job")
     try:
         async with advisory_xact_lock(LOCK_ID_MEDICINE_MAINTENANCE) as acquired:
@@ -368,9 +368,13 @@ async def medicine_maintenance_job():
                 return
             settings = get_settings()
             from backend.app.services.medicine_alert_service import send_expiry_alerts
+            from backend.app.services.medicine_intake_service import generate_all, mark_overdue_late
             async with get_session_context() as session:
+                generated = await generate_all(session)
+                late = await mark_overdue_late(session)
                 sent = await send_expiry_alerts(session, settings)
-            logger.info("[SCHEDULER] Medicine maintenance done: %s expiry alerts sent", sent)
+            logger.info("[SCHEDULER] Medicine maintenance done: generated=%s late=%s expiry_alerts=%s",
+                        generated, late, sent)
     except Exception as e:
         logger.error("[SCHEDULER] Error in medicine maintenance job: %s", e, exc_info=True)
         raise
