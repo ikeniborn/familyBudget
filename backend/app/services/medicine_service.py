@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import func, select
 
 from backend.app.models.medicine import Medicine
+from backend.app.models.medicine_course import MedicineCourse
 from backend.app.models.medicine_history import FAR_FUTURE_DATETIME, MedicineHistory
 from backend.app.models.medicine_stock import MedicineStock
 from backend.app.utils.timezone import now_local
@@ -99,14 +100,20 @@ async def update_medicine(session: AsyncSession, medicine: Medicine, data: dict,
 
 
 async def has_active_links(session: AsyncSession, medicine_id: int) -> bool:
-    """True if any non-deleted stock references this medicine (blocks hard delete)."""
+    """True if any non-deleted stock OR course references this medicine (blocks hard delete/archive)."""
     stock = (await session.execute(
         select(func.count()).select_from(MedicineStock).where(
             MedicineStock.medicine_id == medicine_id,
             MedicineStock.deleted_at.is_(None),
         )
     )).scalar_one()
-    return stock > 0
+    courses = (await session.execute(
+        select(func.count()).select_from(MedicineCourse).where(
+            MedicineCourse.medicine_id == medicine_id,
+            MedicineCourse.deleted_at.is_(None),
+        )
+    )).scalar_one()
+    return (stock + courses) > 0
 
 
 async def archive_medicine(session: AsyncSession, medicine: Medicine, user_id: int) -> Medicine:

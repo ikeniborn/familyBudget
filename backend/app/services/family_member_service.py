@@ -1,8 +1,9 @@
 """Family member service: CRUD + delete-guard (block while active courses exist)."""
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlmodel import select
+from sqlmodel import func, select
 
 from backend.app.models.family_member import FamilyMember
+from backend.app.models.medicine_course import MedicineCourse
 from backend.app.utils.timezone import now_local
 
 
@@ -47,8 +48,14 @@ async def update_family_member(session: AsyncSession, member: FamilyMember, data
 
 
 async def has_active_links(session: AsyncSession, member_id: int) -> bool:
-    """Phase 1: no courses table yet → always False. Phase 2 extends this to count courses."""
-    return False
+    """True if the member has any non-deleted course (blocks delete)."""
+    courses = (await session.execute(
+        select(func.count()).select_from(MedicineCourse).where(
+            MedicineCourse.patient_id == member_id,
+            MedicineCourse.deleted_at.is_(None),
+        )
+    )).scalar_one()
+    return courses > 0
 
 
 async def archive_family_member(session: AsyncSession, member: FamilyMember) -> FamilyMember:
