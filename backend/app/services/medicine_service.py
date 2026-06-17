@@ -8,6 +8,7 @@ from backend.app.models.medicine import Medicine
 from backend.app.models.medicine_course import MedicineCourse
 from backend.app.models.medicine_history import FAR_FUTURE_DATETIME, MedicineHistory
 from backend.app.models.medicine_stock import MedicineStock
+from backend.app.models.medicine_course import MedicineCourse
 from backend.app.utils.timezone import now_local
 
 _HISTORY_FIELDS = ("name", "inn", "form", "dosage", "prescription_required", "notes", "is_active")
