@@ -245,7 +245,7 @@ export async function openCourseForm(): Promise<void> {
   const [meds, stock, members] = await Promise.all([
     api<{ medicines: MedicineOpt[] }>('/api/v1/medicines?limit=1000'),
     api<{ stock: StockRow[] }>('/api/v1/medicine-stock?limit=1000'),
-    api<{ members: MemberOpt[] }>('/api/v1/family-members'),
+    api<{ family_members: MemberOpt[] }>('/api/v1/family-members'),
   ]);
   _inStock = new Set(stock.stock.filter(s => Number(s.quantity_remaining) > 0).map(s => s.medicine_id));
   const medSel = document.getElementById('course-medicine') as HTMLSelectElement | null;
@@ -257,7 +257,7 @@ export async function openCourseForm(): Promise<void> {
       `<option value="${m.id}">${escapeHtml(m.name)}${_inStock.has(m.id) ? ' · ✓ в аптечке' : ''}</option>`).join('');
     medSel.onchange = updateStockHint;
   }
-  if (memSel) memSel.innerHTML = members.members.map(m =>
+  if (memSel) memSel.innerHTML = members.family_members.map(m =>
     `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
   updateStockHint();
   (document.getElementById('course-form-dialog') as HTMLDialogElement | null)?.showModal();
