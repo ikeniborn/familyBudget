@@ -25,6 +25,8 @@ from backend.app.api.v1.endpoints import (
     google_sheets_import_router,
     import_router,
     import_templates_router,
+    medicine_courses_router,
+    medicine_intakes_router,
     medicine_stock_router,
     medicines_router,
     notifications_router,
@@ -146,6 +148,8 @@ api_router.include_router(import_templates_router)
 api_router.include_router(medicines_router)
 api_router.include_router(medicine_stock_router)
 api_router.include_router(family_members_router)
+api_router.include_router(medicine_courses_router)
+api_router.include_router(medicine_intakes_router)
 
 # Budget WebSocket endpoints (Real-time Updates with Long Polling fallback) ✅
 # Primary: WebSocket (bidirectional, no buffering)

@@ -25,6 +25,8 @@ This package contains all API endpoint routers organized by domain:
 
 from backend.app.api.v1.endpoints.articles import router as articles_router
 from backend.app.api.v1.endpoints.family_members import router as family_members_router
+from backend.app.api.v1.endpoints.medicine_courses import router as medicine_courses_router
+from backend.app.api.v1.endpoints.medicine_courses import intakes_router as medicine_intakes_router
 from backend.app.api.v1.endpoints.medicines import router as medicines_router
 from backend.app.api.v1.endpoints.medicines import stock_router as medicine_stock_router
 from backend.app.api.v1.endpoints.auth import router as auth_router
@@ -66,6 +68,8 @@ __all__ = [
     "auth_router",
     "articles_router",
     "family_members_router",
+    "medicine_courses_router",
+    "medicine_intakes_router",
     "medicines_router",
     "medicine_stock_router",
     "budget_ws_router",
