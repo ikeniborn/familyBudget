@@ -31,6 +31,12 @@ from backend.app.api.v1.endpoints.medicines import router as medicines_router
 from backend.app.api.v1.endpoints.medicines import stock_router as medicine_stock_router
 from backend.app.api.v1.endpoints.medicine_courses import router as medicine_courses_router
 from backend.app.api.v1.endpoints.medicine_courses import intakes_router as medicine_intakes_router
+from backend.app.api.v1.endpoints.medicine_import import (
+    stock_import_router as medicine_stock_import_router,
+    stock_gs_router as medicine_stock_gs_router,
+    course_import_router as medicine_course_import_router,
+    course_gs_router as medicine_course_gs_router,
+)
 from backend.app.api.v1.endpoints.auth import router as auth_router
 from backend.app.api.v1.endpoints.budget_ws import router as budget_ws_router
 from backend.app.api.v1.endpoints.cache_metrics import router as cache_metrics_router
@@ -76,6 +82,10 @@ __all__ = [
     "medicine_stock_router",
     "medicine_courses_router",
     "medicine_intakes_router",
+    "medicine_stock_import_router",
+    "medicine_stock_gs_router",
+    "medicine_course_import_router",
+    "medicine_course_gs_router",
     "budget_ws_router",
     "cache_metrics_router",
     "consent_router",

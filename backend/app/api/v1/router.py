@@ -29,6 +29,10 @@ from backend.app.api.v1.endpoints import (
     medicine_intakes_router,
     medicine_stock_router,
     medicines_router,
+    medicine_stock_import_router,
+    medicine_stock_gs_router,
+    medicine_course_import_router,
+    medicine_course_gs_router,
     notifications_router,
     product_groups_router,
     push_router,
@@ -152,6 +156,10 @@ api_router.include_router(medicine_intakes_router)
 api_router.include_router(family_members_router)
 api_router.include_router(medicine_courses_router)
 api_router.include_router(medicine_intakes_router)
+api_router.include_router(medicine_stock_import_router)
+api_router.include_router(medicine_stock_gs_router)
+api_router.include_router(medicine_course_import_router)
+api_router.include_router(medicine_course_gs_router)
 
 # Budget WebSocket endpoints (Real-time Updates with Long Polling fallback) ✅
 # Primary: WebSocket (bidirectional, no buffering)
