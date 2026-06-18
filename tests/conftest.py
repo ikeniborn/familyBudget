@@ -4,14 +4,14 @@ Pytest configuration and fixtures for all tests.
 Provides shared fixtures for database, API client, authentication, etc.
 """
 
-import asyncio
 import os
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator
 
 import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 from sqlmodel import SQLModel
 
 # Set test environment
@@ -49,34 +49,23 @@ settings = get_settings()
 # asyncio_default_fixture_loop_scope=session in pytest.ini.
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 async def engine():
     """
-    Create test database engine.
+    Create test database engine per test function.
 
-    Creates all tables at start, drops them at end.
-    Use separate test database to avoid data loss.
+    NullPool avoids event-loop binding issues with asyncpg across fixtures.
+    Tables are created at session start via alembic migrations; create_all
+    here is a no-op when schema already exists (idempotent).
     """
     engine = create_async_engine(
         settings.DATABASE_URL,
         echo=False,
         future=True,
+        poolclass=NullPool,
     )
 
-    # Create all tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
-
     yield engine
-
-    # Drop all tables (ignore errors in cleanup - safe for test database)
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.drop_all)
-    except Exception as e:
-        # Ignore cleanup errors (e.g., OutOfMemoryError in PostgreSQL)
-        # Test database will be cleaned on next run
-        print(f"Warning: Failed to drop tables in teardown: {e}")
 
     await engine.dispose()
 
