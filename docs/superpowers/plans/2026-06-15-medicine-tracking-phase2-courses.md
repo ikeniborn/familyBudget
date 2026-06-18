@@ -64,6 +64,10 @@ review:
       verdict: fixed
       verdict_at: 2026-06-15
       resolution: "Task 3: добавлен Step 3 (import-check схем), commit стал Step 4."
+result_check:
+  verdict: OK
+  plan_hash: 77aac66394f4fd2d
+  last_run: 2026-06-18
 chain:
   intent: null
   spec: docs/superpowers/specs/2026-06-15-medicine-tracking-design.md

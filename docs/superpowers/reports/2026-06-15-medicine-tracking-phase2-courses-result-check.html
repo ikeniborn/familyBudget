@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Result Check — Medicine Tracking Phase 2: Курсы</title>
+<style>
+  :root{
+    --bg:#fafafa; --surface:#ffffff; --fg:#333344;
+    --accent:#5c6bc0; --border:#d0d0e0; --line:#888888;
+    --zebra:#f3f3f8; --ok:#43a047; --warn:#fb8c00; --danger:#e53935;
+    --muted:#777788;
+  }
+  body:has(#theme-toggle:checked){
+    --bg:#1e1e2e; --surface:#313244; --fg:#cdd6f4;
+    --accent:#89b4fa; --border:#45475a; --line:#888888;
+    --zebra:#282838; --ok:#a6e3a1; --warn:#f9e2af; --danger:#f38ba8;
+    --muted:#9399b2;
+  }
+  body{
+    margin:0; padding:1.5rem;
+    font:16px/1.55 system-ui, sans-serif;
+    background:var(--bg); color:var(--fg);
+    transition:background .3s, color .3s;
+  }
+  .theme-btn{
+    position:sticky; top:.5rem; float:right; z-index:10;
+    cursor:pointer; user-select:none;
+    padding:.25rem .6rem; border:1px solid var(--border); border-radius:6px;
+    background:var(--surface);
+  }
+  .report{ max-width:1080px; margin:0 auto; }
+  h1{ color:var(--accent); margin:.2rem 0 .2rem; font-size:1.7rem; }
+  h2{ color:var(--accent); margin-top:2rem; border-bottom:1px solid var(--border); padding-bottom:.3rem; }
+  .sub{ color:var(--muted); margin:.2rem 0 1rem; }
+  code{ background:var(--zebra); padding:.1rem .35rem; border-radius:4px; font-size:.88em; }
+
+  .verdict{
+    display:inline-block; padding:.5rem 1.1rem; border-radius:999px;
+    font-weight:700; font-size:1.1rem; border:2px solid var(--ok); color:var(--ok);
+    background:var(--surface);
+  }
+
+  .cards{ display:flex; flex-wrap:wrap; gap:.8rem; margin:1rem 0; }
+  .card{
+    flex:1 1 130px; background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:.8rem 1rem; text-align:center;
+  }
+  .card .num{ font-size:2rem; font-weight:700; line-height:1; }
+  .card .lbl{ color:var(--muted); font-size:.8rem; margin-top:.3rem; text-transform:uppercase; letter-spacing:.04em; }
+  .card.done .num{ color:var(--ok); }
+  .card.partial .num{ color:var(--warn); }
+  .card.missing .num{ color:var(--danger); }
+  .card.warn .num{ color:var(--warn); }
+  .card.info .num{ color:var(--accent); }
+
+  .rpt-table{ border-collapse:collapse; width:100%; background:var(--surface); margin:.6rem 0; }
+  .rpt-table th, .rpt-table td{ border:1px solid var(--border); padding:.5rem .75rem; text-align:left; vertical-align:top; }
+  .rpt-table thead th{ position:sticky; top:0; background:var(--accent); color:var(--bg); }
+  .rpt-table tbody tr:nth-child(even){ background:var(--zebra); }
+  .rpt-table tbody tr:hover{ outline:2px solid var(--accent); outline-offset:-2px; }
+
+  .badge{ display:inline-block; padding:.05rem .5rem; border-radius:999px; font-size:.78rem; font-weight:700; }
+  .b-done{ background:var(--ok); color:var(--bg); }
+  .b-warn{ background:var(--warn); color:var(--bg); }
+  .b-info{ background:var(--accent); color:var(--bg); }
+  .b-crit{ background:var(--danger); color:var(--bg); }
+
+  .chain{ display:flex; align-items:center; flex-wrap:wrap; gap:0; margin:1rem 0; }
+  .chain .node{ background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.5rem .9rem; }
+  .chain .node.muted{ opacity:.55; }
+  .chain .arrow{ flex:0 0 2.2rem; height:2px; background:var(--line); position:relative; }
+  .chain .arrow::after{ content:""; position:absolute; right:0; top:-4px; border:5px solid transparent; border-left-color:var(--line); }
+
+  details{ background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:.5rem .9rem; margin:.6rem 0; }
+  summary{ cursor:pointer; font-weight:600; }
+  .fix{ color:var(--muted); font-size:.92em; }
+  ul.tight{ margin:.3rem 0; padding-left:1.2rem; }
+</style>
+</head>
+<body>
+<input type="checkbox" id="theme-toggle" hidden>
+<label for="theme-toggle" class="theme-btn" title="Тёмная / светлая тема">🌙 / ☀️</label>
+
+<main class="report">
+  <h1>Result Check — Medicine Tracking · Фаза 2: Курсы</h1>
+  <p class="sub">Сверка результата с цепью IDD → SDD · дата проверки: 2026-06-18</p>
+  <p><span class="verdict">✓ Вердикт: OK</span> &nbsp; <span class="sub" style="display:inline">CRITICAL отсутствуют — все 11 задач плана подтверждены в diff.</span></p>
+
+  <h2>Документы цепи</h2>
+  <table class="rpt-table">
+    <thead><tr><th>Роль</th><th>Путь</th><th>Статус</th></tr></thead>
+    <tbody>
+      <tr><td>Plan</td><td><code>docs/superpowers/plans/2026-06-15-medicine-tracking-phase2-courses.md</code></td><td><span class="badge b-done">найден</span> · hash <code>77aac66394f4fd2d</code></td></tr>
+      <tr><td>Spec</td><td><code>docs/superpowers/specs/2026-06-15-medicine-tracking-design.md</code></td><td><span class="badge b-done">найден</span></td></tr>
+      <tr><td>Intent</td><td><code>chain.intent: null</code></td><td><span class="badge b-info">нет</span> (intent не привязан)</td></tr>
+      <tr><td>Diff base</td><td><code>git diff 613952b3^ HEAD</code> (серия коммитов Фазы 2; HEAD-diff пуст — всё закоммичено)</td><td>36 файлов · +1735 / −38</td></tr>
+    </tbody>
+  </table>
+
+  <div class="chain">
+    <div class="node muted">intent: нет</div>
+    <div class="arrow"></div>
+    <div class="node">spec: medicine-tracking-design</div>
+    <div class="arrow"></div>
+    <div class="node">plan: phase2-courses</div>
+  </div>
+
+  <h2>Покрытие шагов плана</h2>
+  <div class="cards">
+    <div class="card done"><div class="num">11</div><div class="lbl">DONE</div></div>
+    <div class="card partial"><div class="num">0</div><div class="lbl">PARTIAL</div></div>
+    <div class="card missing"><div class="num">0</div><div class="lbl">MISSING</div></div>
+  </div>
+
+  <table class="rpt-table">
+    <thead><tr><th>Задача плана</th><th>Артефакты в diff</th><th>Статус</th></tr></thead>
+    <tbody>
+      <tr><td>Task 1 — модели course + intake_log</td><td><code>medicine_course.py</code> (45), <code>medicine_intake_log.py</code> (33), <code>models/__init__.py</code> (+4), тест (32)</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>Task 2 — миграция</td><td><code>20260615_m2b3c4d5e6f7_*.py</code> (78), <code>test_medicine_phase2_migration.py</code> (45)</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>Task 3 — схемы</td><td><code>schemas/medicine_course.py</code> (133), <code>schemas/medicine_intake.py</code> (42)</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>Task 4 — чистая логика расписания/оценки</td><td><code>medicine_schedule.py</code> (78), <code>test_intake_generation.py</code> (70)</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>Task 5 — сервисы course + intake</td><td><code>medicine_course_service.py</code> (101), <code>medicine_intake_service.py</code> (143), <code>medicine_service.py</code> (+11), <code>family_member_service.py</code> (+13)</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>Task 6 — WebSocket события</td><td><code>budget_ws.py</code> (+10): <code>medicine_course_changed</code>, <code>medicine_intake_marked</code></td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>Task 7 — API endpoints</td><td><code>medicine_courses.py</code> (210), <code>endpoints/__init__.py</code> (+4), <code>router.py</code> (+4); lazy-backfill в <code>list_intakes</code></td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>Task 8 — maintenance job</td><td><code>scheduler.py</code> (+8): generation + scheduled→late</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>Task 9 — интеграционные тесты</td><td><code>test_medicine_courses_api.py</code> (125), вкл. <code>test_generation_idempotent</code></td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>Task 10 — фронтенд (dashboard/courses/detail)</td><td><code>medicinesManager.ts</code> (+209), <code>medicines-bundle.ts</code> (+12), <code>web/router.py</code> (+30), 3 шаблона</td><td><span class="badge b-done">DONE</span></td></tr>
+      <tr><td>Task 11 — verify + docs</td><td>docs обновлены в <code>docs/wiki/{api,database,medicine,realtime}.md</code></td><td><span class="badge b-done">DONE</span> <span class="badge b-info">расхождение путей</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Findings</h2>
+
+  <details open>
+    <summary><span class="badge b-info">INFO</span> &nbsp; Task 11: документация обновлена по другим путям</summary>
+    <p><b>Plan:</b> Step 3 предписывает дописать <code>lat.md/database.md</code>, <code>lat.md/api.md</code>, <code>lat.md/domain.md</code>.</p>
+    <p><b>Diff:</b> <code>lat.md/</code> удалён в рамках проекта (миграция на iwiki). Обновлены <code>docs/wiki/api.md</code>, <code>database.md</code>, <code>medicine.md</code>, <code>realtime.md</code>. Семантически выполнено (и шире). <code>domain.md</code> не тронут — содержимое ушло в <code>medicine.md</code>.</p>
+    <p class="fix"><b>Fix options:</b> 1) принять как DONE — план писался до миграции docs; 2) при желании синхронизировать формулировку Task 11 с новой структурой <code>docs/wiki/</code>.</p>
+  </details>
+
+  <details open>
+    <summary><span class="badge b-warn">WARNING</span> &nbsp; Excess: <code>CLAUDE.md</code> изменён вне плана</summary>
+    <p><b>Plan:</b> шага, изменяющего <code>CLAUDE.md</code>, нет.</p>
+    <p><b>Diff:</b> правка из вклинившегося коммита <code>7d56d68a</code> (lat.md → docs/wiki в разделе Architecture-First). Попадает в диапазон Фазы 2 из-за чередования коммитов. Затрагивает защищённый файл (проект: «NEVER edit CLAUDE.md»).</p>
+    <p class="fix"><b>Fix options:</b> 1) подтвердить, что правка была сделана пользователем/санкционирована; 2) если нет — откатить изменение <code>CLAUDE.md</code> отдельным коммитом.</p>
+  </details>
+
+  <details open>
+    <summary><span class="badge b-warn">WARNING</span> &nbsp; Excess: <code>pytest.ini</code> + <code>tests/conftest.py</code> вне плана</summary>
+    <p><b>Plan:</b> правок тестовой инфраструктуры не предусмотрено.</p>
+    <p><b>Diff:</b> <code>pytest.ini</code> (±4), <code>tests/conftest.py</code> (27) — фикс asyncpg event-loop (коммит <code>375f2f80</code>, NullPool + function scope). Необходимая поддержка, чтобы интеграционные тесты Task 9 проходили.</p>
+    <p class="fix"><b>Fix options:</b> 1) принять как обоснованную инфраструктурную поддержку; 2) добавить ретро-шаг «test fixtures» в план для трассируемости.</p>
+  </details>
+
+  <details>
+    <summary><span class="badge b-info">INFO</span> &nbsp; Excess: <code>tests/migrations/{__init__.py, conftest.py}</code> добавлены</summary>
+    <p><b>Plan:</b> Task 2 создаёт только <code>test_medicine_phase2_migration.py</code>.</p>
+    <p><b>Diff:</b> добавлены <code>tests/migrations/__init__.py</code> (пустой) + <code>conftest.py</code> (32) — обвязка для запуска миграционного теста. Обоснованная поддержка Task 2.</p>
+    <p class="fix"><b>Fix options:</b> принять; опционально упомянуть фикстуры в тексте Task 2.</p>
+  </details>
+
+  <details>
+    <summary><span class="badge b-info">INFO</span> &nbsp; Spec: карточка курса без «календаря»</summary>
+    <p><b>Plan/Diff:</b> карточка курса даёт card + журнал; «календарь» (spec строка 301: «карточка + календарь + журнал») не реализован.</p>
+    <p><b>Spec:</b> строка 301. План сам не планировал календарь — расхождение спека↔план, не diff↔план.</p>
+    <p class="fix"><b>Fix options:</b> 1) принять (минимальный журнал покрывает потребность); 2) занести «календарь» в бэклог Фазы 3+.</p>
+  </details>
+
+  <details>
+    <summary><span class="badge b-info">INFO</span> &nbsp; Spec: нет отдельного теста <code>scheduled → late</code></summary>
+    <p><b>Plan/Diff:</b> <code>mark_overdue_late</code> реализован (scheduler + сервис), но прямого теста нет.</p>
+    <p><b>Spec:</b> строка 358 перечисляет «<code>scheduled → late</code>» как цель pytest. Task 9 такого шага не содержал.</p>
+    <p class="fix"><b>Fix options:</b> 1) добавить интеграционный тест на переход по <code>scheduled_at &lt; now-24h</code>; 2) принять как покрытое поведением job.</p>
+  </details>
+
+  <h2>Покрытие Intent / Spec</h2>
+  <table class="rpt-table">
+    <thead><tr><th>Источник</th><th>Покрыто</th><th>Детали</th></tr></thead>
+    <tbody>
+      <tr><td>Desired Outcomes (intent)</td><td>N/A</td><td><code>chain.intent: null</code> — intent-документа нет</td></tr>
+      <tr><td>Spec — объём Фазы 2 (строки 334–338)</td><td><b>4 / 4</b></td><td>миграции 2 таблиц · CRUD+pause/complete+мягкая связь #6 · генерация 7д+lazy-backfill+scheduled→late · дашборд+оценка #7</td></tr>
+      <tr><td>Spec — поведение (#6, #7, конкурентность, WS, страницы)</td><td><b>покрыто</b></td><td>soft-link без 400 ✓ · оценка для daily/every_n_days/weekdays ✓ · 409 optimistic-lock ✓ · типизированные WS-события ✓ · 3 страницы (<code>/medicines</code>, <code>/courses</code>, <code>/courses/{id}</code>) ✓</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Excess Changes (вне шагов плана)</h2>
+  <table class="rpt-table">
+    <thead><tr><th>Файл</th><th>Природа</th><th>Severity</th></tr></thead>
+    <tbody>
+      <tr><td><code>CLAUDE.md</code></td><td>вклинившийся коммит <code>7d56d68a</code> (lat.md→wiki); защищённый файл</td><td><span class="badge b-warn">WARNING</span></td></tr>
+      <tr><td><code>pytest.ini</code>, <code>tests/conftest.py</code></td><td>asyncpg event-loop фикс (<code>375f2f80</code>) — поддержка тестов</td><td><span class="badge b-warn">WARNING</span></td></tr>
+      <tr><td><code>tests/migrations/__init__.py</code>, <code>conftest.py</code></td><td>обвязка миграционного теста Task 2</td><td><span class="badge b-info">INFO</span></td></tr>
+      <tr><td><code>docs/wiki/medicine.md</code>, <code>realtime.md</code>, <code>.iwiki/log.jsonl</code></td><td>doc-обновления (Task 11 другими путями)</td><td><span class="badge b-info">INFO</span></td></tr>
+    </tbody>
+  </table>
+
+  <h2>Сводка</h2>
+  <div class="cards">
+    <div class="card missing"><div class="num">0</div><div class="lbl">CRITICAL</div></div>
+    <div class="card warn"><div class="num">2</div><div class="lbl">WARNING</div></div>
+    <div class="card info"><div class="num">4</div><div class="lbl">INFO</div></div>
+  </div>
+  <p><span class="verdict">✓ Вердикт: OK</span></p>
+  <p class="sub">Все 11 задач плана подтверждены в diff (DONE), MISSING нет. WARNING/INFO касаются избыточных изменений (поддержка тестов, вклинившаяся правка <code>CLAUDE.md</code>) и расхождений спека↔план (пути docs, календарь, тест scheduled→late) — не блокируют merge-gate.</p>
+
+  <p class="sub" style="margin-top:2rem">Chain: <code>intent (нет)</code> → <code>spec: 2026-06-15-medicine-tracking-design.md</code> → <code>plan: 2026-06-15-medicine-tracking-phase2-courses.md</code></p>
+</main>
+</body>
+</html>
