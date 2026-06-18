@@ -88,6 +88,10 @@ Two server-rendered Jinja pages under `/medicines/*`, defined in `backend/app/ap
 - `/medicines/catalog` → `frontend/web/templates/medicines_catalog.html` — add-medicine form + catalog table
 - `/medicines/stock` → `frontend/web/templates/medicines_stock.html` — the "Аптечка" page: add-package form, "Все" / "Истекает ≤30д" filter buttons, stock table
 
+### Navbar Entry
+
+All medicine pages are reached from the **💊 Лекарства** navbar dropdown — desktop in `frontend/web/templates/partials/navbar_center_menu.html`, mobile in `frontend/web/templates/components/user_dropdown_menu.html`. Links: Приём лекарств (`/medicines`), Курсы приёма (`/medicines/courses`), Справочник лекарств (`/medicines/catalog`), Аптечка (`/medicines/stock`). Shown to any logged-in user, `data-offline-hidden`. See [[frontend]].
+
 ## Stock Page (Frontend)
 
 `frontend/web/static/js/medicines/medicinesManager.ts` renders both pages from REST data and reacts to WS events. The stock view flags expiry: rows expiring within 30 days get a ⏰ badge — `badge-error` if already expired (`<= today`), else `badge-warning` (`medicinesManager.ts:88`).

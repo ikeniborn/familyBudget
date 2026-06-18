@@ -16,3 +16,4 @@
 {"op":"ingest","source":"phase4-analytics-endpoint","page":"docs/wiki/api.md","date":"2026-06-18"}
 {"op":"ingest","source":"backend/app/api/v1/endpoints/medicine_import.py + services/medicine_import_service.py","page":"medicine.md,api.md","date":"2026-06-18"}
 {"op":"ingest","source":"services/medicine_import_service.py (hardening)","page":"medicine.md","date":"2026-06-18"}
+{"op":"ingest","source":"frontend/web/templates/partials/navbar_center_menu.html","page":"docs/wiki/medicine.md","date":"2026-06-18"}
