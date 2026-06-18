@@ -87,11 +87,16 @@ def analyze(file_content_b64: str) -> dict:
 
 
 def _parse_rows(file_content_b64: str, delimiter: str, encoding: str,
-                column_mapping: dict[str, str]) -> list[dict[str, str]]:
+                column_mapping: dict[str, str], has_header: bool = True) -> list[dict[str, str]]:
     text = base64.b64decode(file_content_b64).decode(encoding)
-    reader = csv.DictReader(StringIO(text), delimiter=delimiter)
+    if has_header:
+        rows_iter = csv.DictReader(StringIO(text), delimiter=delimiter)
+    else:
+        # Headerless: key cells positionally as Column_1.. to mirror csv_detector's detected_columns.
+        rows_iter = (dict(zip([f"Column_{i + 1}" for i in range(len(r))], r))
+                     for r in csv.reader(StringIO(text), delimiter=delimiter))
     out: list[dict[str, str]] = []
-    for row in reader:
+    for row in rows_iter:
         mapped: dict[str, str] = {}
         for csv_col, field in column_mapping.items():
             if field and csv_col in row:
@@ -105,6 +110,21 @@ def _err(idx: int, field: str, msg: str) -> dict:
     return {"row_index": idx, "field": field, "message": msg}
 
 
+# Length caps for free-text columns (mirror the SQLModel max_length, which has no app-level guard
+# otherwise — an overflow would only surface at commit and abort the whole import).
+_STOCK_MAXLEN = {"unit": 50, "location": 100, "dosage": 100, "form": 50, "inn": 255, "name": 255}
+_COURSE_MAXLEN = {"dose_unit": 50, "with_food": 10, "schedule_type": 20}
+
+
+def _len_errors(idx: int, row: dict, caps: dict[str, int]) -> list[dict]:
+    out = []
+    for field, cap in caps.items():
+        value = row.get(field)
+        if value and len(value.strip()) > cap:
+            out.append(_err(idx, field, f"'{field}': не более {cap} символов"))
+    return out
+
+
 # ---------- STOCK ----------
 def _validate_stock_row(idx: int, row: dict) -> tuple[list[dict], list[dict]]:
     errors, warnings = [], []
@@ -114,6 +134,7 @@ def _validate_stock_row(idx: int, row: dict) -> tuple[list[dict], list[dict]]:
     qe = validate_quantity(idx, row.get("quantity"))
     if qe:
         errors.append(_err(idx, "quantity", qe.message))
+    errors.extend(_len_errors(idx, row, _STOCK_MAXLEN))
     if not row.get("expiry_date", "").strip():
         warnings.append(_err(idx, "expiry_date", "срок годности не указан"))
     return errors, warnings
@@ -135,7 +156,8 @@ async def execute_stock(session: AsyncSession, rows: list[dict], user_id: int) -
             continue
         try:
             med_id = await _find_or_create_medicine(
-                session, row["name"].strip(), row.get("dosage"), row.get("form"), user_id, med_cache)
+                session, row["name"].strip(), row.get("dosage"), row.get("form"),
+                user_id, med_cache, inn=row.get("inn"))
             session.add(MedicineStock(
                 medicine_id=med_id, creator_id=user_id,
                 quantity_remaining=Decimal(row["quantity"].replace(",", ".")),
@@ -149,9 +171,7 @@ async def execute_stock(session: AsyncSession, rows: list[dict], user_id: int) -
         except Exception as e:  # noqa: BLE001
             error += 1
             errors.append(_err(idx, "general", f"ошибка: {e}"))
-    await session.commit()
-    return {"imported_count": imported, "skipped_count": skipped, "error_count": error,
-            "total_rows": len(rows), "errors": errors, "success": error == 0}
+    return await _commit_or_fail(session, imported, skipped, error, errors, len(rows))
 
 
 # ---------- COURSES ----------
@@ -167,6 +187,7 @@ def _validate_course_row(idx: int, row: dict) -> tuple[list[dict], list[dict]]:
         errors.append(_err(idx, "intake_times", "не удалось разобрать времена приёма"))
     if row.get("start_date") and _parse_date(row["start_date"]) is None:
         errors.append(_err(idx, "start_date", f"неверная дата: {row['start_date']!r}"))
+    errors.extend(_len_errors(idx, row, _COURSE_MAXLEN))
     return errors, warnings
 
 
@@ -218,12 +239,24 @@ async def execute_courses(session: AsyncSession, rows: list[dict], user_id: int)
         except Exception as e:  # noqa: BLE001
             error += 1
             errors.append(_err(idx, "general", f"ошибка: {e}"))
-    await session.commit()
-    return {"imported_count": imported, "skipped_count": skipped, "error_count": error,
-            "total_rows": len(rows), "errors": errors, "success": error == 0}
+    return await _commit_or_fail(session, imported, skipped, error, errors, len(rows))
 
 
 # ---------- shared helpers ----------
+async def _commit_or_fail(session: AsyncSession, imported: int, skipped: int, error: int,
+                          errors: list[dict], total: int) -> dict:
+    """Commit the import; on a DB-level failure roll back and return a structured error
+    (no rows persisted) instead of letting an exception become a 500."""
+    try:
+        await session.commit()
+    except Exception as e:  # noqa: BLE001
+        await session.rollback()
+        logger.exception("medicine import commit failed")
+        return {"imported_count": 0, "skipped_count": skipped, "error_count": total,
+                "total_rows": total, "success": False,
+                "errors": errors + [_err(-1, "general", f"ошибка сохранения: {e}")]}
+    return {"imported_count": imported, "skipped_count": skipped, "error_count": error,
+            "total_rows": total, "errors": errors, "success": error == 0}
 def _build_preview(rows: list[dict], validate) -> dict:
     preview_rows, valid, invalid = [], 0, 0
     for idx, row in enumerate(rows):
@@ -262,11 +295,12 @@ def _parse_decimal(value: str | None) -> Decimal | None:
 
 
 async def _find_or_create_medicine(session: AsyncSession, name: str, dosage: str | None,
-                                   form: str | None, user_id: int, cache: dict) -> int:
+                                   form: str | None, user_id: int, cache: dict,
+                                   inn: str | None = None) -> int:
     key = (name.lower(), (dosage or "").lower())
     if key in cache:
         return cache[key]
-    stmt = select(Medicine).where(Medicine.name == name)
+    stmt = select(Medicine).where(Medicine.name == name, Medicine.is_active.is_(True))
     if dosage:
         stmt = stmt.where(Medicine.dosage == dosage)
     found = (await session.execute(stmt)).scalars().first()
@@ -276,7 +310,8 @@ async def _find_or_create_medicine(session: AsyncSession, name: str, dosage: str
     safe_form = (form or _DEFAULT_FORM).strip().lower()
     if safe_form not in VALID_FORMS:
         safe_form = _DEFAULT_FORM
-    med = Medicine(name=name, dosage=dosage or None, form=safe_form, creator_id=user_id)
+    med = Medicine(name=name, dosage=dosage or None, form=safe_form,
+                   inn=(inn.strip() if inn and inn.strip() else None), creator_id=user_id)
     session.add(med)
     await session.flush()
     cache[key] = med.id
@@ -299,7 +334,8 @@ async def _find_or_create_member(session: AsyncSession, name: str, user_id: int,
     if key in cache:
         return cache[key]
     found = (await session.execute(
-        select(FamilyMember).where(FamilyMember.name == name))).scalars().first()
+        select(FamilyMember).where(FamilyMember.name == name,
+                                   FamilyMember.is_active.is_(True)))).scalars().first()
     if found:
         cache[key] = found.id
         return found.id

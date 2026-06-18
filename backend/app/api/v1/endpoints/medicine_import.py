@@ -57,14 +57,14 @@ async def stock_analyze(req: MedicineAnalyzeRequest, current_user: User = Depend
 
 @stock_import_router.post("/preview", response_model=MedicinePreviewResponse)
 async def stock_preview(req: MedicinePreviewRequest, current_user: User = Depends(get_current_user)):
-    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping)
+    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
     return MedicinePreviewResponse(**svc.preview_stock(rows))
 
 
 @stock_import_router.post("/execute", response_model=MedicineImportResponse)
 async def stock_execute(req: MedicineImportRequest, current_user: User = Depends(get_current_user),
                         session: AsyncSession = Depends(get_session)):
-    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping)
+    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
     return MedicineImportResponse(**await svc.execute_stock(session, rows, current_user.id))
 
 
@@ -82,14 +82,14 @@ async def course_analyze(req: MedicineAnalyzeRequest, current_user: User = Depen
 @course_import_router.post("/preview", response_model=MedicinePreviewResponse)
 async def course_preview(req: MedicinePreviewRequest, current_user: User = Depends(get_current_user),
                          session: AsyncSession = Depends(get_session)):
-    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping)
+    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
     return MedicinePreviewResponse(**await svc.preview_courses(session, rows))
 
 
 @course_import_router.post("/execute", response_model=MedicineImportResponse)
 async def course_execute(req: MedicineImportRequest, current_user: User = Depends(get_current_user),
                          session: AsyncSession = Depends(get_session)):
-    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping)
+    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
     return MedicineImportResponse(**await svc.execute_courses(session, rows, current_user.id))
 
 
