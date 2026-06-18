@@ -75,11 +75,16 @@ async def medicine_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not SessionManager.is_authenticated(context):
         await query.edit_message_text("Сессия истекла. /start")
         return
+    if not query.data:
+        return
     try:
         _, action, log_id_str = query.data.split(":", 2)
         log_id = int(log_id_str)
     except (ValueError, IndexError):
         logger.warning("medicine_callback: bad callback data: %s", query.data)
+        return
+    if action not in ("take", "skip", "snooze"):
+        logger.warning("medicine_callback: unknown action %s", action)
         return
     token = SessionManager.get_access_token(context)
     api = await get_api_client()
