@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.v1.endpoints.budget_ws import (
-    broadcast_medicine_course_changed, broadcast_medicine_intake_marked,
+    broadcast_medicine_changed, broadcast_medicine_course_changed,
+    broadcast_medicine_intake_marked,
 )
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
@@ -228,10 +229,12 @@ async def _mark(session, intake_id: int, status_value: str, body: IntakeMarkRequ
     try:
         intake = await medicine_intake_service.mark_intake(
             session, intake, status=status_value, expected_version=body.version,
-            user_id=user_id, dose_taken=body.dose_taken, comment=body.comment)
+            user_id=user_id, dose_taken=body.dose_taken, stock_id=body.stock_id, comment=body.comment)
     except medicine_intake_service.IntakeVersionConflict:
         raise HTTPException(status.HTTP_409_CONFLICT,
                             "Intake was modified by someone else; reload and retry")
     resp = IntakeResponse.model_validate(intake)
     await broadcast_medicine_intake_marked(resp.model_dump(mode="json"))
+    if intake.stock_id is not None:  # deduction changed quantity_remaining → push so stock views refresh
+        await broadcast_medicine_changed("stock", {"id": intake.stock_id})
     return resp

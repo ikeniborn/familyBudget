@@ -9,6 +9,7 @@ from sqlmodel import select
 
 from backend.app.models.family_member import FamilyMember
 from backend.app.models.medicine_course import MedicineCourse
+from backend.app.models.medicine import Medicine
 from backend.app.models.medicine_intake_log import MedicineIntakeLog
 from backend.app.services.medicine_reminder_service import MedicineReminderService
 from backend.app.services.medicine_schedule import expand_schedule
@@ -127,23 +128,39 @@ async def get_intake(session: AsyncSession, intake_id: int) -> MedicineIntakeLog
 
 async def mark_intake(session: AsyncSession, intake: MedicineIntakeLog, *, status: str,
                       expected_version: int, user_id: int,
-                      dose_taken=None, comment: str | None = None) -> MedicineIntakeLog:
-    """Set status to 'taken' or 'skipped' with optimistic locking. Raises IntakeVersionConflict on mismatch.
-
-    Phase 2 marks status only; Phase 4 adds stock deduction inside the 'taken' branch.
+                      dose_taken=None, stock_id: int | None = None,
+                      comment: str | None = None) -> MedicineIntakeLog:
+    """Set status 'taken'/'skipped' with optimistic locking. On 'taken', deduct stock (FIFO/FOR UPDATE);
+    if out of stock, auto-add the medicine to a shopping list. Single transaction.
+    Raises IntakeVersionConflict on a stale version.
     """
     if intake.version != expected_version:
         raise IntakeVersionConflict()
+
     intake.status = status
     intake.marked_by = user_id
     intake.version += 1
     intake.updated_at = _now()
-    if status == "taken":
-        intake.taken_at = _now()
-        if dose_taken is not None:
-            intake.dose_taken = dose_taken
     if comment is not None:
         intake.comment = comment
+
+    if status == "taken":
+        from backend.app.services.medicine_deduction_service import (
+            OUT_OF_STOCK, deduct_for_intake,
+        )
+        from backend.app.services.medicine_shopping_integration import add_to_shopping_list
+
+        intake.taken_at = _now()
+        course = await session.get(MedicineCourse, intake.course_id)
+        if course is not None:  # course may be soft-deleted; still record the take, skip deduction
+            dose = dose_taken if dose_taken is not None else course.dose_amount
+            intake.dose_taken = dose
+            result = await deduct_for_intake(session, intake, course, dose, stock_id)
+            if result == OUT_OF_STOCK:
+                medicine = await session.get(Medicine, course.medicine_id)
+                if medicine:
+                    await add_to_shopping_list(session, medicine, user_id)
+
     session.add(intake)
     await session.commit()
     await session.refresh(intake)

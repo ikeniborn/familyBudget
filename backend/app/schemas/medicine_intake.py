@@ -9,6 +9,7 @@ class IntakeMarkRequest(BaseModel):
     """take/skip body. version is required for optimistic locking (409 on mismatch)."""
     version: int = Field(..., ge=1)
     dose_taken: Decimal | None = Field(default=None, gt=0)
+    stock_id: int | None = Field(default=None, description="Deduct from this package; else FIFO by expiry")
     comment: str | None = Field(default=None)
 
 
