@@ -20,3 +20,4 @@
 {"op":"ingest","source":"frontend/web/templates/medicines_patients.html","page":"docs/wiki/medicine.md","date":"2026-06-18"}
 {"op":"ingest","source":"backend/app/api/v1/endpoints/facts_partials.py","page":"docs/wiki/api.md","date":"2026-06-18"}
 {"op":"ingest","source":"backend/app/api/v1/endpoints/facts.py","page":"docs/wiki/api.md","date":"2026-06-18"}
+{"op":"ingest","source":"bot/handlers/medicine.py","page":"docs/wiki/bot.md","date":"2026-06-18"}

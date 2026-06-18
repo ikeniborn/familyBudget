@@ -34,6 +34,7 @@ Run mode is chosen by `USE_WEBHOOK`. Polling (default) uses `updater.start_polli
 The bot is a thin HTTP client over the backend API — it does NOT touch the database directly. `APIClient` wraps an `httpx.AsyncClient` against `BACKEND_API_URL` and sends the user's JWT as a `Bearer` header on each call. A global singleton is shared process-wide.
 
 - Defined in `bot/utils/api_client.py:19`; singleton `get_api_client()` at `:780`.
+- **Path convention:** `BACKEND_API_URL` already ends in `/api/v1`, so handler call paths MUST be base-relative (`/medicine-intakes/…`, `/facts/…`). A leading `/api/v1` double-prefixes the URL — httpx concatenates base + path → `/api/v1/api/v1/…` → 404. (Bug fixed in `handlers/medicine.py`; guarded by `bot/tests/test_medicine_handler.py`.)
 - User-scoped methods (JWT required): `authenticate_telegram_user`, `list_facts`, `get_facts_summary`, `create_fact`, `get_article(s)`, `get_fact`, `update_fact`, `delete_fact`, `get_financial_centers`, `get_cost_centers`.
 - Internal methods (use `X-Api-Key: API_INTERNAL_KEY`, not a user JWT): `check_duplicate_notification`, `create_notification`, `get_all_telegram_ids`.
 - Maps to backend endpoints under `/facts`, `/articles`, `/financial-centers`, `/cost-centers`, `/notifications` — see [[api#Domain Endpoints]] and [[api#Domain Endpoints]]. Underlying entities described in [[domain#Budget Facts (Transactions)]].
