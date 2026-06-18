@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Result Check — Medicine Tracking Phase 3</title>
+<style>
+  :root[data-theme="dark"]{
+    --bg:#0f1419; --panel:#1a2027; --panel2:#222b33; --border:#313c47;
+    --fg:#e6edf3; --muted:#9aa7b2; --accent:#4ea1ff; --ok:#3fb950;
+    --warn:#d29922; --info:#58a6ff; --crit:#f85149; --chip:#2d3742;
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f8fa; --panel:#ffffff; --panel2:#f0f3f6; --border:#d0d7de;
+    --fg:#1f2328; --muted:#636c76; --accent:#0969da; --ok:#1a7f37;
+    --warn:#9a6700; --info:#0969da; --crit:#cf222e; --chip:#eaeef2;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1040px;margin:0 auto;padding:28px 20px 64px}
+  header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  h1{font-size:23px;margin:0 0 4px}
+  h2{font-size:18px;margin:34px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+  .sub{color:var(--muted);font-size:13px}
+  .verdict{display:inline-block;padding:6px 16px;border-radius:999px;font-weight:700;
+    font-size:15px;background:color-mix(in srgb,var(--ok) 18%,transparent);
+    color:var(--ok);border:1px solid var(--ok)}
+  .toggle{background:var(--chip);color:var(--fg);border:1px solid var(--border);
+    border-radius:8px;padding:8px 14px;cursor:pointer;font-size:13px}
+  .toggle:hover{border-color:var(--accent)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:14px 0}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+  .card .n{font-size:26px;font-weight:700;line-height:1}
+  .card .l{color:var(--muted);font-size:12px;margin-top:5px;text-transform:uppercase;letter-spacing:.4px}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .info{color:var(--info)} .crit{color:var(--crit)}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);
+    border-radius:10px;overflow:hidden;font-size:13.5px;margin:8px 0}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:var(--panel2);font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted)}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--chip);padding:1px 6px;border-radius:5px;font-size:12px;
+    font-family:"SF Mono",Menlo,Consolas,monospace}
+  .badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;letter-spacing:.3px}
+  .b-done{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok)}
+  .b-info{background:color-mix(in srgb,var(--info) 16%,transparent);color:var(--info)}
+  .b-warn{background:color-mix(in srgb,var(--warn) 16%,transparent);color:var(--warn)}
+  .b-crit{background:color-mix(in srgb,var(--crit) 16%,transparent);color:var(--crit)}
+  details{background:var(--panel);border:1px solid var(--border);border-radius:10px;margin:10px 0;padding:4px 14px}
+  summary{cursor:pointer;font-weight:600;padding:9px 0}
+  details[open] summary{border-bottom:1px solid var(--border);margin-bottom:8px}
+  .kv{display:grid;grid-template-columns:88px 1fr;gap:4px 12px;font-size:13.5px;margin:6px 0}
+  .kv .k{color:var(--muted)}
+  .note{background:color-mix(in srgb,var(--info) 9%,transparent);border:1px solid color-mix(in srgb,var(--info) 35%,transparent);
+    border-radius:10px;padding:12px 16px;font-size:13.5px;margin:14px 0}
+  .chain{font-family:"SF Mono",Menlo,Consolas,monospace;font-size:13px;color:var(--muted);
+    background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 14px;word-break:break-all}
+  .chain b{color:var(--fg)}
+  ul.tight{margin:6px 0;padding-left:20px} ul.tight li{margin:3px 0}
+  footer{margin-top:40px;color:var(--muted);font-size:12px;border-top:1px solid var(--border);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>Result Check — Medicine Tracking, Фаза 3 «Напоминания»</h1>
+    <div class="sub">Сверка цепи IDD→SDD: spec + plan vs git diff · 2026-06-18</div>
+  </div>
+  <div style="display:flex;gap:10px;align-items:center">
+    <span class="verdict">Вердикт: OK</span>
+    <button class="toggle" id="tg" onclick="tt()">☀ / 🌙 тема</button>
+  </div>
+</header>
+
+<h2>Документы и база сверки</h2>
+<div class="kv">
+  <div class="k">Plan</div><div><code>docs/superpowers/plans/2026-06-15-medicine-tracking-phase3-reminders.md</code></div>
+  <div class="k">Spec</div><div><code>docs/superpowers/specs/2026-06-15-medicine-tracking-design.md</code></div>
+  <div class="k">Intent</div><div>не задан (<code>chain.intent: null</code>)</div>
+  <div class="k">Diff base</div><div><code>git diff 3cba832c..HEAD</code> — рабочая копия чистая, работа закоммичена · <b>18 файлов</b>, +955 / −31</div>
+  <div class="k">plan_hash</div><div><code>d6acb1b3a2a64ae8</code></div>
+</div>
+
+<h2>Покрытие шагов плана</h2>
+<div class="grid">
+  <div class="card"><div class="n ok">9</div><div class="l">DONE</div></div>
+  <div class="card"><div class="n">0</div><div class="l">PARTIAL</div></div>
+  <div class="card"><div class="n">0</div><div class="l">MISSING</div></div>
+</div>
+<table>
+  <thead><tr><th>#</th><th>Задача</th><th>Файлы в diff</th><th>Статус</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>MedicineReminder model</td><td><code>backend/app/models/medicine_reminder.py</code>, <code>models/__init__.py</code>, <code>tests/models/test_medicine_reminder_model.py</code></td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>2</td><td>Миграция t_medicine_reminder</td><td><code>…/versions/20260615_m3c4d5e6f7a8_add_medicine_reminder.py</code>, <code>tests/migrations/test_medicine_phase3_migration.py</code></td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>3</td><td>MedicineReminderService</td><td><code>backend/app/services/medicine_reminder_service.py</code> — fan-out, get_due, send TG+push, snooze</td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>4</td><td>Хук генерации + endpoints</td><td><code>medicine_intake_service.py</code>, <code>medicine_courses.py</code> — GET /medicine-intakes/{id}, POST /{id}/snooze</td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>5</td><td>Dispatch job</td><td><code>backend/app/scheduler.py</code> — medicine_reminder_dispatch_job, LOCK 1009, каждые 5 мин</td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>6</td><td>Web Push expiry</td><td><code>medicine_alert_service.py</code>, <code>medicine_reminder_service.py</code> — data.type=medicine_expiry</td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>7</td><td>Бот</td><td><code>bot/handlers/medicine.py</code>, <code>bot/bot.py</code>, <code>bot/utils/api_client.py</code> — /medicines, /taken, med: callbacks</td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>8</td><td>Integration-тесты</td><td><code>tests/integration/backend/test_medicine_reminders.py</code></td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>9</td><td>Verify + docs</td><td><code>docs/wiki/</code> database.md, realtime.md, bot.md, medicine.md</td><td><span class="badge b-done">DONE</span></td></tr>
+  </tbody>
+</table>
+
+<h2>Findings</h2>
+<details open>
+  <summary><span class="badge b-info">INFO</span> &nbsp;Task 3 / spec §206 Snooze — семантическое расхождение механизма (не дефект)</summary>
+  <div class="kv">
+    <div class="k">Plan/Spec</div><div>«создаётся новая запись <code>t_medicine_reminder</code> с <code>reminder_datetime = now + snooze_minutes</code>, исходная помечается <code>sent</code>».</div>
+    <div class="k">Diff</div><div>реализован in-place repoint существующей строки (<code>medicine_reminder_service.py</code> <code>snooze()</code>): ограничение <code>UNIQUE(intake_log_id, recipient_user_id)</code> не позволяет держать 2 строки на пару. Наблюдаемое поведение эквивалентно — ровно одна <code>pending</code>-запись на <code>now + snooze_minutes</code>, строка полностью пере-взведена (<code>retry_count</code>/флаги сброшены).</div>
+    <div class="k">Fix options</div><div>1) принять как есть (поведение совпадает со spec-намерением); 2) для двух-строчной модели — снять UNIQUE и хранить историю snooze.</div>
+  </div>
+</details>
+<details>
+  <summary><span class="badge b-info">INFO</span> &nbsp;Task 9 docs — расширение объёма (благоприятное)</summary>
+  <div class="kv">
+    <div class="k">Plan</div><div>append в <code>database.md</code>, <code>realtime.md</code>, <code>bot.md</code>.</div>
+    <div class="k">Diff</div><div>дополнительно обновлён <code>docs/wiki/medicine.md</code> (основная страница модуля: Phase 3 секция + cross-links).</div>
+    <div class="k">Fix options</div><div>1) принять; 2) —.</div>
+  </div>
+</details>
+
+<h2>Покрытие Intent / Spec</h2>
+<div class="grid">
+  <div class="card"><div class="n">N/A</div><div class="l">Intent Outcomes (нет intent)</div></div>
+  <div class="card"><div class="n ok">5/5</div><div class="l">Phase 3 deliverables §325</div></div>
+  <div class="card"><div class="n ok">6/6</div><div class="l">Spec behavior Phase 3</div></div>
+</div>
+<table>
+  <thead><tr><th>Требование spec</th><th>Покрытие</th></tr></thead>
+  <tbody>
+    <tr><td>§325 Миграция <code>t_medicine_reminder</code></td><td><span class="ok">✓ Task 2</span></td></tr>
+    <tr><td>§325 Dispatch-job <code>LOCK_ID_MEDICINE_DISPATCH=1009</code></td><td><span class="ok">✓ Task 5</span></td></tr>
+    <tr><td>§325 Fan-out получателей (пациент + опекун)</td><td><span class="ok">✓ Task 3/4</span> — <code>guardian_user_id</code> + <code>linked_user_id</code> (svc :51-53)</td></tr>
+    <tr><td>§325 Telegram inline-кнопки + callbacks; Web Push click-to-open <code>/medicines</code></td><td><span class="ok">✓ Task 3 send + Task 7 bot</span></td></tr>
+    <tr><td>§325 / §206 Snooze</td><td><span class="ok">✓ Task 3/4</span> <span class="info">(см. INFO про механизм)</span></td></tr>
+    <tr><td>§178 модель + <code>UNIQUE(intake_log_id, recipient_user_id)</code></td><td><span class="ok">✓ Task 1/2</span></td></tr>
+    <tr><td>§203 Получатели (guardian + linked, дедуп через UNIQUE)</td><td><span class="ok">✓</span></td></tr>
+    <tr><td>§212 Web Push payload <code>data.url=/medicines</code>, <code>data.type</code>=medicine_reminder/medicine_expiry, без <code>sync_completed</code></td><td><span class="ok">✓</span></td></tr>
+    <tr><td>§229 expiry-алерт telegram + web-push broadcast (без <code>t_medicine_reminder</code>)</td><td><span class="ok">✓ Task 6</span></td></tr>
+    <tr><td>§287 / §308 Scheduler LOCK 1009 + Bot <code>/medicines</code>,<code>/taken</code>,<code>med:</code></td><td><span class="ok">✓</span></td></tr>
+  </tbody>
+</table>
+
+<h2>Избыточные изменения</h2>
+<div class="note">Значимых нет. <code>bot/utils/api_client.py</code> (+ generic <code>post()</code>) — план Task 7 явно ссылается на <code>api_client.py</code> и его <code>post()</code>-сигнатуру, поэтому в рамках предусмотренного объёма.</div>
+
+<h2>Сводка</h2>
+<div class="grid">
+  <div class="card"><div class="n crit">0</div><div class="l">CRITICAL</div></div>
+  <div class="card"><div class="n warn">0</div><div class="l">WARNING</div></div>
+  <div class="card"><div class="n info">2</div><div class="l">INFO</div></div>
+  <div class="card"><div class="n ok">OK</div><div class="l">Вердикт</div></div>
+</div>
+<div class="note">
+  <b>Примечание (вне scope /check-result, для контекста):</b> локальная верификация выполнена статикой
+  (<code>ast.parse</code> + grep) — Python 3.9 не позволяет прогон pytest/миграций (backend требует ≥3.10,
+  нет venv/postgres). Реальные тесты — в CI.
+</div>
+
+<h2>Цепь</h2>
+<div class="chain">intent (нет) → <b>docs/superpowers/specs/2026-06-15-medicine-tracking-design.md</b> → <b>docs/superpowers/plans/2026-06-15-medicine-tracking-phase3-reminders.md</b></div>
+
+<footer>
+  Автогенерируемый артефакт команды <code>/check-result</code> · plan_hash <code>d6acb1b3a2a64ae8</code> · 2026-06-18
+</footer>
+</div>
+<script>
+  function tt(){var r=document.documentElement;
+    r.setAttribute('data-theme', r.getAttribute('data-theme')==='dark'?'light':'dark');}
+  document.documentElement.setAttribute('data-theme','dark');
+</script>
+</body>
+</html>

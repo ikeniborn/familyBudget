@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Result Check — Medicine Tracking Phase 4 (Списание остатков)</title>
+<style>
+:root{
+  --bg:#0f1419; --panel:#1a212b; --panel2:#222c38; --fg:#e6edf3; --muted:#9aa7b4;
+  --border:#2d3a48; --accent:#4cc2a0; --ok:#3fb950; --warn:#d29922; --info:#58a6ff;
+  --crit:#f85149; --chip:#243240; --shadow:rgba(0,0,0,.4);
+}
+:root[data-theme="light"]{
+  --bg:#f6f8fa; --panel:#ffffff; --panel2:#f0f3f6; --fg:#1f2328; --muted:#59636e;
+  --border:#d0d7de; --accent:#1a7f64; --ok:#1a7f37; --warn:#9a6700; --info:#0969da;
+  --crit:#cf222e; --chip:#eaeef2; --shadow:rgba(140,149,159,.2);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.55;padding:0 0 4rem}
+header{position:sticky;top:0;z-index:10;background:var(--panel);border-bottom:1px solid var(--border);
+  padding:1.1rem 1.6rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  box-shadow:0 2px 10px var(--shadow)}
+header h1{font-size:1.15rem;margin:0;font-weight:650}
+header .sub{color:var(--muted);font-size:.82rem;margin-top:.2rem}
+.wrap{max-width:1080px;margin:0 auto;padding:1.6rem}
+.verdict{display:inline-flex;align-items:center;gap:.5rem;font-weight:700;font-size:1rem;
+  padding:.35rem .9rem;border-radius:999px;background:var(--ok);color:#fff}
+.toggle{cursor:pointer;border:1px solid var(--border);background:var(--panel2);color:var(--fg);
+  border-radius:8px;padding:.45rem .8rem;font-size:.85rem;display:flex;gap:.4rem;align-items:center}
+.toggle:hover{border-color:var(--accent)}
+section{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+  padding:1.2rem 1.4rem;margin:1.2rem 0;box-shadow:0 1px 6px var(--shadow)}
+section h2{margin:0 0 .9rem;font-size:1.02rem;letter-spacing:.2px;
+  border-left:3px solid var(--accent);padding-left:.6rem}
+dl.meta{display:grid;grid-template-columns:max-content 1fr;gap:.35rem 1rem;margin:0}
+dl.meta dt{color:var(--muted);font-size:.85rem}
+dl.meta dd{margin:0;font-size:.88rem;word-break:break-word}
+code{background:var(--chip);padding:.1rem .4rem;border-radius:5px;font-size:.82em;
+  font-family:"SF Mono",Menlo,Consolas,monospace}
+.stats{display:flex;gap:.8rem;flex-wrap:wrap;margin:.4rem 0 0}
+.stat{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--border);
+  border-radius:10px;padding:.8rem 1rem;text-align:center}
+.stat .n{font-size:1.7rem;font-weight:750;line-height:1}
+.stat .l{color:var(--muted);font-size:.76rem;text-transform:uppercase;letter-spacing:.5px;margin-top:.3rem}
+.stat.done .n{color:var(--ok)} .stat.partial .n{color:var(--warn)} .stat.missing .n{color:var(--crit)}
+table{width:100%;border-collapse:collapse;font-size:.85rem;margin:.3rem 0}
+th,td{text-align:left;padding:.55rem .6rem;border-bottom:1px solid var(--border);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.4px}
+tr:last-child td{border-bottom:none}
+.badge{display:inline-block;padding:.12rem .55rem;border-radius:999px;font-size:.72rem;font-weight:700;
+  white-space:nowrap}
+.badge.done{background:rgba(63,185,80,.16);color:var(--ok)}
+.badge.info{background:rgba(88,166,255,.16);color:var(--info)}
+.badge.warn{background:rgba(210,153,34,.16);color:var(--warn)}
+.badge.crit{background:rgba(248,81,73,.16);color:var(--crit)}
+.finding{border:1px solid var(--border);border-left:3px solid var(--info);border-radius:8px;
+  padding:.8rem 1rem;margin:.7rem 0;background:var(--panel2)}
+.finding summary{cursor:pointer;font-weight:650;font-size:.9rem;outline:none;display:flex;
+  gap:.5rem;align-items:center;flex-wrap:wrap}
+.finding[open] summary{margin-bottom:.6rem}
+.finding .row{display:grid;grid-template-columns:max-content 1fr;gap:.25rem .8rem;font-size:.84rem;margin:.3rem 0}
+.finding .row b{color:var(--muted);font-weight:600}
+.finding ol{margin:.3rem 0 0;padding-left:1.3rem;font-size:.84rem}
+.note{background:var(--panel2);border:1px dashed var(--border);border-radius:8px;padding:.8rem 1rem;
+  font-size:.85rem;color:var(--muted)}
+.note b{color:var(--fg)}
+.cov{display:flex;flex-direction:column;gap:.55rem}
+.cov .item{display:grid;grid-template-columns:max-content 1fr;gap:.6rem;align-items:start;font-size:.85rem}
+.chain{display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;font-size:.85rem}
+.chain .node{background:var(--chip);border:1px solid var(--border);border-radius:8px;padding:.4rem .7rem}
+.chain .node.cur{border-color:var(--accent);color:var(--accent);font-weight:650}
+.chain .arr{color:var(--muted)}
+.chain .node.nil{opacity:.55;font-style:italic}
+footer{max-width:1080px;margin:1rem auto 0;padding:0 1.6rem;color:var(--muted);font-size:.78rem}
+.ok-line{color:var(--ok);font-weight:600}
+@media(max-width:640px){dl.meta{grid-template-columns:1fr}.finding .row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Result Check — Medicine Tracking · Phase 4 «Списание остатков»</h1>
+    <div class="sub">Сверка IDD→SDD: spec + plan vs git diff · 2026-06-18</div>
+  </div>
+  <button class="toggle" id="themeBtn" aria-label="Сменить тему">🌓 <span>Тема</span></button>
+</header>
+
+<div class="wrap">
+
+  <section>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap">
+      <span class="verdict">✓ Вердикт: OK</span>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <span class="badge crit">CRITICAL 0</span>
+        <span class="badge warn">WARNING 0</span>
+        <span class="badge info">INFO 4</span>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Документы и база diff</h2>
+    <dl class="meta">
+      <dt>Plan</dt><dd><code>docs/superpowers/plans/2026-06-15-medicine-tracking-phase4-deduction.md</code></dd>
+      <dt>chain.intent</dt><dd><span class="badge info">null</span> intent для этой фазы отсутствует</dd>
+      <dt>chain.spec</dt><dd><code>docs/superpowers/specs/2026-06-15-medicine-tracking-design.md</code> · найдена</dd>
+      <dt>Diff base</dt><dd><code>git diff 3079e9d2..HEAD</code> · работа закоммичена 6 коммитами, working tree чист · <b>13 файлов, +347/−19</b></dd>
+      <dt>plan_hash</dt><dd><code>41bf7639e76aa694</code> · совпадает с frontmatter</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Покрытие шагов плана</h2>
+    <div class="stats">
+      <div class="stat done"><div class="n">6</div><div class="l">DONE</div></div>
+      <div class="stat partial"><div class="n">0</div><div class="l">PARTIAL</div></div>
+      <div class="stat missing"><div class="n">0</div><div class="l">MISSING</div></div>
+    </div>
+    <table>
+      <thead><tr><th>Задача</th><th>Статус</th><th>Свидетельство в diff</th><th>Коммит</th></tr></thead>
+      <tbody>
+        <tr><td>Task 1 — Сервис списания (FIFO / FOR UPDATE)</td><td><span class="badge done">DONE</span></td>
+          <td><code>medicine_deduction_service.py</code> (новый, +59)</td><td><code>0891fd8d</code></td></tr>
+        <tr><td>Task 2 — Автодобавление в shopping_list</td><td><span class="badge done">DONE</span></td>
+          <td><code>medicine_shopping_integration.py</code> (новый, +54)</td><td><code>85eb6eee</code></td></tr>
+        <tr><td>Task 3 — Списание на take + out-of-stock</td><td><span class="badge done">DONE</span></td>
+          <td><code>medicine_intake.py</code> (+1), <code>medicine_intake_service.py</code> (+33/−10), <code>medicine_courses.py</code> (+7, _mark + broadcast)</td><td><code>a64867a6</code></td></tr>
+        <tr><td>Task 4 — Аналитика purchase_price</td><td><span class="badge done">DONE</span></td>
+          <td><code>medicine_stock.py</code> (+12), <code>medicine_analytics_service.py</code> (новый +22), <code>medicines.py</code> (+16, <code>/analytics</code>)</td><td><code>9057f475</code></td></tr>
+        <tr><td>Task 5 — Интеграционные тесты</td><td><span class="badge done">DONE</span></td>
+          <td><code>test_medicine_deduction.py</code> (новый +110, 5 тестов)</td><td><code>6345eda7</code></td></tr>
+        <tr><td>Task 6 — Frontend toast + docs</td><td><span class="badge done">DONE</span></td>
+          <td><code>medicinesManager.ts</code> (+7), <code>docs/wiki/medicine.md</code> (+35), <code>docs/wiki/api.md</code> (+8)</td><td><code>706caf8e</code></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Findings</h2>
+    <p class="ok-line">CRITICAL: нет · WARNING: нет · только INFO (семантические расхождения, требование выполнено).</p>
+
+    <details class="finding" open>
+      <summary><span class="badge info">INFO-1</span> Task 3 — фактический broadcast-хелпер вместо черновикового</summary>
+      <div class="row"><b>Plan</b><span>«_mark шлёт broadcast <code>medicine_stock_changed</code>» (черновик звал несуществующий <code>broadcast_medicine_stock_changed</code> из <code>medicine_ws</code>).</span></div>
+      <div class="row"><b>Diff</b><span><code>medicine_courses.py</code> → <code>broadcast_medicine_changed("stock", {"id": intake.stock_id})</code> из <code>budget_ws.py</code> — эмитит тот же event <code>medicine_stock_changed</code>. Требование spec §Frontend (мутация → broadcast) выполнено.</span></div>
+      <div class="row"><b>Fix options</b><ol><li>Принять как есть — хелпер корректен.</li><li>Обновить текст плана под фактический API.</li></ol></div>
+    </details>
+
+    <details class="finding" open>
+      <summary><span class="badge info">INFO-2</span> Task 5 — реальная фикстура вместо несуществующих</summary>
+      <div class="row"><b>Plan</b><span>Тест на фикстурах <code>async_client</code> + <code>auth_headers</code> — их нет в проекте.</span></div>
+      <div class="row"><b>Diff</b><span><code>test_medicine_deduction.py</code> использует <code>authenticated_client</code> (cookie-auth), как <code>test_medicine_courses_api.py</code>. Response-keys (<code>stock</code>/<code>shopping_lists</code>/<code>items</code>) сверены.</span></div>
+      <div class="row"><b>Fix options</b><ol><li>Принять — фикстура верна.</li><li>Поправить пример в плане.</li></ol></div>
+    </details>
+
+    <details class="finding" open>
+      <summary><span class="badge info">INFO-3</span> Task 6 — docs/wiki вместо несуществующего lat.md</summary>
+      <div class="row"><b>Plan</b><span>«Update <code>lat.md/domain.md</code>, <code>lat.md/api.md</code>» — каталог <code>lat.md</code> не существует.</span></div>
+      <div class="row"><b>Diff</b><span>Обновлены реальные <code>docs/wiki/medicine.md</code> (+секция Phase 4, 3 устаревшие ссылки) и <code>docs/wiki/api.md</code> (+endpoint <code>/analytics</code>); iwiki переиндексирован.</span></div>
+      <div class="row"><b>Fix options</b><ol><li>Принять — <code>docs/wiki</code> канон проекта по CLAUDE.md.</li><li>Поправить пути в плане.</li></ol></div>
+    </details>
+
+    <details class="finding" open>
+      <summary><span class="badge info">INFO-4</span> Excess — <code>docs/wiki/.iwiki/log.jsonl</code></summary>
+      <div class="row"><b>Plan</b><span>Нет отдельного шага.</span></div>
+      <div class="row"><b>Diff</b><span><code>docs/wiki/.iwiki/log.jsonl</code> (+2 строки) — байпродукт обязательного iwiki-ingest (CLAUDE.md), привязан к Task 6 «Update docs». Не самостоятельное изменение.</span></div>
+      <div class="row"><b>Fix options</b><ol><li>Принять — часть doc-update flow.</li></ol></div>
+    </details>
+  </section>
+
+  <section>
+    <h2>Покрытие Intent / Spec</h2>
+    <dl class="meta" style="margin-bottom:.9rem">
+      <dt>Desired Outcomes</dt><dd>N/A — intent для фазы отсутствует (<code>chain.intent: null</code>)</dd>
+      <dt>Spec requirements</dt><dd><b class="ok-line">6 / 6 покрыто</b></dd>
+    </dl>
+    <div class="cov">
+      <div class="item"><span class="badge done">✓</span><span><b>§215-217</b> — <code>stock_id</code> → атомарное списание (<code>FOR UPDATE</code>, <code>quantity_remaining −= dose</code>): deduction_service, preferred-ветка.</span></div>
+      <div class="item"><span class="badge done">✓</span><span><b>§218</b> — FIFO по <code>expiry_date</code> при отсутствии <code>stock_id</code>: точный запрос.</span></div>
+      <div class="item"><span class="badge done">✓</span><span><b>§219</b> — нет остатков → лог без <code>stock_id</code> + уведомление «закончилось X» + автодобавление в <code>shopping_list</code>: out-of-stock путь + toast warning + <code>add_to_shopping_list</code>.</span></div>
+      <div class="item"><span class="badge done">✓</span><span><b>§346-349</b> — FIFO/FOR UPDATE, автодобавление, аналитика по <code>purchase_price</code> без <code>budget_fact</code>.</span></div>
+      <div class="item"><span class="badge done">✓</span><span><b>§358</b> — тесты FIFO + конкурентность (<code>version</code>): <code>test_take_stale_version_conflict_deducts_once</code> (409 + декремент ровно один раз 5→4).</span></div>
+      <div class="item"><span class="badge done">✓</span><span><b>decision #1 / §65 / §364</b> — без интеграции <code>t_f_budget_fact</code>: нет записей в budget.</span></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Цепочка IDD→SDD</h2>
+    <div class="chain">
+      <span class="node nil">intent — нет</span>
+      <span class="arr">→</span>
+      <span class="node">spec · medicine-tracking-design</span>
+      <span class="arr">→</span>
+      <span class="node cur">plan · phase4-deduction</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Примечание (вне покрытия плана)</h2>
+    <div class="note">
+      <b>Runtime-проверка отложена.</b> Backend-тесты не запускались локально — в этом checkout нет venv/Postgres (git-каталог по CLAUDE.md — <code>/home/ikeniborn/…</code>). Статус проверки тестов отложен в CI / на test-сервер (<code>ssh budget-test</code>). Локально прошли: <code>py_compile</code>, статический анализ, <code>tsc --noEmit</code>.<br><br>
+      <b>Финальный code-review:</b> «ready to merge» без Critical/Important блокеров. 3 minor-семантики — кандидаты в follow-up: идемпотентность повторного <code>take</code> уже-<code>taken</code> записи; частичная упаковка (<code>dose &gt; remaining</code> → списывает остаток, возвращает DEDUCTED без restock); аналитика учитывает soft-deleted упаковки (нет <code>deleted_at IS NULL</code>).
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  Chain: (нет intent) → <code>specs/2026-06-15-medicine-tracking-design.md</code> → <code>plans/2026-06-15-medicine-tracking-phase4-deduction.md</code><br>
+  Автогенерируемый артефакт команды <code>/check-result</code> · 2026-06-18
+</footer>
+
+<script>
+(function(){
+  var b=document.getElementById('themeBtn');
+  var root=document.documentElement;
+  function set(t){root.setAttribute('data-theme',t);}
+  // default dark; toggle to light
+  b.addEventListener('click',function(){
+    set(root.getAttribute('data-theme')==='light'?'dark':'light');
+  });
+})();
+</script>
+</body>
+</html>
