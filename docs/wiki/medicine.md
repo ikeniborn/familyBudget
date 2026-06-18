@@ -225,3 +225,47 @@ Two new WebSocket events broadcast to all connected clients when a course or int
 - `medicine_intake_marked` — emitted on take and skip. Payload: full `IntakeResponse`.
 
 Both are broadcast via helpers `broadcast_medicine_course_changed` / `broadcast_medicine_intake_marked` imported from `budget_ws.py` into `medicine_courses.py`.
+
+---
+
+## Phase 3 — Reminders
+
+Phase 3 adds push notifications for intake reminders. A `MedicineReminder` row is created for every scheduled intake — one row per recipient — and a dedicated 5-minute dispatch job delivers them via Telegram inline buttons and/or Web Push. See [[database#Phase 3 Medicine Table]], [[realtime#Medicine Reminder Dispatch (Phase 3)]], and [[bot#Medicine Commands (Phase 3)]].
+
+### Reminder Model
+
+`MedicineReminder` (`backend/app/models/medicine_reminder.py`) is `t_medicine_reminder` — a service table (no SCD history). Each row tracks one push to one user for one dose.
+
+- `intake_log_id` → `t_f_medicine_intake_log.id` (ON DELETE CASCADE), `recipient_user_id` → `t_d_user.id` (ON DELETE CASCADE).
+- `reminder_datetime` TIMESTAMP (naive, SYSTEM_TIMEZONE), `status` CHECK(`pending/sent/failed/cancelled`).
+- `telegram_sent`, `web_push_sent` BOOLEAN flags; `retry_count` INT (max 3 before `failed`); `error_message` VARCHAR(1000).
+- UNIQUE `uq_medicine_reminder_recipient` on `(intake_log_id, recipient_user_id)` — one row per intake per recipient, used as the dedup backstop for concurrent inserts.
+- Migration: revision `m3c4d5e6f7a8` (after `m2b3c4d5e6f7`).
+
+### Reminder Service
+
+`MedicineReminderService` (`backend/app/services/medicine_reminder_service.py`) handles the full lifecycle.
+
+- `create_reminders_for_intake(session, intake, course, patient)` — fan-out: creates one `pending` row for the guardian user plus one for the linked patient user (if distinct). Each insert runs in a `SAVEPOINT` so a UNIQUE-conflict rolls back only that row.
+- `get_due(session, batch_size=100)` — returns `pending` rows with `reminder_datetime <= now`, ordered chronologically.
+- `send(session, reminder)` — loads related rows (intake, course, medicine, patient, user), then: sends Telegram message with three inline buttons (`med:take`, `med:skip`, `med:snooze`) if `"telegram"` in `course.notification_channels` and user has `telegram_id`; sends Web Push (`tag="medicine-reminder"`, `data.type="medicine_reminder"`, `data.url="/medicines"`) if `"web_push"` in channels. Returns `(telegram_sent, web_push_sent)`. On total failure increments `retry_count`; after 3 retries marks `status=failed`.
+- `snooze(session, intake_id, recipient_user_id)` — updates the existing reminder row in place to `reminder_datetime = now + course.snooze_minutes` (`status=pending`). Creates a new row if none exists.
+
+### Dispatch Job
+
+`medicine_reminder_dispatch_job` (`backend/app/scheduler.py:383`) runs every 5 minutes. Uses advisory lock `LOCK_ID_MEDICINE_DISPATCH = 1009` (single-worker guarantee). Fetches up to 100 due reminders and calls `svc.send` for each. See [[realtime#Medicine Reminder Dispatch (Phase 3)]].
+
+### New Endpoints (Phase 3)
+
+Added to `backend/app/api/v1/endpoints/medicine_courses.py`. Both require `get_current_user`.
+
+- `GET /api/v1/medicine-intakes/{intake_id}` — fetch a single intake log row (`IntakeResponse`); 404 if not found.
+- `POST /api/v1/medicine-intakes/{intake_id}/snooze` — snooze the caller's reminder for this intake to `now + course.snooze_minutes`; returns the updated `IntakeResponse`.
+
+### Bot Integration
+
+The bot exposes three Phase 3 entry points. `/medicines` opens the Web App. `/taken` marks the nearest pending intake today as taken directly from chat. Reminder messages sent by `send()` carry inline buttons `med:take:{log_id}` / `med:skip:{log_id}` / `med:snooze:{log_id}` handled by `medicine_callback`. See [[bot#Medicine Commands (Phase 3)]].
+
+### Expiry Alert Web Push (Updated)
+
+`send_expiry_alerts` in `medicine_alert_service.py` now also sends Web Push using the shared `_send_web_push` helper with `tag="medicine-expiry"`, `data_type="medicine_expiry"`, `data.url="/medicines"` (updated from Phase 1). See [[realtime#Medicine Reminder Dispatch (Phase 3)]] for the full payload table.

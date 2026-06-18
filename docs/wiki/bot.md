@@ -152,6 +152,39 @@ An `AsyncIOScheduler` (APScheduler) is created and started in `BotApplication.st
 - Scheduler wrapper: `bot/utils/scheduler.py:18` (`BotScheduler`), init at `:169`, weekly job at `add_weekly_report_job` (`:66`).
 - Job target: `send_weekly_reports` in `bot/jobs/weekly_report.py:25` — currently logs a debug message and returns (NOT IMPLEMENTED: needs persistent token storage). The report-building helpers (`generate_weekly_report`, `format_weekly_report`) exist but are unreachable.
 
+## Medicine Commands (Phase 3)
+
+Three medicine-specific entry points registered in `bot/bot.py:125–131`. All require authentication (`SessionManager.is_authenticated`). Defined in `bot/handlers/medicine.py`. See [[medicine#Phase 3 — Reminders]] for the full reminder flow.
+
+### /medicines command
+
+Opens the medicines Web App. Sends an inline keyboard button with a `WebAppInfo` URL pointing at `{webapp_base}/index.html#/medicines`. Requires auth; unauthenticated users receive a prompt to `/start`.
+
+- Handler: `bot/handlers/medicine.py:13` (`medicine_handler`).
+- URL derived from `get_webapp_url()` (strips `index.html`, appends `#/medicines`).
+
+### /taken command
+
+Marks the nearest pending intake today as taken without opening the app. Calls `GET /api/v1/medicine-intakes?date=today`, picks the first row with `status in (scheduled, late)`, and calls `POST /api/v1/medicine-intakes/{id}/take` with the intake's current `version`. Replies with the medicine name and scheduled time.
+
+- Handler: `bot/handlers/medicine.py:33` (`taken_handler`).
+- Uses `APIClient.get` / `APIClient.post` (the generic `post()` added in Phase 3).
+- If no pending intakes exist, replies with an info message. On API failure, suggests opening `/medicines`.
+
+### med: inline callbacks
+
+`medicine_callback` (`bot/handlers/medicine.py:71`) handles the three quick-action buttons attached to Telegram reminder messages. Registered via `CallbackQueryHandler(pattern="^med:")`.
+
+Callback data format: `med:{action}:{log_id}` where `action` is one of:
+
+| Action | Endpoint called | Bot reply |
+|---|---|---|
+| `med:take:{log_id}` | `GET …/intakes/{id}` (fetch version) → `POST …/intakes/{id}/take` | "Принято" |
+| `med:skip:{log_id}` | `GET …/intakes/{id}` (fetch version) → `POST …/intakes/{id}/skip` | "Пропущено" |
+| `med:snooze:{log_id}` | `POST …/intakes/{id}/snooze` | "Отложено" |
+
+The `take` and `skip` actions fetch the current intake first to obtain the optimistic-locking `version`. `snooze` requires no version. On any API error the message is edited to an error prompt with a link to `/medicines`.
+
 ## Notification Service
 
 A budget-threshold alert service that compares current-month plan vs actual for an article and DMs the owning user when usage crosses a threshold. It is initialized at startup but not wired to any scheduled trigger in this service, so it is effectively dormant unless invoked externally.

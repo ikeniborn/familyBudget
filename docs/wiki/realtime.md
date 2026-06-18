@@ -120,3 +120,34 @@ The WS layer bridges to Web Push: significant broadcasts (`fact_created`, `trans
 - `backend/app/api/v1/endpoints/budget_ws.py:809` — `_send_push_for_offline_users` (uses `PushService.broadcast_except_connected`)
 - `_get_connected_user_ids` (`:804`) reads `ws_manager.connections`; `set_push_db_session_factory` (`:795`) wires the DB session at startup.
 - `PUSH_DEBOUNCE_SECONDS = 30` (`budget_ws.py:789`).
+
+## Medicine Reminder Dispatch (Phase 3)
+
+Medicine reminders are driven by a dedicated 5-minute scheduler job, independent of the daily maintenance job. It sends Telegram messages with inline action buttons and Web Push notifications to offline users. See [[medicine#Phase 3 — Reminders]] for the reminder lifecycle.
+
+### Dispatch Job
+
+`medicine_reminder_dispatch_job` (`backend/app/scheduler.py:383`) runs every 5 minutes via APScheduler (`id="medicine_reminder_dispatch"`). It acquires advisory lock `LOCK_ID_MEDICINE_DISPATCH = 1009` so only one worker in a multi-worker deployment executes per tick.
+
+- Fetches up to 100 `pending` rows with `reminder_datetime <= now` via `MedicineReminderService.get_due`.
+- For each row calls `svc.send(session, reminder)` — Telegram first, then Web Push.
+- A reminder reaches `status=sent` if at least one channel succeeds; on total failure `retry_count` increments; after 3 retries it moves to `status=failed`.
+
+### Fan-out & Dedup
+
+`create_reminders_for_intake` (`medicine_reminder_service.py:41`) creates one `t_medicine_reminder` row per recipient. Recipients = guardian user + linked patient user (if distinct). Each insert runs inside a `session.begin_nested()` SAVEPOINT so a `UNIQUE(intake_log_id, recipient_user_id)` violation rolls back only that row, leaving the others intact. Called from `generate_for_course` per new intake row (Phase 2 intake service, extended in Phase 3).
+
+### Snooze
+
+`MedicineReminderService.snooze(session, intake_id, recipient_user_id)` (`medicine_reminder_service.py:192`) re-schedules an existing `t_medicine_reminder` row in place (`reminder_datetime = now + course.snooze_minutes`, `status = pending`, `sent_at = None`). If no row exists for the pair it inserts one. Default `snooze_minutes = 30` (from `MedicineCourse`). Exposed via `POST /api/v1/medicine-intakes/{id}/snooze` and the `med:snooze:{log_id}` bot callback.
+
+### Web Push Payloads
+
+Both medicine push types share `data.url = "/medicines"` and use `_send_web_push` from `MedicineReminderService` with parameterised `tag` / `data_type`:
+
+| Alert kind | `tag` | `data.type` | `data.url` |
+|---|---|---|---|
+| Intake reminder | `medicine-reminder` | `medicine_reminder` | `/medicines` |
+| Stock expiry | `medicine-expiry` | `medicine_expiry` | `/medicines` |
+
+The expiry alert (`medicine_alert_service.py:72`) now calls `_send_web_push` with `tag="medicine-expiry", data_type="medicine_expiry"` (updated from Phase 1 which targeted `/medicines/stock`). See [[realtime#Web Push (VAPID)]] for the shared VAPID / `pywebpush` infrastructure.

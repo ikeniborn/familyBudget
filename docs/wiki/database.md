@@ -102,6 +102,20 @@ Phase 2 (migration `m2b3c4d5e6f7`, after `m1a2b3c4d5e6`) adds two fact tables fo
 
 Neither table has a `*_history` audit table in Phase 2. See [[medicine#Intake Generation]] for the idempotent generation strategy and [[medicine#Intake Marking]] for the optimistic-locking take/skip flow.
 
+## Phase 3 Medicine Table
+
+Phase 3 (migration `m3c4d5e6f7a8`, after `m2b3c4d5e6f7`) adds one service table for reminder dispatch. See [[medicine#Phase 3 — Reminders]] for full end-to-end semantics.
+
+`t_medicine_reminder` — one row per (intake_log, recipient) scheduled push.
+- FKs: `intake_log_id` → `t_f_medicine_intake_log.id` (ON DELETE CASCADE), `recipient_user_id` → `t_d_user.id` (ON DELETE CASCADE).
+- `reminder_datetime` TIMESTAMP (naive, SYSTEM_TIMEZONE) — when to send.
+- `status` VARCHAR(20) CHECK(`pending/sent/failed/cancelled`), default `pending`.
+- `sent_at` TIMESTAMP nullable, `telegram_sent` BOOLEAN default FALSE, `web_push_sent` BOOLEAN default FALSE.
+- `error_message` VARCHAR(1000) nullable, `retry_count` INT default 0 (max 3 before `failed`).
+- UNIQUE constraint `uq_medicine_reminder_recipient` on `(intake_log_id, recipient_user_id)` — one row per intake per recipient (dedup backstop).
+- Indexes: `idx_medicine_reminder_intake` on `intake_log_id`; `idx_medicine_reminder_datetime` on `reminder_datetime`; `idx_medicine_reminder_pending` partial on `status WHERE status = 'pending'`.
+- No `*_history` audit table (service table, not a dimension or fact).
+
 ## Alembic Migrations
 
 Schema is migration-owned (no `create_all` in production). Alembic loads `SQLModel.metadata`, rewrites the async DSN to a sync one, and runs inside a transaction; 68+ versioned files live under `versions/`.
