@@ -90,7 +90,11 @@ Two server-rendered Jinja pages under `/medicines/*`, defined in `backend/app/ap
 
 ### Navbar Entry
 
-All medicine pages are reached from the **💊 Лекарства** navbar dropdown — desktop in `frontend/web/templates/partials/navbar_center_menu.html`, mobile in `frontend/web/templates/components/user_dropdown_menu.html`. Links: Приём лекарств (`/medicines`), Курсы приёма (`/medicines/courses`), Справочник лекарств (`/medicines/catalog`), Аптечка (`/medicines/stock`). Shown to any logged-in user, `data-offline-hidden`. See [[frontend]].
+All medicine pages are reached from the **💊 Лекарства** navbar dropdown — desktop in `frontend/web/templates/partials/navbar_center_menu.html`, mobile in `frontend/web/templates/components/user_dropdown_menu.html`. Links: Приём лекарств (`/medicines`), Пациенты (`/medicines/patients`), Курсы приёма (`/medicines/courses`), Справочник лекарств (`/medicines/catalog`), Аптечка (`/medicines/stock`). Shown to any logged-in user, `data-offline-hidden`. See [[frontend]].
+
+### Patient Management Page
+
+`/medicines/patients` → `frontend/web/templates/medicines_patients.html` — manage family members (patients) used as `patient_id` in courses. Add-form (name, birth_date, notes), table with edit dialog + soft-archive. A patient is a `t_d_family_member` row, **account-less by design** (`guardian_user_id` defaults to the current user; `linked_user_id` optional). Backed by the `/family-members` CRUD (see [[api#Medicine Endpoints (Phase 2)]]). TS handlers `loadPatients` / `createPatientFromForm` / `openPatientEdit` / `savePatientEdit` / `patientArchive` in `medicinesManager.ts`; live-reload on the `medicine_family_member_changed` WS event. The course form (`medicines_courses.html`) also has an inline **➕** quick-add (`openQuickPatient` / `saveQuickPatient`) that creates a patient and selects it without leaving the dialog.
 
 ## Stock Page (Frontend)
 
