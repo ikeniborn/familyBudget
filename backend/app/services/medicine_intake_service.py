@@ -1,4 +1,5 @@
 """Intake service: generate intake_log + reminders, list, take/skip (status only this phase)."""
+import logging
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import text
@@ -12,6 +13,8 @@ from backend.app.models.medicine_intake_log import MedicineIntakeLog
 from backend.app.services.medicine_reminder_service import MedicineReminderService
 from backend.app.services.medicine_schedule import expand_schedule
 from backend.app.utils.timezone import now_local
+
+logger = logging.getLogger(__name__)
 
 GENERATION_HORIZON_DAYS = 7
 
@@ -39,6 +42,9 @@ async def generate_for_course(session: AsyncSession, course: MedicineCourse,
     if not slots:
         return 0
     patient = await session.get(FamilyMember, course.patient_id)
+    if patient is None:
+        logger.warning("[MEDICINE] generate_for_course: patient %s missing for course %s — reminders skipped",
+                       course.patient_id, course.id)
     reminder_svc = MedicineReminderService()
     created = 0
     for slot in slots:

@@ -209,6 +209,7 @@ async def snooze_intake(
     if not intake:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Intake {intake_id} not found")
     await MedicineReminderService().snooze(session, intake_id, current_user.id)
+    await session.refresh(intake)
     return IntakeResponse.model_validate(intake)  # intake status unchanged; a new reminder was scheduled
 
 
