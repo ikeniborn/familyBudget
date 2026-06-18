@@ -20,7 +20,7 @@ from backend.app.models.medicine_reminder import MedicineReminder
 from backend.app.models.push_subscription import PushSubscription
 from backend.app.models.user import User
 from backend.app.services.telegram_auth import make_telegram_client
-from backend.app.utils.timezone import now_local
+from backend.app.utils.timezone import now_local, now_utc
 
 logger = get_logger(__name__)
 
@@ -114,6 +114,8 @@ class MedicineReminderService:
 
         if telegram_sent or web_push_sent:
             reminder.mark_sent()
+            logger.info("[MED_REMINDER] Sent reminder %s (telegram=%s web_push=%s)",
+                        reminder.id, telegram_sent, web_push_sent)
         else:
             reminder.increment_retry("all channels failed")
         await session.commit()
@@ -171,6 +173,7 @@ class MedicineReminderService:
                     data=payload,
                     vapid_private_key=self.settings.VAPID_PRIVATE_KEY,
                     vapid_claims={"sub": f"mailto:{self.settings.VAPID_CONTACT_EMAIL or 'noreply@example.com'}"})
+                sub.last_used_at = now_utc().replace(tzinfo=None)
                 sent += 1
             except WebPushException as e:
                 if e.response and e.response.status_code == 410:
@@ -182,41 +185,33 @@ class MedicineReminderService:
         return sent > 0
 
     # ---------- snooze ----------
-    async def snooze(
-        self, session: AsyncSession, intake_id: int, recipient_user_id: int
-    ) -> MedicineReminder:
-        """Mark the recipient's current reminder sent, create a new one at now + course.snooze_minutes."""
+    async def snooze(self, session: AsyncSession, intake_id: int, recipient_user_id: int) -> MedicineReminder:
+        """Re-schedule the recipient's reminder to now + course.snooze_minutes (default 30).
+
+        UNIQUE(intake_log_id, recipient_user_id) ⇒ at most one row per pair, so we update
+        the existing row in place rather than inserting a duplicate.
+        """
         intake = await session.get(MedicineIntakeLog, intake_id)
         course = await session.get(MedicineCourse, intake.course_id) if intake else None
         snooze_minutes = course.snooze_minutes if course else 30
+        snooze_at = _now() + timedelta(minutes=snooze_minutes)
 
-        existing = (await session.execute(
+        row = (await session.execute(
             select(MedicineReminder).where(
                 MedicineReminder.intake_log_id == intake_id,
                 MedicineReminder.recipient_user_id == recipient_user_id,
-                MedicineReminder.status == "pending"))).scalars().all()
-        for r in existing:
-            r.mark_sent()
-            session.add(r)
-
-        new = MedicineReminder(
-            intake_log_id=intake_id, recipient_user_id=recipient_user_id,
-            reminder_datetime=_now() + timedelta(minutes=snooze_minutes), status="pending")
-        session.add(new)
-        try:
-            await session.commit()
-        except IntegrityError:
-            # A sent row already occupies (intake, recipient) UNIQUE -> reuse it by resetting to pending.
-            await session.rollback()
-            row = (await session.execute(
-                select(MedicineReminder).where(
-                    MedicineReminder.intake_log_id == intake_id,
-                    MedicineReminder.recipient_user_id == recipient_user_id))).scalar_one()
+            ))).scalar_one_or_none()
+        if row:
             row.status = "pending"
-            row.reminder_datetime = _now() + timedelta(minutes=snooze_minutes)
+            row.reminder_datetime = snooze_at
             row.sent_at = None
+        else:
+            row = MedicineReminder(
+                intake_log_id=intake_id, recipient_user_id=recipient_user_id,
+                reminder_datetime=snooze_at, status="pending")
             session.add(row)
-            await session.commit()
-            return row
-        await session.refresh(new)
-        return new
+        logger.info("[MED_REMINDER] Snoozed reminder for intake=%s recipient=%s until %s",
+                    intake_id, recipient_user_id, snooze_at)
+        await session.commit()
+        await session.refresh(row)
+        return row
