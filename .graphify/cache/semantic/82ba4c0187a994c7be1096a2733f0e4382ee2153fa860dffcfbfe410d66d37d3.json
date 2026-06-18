@@ -1,1 +1,0 @@
-{"nodes": [{"id": "service_webapp_auth", "label": "backend/app/services/webapp_auth.py (Telegram Web App initData auth)", "file_type": "code", "source_file": "backend/app/services/webapp_auth.py", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

@@ -1,1 +1,0 @@
-/home/ikeniborn/Documents/Project/familyBudget/test-results/setup-auth.setup.ts-authenticate-setup/test-failed-1.png

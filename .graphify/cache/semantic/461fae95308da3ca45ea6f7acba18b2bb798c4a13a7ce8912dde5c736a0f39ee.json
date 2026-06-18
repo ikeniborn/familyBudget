@@ -1,1 +1,0 @@
-{"nodes": [{"id": "module_redis_pubsub_service", "label": "backend/app/services/redis_pubsub_service.py (SSE, get_events_since for reconnect catch-up)", "file_type": "code", "source_file": "backend/app/services/redis_pubsub_service.py", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

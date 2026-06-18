@@ -1,6 +1,0 @@
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/optimization/cache-busting.md
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/optimization/caching-strategy.md
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/optimization/installation-resilience.md
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/patterns/retry-pattern.md
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/web/_index.yaml
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/web/css.yaml
