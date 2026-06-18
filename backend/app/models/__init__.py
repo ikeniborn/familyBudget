@@ -71,6 +71,7 @@ from backend.app.models.medicine import Medicine
 from backend.app.models.medicine_course import MedicineCourse
 from backend.app.models.medicine_history import MedicineHistory
 from backend.app.models.medicine_intake_log import MedicineIntakeLog
+from backend.app.models.medicine_reminder import MedicineReminder
 from backend.app.models.medicine_stock import MedicineStock
 from backend.app.models.notification import Notification
 from backend.app.models.product_group import ProductGroup
@@ -107,6 +108,7 @@ __all__ = [
     "MedicineCourse",
     "MedicineHistory",
     "MedicineIntakeLog",
+    "MedicineReminder",
     "MedicineStock",
     "Notification",
     "BankProvider",
