@@ -12,9 +12,10 @@ from backend.app.schemas.medicine import (
     MedicineCreate, MedicineListResponse, MedicineResponse, MedicineUpdate,
 )
 from backend.app.schemas.medicine_stock import (
-    MedicineStockCreate, MedicineStockListResponse, MedicineStockResponse, MedicineStockUpdate,
+    MedicineAnalyticsResponse, MedicineSpendByMedicine, MedicineStockCreate,
+    MedicineStockListResponse, MedicineStockResponse, MedicineStockUpdate,
 )
-from backend.app.services import medicine_service, medicine_stock_service
+from backend.app.services import medicine_analytics_service, medicine_service, medicine_stock_service
 
 logger = logging.getLogger(__name__)
 
@@ -126,6 +127,17 @@ async def list_stock(
     return MedicineStockListResponse(
         stock=[MedicineStockResponse.model_validate(r) for r in rows],
         total=total, limit=limit, offset=offset)
+
+
+@stock_router.get("/analytics", response_model=MedicineAnalyticsResponse, summary="Purchase analytics")
+async def stock_analytics(
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> MedicineAnalyticsResponse:
+    data = await medicine_analytics_service.purchase_analytics(session)
+    return MedicineAnalyticsResponse(
+        total_spent=data["total_spent"],
+        by_medicine=[MedicineSpendByMedicine(**r) for r in data["by_medicine"]])
 
 
 @stock_router.post("", response_model=MedicineStockResponse, status_code=status.HTTP_201_CREATED)

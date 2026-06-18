@@ -57,3 +57,15 @@ class MedicineStockListResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class MedicineSpendByMedicine(BaseModel):
+    medicine_id: int
+    medicine_name: str
+    total_spent: Decimal
+    package_count: int
+
+
+class MedicineAnalyticsResponse(BaseModel):
+    total_spent: Decimal
+    by_medicine: list[MedicineSpendByMedicine]
