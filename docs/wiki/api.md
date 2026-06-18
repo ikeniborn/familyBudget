@@ -118,8 +118,14 @@ Intake courses and the generated dose log. Defined in `backend/app/api/v1/endpoi
 
 **`/api/v1/medicine-intakes`** — scheduled dose log:
 - `GET ""` — list intakes by `date` (`'today'` or `YYYY-MM-DD`; malformed → 422), `patient_id`, `course_id`. Triggers lazy `generate_all` when `date` is `None` or `'today'`.
-- `POST /{intake_id}/take` — body `{version, dose_taken?, comment?}`; sets `status=taken`; 409 on stale `version`; broadcasts `medicine_intake_marked`.
+- `POST /{intake_id}/take` — body `{version, dose_taken?, stock_id?, comment?}`; sets `status=taken`; deducts stock (Phase 4 — chosen package else FIFO, `FOR UPDATE`); 409 on stale `version`; broadcasts `medicine_intake_marked` plus `medicine_stock_changed` when a package was touched.
 - `POST /{intake_id}/skip` — same body; sets `status=skipped`; 409 on stale `version`; broadcasts `medicine_intake_marked`.
+
+## Medicine Endpoints (Phase 4)
+
+Stock deduction on take, out-of-stock auto-restock, and module-only purchase analytics. No new routers — adds one endpoint to the Phase 1 stock router. See [[medicine#Phase 4 — Списание остатков (Stock Deduction)]].
+
+- `GET /api/v1/medicine-stock/analytics` (`endpoints/medicines.py`) — purchase analytics from `stock.purchase_price`: `MedicineAnalyticsResponse{total_spent, by_medicine[]}` (per-medicine `total_spent`, `package_count`). Read-only, no budget integration (decision #1). Declared before any `/{stock_id}` route.
 
 ## Notifications & Push Endpoints
 

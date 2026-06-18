@@ -180,8 +180,11 @@ async function refreshIntakeViews(): Promise<void> {
 
 export async function intakeTake(id: number, version: number): Promise<void> {
   try {
-    await api(`/api/v1/medicine-intakes/${id}/take`, { method: 'POST', body: JSON.stringify({ version }) });
-    showToast('Принято', 'success');
+    const res = await api<{ stock_id: number | null }>(
+      `/api/v1/medicine-intakes/${id}/take`, { method: 'POST', body: JSON.stringify({ version }) });
+    // stock_id === null ⇒ out of stock: server auto-added the medicine to «Аптечка — докупить»
+    showToast(res.stock_id == null ? 'Принято. Лекарство закончилось — добавлено в список покупок' : 'Принято',
+              res.stock_id == null ? 'warning' : 'success');
     await refreshIntakeViews();
   } catch (e) {
     showToast(String((e as Error).message), 'error');

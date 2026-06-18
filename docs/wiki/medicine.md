@@ -152,7 +152,7 @@ Key fields:
 - `course_id` → `t_f_medicine_course.id` (ON DELETE CASCADE), `patient_id` → `t_d_family_member.id` (denormalized)
 - `scheduled_at` (naive TIMESTAMP, SYSTEM_TIMEZONE), `taken_at` (nullable)
 - `status` (CHECK `scheduled/taken/skipped/late`, default `scheduled`)
-- `dose_taken` (nullable Decimal 10,3), `stock_id` → `t_f_medicine_stock.id` (ON DELETE SET NULL, Phase 4 deduction, currently unused)
+- `dose_taken` (nullable Decimal 10,3), `stock_id` → `t_f_medicine_stock.id` (ON DELETE SET NULL; set by Phase 4 deduction to the package the dose was drawn from)
 - `marked_by` → `t_d_user.id` (nullable), `version` (int, default 1 — optimistic locking)
 - UNIQUE constraint `uq_intake_course_scheduled` on `(course_id, scheduled_at)` — idempotency backstop
 
@@ -181,9 +181,9 @@ Key fields:
 
 ## Intake Marking
 
-`mark_intake` (`medicine_intake_service.py:121`) sets status to `taken` or `skipped` using optimistic locking: checks `intake.version == expected_version`, increments `version`, sets `taken_at` (for `taken`), and commits. Raises `IntakeVersionConflict` on mismatch, which the endpoint maps to HTTP 409.
+`mark_intake` (`medicine_intake_service.py:128`) sets status to `taken` or `skipped` using optimistic locking: checks `intake.version == expected_version`, increments `version`, sets `taken_at` (for `taken`), and commits. Raises `IntakeVersionConflict` on mismatch, which the endpoint maps to HTTP 409.
 
-Phase 2 marks status only. Phase 4 will add stock deduction inside the `taken` branch.
+On `taken` it also runs Phase 4 stock deduction in the same transaction — see [[medicine#Phase 4 — Списание остатков (Stock Deduction)]]. A soft-deleted course (`session.get` → `None`) still records the take but skips deduction.
 
 ## Stock Estimate per Course
 
@@ -206,7 +206,7 @@ Two routers are defined in `backend/app/api/v1/endpoints/medicine_courses.py` an
 
 **Intakes** (`prefix="/medicine-intakes"`):
 - `GET ""` — list by `date` (`'today'` or `YYYY-MM-DD`; malformed → 422), `patient_id`, `course_id`. Triggers lazy-backfill when `date` is `None` or `'today'`. Returns joined rows with `medicine_name`, `patient_name`, `dose_amount`, `dose_unit`, `with_food`.
-- `POST /{intake_id}/take` — body: `IntakeMarkRequest{version, dose_taken?, comment?}`; sets `status=taken`; broadcasts `medicine_intake_marked`; 409 on stale version.
+- `POST /{intake_id}/take` — body: `IntakeMarkRequest{version, dose_taken?, stock_id?, comment?}`; sets `status=taken`; deducts stock (Phase 4); broadcasts `medicine_intake_marked` and, when a package was touched, `medicine_stock_changed`; 409 on stale version.
 - `POST /{intake_id}/skip` — same body; sets `status=skipped`; broadcasts `medicine_intake_marked`; 409 on stale version.
 
 ## Web Pages (Phase 2)
@@ -269,3 +269,30 @@ The bot exposes three Phase 3 entry points. `/medicines` opens the Web App. `/ta
 ### Expiry Alert Web Push (Updated)
 
 `send_expiry_alerts` in `medicine_alert_service.py` now also sends Web Push using the shared `_send_web_push` helper with `tag="medicine-expiry"`, `data_type="medicine_expiry"`, `data.url="/medicines"` (updated from Phase 1). See [[realtime#Medicine Reminder Dispatch (Phase 3)]] for the full payload table.
+
+---
+
+## Phase 4 — Списание остатков (Stock Deduction)
+
+Phase 4 makes marking an intake `taken` atomically deduct the dose from a package, auto-restocks when a medicine runs out, and adds module-only purchase analytics. No new tables and no migration (head stays `m3c4d5e6f7a8`); it reuses `intake_log.stock_id` (Phase 2) and `stock.purchase_price` (Phase 1). **No budget integration** (decision #1 — no `t_f_budget_fact` writes). See [[api#Medicine Endpoints (Phase 4)]].
+
+### Deduction Service
+
+`deduct_for_intake` (`backend/app/services/medicine_deduction_service.py`) deducts a dose from one package and sets `intake.stock_id`, returning `DEDUCTED` or `OUT_OF_STOCK`. It runs inside `mark_intake`'s transaction (caller commits).
+
+- Package choice: an explicit `preferred_stock_id` (guarded by `medicine_id = course.medicine_id` so a chosen package must belong to the course's medicine), else FIFO — the earliest `expiry_date` with `quantity_remaining > 0`.
+- The chosen row is locked `SELECT … FOR UPDATE` so concurrent takes can't double-spend.
+- Partial packages allowed: `new_qty = remaining − dose`, clamped to `0` (never negative). Decimal arithmetic throughout.
+- No row / nothing remaining → `OUT_OF_STOCK` (intake keeps `stock_id = NULL`).
+
+### Shopping-List Auto-Restock
+
+`add_to_shopping_list` (`backend/app/services/medicine_shopping_integration.py`) is called on `OUT_OF_STOCK`. It find-or-creates an active list `«Аптечка — докупить»`, an `«Аптека»` store and `«Лекарства»` product group (reusing `csv_validator.get_or_create_store/product_group` — `shopping_list_item` requires both FKs), then adds the medicine — skipping if an active (non-completed, non-deleted) item with the same `product_name` already exists. Caller commits. See [[domain#Shopping Lists & Items]].
+
+### Deduct-on-Take Flow
+
+`mark_intake` (`medicine_intake_service.py`) gained a `stock_id` param. On `taken`, after the status/version update, it loads the course (skips deduction if soft-deleted), resolves `dose = dose_taken or course.dose_amount`, calls `deduct_for_intake`, and on `OUT_OF_STOCK` loads the `Medicine` and calls `add_to_shopping_list` — all in one transaction with a single commit. The `_mark` endpoint helper (`medicine_courses.py`) forwards `body.stock_id` and, when `intake.stock_id is not None`, broadcasts `broadcast_medicine_changed("stock", {"id": intake.stock_id})` so other clients refresh the stock view in real time. The dashboard's `intakeTake` (`medicinesManager.ts`) reads `stock_id` from the response and, when `null`, shows a `warning` toast «закончилось — добавлено в список покупок».
+
+### Purchase Analytics
+
+`purchase_analytics` (`backend/app/services/medicine_analytics_service.py`) is a read-only aggregate over `t_f_medicine_stock.purchase_price` joined to `t_d_medicine`: total spent plus a per-medicine breakdown (`total_spent`, `package_count`), counting every package with a non-null price. Exposed at `GET /api/v1/medicine-stock/analytics` (`MedicineAnalyticsResponse`) on `stock_router`, declared before any `/{stock_id}` route. Module-only — it never touches the budget domain.
