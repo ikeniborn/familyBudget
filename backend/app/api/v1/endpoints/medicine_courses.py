@@ -120,6 +120,9 @@ async def complete_course(
     if not c:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Course {course_id} not found")
     c = await medicine_course_service.complete_course(session, c)
+    # Intentionally no _with_estimate: a completed course is soft-deleted and drops out
+    # of the active list, so estimate is null here (unlike create/update/pause). DELETE
+    # delegates to this handler and shares the null-estimate response shape.
     resp = MedicineCourseResponse.model_validate(c)
     await broadcast_medicine_course_changed(resp.model_dump(mode="json"))
     return resp
