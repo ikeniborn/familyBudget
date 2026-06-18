@@ -1,5 +1,6 @@
-"""Integration tests for Phase 3: reminder fan-out, dedup, due query, snooze."""
+"""Integration tests for Phase 3: reminder fan-out, due query, snooze."""
 import pytest
+from datetime import datetime
 from sqlalchemy import text
 
 from backend.app.services.medicine_reminder_service import MedicineReminderService
@@ -58,7 +59,7 @@ async def test_due_query_picks_past_pending(authenticated_client, db_session):
             SELECT id FROM t_f_medicine_intake_log WHERE course_id = :cid
         )
     """), {"cid": cid})
-    await db_session.commit()
+    await db_session.flush()
 
     svc = MedicineReminderService()
     due = await svc.get_due(db_session)
@@ -80,3 +81,9 @@ async def test_snooze_creates_future_pending(authenticated_client, db_session):
         "SELECT COUNT(*) FROM t_medicine_reminder WHERE intake_log_id = :iid AND status = 'pending'"
     ), {"iid": intake_id})).scalar_one()
     assert pending >= 1
+
+    future_dt = (await db_session.execute(text(
+        "SELECT reminder_datetime FROM t_medicine_reminder "
+        "WHERE intake_log_id=:iid AND status='pending' ORDER BY reminder_datetime DESC LIMIT 1"
+    ), {"iid": intake_id})).scalar_one()
+    assert future_dt > datetime.now()  # snooze scheduled it forward
