@@ -630,31 +630,6 @@ async def list_facts(
     )
 
 
-@router.get(
-    "/new",
-    responses=get_common_responses(),
-)
-async def new_fact_info() -> dict:
-    """
-    Info endpoint for creating new facts.
-
-    **Note:** To create a new fact, use POST /facts endpoint.
-
-    **Returns:**
-    - 200 OK: Instructions for creating facts
-    """
-    return {
-        "message": "To create a new fact, send POST request to /api/v1/facts",
-        "example": {
-            "article_id": 1,
-            "amount": 100.50,
-            "fact_date": "2025-10-18",
-            "description": "Optional description"
-        },
-        "documentation": "/docs#/Facts/create_fact_facts_post"
-    }
-
-
 @router.get("/recent", response_model=list[FactResponse])
 async def get_recent_facts(
     current_user: CurrentUser,

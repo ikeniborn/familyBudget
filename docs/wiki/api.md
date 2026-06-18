@@ -63,7 +63,7 @@ User self-service and lookup. `/api/v1/users` (`endpoints/users.py`). Admin-leve
 Core budget domain: categories (articles), facts (transactions/plans), financial centers (ЦФО), cost centers (МВЗ), and transfers. Full semantics on [[domain#Star Schema Overview]].
 
 - `/api/v1/articles` (`endpoints/articles.py`): CRUD + Closure-Table tree — `GET hierarchy`, `GET /{id}/subtree`, `GET /{id}/ancestors`.
-- `/api/v1/facts` (`endpoints/facts.py`): `POST ""`, `GET ""`, `GET new`, `GET recent`, `GET summary`, `GET count`, `GET|PUT|DELETE /{fact_id}`, `POST batch-delete`; plus HTML partials `GET recent-html`, `GET /{fact_id}/row-html`. See also [[#HTMX Partial Endpoints]].
+- `/api/v1/facts` (`endpoints/facts.py`): `POST ""`, `GET ""`, `GET recent`, `GET summary`, `GET count`, `GET|PUT|DELETE /{fact_id}`, `POST batch-delete`; plus HTML partials `GET recent-html`, `GET /{fact_id}/row-html`. See also [[#HTMX Partial Endpoints]]. (`GET summary` is consumed by the bot, not the web UI.)
 - `/api/v1/financial-centers` (`endpoints/financial_centers.py`) and `/api/v1/cost-centers` (`endpoints/cost_centers.py`): CRUD + `PUT /{id}/archive`, `PUT /{id}/restore`.
 - `/api/v1/transfers` (`endpoints/transfers.py`): `POST ""`, `DELETE /{transfer_id}`.
 - `/api/v1/recurring-plans` (`endpoints/recurring_plans.py`): CRUD + `GET stats`, `POST batch-delete`, `POST /{plan_id}/activate`.
@@ -170,7 +170,7 @@ CSV export for user and admin scopes.
 
 Server-rendered HTML fragments returned to HTMX clients (not JSON). Mounted before the main facts router so `/{fact_id}` does not shadow named paths (`router.py:68-71`). See [[frontend#HTMX + Tailwind/DaisyUI Stack]].
 
-- `/api/v1/facts/table`, `/api/v1/facts/stats`, `/api/v1/facts/pagination` (`endpoints/facts_partials.py`).
+- `/api/v1/facts/stats`, `/api/v1/facts/pagination` (`endpoints/facts_partials.py`). The initial facts table is server-rendered via the Jinja include `partials/facts/facts_table_container.html` (no endpoint); page changes swap `/pagination`. (A former `GET /facts/table` partial endpoint was removed as dead code — no caller in web, webapp, or bot.)
 - Inline fact HTML from the facts router: `GET facts/recent-html`, `GET facts/{fact_id}/row-html`.
 - Analytics HTML fragments listed under [[#Analytics Endpoints]].
 

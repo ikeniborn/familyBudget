@@ -17,7 +17,7 @@ The FastAPI app is created in `backend/app/main.py:251` with `default_response_c
 Three routers are included in `main.py:412` in order: `health_router` (`/health`, `/ready`, `/ping`), `api_router` (prefix `/api/v1`), and `web_router` (HTML pages at `/`). Web router is last so its catch-all routes never shadow API or health paths.
 
 - `api_router` aggregates ~40 sub-routers in `backend/app/api/v1/router.py` (auth, webauthn, articles, facts, users, analytics, admin, import, medicines, shopping, transfers, budget WebSocket, etc.).
-- Ordering matters inside the aggregate: `facts_partials_router` is registered before `facts_router` so `/table`, `/stats` are not captured by `/{fact_id}` (`router.py:71`).
+- Ordering matters inside the aggregate: `facts_partials_router` is registered before `facts_router` so `/stats`, `/pagination` are not captured by `/{fact_id}` (`router.py:71`).
 - See [[api]] for the full endpoint surface, [[auth]] for auth/webauthn routers, [[realtime]] for the budget WebSocket, [[medicine]] and [[import]] for those feature routers.
 
 ## Middleware Stack & Order

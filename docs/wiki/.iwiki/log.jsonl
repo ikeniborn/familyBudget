@@ -18,3 +18,5 @@
 {"op":"ingest","source":"services/medicine_import_service.py (hardening)","page":"medicine.md","date":"2026-06-18"}
 {"op":"ingest","source":"frontend/web/templates/partials/navbar_center_menu.html","page":"docs/wiki/medicine.md","date":"2026-06-18"}
 {"op":"ingest","source":"frontend/web/templates/medicines_patients.html","page":"docs/wiki/medicine.md","date":"2026-06-18"}
+{"op":"ingest","source":"backend/app/api/v1/endpoints/facts_partials.py","page":"docs/wiki/api.md","date":"2026-06-18"}
+{"op":"ingest","source":"backend/app/api/v1/endpoints/facts.py","page":"docs/wiki/api.md","date":"2026-06-18"}
