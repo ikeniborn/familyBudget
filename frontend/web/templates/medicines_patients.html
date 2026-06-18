@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-xl font-bold">Пациенты</h1>
+  </div>
+
+  <p class="text-sm opacity-70">Члены семьи, которым назначаются курсы лекарств. Своя учётная запись не требуется — напоминания получает опекун (текущий пользователь).</p>
+
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body p-4 grid grid-cols-1 sm:grid-cols-4 gap-2">
+      <input id="patient-name" class="input input-bordered input-sm" placeholder="Имя" />
+      <input id="patient-birth" type="date" class="input input-bordered input-sm" placeholder="Дата рождения" />
+      <input id="patient-notes" class="input input-bordered input-sm" placeholder="Заметки (аллергии и т.п.)" />
+      <button class="btn btn-primary btn-sm" onclick="window.createPatientFromForm()">Добавить</button>
+    </div>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="table table-sm">
+      <thead><tr><th>Имя</th><th>Дата рождения</th><th>Заметки</th><th></th></tr></thead>
+      <tbody id="medicines-patients-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<dialog id="patient-edit-dialog" class="modal">
+  <div class="modal-box space-y-3">
+    <h3 class="font-bold text-lg">Изменить пациента</h3>
+    <input id="patient-edit-id" type="hidden" />
+    <label class="form-control">
+      <span class="label-text">Имя</span>
+      <input id="patient-edit-name" class="input input-bordered input-sm" />
+    </label>
+    <label class="form-control">
+      <span class="label-text">Дата рождения</span>
+      <input id="patient-edit-birth" type="date" class="input input-bordered input-sm" />
+    </label>
+    <label class="form-control">
+      <span class="label-text">Заметки</span>
+      <input id="patient-edit-notes" class="input input-bordered input-sm" />
+    </label>
+    <div class="modal-action">
+      <form method="dialog"><button class="btn btn-ghost btn-sm">Отмена</button></form>
+      <button class="btn btn-primary btn-sm" onclick="window.savePatientEdit()">Сохранить</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/medicines.min.js?v=PLACEHOLDER"></script>
+{% endblock %}

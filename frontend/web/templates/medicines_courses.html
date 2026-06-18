@@ -25,7 +25,10 @@
     <div id="course-stock-hint" class="text-sm"></div>
     <label class="form-control">
       <span class="label-text">Член семьи</span>
-      <select id="course-patient" class="select select-bordered select-sm"></select>
+      <div class="flex gap-2">
+        <select id="course-patient" class="select select-bordered select-sm flex-1"></select>
+        <button type="button" class="btn btn-sm" onclick="window.openQuickPatient()" title="Добавить пациента">➕</button>
+      </div>
     </label>
     <div class="grid grid-cols-2 gap-2">
       <label class="form-control">
@@ -58,6 +61,29 @@
     <div class="modal-action">
       <form method="dialog"><button class="btn btn-ghost btn-sm">Отмена</button></form>
       <button class="btn btn-primary btn-sm" onclick="window.createCourseFromForm()">Создать</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<dialog id="quick-patient-dialog" class="modal">
+  <div class="modal-box space-y-3">
+    <h3 class="font-bold text-lg">Новый пациент</h3>
+    <label class="form-control">
+      <span class="label-text">Имя</span>
+      <input id="quick-patient-name" class="input input-bordered input-sm" />
+    </label>
+    <label class="form-control">
+      <span class="label-text">Дата рождения</span>
+      <input id="quick-patient-birth" type="date" class="input input-bordered input-sm" />
+    </label>
+    <label class="form-control">
+      <span class="label-text">Заметки</span>
+      <input id="quick-patient-notes" class="input input-bordered input-sm" />
+    </label>
+    <div class="modal-action">
+      <form method="dialog"><button class="btn btn-ghost btn-sm">Отмена</button></form>
+      <button class="btn btn-primary btn-sm" onclick="window.saveQuickPatient()">Сохранить</button>
     </div>
   </div>
   <form method="dialog" class="modal-backdrop"><button>close</button></form>

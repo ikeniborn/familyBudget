@@ -58,6 +58,84 @@ export async function medicineArchive(id: number): Promise<void> {
   } catch (e) { showToast(String((e as Error).message), 'error'); }
 }
 
+// ---------- Patients (family members) ----------
+interface Patient { id: number; name: string; birth_date: string | null; notes: string | null; is_active: boolean; }
+const patientCache = new Map<number, Patient>();
+
+export async function loadPatients(): Promise<void> {
+  const data = await api<{ family_members: Patient[] }>('/api/v1/family-members');
+  patientCache.clear();
+  for (const p of data.family_members) patientCache.set(p.id, p);
+  renderPatients(data.family_members);
+}
+
+function renderPatients(rows: Patient[]): void {
+  const root = document.getElementById('medicines-patients-body');
+  if (!root) return;
+  root.innerHTML = rows.map(p => `
+    <tr data-id="${p.id}">
+      <td>${escapeHtml(p.name)}</td>
+      <td>${p.birth_date ?? ''}</td>
+      <td>${escapeHtml(p.notes ?? '')}</td>
+      <td class="text-right">
+        <button class="btn btn-ghost btn-xs" onclick="window.openPatientEdit(${p.id})" title="Изменить">✏</button>
+        <button class="btn btn-ghost btn-xs" onclick="window.patientArchive(${p.id})">Архив</button>
+      </td></tr>`).join('') || `<tr><td colspan="4" class="text-center opacity-60">Пусто</td></tr>`;
+}
+
+export async function createPatientFromForm(): Promise<void> {
+  const nameEl = document.getElementById('patient-name') as HTMLInputElement | null;
+  const birthEl = document.getElementById('patient-birth') as HTMLInputElement | null;
+  const notesEl = document.getElementById('patient-notes') as HTMLInputElement | null;
+  const name = nameEl?.value.trim();
+  if (!name) { showToast('Введите имя', 'warning'); return; }
+  try {
+    await api('/api/v1/family-members', {
+      method: 'POST',
+      body: JSON.stringify({ name, birth_date: birthEl?.value || null, notes: notesEl?.value.trim() || null }),
+    });
+    showToast('Пациент добавлен', 'success');
+    if (nameEl) nameEl.value = '';
+    if (birthEl) birthEl.value = '';
+    if (notesEl) notesEl.value = '';
+    await loadPatients();
+  } catch (e) { showToast(String((e as Error).message), 'error'); }
+}
+
+export function openPatientEdit(id: number): void {
+  const p = patientCache.get(id);
+  if (!p) return;
+  (document.getElementById('patient-edit-id') as HTMLInputElement).value = String(id);
+  (document.getElementById('patient-edit-name') as HTMLInputElement).value = p.name;
+  (document.getElementById('patient-edit-birth') as HTMLInputElement).value = p.birth_date ?? '';
+  (document.getElementById('patient-edit-notes') as HTMLInputElement).value = p.notes ?? '';
+  (document.getElementById('patient-edit-dialog') as HTMLDialogElement | null)?.showModal();
+}
+
+export async function savePatientEdit(): Promise<void> {
+  const id = Number((document.getElementById('patient-edit-id') as HTMLInputElement)?.value);
+  const name = (document.getElementById('patient-edit-name') as HTMLInputElement)?.value.trim();
+  const birth = (document.getElementById('patient-edit-birth') as HTMLInputElement)?.value || null;
+  const notes = (document.getElementById('patient-edit-notes') as HTMLInputElement)?.value.trim() || null;
+  if (!name) { showToast('Введите имя', 'warning'); return; }
+  try {
+    await api(`/api/v1/family-members/${id}`, {
+      method: 'PATCH', body: JSON.stringify({ name, birth_date: birth, notes }),
+    });
+    (document.getElementById('patient-edit-dialog') as HTMLDialogElement | null)?.close();
+    showToast('Сохранено', 'success');
+    await loadPatients();
+  } catch (e) { showToast(String((e as Error).message), 'error'); }
+}
+
+export async function patientArchive(id: number): Promise<void> {
+  try {
+    await api(`/api/v1/family-members/${id}`, { method: 'DELETE' });
+    showToast('Архивировано', 'success');
+    await loadPatients();
+  } catch (e) { showToast(String((e as Error).message), 'error'); }
+}
+
 // ---------- Stock ----------
 const medicineNames = new Map<number, string>();
 
@@ -133,6 +211,7 @@ export async function stockDelete(id: number): Promise<void> {
 export function handleMedicineEvent(eventType: string): void {
   if (eventType === 'medicine_catalog_changed' && document.getElementById('medicines-catalog-body')) loadCatalog();
   if (eventType === 'medicine_stock_changed' && document.getElementById('medicines-stock-body')) loadStock();
+  if (eventType === 'medicine_family_member_changed' && document.getElementById('medicines-patients-body')) loadPatients();
 }
 
 // ---------- Dashboard (today) ----------
@@ -264,6 +343,35 @@ export async function openCourseForm(): Promise<void> {
     `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
   updateStockHint();
   (document.getElementById('course-form-dialog') as HTMLDialogElement | null)?.showModal();
+}
+
+// Inline "add patient" from the course form: create, then refresh + select in the dropdown.
+export function openQuickPatient(): void {
+  for (const id of ['quick-patient-name', 'quick-patient-birth', 'quick-patient-notes']) {
+    const el = document.getElementById(id) as HTMLInputElement | null;
+    if (el) el.value = '';
+  }
+  (document.getElementById('quick-patient-dialog') as HTMLDialogElement | null)?.showModal();
+}
+
+export async function saveQuickPatient(): Promise<void> {
+  const name = (document.getElementById('quick-patient-name') as HTMLInputElement)?.value.trim();
+  const birth = (document.getElementById('quick-patient-birth') as HTMLInputElement)?.value || null;
+  const notes = (document.getElementById('quick-patient-notes') as HTMLInputElement)?.value.trim() || null;
+  if (!name) { showToast('Введите имя', 'warning'); return; }
+  try {
+    const created = await api<{ id: number }>('/api/v1/family-members', {
+      method: 'POST', body: JSON.stringify({ name, birth_date: birth, notes }),
+    });
+    (document.getElementById('quick-patient-dialog') as HTMLDialogElement | null)?.close();
+    showToast('Пациент добавлен', 'success');
+    const memSel = document.getElementById('course-patient') as HTMLSelectElement | null;
+    if (memSel) {
+      const members = await api<{ family_members: MemberOpt[] }>('/api/v1/family-members');
+      memSel.innerHTML = members.family_members.map(m =>
+        `<option value="${m.id}"${m.id === created.id ? ' selected' : ''}>${escapeHtml(m.name)}</option>`).join('');
+    }
+  } catch (e) { showToast(String((e as Error).message), 'error'); }
 }
 
 function updateStockHint(): void {

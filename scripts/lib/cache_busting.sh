@@ -73,6 +73,7 @@ update_cache_versions() {
         "${repo_dir}/frontend/web/templates/medicines_course_detail.html"
         "${repo_dir}/frontend/web/templates/medicines_catalog.html"
         "${repo_dir}/frontend/web/templates/medicines_stock.html"
+        "${repo_dir}/frontend/web/templates/medicines_patients.html"
         # P2P JS modules (contain versioned sub-imports)
         "${repo_dir}/frontend/web/static/js/ui/P2PUIController.js"
         "${repo_dir}/frontend/web/static/js/offline/p2p/P2PSignaling.js"
@@ -177,6 +178,7 @@ check_cache_versions() {
         "${repo_dir}/frontend/web/templates/medicines_course_detail.html"
         "${repo_dir}/frontend/web/templates/medicines_catalog.html"
         "${repo_dir}/frontend/web/templates/medicines_stock.html"
+        "${repo_dir}/frontend/web/templates/medicines_patients.html"
         # P2P JS modules (contain versioned sub-imports)
         "${repo_dir}/frontend/web/static/js/ui/P2PUIController.js"
         "${repo_dir}/frontend/web/static/js/offline/p2p/P2PSignaling.js"

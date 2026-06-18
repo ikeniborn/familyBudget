@@ -60,6 +60,7 @@ files=(
     "frontend/web/templates/medicines_course_detail.html"
     "frontend/web/templates/medicines_catalog.html"
     "frontend/web/templates/medicines_stock.html"
+    "frontend/web/templates/medicines_patients.html"
     # Web Template Scripts
     "frontend/web/templates/scripts/service-worker-registration.html"
     # Service Worker (minified - used in runtime)

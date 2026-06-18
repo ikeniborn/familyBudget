@@ -509,6 +509,16 @@ async def medicines_stock_page(request: Request, current_user: CurrentUser):
     )
 
 
+@web_router.get("/medicines/patients", response_class=HTMLResponse)
+async def medicines_patients_page(request: Request, current_user: CurrentUser):
+    """Medicine patients (family members) management page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_patients.html",
+        {"request": request, "user": current_user, "page_title": "Пациенты"},
+    )
+
+
 @web_router.get("/medicines", response_class=HTMLResponse)
 async def medicines_dashboard_page(request: Request, current_user: CurrentUser):
     """Medicine dashboard — today's intakes."""
