@@ -54,6 +54,12 @@ files=(
     "frontend/web/templates/2fa_setup.html"
     "frontend/web/templates/2fa_setup_login.html"
     "frontend/web/templates/settings.html"
+    # Medicine tracking templates
+    "frontend/web/templates/medicines_dashboard.html"
+    "frontend/web/templates/medicines_courses.html"
+    "frontend/web/templates/medicines_course_detail.html"
+    "frontend/web/templates/medicines_catalog.html"
+    "frontend/web/templates/medicines_stock.html"
     # Web Template Scripts
     "frontend/web/templates/scripts/service-worker-registration.html"
     # Service Worker (minified - used in runtime)
