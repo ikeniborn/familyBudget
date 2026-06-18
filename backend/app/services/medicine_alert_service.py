@@ -11,6 +11,7 @@ from datetime import timedelta
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.services.medicine_reminder_service import MedicineReminderService
 from backend.app.services.notification_service import NotificationService
 from backend.app.utils.timezone import now_local
 
@@ -61,14 +62,15 @@ async def send_expiry_alerts(session: AsyncSession, settings) -> int:
             if await svc.send_telegram_message(telegram_id=u.telegram_id, message=message):
                 sent += 1
     # Web Push (spec decision #5: tag="medicine-expiry", data.type="medicine_expiry", url="/medicines").
-    # Phase 1 deferred web push; now complete via MedicineReminderService._send_web_push_expiry
-    # which sets the correct tag (PushService hardcodes "budget-notification").
-    from backend.app.services.medicine_reminder_service import MedicineReminderService
+    # Commit for last_used_at updates and expired-subscription deletes relies on the caller
+    # (medicine_maintenance_job uses get_session_context which auto-commits on exit).
     push_svc = MedicineReminderService(settings)
     push_title = "💊 Скоро истекает срок годности"
     push_body = f"{len(items)} позиций в аптечке требуют внимания."
     for u in users:
         if u.enable_push_notifications:
-            await push_svc._send_web_push_expiry(session, u.id, push_title, push_body)
-    logger.info("[MEDICINE] Expiry alert: %s pushes sent (%s items)", sent, len(items))
+            await push_svc._send_web_push(
+                session, u.id, push_title, push_body,
+                tag="medicine-expiry", data_type="medicine_expiry")
+    logger.info("[MEDICINE] Expiry alert: %s telegram messages sent (%s items)", sent, len(items))
     return sent
