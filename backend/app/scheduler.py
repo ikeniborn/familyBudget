@@ -380,6 +380,32 @@ async def medicine_maintenance_job():
         raise
 
 
+async def medicine_reminder_dispatch_job():
+    """Send due medicine reminders (Telegram + Web Push). Every 5 minutes. Mirror of send_plan_reminders_job."""
+    logger.info("[SCHEDULER] Starting medicine reminder dispatch job")
+    try:
+        async with advisory_xact_lock(LOCK_ID_MEDICINE_DISPATCH) as acquired:
+            if not acquired:
+                logger.info("[SCHEDULER] Medicine reminder dispatch skipped - another worker is executing")
+                return
+            from backend.app.services.medicine_reminder_service import MedicineReminderService
+            async with get_session_context() as session:
+                svc = MedicineReminderService()
+                due = await svc.get_due(session, batch_size=100)
+                if not due:
+                    logger.debug("[SCHEDULER] No due medicine reminders")
+                    return
+                sent = 0
+                for reminder in due:
+                    tg, wp = await svc.send(session, reminder)
+                    if tg or wp:
+                        sent += 1
+                logger.info("[SCHEDULER] Medicine reminders: %s/%s sent", sent, len(due))
+    except Exception as e:
+        logger.error("[SCHEDULER] Error in medicine reminder dispatch job: %s", e, exc_info=True)
+        raise
+
+
 async def cleanup_expired_webauthn_challenges_job():
     """
     Job: Delete expired WebAuthn challenges from database.
@@ -554,6 +580,16 @@ def init_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
     logger.info(f"[SCHEDULER] Registered job: medicine_maintenance (daily at 03:00 {settings.SYSTEM_TIMEZONE})")
+
+    # Job 9: Medicine reminder dispatch (every 5 minutes)
+    scheduler.add_job(
+        medicine_reminder_dispatch_job,
+        trigger=CronTrigger(minute="*/5"),
+        id="medicine_reminder_dispatch",
+        name="Medicine Reminder Dispatch (Telegram + Web Push)",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: medicine_reminder_dispatch (every 5 minutes)")
 
     return scheduler
 
