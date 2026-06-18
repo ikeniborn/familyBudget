@@ -19,6 +19,7 @@ from backend.app.schemas.medicine_intake import (
     IntakeListItem, IntakeListResponse, IntakeMarkRequest, IntakeResponse,
 )
 from backend.app.services import family_member_service, medicine_course_service, medicine_intake_service, medicine_service
+from backend.app.services.medicine_reminder_service import MedicineReminderService
 
 logger = logging.getLogger(__name__)
 
@@ -184,6 +185,31 @@ async def skip_intake(
     current_user: User = Depends(get_current_user),
 ) -> IntakeResponse:
     return await _mark(session, intake_id, "skipped", body, current_user.id)
+
+
+@intakes_router.get("/{intake_id}", response_model=IntakeResponse)
+async def get_intake_endpoint(
+    intake_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> IntakeResponse:
+    intake = await medicine_intake_service.get_intake(session, intake_id)
+    if not intake:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Intake {intake_id} not found")
+    return IntakeResponse.model_validate(intake)
+
+
+@intakes_router.post("/{intake_id}/snooze", response_model=IntakeResponse)
+async def snooze_intake(
+    intake_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> IntakeResponse:
+    intake = await medicine_intake_service.get_intake(session, intake_id)
+    if not intake:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Intake {intake_id} not found")
+    await MedicineReminderService().snooze(session, intake_id, current_user.id)
+    return IntakeResponse.model_validate(intake)  # intake status unchanged; a new reminder was scheduled
 
 
 # ---------- helpers ----------

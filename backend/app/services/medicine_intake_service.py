@@ -1,12 +1,15 @@
-"""Intake service: generate intake_log + reminders-stub, list, take/skip (status only this phase)."""
+"""Intake service: generate intake_log + reminders, list, take/skip (status only this phase)."""
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
+from backend.app.models.family_member import FamilyMember
 from backend.app.models.medicine_course import MedicineCourse
 from backend.app.models.medicine_intake_log import MedicineIntakeLog
+from backend.app.services.medicine_reminder_service import MedicineReminderService
 from backend.app.services.medicine_schedule import expand_schedule
 from backend.app.utils.timezone import now_local
 
@@ -23,35 +26,33 @@ def _now():
 
 async def generate_for_course(session: AsyncSession, course: MedicineCourse,
                               window_start: date, window_end: date) -> int:
-    """Insert intake_log rows for [window_start, window_end]. Idempotent and concurrency-safe:
-    pre-filters slots that already exist, and INSERT ... ON CONFLICT DO NOTHING on
-    UNIQUE(course_id, scheduled_at) is the backstop against a race with another worker.
-    Returns the number of new rows. No per-row rollback (a single rollback would discard the
-    whole batch)."""
+    """Insert intake_log rows for [window_start, window_end] + fan-out reminders.
+
+    Idempotent: UNIQUE(course_id, scheduled_at) skips existing logs via SAVEPOINT rollback;
+    UNIQUE(intake_log_id, recipient_user_id) skips existing reminders.
+    Returns the number of new rows created.
+    """
     slots = expand_schedule(
         intake_times=course.intake_times, schedule_type=course.schedule_type,
         schedule_config=course.schedule_config, start_date=course.start_date,
         end_date=course.end_date, window_start=window_start, window_end=window_end)
     if not slots:
         return 0
-    existing = set((await session.execute(
-        select(MedicineIntakeLog.scheduled_at).where(
-            MedicineIntakeLog.course_id == course.id,
-            MedicineIntakeLog.scheduled_at.in_(slots),
-        )
-    )).scalars().all())
-    new_slots = [s for s in slots if s not in existing]
-    if not new_slots:
-        return 0
-    now = _now()
-    await session.execute(text("""
-        INSERT INTO t_f_medicine_intake_log
-            (course_id, patient_id, scheduled_at, status, version, created_at, updated_at)
-        VALUES (:cid, :pid, :ts, 'scheduled', 1, :now, :now)
-        ON CONFLICT (course_id, scheduled_at) DO NOTHING
-    """), [{"cid": course.id, "pid": course.patient_id, "ts": s, "now": now} for s in new_slots])
+    patient = await session.get(FamilyMember, course.patient_id)
+    reminder_svc = MedicineReminderService()
+    created = 0
+    for slot in slots:
+        log = MedicineIntakeLog(course_id=course.id, patient_id=course.patient_id, scheduled_at=slot)
+        try:
+            async with session.begin_nested():  # SAVEPOINT: a dup rolls back only this row, not the batch
+                session.add(log)
+        except IntegrityError:
+            continue  # row already exists → skip (and its reminders too)
+        created += 1
+        if patient:
+            await reminder_svc.create_reminders_for_intake(session, log, course, patient)
     await session.commit()
-    return len(new_slots)
+    return created
 
 
 async def generate_all(session: AsyncSession, *, horizon_days: int = GENERATION_HORIZON_DAYS) -> int:
