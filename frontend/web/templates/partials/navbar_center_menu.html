@@ -22,6 +22,19 @@
         <li data-offline-hidden="true"><a href="/plan" data-nav-item class="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}active{% endif %}" aria-current="{% if '/plan' in request.url.path and '/admin' not in request.url.path %}page{% endif %}">📋 План</a></li>
         <li><a href="/lists" data-nav-item class="{% if '/lists' in request.url.path %}active{% endif %}" aria-current="{% if '/lists' in request.url.path %}page{% endif %}">🛒 Списки</a></li>
 
+        <!-- Dropdown "Лекарства" - учёт приёма и аптечка, доступно всем пользователям -->
+        <li id="medicines-group" data-offline-hidden="true">
+            <details>
+                <summary>💊 Лекарства</summary>
+                <ul class="bg-base-100 rounded-t-none p-2 w-56 shadow-xl z-50">
+                    <li><a href="/medicines" data-nav-item class="{% if request.url.path == '/medicines' %}active{% endif %}">💊 Приём лекарств</a></li>
+                    <li><a href="/medicines/courses" data-nav-item class="{% if '/medicines/courses' in request.url.path %}active{% endif %}">📅 Курсы приёма</a></li>
+                    <li><a href="/medicines/catalog" data-nav-item class="{% if '/medicines/catalog' in request.url.path %}active{% endif %}">📖 Справочник лекарств</a></li>
+                    <li><a href="/medicines/stock" data-nav-item class="{% if '/medicines/stock' in request.url.path %}active{% endif %}">🧰 Аптечка</a></li>
+                </ul>
+            </details>
+        </li>
+
         <!-- Dropdown "Прочее" - доступно всем пользователям -->
         <li id="analytics-group" data-offline-hidden="true">
             <details>
