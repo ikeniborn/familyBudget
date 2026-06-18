@@ -6,12 +6,19 @@ import {
   loadCourses, coursePause, openCourseForm, createCourseFromForm,
   loadCourseDetail, handleMedicineEventV2,
 } from './medicines/medicinesManager';
+import {
+  openImportWizard, medicineImportGoogleSheets, medicineImportAnalyze,
+  medicineImportPreview, medicineImportExecute,
+} from './medicines/medicineImportWizard';
 
 const windowExports = {
   loadCatalog, createMedicineFromForm, medicineArchive,
   loadStock, loadMedicineOptions, createStockFromForm, stockDelete,
   loadDashboard, intakeTake, intakeSkip,
   loadCourses, coursePause, openCourseForm, createCourseFromForm,
+  openStockImport: () => openImportWizard('stock'),
+  openCoursesImport: () => openImportWizard('courses'),
+  medicineImportGoogleSheets, medicineImportAnalyze, medicineImportPreview, medicineImportExecute,
 };
 
 try {
