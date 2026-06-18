@@ -8,3 +8,7 @@
 {"op":"init","source":"backend/app/endpoints/budget_ws.py,services/redis*+cache*+push*","page":"realtime.md","date":"2026-06-17"}
 {"op":"init","source":"bot/","page":"bot.md","date":"2026-06-17"}
 {"op":"init","source":"frontend/web,shared,webapp,build-all.js","page":"frontend.md","date":"2026-06-17"}
+{"op":"ingest","source":"phase2-medicine","page":"medicine.md","date":"2026-06-18"}
+{"op":"ingest","source":"phase2-medicine","page":"database.md","date":"2026-06-18"}
+{"op":"ingest","source":"phase2-medicine","page":"api.md","date":"2026-06-18"}
+{"op":"ingest","source":"phase2-medicine","page":"realtime.md","date":"2026-06-18"}

@@ -97,11 +97,29 @@ Multi-bank CSV / Google Sheets import with a staging-table review step. Mechanic
 
 ## Medicine Endpoints
 
-Home medicine catalog, per-household stock (аптечка), and family members. Behavior on [[medicine#Overview]].
+Home medicine catalog, per-household stock (аптечка), family members, and (Phase 2) intake courses + schedule. Behavior on [[medicine#Overview]].
 
 - `/api/v1/medicines` (`endpoints/medicines.py`): `GET ""`, `GET search`, `GET /{medicine_id}`, `POST ""`, `PATCH /{medicine_id}`, `DELETE /{medicine_id}`.
 - `/api/v1/medicine-stock` (`endpoints/medicines.py:22`) — stock router (`medicine_stock_router`).
 - `/api/v1/family-members` (`endpoints/family_members.py`): `GET ""`, `POST ""`, `PATCH /{member_id}`, `DELETE /{member_id}`.
+
+## Medicine Endpoints (Phase 2)
+
+Intake courses and the generated dose log. Defined in `backend/app/api/v1/endpoints/medicine_courses.py`; two routers (`router` + `intakes_router`) registered in the v1 router. All routes require authentication. See [[medicine#API Endpoints (Phase 2)]] for full semantics.
+
+**`/api/v1/medicine-courses`** — intake plan management:
+- `GET ""` — list courses (`active_only`, `patient_id`, `limit`, `offset`); each item includes `StockEstimate` (`intakes_left`, `days_left`, `remaining`, `in_stock`).
+- `GET /{course_id}` — fetch one course with estimate; 404 if soft-deleted or missing.
+- `POST ""` — create course (201); 404 if `medicine_id` or `patient_id` not found; generates first 7-day intake horizon immediately; broadcasts `medicine_course_changed`.
+- `PATCH /{course_id}` — partial update; broadcasts `medicine_course_changed`.
+- `POST /{course_id}/pause` — `is_active=False`; broadcasts `medicine_course_changed`.
+- `POST /{course_id}/complete` — soft-deletes (`deleted_at=now`, `is_active=False`); broadcasts `medicine_course_changed`.
+- `DELETE /{course_id}` — alias for complete (soft delete).
+
+**`/api/v1/medicine-intakes`** — scheduled dose log:
+- `GET ""` — list intakes by `date` (`'today'` or `YYYY-MM-DD`; malformed → 422), `patient_id`, `course_id`. Triggers lazy `generate_all` when `date` is `None` or `'today'`.
+- `POST /{intake_id}/take` — body `{version, dose_taken?, comment?}`; sets `status=taken`; 409 on stale `version`; broadcasts `medicine_intake_marked`.
+- `POST /{intake_id}/skip` — same body; sets `status=skipped`; 409 on stale `version`; broadcasts `medicine_intake_marked`.
 
 ## Notifications & Push Endpoints
 
@@ -153,7 +171,7 @@ Dedicated endpoints for Telegram Web Apps, mounted at `/api/v1/webapp` (`backend
 `web_router` serves Jinja2 templates at the site root for the PWA (`backend/app/api/web/router.py`). Pages use `CurrentUserOptional` (public/redirecting) or `CurrentUser`/`CurrentAdmin` (gated); they fetch data client-side via the REST API. See [[frontend#Telegram Web App Pages]].
 
 - Public/auth: `GET /` (dashboard or redirect to `/login-email`), `/register`, `/login-email`, `/2fa-verify`, `/2fa-setup-login`, `/pending-activation`.
-- Authenticated: `/facts`, `/plan`, `/analytics`, `/notifications`, `/import`, `/lists`, `/lists/{list_id}`, `/medicines/catalog`, `/medicines/stock`, `/security`, `/2fa-setup`.
+- Authenticated: `/facts`, `/plan`, `/analytics`, `/notifications`, `/import`, `/lists`, `/lists/{list_id}`, `/medicines` (Phase 2 dashboard), `/medicines/catalog`, `/medicines/stock`, `/medicines/courses`, `/medicines/courses/{course_id}`, `/security`, `/2fa-setup`.
 - Admin: `/admin/users`, `/admin/articles`, `/admin/monitoring`, `/admin/dashboard`, `/admin/logs`, `/admin/financial-centers`, `/admin/cost-centers`, `/admin/stores`, `/admin/product-groups`.
 
 ## Health Endpoints

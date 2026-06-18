@@ -55,7 +55,8 @@ All connected clients receive every event (shared-budget model, no channels); cl
 - Fact/plan: `fact_created|updated|deleted`, `plan_created|updated|deleted`, `recurring_plan_created|updated|deleted`, batch summaries `facts_batch_deleted` / `recurring_plans_batch_deleted` (`budget_ws.py:992`), `recurring_plan_facts_generated`.
 - Transfer: `transfer_created` / `transfer_deleted`. Shopping: `item_created|updated|deleted|completed`, `shopping_list_created|updated|deleted`.
 - Reference data: `financial_center_*`, `cost_center_*`, `store_*`, `product_group_*` (each created/updated/deleted, unfiltered).
-- Medicine: `broadcast_medicine_changed(entity, data)` emits `medicine_catalog_changed`, `medicine_family_member_changed`, or `medicine_stock_changed` (`budget_ws.py:1119`). See [[medicine#Realtime Updates]].
+- Medicine (Phase 1): `broadcast_medicine_changed(entity, data)` emits `medicine_catalog_changed`, `medicine_family_member_changed`, or `medicine_stock_changed` (`budget_ws.py:1119`). See [[medicine#Realtime Updates]].
+- Medicine (Phase 2): `medicine_course_changed` — broadcast on course create/update/pause/complete; payload is full `MedicineCourseResponse` including `StockEstimate`. `medicine_intake_marked` — broadcast on take/skip; payload is full `IntakeResponse`. Both use no field whitelist (same pattern as Phase 1 medicine events). Helpers `broadcast_medicine_course_changed` / `broadcast_medicine_intake_marked` are imported from `budget_ws.py` into `medicine_courses.py`. See [[medicine#Realtime Updates (Phase 2)]].
 - Security: `webauthn_credential_added|revoked|compromised` (`budget_ws.py:1211`) — see [[auth#WebAuthn Biometrics]].
 - Producers are the domain services / endpoints in [[domain]] and [[api]].
 
