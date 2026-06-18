@@ -1,5 +1,5 @@
 """Intake service: generate intake_log + reminders-stub, list, take/skip (status only this phase)."""
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -88,8 +88,8 @@ async def list_intakes(session: AsyncSession, *, on_date: date | None, patient_i
     params: dict = {}
     if on_date is not None:
         clauses.append("l.scheduled_at >= :day_start AND l.scheduled_at < :day_end")
-        params["day_start"] = f"{on_date} 00:00:00"
-        params["day_end"] = f"{on_date + timedelta(days=1)} 00:00:00"
+        params["day_start"] = datetime(on_date.year, on_date.month, on_date.day)
+        params["day_end"] = datetime(on_date.year, on_date.month, on_date.day) + timedelta(days=1)
     if patient_id is not None:
         clauses.append("l.patient_id = :pid")
         params["pid"] = patient_id
