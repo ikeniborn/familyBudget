@@ -127,6 +127,15 @@ Stock deduction on take, out-of-stock auto-restock, and module-only purchase ana
 
 - `GET /api/v1/medicine-stock/analytics` (`endpoints/medicines.py`) — purchase analytics from `stock.purchase_price`: `MedicineAnalyticsResponse{total_spent, by_medicine[]}` (per-medicine `total_spent`, `package_count`). Read-only, no budget integration (decision #1). Declared before any `/{stock_id}` route.
 
+## Medicine Endpoints (Phase 5)
+
+CSV / Google Sheets import for stock + courses, each `analyze → preview (dry-run) → execute`. Four routers in `endpoints/medicine_import.py`, all authenticated, static path prefixes (never shadow `/{stock_id}`). Payloads are base64 (`file_content`); every cell is run through `sanitize_csv_row` (CSV-injection guard). Google Sheets must be public («доступен по ссылке») — no API key. See [[medicine#Phase 5 — Import (CSV + Google Sheets)]].
+
+- `/api/v1/medicine-stock/import`: `POST analyze` (detect format + `auto_map` via `STOCK_FIELDS`), `POST preview` (sync dry-run; warns on missing expiry), `POST execute` (find-or-create medicine, insert stock).
+- `/api/v1/medicine-stock/google-sheets`: `POST fetch` — public sheet URL → base64 CSV.
+- `/api/v1/medicine-courses/import`: `POST analyze` (`COURSE_FIELDS`), `POST preview` (**async** — flags «нет в аптечке» when the medicine has no active stock, decision #6; marks rows missing the required `patient` column invalid, decision #8), `POST execute` (find-or-create medicine + family member, insert course).
+- `/api/v1/medicine-courses/google-sheets`: `POST fetch`.
+
 ## Notifications & Push Endpoints
 
 In-app notification history and Web Push (PWA) subscriptions.

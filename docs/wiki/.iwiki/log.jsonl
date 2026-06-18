@@ -14,3 +14,4 @@
 {"op":"ingest","source":"phase2-medicine","page":"realtime.md","date":"2026-06-18"}
 {"op":"ingest","source":"backend/app/services/medicine_deduction_service.py+phase4","page":"docs/wiki/medicine.md","date":"2026-06-18"}
 {"op":"ingest","source":"phase4-analytics-endpoint","page":"docs/wiki/api.md","date":"2026-06-18"}
+{"op":"ingest","source":"backend/app/api/v1/endpoints/medicine_import.py + services/medicine_import_service.py","page":"medicine.md,api.md","date":"2026-06-18"}

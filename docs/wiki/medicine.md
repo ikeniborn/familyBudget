@@ -296,3 +296,18 @@ Phase 4 makes marking an intake `taken` atomically deduct the dose from a packag
 ### Purchase Analytics
 
 `purchase_analytics` (`backend/app/services/medicine_analytics_service.py`) is a read-only aggregate over `t_f_medicine_stock.purchase_price` joined to `t_d_medicine`: total spent plus a per-medicine breakdown (`total_spent`, `package_count`), counting every package with a non-null price. Exposed at `GET /api/v1/medicine-stock/analytics` (`MedicineAnalyticsResponse`) on `stock_router`, declared before any `/{stock_id}` route. Module-only — it never touches the budget domain.
+
+## Phase 5 — Import (CSV + Google Sheets)
+
+Two independent import wizards — one for stock (аптечка), one for courses — each following `analyze → preview (dry-run) → execute`, from a CSV upload or a public Google Sheet. No new tables and no migration. Reuses the shopping-import infrastructure: `csv_detector.detect_csv_format`, `csv_security.sanitize_csv_row` (CSV-injection guard), `csv_validator.validate_required_field`/`validate_quantity`, and `google_sheets_parser` (public URL → CSV bytes, no API key). `csv_column_matcher` is **not** reused — its `EXPECTED_FIELDS` are shopping-hardcoded; medicine ships its own synonym maps. See [[api#Medicine Endpoints (Phase 5)]] and [[import#CSV Security (Injection Guard)]].
+
+### Import Service
+
+`medicine_import_service.py` holds the medicine-specific logic. `auto_map(columns, fields)` maps each CSV column to a field via case-insensitive substring synonym match; two synonym maps drive it — `STOCK_FIELDS` (required `name, quantity, unit`) and `COURSE_FIELDS` (required `patient, medicine, dose_amount, intake_times, start_date`). `analyze` detects format; `_parse_rows` sanitizes every cell through `sanitize_csv_row` before mapping. `parse_intake_times` splits `'08:00;20:00'`/`'09:00, 13:00'` on `;`/`,`.
+
+- **Stock**: `preview_stock` (sync dry-run; warns on missing `expiry_date`) and `execute_stock` find-or-create `t_d_medicine` (by name+dosage; unknown `form` falls back to `other` via `VALID_FORMS`) then insert `t_f_medicine_stock`.
+- **Courses**: `preview_courses` is **async** — besides per-row validation it flags rows whose medicine has no active stock with a «нет в аптечке» warning (decision #6, soft link via `_has_active_stock`). `execute_courses` find-or-create both `t_d_medicine` and `t_d_family_member` (by name), then insert `t_f_medicine_course`. `patient` is a required column — preview marks rows missing it invalid (decision #8).
+
+### Import Endpoints & Wizard
+
+`medicine_import.py` exposes four routers (stock import / stock google-sheets / course import / course google-sheets) with static path prefixes so they never shadow `/{stock_id}`. `preview` is a strict dry-run (no writes); `execute` is idempotent for the reference dimensions (medicine + family_member). The frontend is one parameterized wizard (`medicineImportWizard.ts`, entity `stock | courses`): upload/Google-Sheets → analyze → editable column-mapping table → preview counts → execute; openers `openStockImport`/`openCoursesImport` are exported on `window` from `medicines-bundle.ts`, with «Импорт» buttons on the stock + courses pages.
