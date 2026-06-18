@@ -39,7 +39,7 @@ async def taken_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     token = SessionManager.get_access_token(context)
     api = await get_api_client()
     try:
-        data = await api.get("/api/v1/medicine-intakes", token=token, params={"date": "today"})
+        data = await api.get("/medicine-intakes", token=token, params={"date": "today"})
     except Exception as e:
         logger.error("taken_handler: failed to list intakes: %s", e)
         await update.message.reply_text("Не удалось загрузить список приёмов. Попробуйте позже.")
@@ -51,7 +51,7 @@ async def taken_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     nearest = pending[0]
     try:
         await api.post(
-            f"/api/v1/medicine-intakes/{nearest['id']}/take",
+            f"/medicine-intakes/{nearest['id']}/take",
             token=token,
             json={"version": nearest["version"]},
         )
@@ -90,12 +90,12 @@ async def medicine_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     api = await get_api_client()
     try:
         if action == "snooze":
-            await api.post(f"/api/v1/medicine-intakes/{log_id}/snooze", token=token, json={})
+            await api.post(f"/medicine-intakes/{log_id}/snooze", token=token, json={})
             await query.edit_message_text("Отложено")
             return
-        intake = await api.get(f"/api/v1/medicine-intakes/{log_id}", token=token)
+        intake = await api.get(f"/medicine-intakes/{log_id}", token=token)
         await api.post(
-            f"/api/v1/medicine-intakes/{log_id}/{action}",
+            f"/medicine-intakes/{log_id}/{action}",
             token=token,
             json={"version": intake["version"]},
         )
