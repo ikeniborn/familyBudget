@@ -184,6 +184,48 @@ class MedicineReminderService:
             await session.delete(sub)
         return sent > 0
 
+    async def _send_web_push_expiry(
+        self, session: AsyncSession, user_id: int, title: str, body: str
+    ) -> bool:
+        """Web Push for expiry alerts: clicking opens /medicines (data.type='medicine_expiry')."""
+        if not self.settings.VAPID_PUBLIC_KEY or "PLACEHOLDER" in (self.settings.VAPID_PUBLIC_KEY or ""):
+            return False
+        subs = (await session.execute(
+            select(PushSubscription).where(PushSubscription.user_id == user_id))).scalars().all()
+        if not subs:
+            return False
+        try:
+            from pywebpush import WebPushException, webpush
+        except ImportError:
+            logger.warning("[MED_EXPIRY] pywebpush not installed")
+            return False
+        payload = json_dumps({
+            "title": title, "body": body,
+            "icon": "/static/icons/icon-192.png", "badge": "/static/icons/icon-192.png",
+            "tag": "medicine-expiry",
+            "data": {"type": "medicine_expiry", "url": "/medicines"},
+        })
+        sent = 0
+        expired = []
+        for sub in subs:
+            try:
+                webpush(
+                    subscription_info={"endpoint": sub.endpoint,
+                                       "keys": {"p256dh": sub.p256dh_key, "auth": sub.auth_key}},
+                    data=payload,
+                    vapid_private_key=self.settings.VAPID_PRIVATE_KEY,
+                    vapid_claims={"sub": f"mailto:{self.settings.VAPID_CONTACT_EMAIL or 'REDACTED'}"})
+                sub.last_used_at = now_utc().replace(tzinfo=None)
+                sent += 1
+            except WebPushException as e:
+                if e.response and e.response.status_code == 410:
+                    expired.append(sub)
+            except Exception as e:  # noqa: BLE001
+                logger.error("[MED_EXPIRY] webpush error: %s", e)
+        for sub in expired:
+            await session.delete(sub)
+        return sent > 0
+
     # ---------- snooze ----------
     async def snooze(self, session: AsyncSession, intake_id: int, recipient_user_id: int) -> MedicineReminder:
         """Re-schedule the recipient's reminder to now + course.snooze_minutes (default 30).

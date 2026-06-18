@@ -12,7 +12,6 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.services.notification_service import NotificationService
-from backend.app.services.push_service import PushService
 from backend.app.utils.timezone import now_local
 
 logger = logging.getLogger(__name__)
@@ -61,14 +60,16 @@ async def send_expiry_alerts(session: AsyncSession, settings) -> int:
         if u.telegram_id and u.enable_telegram_notifications:
             if await svc.send_telegram_message(telegram_id=u.telegram_id, message=message):
                 sent += 1
-    # Web Push (spec decision #5: opens the medicines view, no action buttons).
-    # Phase 1 has no /medicines dashboard yet (Phase 2) — target /medicines/stock,
-    # the page that actually lists expiring items (⏰ badges). Switch to /medicines in Phase 2.
+    # Web Push (spec decision #5: tag="medicine-expiry", data.type="medicine_expiry", url="/medicines").
+    # Phase 1 deferred web push; now complete via MedicineReminderService._send_web_push_expiry
+    # which sets the correct tag (PushService hardcodes "budget-notification").
+    from backend.app.services.medicine_reminder_service import MedicineReminderService
+    push_svc = MedicineReminderService(settings)
     push_title = "💊 Скоро истекает срок годности"
     push_body = f"{len(items)} позиций в аптечке требуют внимания."
-    push_data = {"type": "medicine_expiry", "url": "/medicines/stock"}
     for u in users:
         if u.enable_push_notifications:
-            sent += await PushService.send_to_user(session, u.id, push_title, push_body, push_data)
+            if await push_svc._send_web_push_expiry(session, u.id, push_title, push_body):
+                sent += 1
     logger.info("[MEDICINE] Expiry alert: %s pushes sent (%s items)", sent, len(items))
     return sent
