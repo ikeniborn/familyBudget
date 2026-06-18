@@ -20,7 +20,7 @@ orjson>=3.10.0  # High-performance JSON serialization (3-10x faster)
 
 # Authentication & Security
 python-jose[cryptography]==3.5.0
-python-multipart==0.0.27
+python-multipart==0.0.30  # Security fix for CVE-2026-53539 (quadratic-time querystring DoS)
 slowapi==0.1.9             # Rate limiting for API endpoints (brute-force protection)
 argon2-cffi==23.1.0        # Password hashing (Argon2 - winner of Password Hashing Competition)
 pyotp==2.9.0               # TOTP/2FA generation and verification (Google Authenticator compatible)
