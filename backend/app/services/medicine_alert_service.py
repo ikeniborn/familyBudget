@@ -47,7 +47,7 @@ async def get_expiring_stock(session: AsyncSession) -> list[dict]:
 
 
 async def send_expiry_alerts(session: AsyncSession, settings) -> int:
-    """Broadcast expiry alert to all active users via Telegram + Web Push. Returns total pushes sent."""
+    """Broadcast expiry alert to all active users via Telegram + Web Push. Returns Telegram count."""
     items = await get_expiring_stock(session)
     message = format_expiry_message(items)
     if not message:
@@ -69,7 +69,6 @@ async def send_expiry_alerts(session: AsyncSession, settings) -> int:
     push_body = f"{len(items)} позиций в аптечке требуют внимания."
     for u in users:
         if u.enable_push_notifications:
-            if await push_svc._send_web_push_expiry(session, u.id, push_title, push_body):
-                sent += 1
+            await push_svc._send_web_push_expiry(session, u.id, push_title, push_body)
     logger.info("[MEDICINE] Expiry alert: %s pushes sent (%s items)", sent, len(items))
     return sent
