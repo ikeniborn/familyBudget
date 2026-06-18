@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-xl font-bold">Курсы приёма</h1>
+    <button class="btn btn-primary btn-sm" onclick="window.openCourseForm()">+ Новый курс</button>
+    <button class="btn btn-sm" onclick="window.openCoursesImport()">Импорт</button>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="table table-sm">
+      <thead><tr><th>Время</th><th>Доза</th><th>Остаток</th><th></th></tr></thead>
+      <tbody id="medicines-courses-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<dialog id="course-form-dialog" class="modal">
+  <div class="modal-box space-y-3">
+    <h3 class="font-bold text-lg">Новый курс</h3>
+    <label class="form-control">
+      <span class="label-text">Лекарство</span>
+      <select id="course-medicine" class="select select-bordered select-sm"></select>
+    </label>
+    <div id="course-stock-hint" class="text-sm"></div>
+    <label class="form-control">
+      <span class="label-text">Член семьи</span>
+      <select id="course-patient" class="select select-bordered select-sm"></select>
+    </label>
+    <div class="grid grid-cols-2 gap-2">
+      <label class="form-control">
+        <span class="label-text">Доза</span>
+        <input id="course-dose" type="number" step="0.001" class="input input-bordered input-sm" value="1">
+      </label>
+      <label class="form-control">
+        <span class="label-text">Ед.</span>
+        <input id="course-unit" class="input input-bordered input-sm" value="шт">
+      </label>
+    </div>
+    <label class="form-control">
+      <span class="label-text">Время приёма (через запятую)</span>
+      <input id="course-times" class="input input-bordered input-sm" placeholder="08:00, 20:00">
+    </label>
+    <div class="grid grid-cols-2 gap-2">
+      <label class="form-control">
+        <span class="label-text">Начало</span>
+        <input id="course-start" type="date" class="input input-bordered input-sm">
+      </label>
+      <label class="form-control">
+        <span class="label-text">Расписание</span>
+        <select id="course-schedule" class="select select-bordered select-sm">
+          <option value="daily">Ежедневно</option>
+          <option value="every_n_days">Каждые N дней</option>
+          <option value="weekdays">По дням недели</option>
+        </select>
+      </label>
+    </div>
+    <div class="modal-action">
+      <form method="dialog"><button class="btn btn-ghost btn-sm">Отмена</button></form>
+      <button class="btn btn-primary btn-sm" onclick="window.createCourseFromForm()">Создать</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/medicines.min.js?v=PLACEHOLDER"></script>
+{% endblock %}

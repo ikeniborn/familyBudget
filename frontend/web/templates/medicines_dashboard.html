@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-4">
+  <h1 class="text-xl font-bold">Сегодня надо принять</h1>
+  <div id="medicines-today-body" class="space-y-2"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/medicines.min.js?v=PLACEHOLDER"></script>
+{% endblock %}

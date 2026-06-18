@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between">
+    <h1 class="text-xl font-bold">Справочник лекарств</h1>
+  </div>
+
+  <div class="card bg-base-100 shadow-sm">
+    <div class="card-body p-4 grid grid-cols-1 sm:grid-cols-4 gap-2">
+      <input id="med-name" class="input input-bordered input-sm" placeholder="Название" />
+      <select id="med-form" class="select select-bordered select-sm">
+        <option value="tablet">таблетка</option>
+        <option value="capsule">капсула</option>
+        <option value="syrup">сироп</option>
+        <option value="drops">капли</option>
+        <option value="ointment">мазь</option>
+        <option value="spray">спрей</option>
+        <option value="injection">инъекция</option>
+        <option value="other">другое</option>
+      </select>
+      <input id="med-dosage" class="input input-bordered input-sm" placeholder="Дозировка" />
+      <button class="btn btn-primary btn-sm" onclick="window.createMedicineFromForm()">Добавить</button>
+    </div>
+  </div>
+
+  <div class="overflow-x-auto">
+    <table class="table table-sm">
+      <thead><tr><th>Название</th><th>Форма</th><th>Дозировка</th><th></th></tr></thead>
+      <tbody id="medicines-catalog-body"></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/medicines.min.js?v=PLACEHOLDER"></script>
+{% endblock %}

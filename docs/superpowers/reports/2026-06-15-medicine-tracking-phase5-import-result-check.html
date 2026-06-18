@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Result Check — Medicine Tracking Phase 5 (Импорт)</title>
+<style>
+  :root[data-theme="dark"]{
+    --bg:#0f1419; --panel:#1a212b; --panel2:#222b37; --txt:#e6edf3; --muted:#8b98a9;
+    --border:#2d3947; --accent:#4cc2ff; --ok:#3fb950; --warn:#d29922; --info:#58a6ff;
+    --crit:#f85149; --chip:#243240; --shadow:rgba(0,0,0,.4);
+  }
+  :root[data-theme="light"]{
+    --bg:#f5f7fa; --panel:#ffffff; --panel2:#eef2f7; --txt:#1c2530; --muted:#5a6b7b;
+    --border:#d4dde6; --accent:#0a6cbf; --ok:#1a7f37; --warn:#9a6700; --info:#0a6cbf;
+    --crit:#cf222e; --chip:#e7eef5; --shadow:rgba(0,0,0,.12);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+    font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:32px 18px;transition:background .2s,color .2s}
+  .wrap{max-width:1040px;margin:0 auto}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;
+    margin-bottom:24px;flex-wrap:wrap}
+  h1{font-size:22px;margin:0 0 4px}
+  h2{font-size:17px;margin:30px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+  .sub{color:var(--muted);font-size:13px}
+  .verdict{display:inline-flex;align-items:center;gap:8px;font-weight:700;font-size:15px;
+    background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok);
+    border:1px solid var(--ok);border-radius:8px;padding:8px 14px}
+  .toggle{background:var(--panel);color:var(--txt);border:1px solid var(--border);
+    border-radius:8px;padding:8px 12px;cursor:pointer;font-size:13px}
+  .toggle:hover{border-color:var(--accent)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:8px 0 4px}
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:14px 16px;box-shadow:0 1px 3px var(--shadow)}
+  .card .n{font-size:26px;font-weight:700}
+  .card .l{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .info{color:var(--info)} .crit{color:var(--crit)}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);
+    border-radius:10px;overflow:hidden;margin:6px 0 4px;font-size:13.5px}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:var(--panel2);font-weight:600;color:var(--muted);font-size:12px;
+    text-transform:uppercase;letter-spacing:.03em}
+  tr:last-child td{border-bottom:none}
+  code{background:var(--chip);padding:1px 6px;border-radius:5px;font-size:12.5px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;
+    letter-spacing:.03em;white-space:nowrap}
+  .b-done{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok)}
+  .b-warn{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+  .b-info{background:color-mix(in srgb,var(--info) 18%,transparent);color:var(--info)}
+  .b-crit{background:color-mix(in srgb,var(--crit) 18%,transparent);color:var(--crit)}
+  .chain{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);
+    border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:13px}
+  .chain .node{background:var(--chip);border:1px solid var(--border);border-radius:7px;padding:6px 11px}
+  .chain .arr{color:var(--accent);font-weight:700}
+  .chain .dim{opacity:.55;font-style:italic}
+  details{background:var(--panel);border:1px solid var(--border);border-radius:10px;
+    padding:4px 16px;margin:6px 0}
+  summary{cursor:pointer;padding:10px 0;font-weight:600}
+  ul{margin:6px 0 12px;padding-left:20px} li{margin:3px 0}
+  .note{background:color-mix(in srgb,var(--info) 9%,transparent);border-left:3px solid var(--info);
+    border-radius:6px;padding:10px 14px;margin:10px 0;font-size:13px;color:var(--muted)}
+  footer{margin-top:34px;color:var(--muted);font-size:12px;border-top:1px solid var(--border);padding-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Result Check — Medicine Tracking · Phase 5 (Импорт CSV + Google Sheets)</h1>
+      <div class="sub">Сверка IDD→SDD: intent + spec + plan vs git diff · 2026-06-18</div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span class="verdict">✓ Вердикт: OK</span>
+      <button class="toggle" id="tg">🌗 Тема</button>
+    </div>
+  </header>
+
+  <h2>Документы цепи</h2>
+  <table>
+    <tr><th style="width:120px">Документ</th><th>Путь</th><th style="width:150px">Статус</th></tr>
+    <tr><td>Plan</td><td><code>docs/superpowers/plans/2026-06-15-medicine-tracking-phase5-import.md</code></td>
+      <td>hash <code>cb6e300f88d83f67</code> — совпадает с frontmatter</td></tr>
+    <tr><td>Spec</td><td><code>docs/superpowers/specs/2026-06-15-medicine-tracking-design.md</code></td>
+      <td><span class="badge b-done">найдена</span></td></tr>
+    <tr><td>Intent</td><td><span class="dim">отсутствует</span> — <code>chain.intent: null</code></td>
+      <td><span class="badge b-info">n/a</span></td></tr>
+    <tr><td>Diff base</td><td><code>git diff HEAD</code> пуст (всё закоммичено) → <code>git diff 706caf8e</code></td>
+      <td>16 phase5-файлов</td></tr>
+  </table>
+  <div class="chain">
+    <span class="node dim">intent — отсутствует</span><span class="arr">→</span>
+    <span class="node">spec: medicine-tracking-design</span><span class="arr">→</span>
+    <span class="node">plan: phase5-import</span>
+  </div>
+
+  <h2>Покрытие шагов плана</h2>
+  <div class="grid">
+    <div class="card"><div class="n ok">6</div><div class="l">DONE</div></div>
+    <div class="card"><div class="n">0</div><div class="l">PARTIAL</div></div>
+    <div class="card"><div class="n">0</div><div class="l">MISSING</div></div>
+  </div>
+  <table>
+    <tr><th style="width:60px">Task</th><th>Назначение</th><th>Файлы в diff</th><th style="width:90px">Статус</th></tr>
+    <tr><td>1</td><td>Import schemas</td><td><code>schemas/medicine_import.py</code></td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>2</td><td>Service + unit-тест</td><td><code>services/medicine_import_service.py</code>, <code>tests/unit/backend/test_medicine_import_mapping.py</code></td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>3</td><td>Endpoints + регистрация</td><td><code>endpoints/medicine_import.py</code>, <code>endpoints/__init__.py</code>, <code>router.py</code></td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>4</td><td>Integration tests</td><td><code>tests/integration/backend/test_medicine_import.py</code></td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>5</td><td>Frontend wizard</td><td><code>medicineImportWizard.ts</code>, <code>medicines-bundle.ts</code>, <code>medicines_stock.html</code>, <code>medicines_courses.html</code>, <code>frontend/tests/unit/medicineImportWizard.test.ts</code></td><td><span class="badge b-done">DONE</span></td></tr>
+    <tr><td>6</td><td>Verify + docs</td><td><code>tests/e2e/webapp/test_medicine_import.spec.ts</code>, <code>docs/wiki/api.md</code>, <code>docs/wiki/medicine.md</code></td><td><span class="badge b-done">DONE</span></td></tr>
+  </table>
+
+  <h2>Findings</h2>
+  <table>
+    <tr><th style="width:90px">Severity</th><th style="width:130px">Шаг</th><th>Plan</th><th>Diff</th><th>Fix options</th></tr>
+    <tr>
+      <td><span class="badge b-info">INFO</span></td><td>Task 6 Step 4<br>docs-цель</td>
+      <td>append в <code>lat.md/api.md</code> и <code>lat.md/domain.md</code></td>
+      <td>обновлены <code>docs/wiki/api.md</code> + <code>docs/wiki/medicine.md</code> (не <code>domain.md</code>); <code>lat.md</code> — битый путь, реальная вики <code>docs/wiki/</code></td>
+      <td>1) принять (CLAUDE.md мандат <code>docs/wiki/</code>)<br>2) продублировать в <code>domain.md</code></td>
+    </tr>
+    <tr>
+      <td><span class="badge b-info">INFO</span></td><td>Task 6 Step 2<br>путь e2e</td>
+      <td><code>tests/e2e/medicine-import.spec.ts</code></td>
+      <td><code>tests/e2e/webapp/test_medicine_import.spec.ts</code> — конвенция репо (<code>webapp/</code>+<code>test_</code>)</td>
+      <td>1) оставить (соответствует e2e-конвенции)<br>2) переименовать под буквальный путь</td>
+    </tr>
+    <tr>
+      <td><span class="badge b-info">INFO</span></td><td>Task 2/4<br>код &gt; листинга</td>
+      <td>service ~310 строк, unit 3 кейса</td>
+      <td>service 346, unit 6 — review-follow-ups: atomic commit-guard, length-caps, <code>has_header</code>, <code>inn</code></td>
+      <td>1) принять (устранение находок финального ревью, коммит <code>962e3ba7</code>)<br>2) follow-up отдельно</td>
+    </tr>
+    <tr>
+      <td><span class="badge b-warn">WARNING</span></td><td>Excess<br>несвязанное</td>
+      <td>нет шага</td>
+      <td><code>plans/...phase3-reminders.md</code> (+4), <code>...phase4-deduction.md</code> (+4) — незакоммичены, предсуществуют, к Phase 5 не относятся</td>
+      <td>1) не трогать (не относится к Phase 5)<br>2) откоммитить в рамках своих фаз</td>
+    </tr>
+  </table>
+
+  <h2>Покрытие Intent / Spec</h2>
+  <div class="grid">
+    <div class="card"><div class="n info">n/a</div><div class="l">Desired Outcomes</div></div>
+    <div class="card"><div class="n ok">14/14</div><div class="l">Spec requirements</div></div>
+  </div>
+  <div class="note">Intent отсутствует (<code>chain.intent: null</code>) — покрытие Desired Outcomes неприменимо.</div>
+  <details open>
+    <summary>Spec requirements покрыто: 14/14</summary>
+    <ul>
+      <li>2 раздельных импорта (аптечка + курсы), каждый <code>analyze→map→preview→execute</code></li>
+      <li>8 эндпоинтов: stock+course × analyze/preview/execute + google-sheets/fetch</li>
+      <li>Колонки stock: name/inn/form/dosage/quantity/unit/expiry_date/purchase_date/purchase_price/location</li>
+      <li>Колонки course: <strong>patient</strong>/medicine/dose_amount/dose_unit/intake_times/schedule_type/start_date/end_date/with_food/notification_channels</li>
+      <li>find-or-create medicine по <code>(name, dosage)</code></li>
+      <li>find-or-create family_member по <code>name</code></li>
+      <li><strong>patient — обязательная колонка</strong> (preview помечает строки invalid)</li>
+      <li>Мягкая связь со стоком (decision #6): «нет в аптечке» warning, не блокирует</li>
+      <li>Preview — строгий dry-run (без записей в БД)</li>
+      <li>execute идемпотентен по справочникам</li>
+      <li>Google Sheets — public CSV-export без API-ключа</li>
+      <li>Reuse <code>csv_detector</code> / <code>csv_validator</code> / <code>csv_security</code> / <code>google_sheets_parser</code></li>
+      <li>Визард + кнопки импорта на <code>/medicines/stock</code> и <code>/medicines/courses</code></li>
+      <li>Тесты: parsing, dry-run preview, find-or-create, patient required, CSV-injection sanitize</li>
+    </ul>
+  </details>
+  <div class="note"><code>csv_column_matcher</code> из spec §278 <strong>НЕ</strong> переиспользован — дивергенция разобрана в плане (F-002, resolved: shopping-hardcoded <code>EXPECTED_FIELDS</code> не параметризуем).</div>
+
+  <h2>Excess Changes</h2>
+  <table>
+    <tr><th style="width:110px">Severity</th><th>Файл</th><th>Причина</th></tr>
+    <tr><td><span class="badge b-warn">WARNING</span></td><td><code>docs/superpowers/plans/...phase3/phase4...md</code></td><td>несвязанные, предсуществующие, незакоммиченные</td></tr>
+    <tr><td><span class="badge b-info">INFO</span></td><td><code>docs/wiki/.iwiki/log.jsonl</code></td><td>артефакт iwiki-ingest (привязан к Task 6 docs)</td></tr>
+  </table>
+
+  <h2>Сводка</h2>
+  <div class="grid">
+    <div class="card"><div class="n crit">0</div><div class="l">Critical</div></div>
+    <div class="card"><div class="n warn">1</div><div class="l">Warning</div></div>
+    <div class="card"><div class="n info">4</div><div class="l">Info</div></div>
+    <div class="card"><div class="n ok">OK</div><div class="l">Вердикт</div></div>
+  </div>
+  <div class="note" style="border-left-color:var(--ok);color:var(--txt)">
+    <strong>Вердикт: OK</strong> — план реализован полностью (6/6 задач), spec покрыт 14/14,
+    MISSING-шагов нет. Все finding — INFO/WARNING (корректировки путей + hardening сверх листинга + несвязанные предсуществующие правки).
+  </div>
+
+  <footer>
+    Chain: <span class="dim">intent (отсутствует)</span> → spec <code>2026-06-15-medicine-tracking-design.md</code> → plan <code>2026-06-15-medicine-tracking-phase5-import.md</code><br>
+    Сгенерировано командой <code>/check-result</code> · 2026-06-18 · автогенерируемый артефакт.
+  </footer>
+</div>
+<script>
+  (function(){
+    var r=document.documentElement, b=document.getElementById('tg');
+    r.setAttribute('data-theme','dark');
+    b.addEventListener('click',function(){
+      r.setAttribute('data-theme', r.getAttribute('data-theme')==='dark'?'light':'dark');
+    });
+  })();
+</script>
+</body>
+</html>

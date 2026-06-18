@@ -37,6 +37,8 @@ LOCK_ID_PLAN_REMINDERS = 1005
 LOCK_ID_BALANCE_AGGREGATES = 1006
 LOCK_ID_RECURRING_PLANS = 1007
 LOCK_ID_WEBAUTHN_CLEANUP = 1008
+LOCK_ID_MEDICINE_DISPATCH = 1009      # reserved for Phase 3 (every 5 min)
+LOCK_ID_MEDICINE_MAINTENANCE = 1010   # daily medicine maintenance (expiry + Phase 2 generation)
 
 
 @asynccontextmanager
@@ -356,6 +358,54 @@ async def generate_recurring_facts_job():
         raise
 
 
+async def medicine_maintenance_job():
+    """Daily medicine maintenance: (а) generate intake_log 7d ahead, (б) scheduled→late, (в) expiry alerts."""
+    logger.info("[SCHEDULER] Starting medicine maintenance job")
+    try:
+        async with advisory_xact_lock(LOCK_ID_MEDICINE_MAINTENANCE) as acquired:
+            if not acquired:
+                logger.info("[SCHEDULER] Medicine maintenance skipped - another worker is executing")
+                return
+            settings = get_settings()
+            from backend.app.services.medicine_alert_service import send_expiry_alerts
+            from backend.app.services.medicine_intake_service import generate_all, mark_overdue_late
+            async with get_session_context() as session:
+                generated = await generate_all(session)
+                late = await mark_overdue_late(session)
+                sent = await send_expiry_alerts(session, settings)
+            logger.info("[SCHEDULER] Medicine maintenance done: generated=%s late=%s expiry_alerts=%s",
+                        generated, late, sent)
+    except Exception as e:
+        logger.error("[SCHEDULER] Error in medicine maintenance job: %s", e, exc_info=True)
+        raise
+
+
+async def medicine_reminder_dispatch_job():
+    """Send due medicine reminders (Telegram + Web Push). Every 5 minutes. Mirror of send_plan_reminders_job."""
+    logger.info("[SCHEDULER] Starting medicine reminder dispatch job")
+    try:
+        async with advisory_xact_lock(LOCK_ID_MEDICINE_DISPATCH) as acquired:
+            if not acquired:
+                logger.info("[SCHEDULER] Medicine reminder dispatch skipped - another worker is executing")
+                return
+            from backend.app.services.medicine_reminder_service import MedicineReminderService
+            async with get_session_context() as session:
+                svc = MedicineReminderService()
+                due = await svc.get_due(session, batch_size=100)
+                if not due:
+                    logger.debug("[SCHEDULER] No due medicine reminders")
+                    return
+                sent = 0
+                for reminder in due:
+                    tg, wp = await svc.send(session, reminder)
+                    if tg or wp:
+                        sent += 1
+                logger.info("[SCHEDULER] Medicine reminders: %s/%s sent", sent, len(due))
+    except Exception as e:
+        logger.error("[SCHEDULER] Error in medicine reminder dispatch job: %s", e, exc_info=True)
+        raise
+
+
 async def cleanup_expired_webauthn_challenges_job():
     """
     Job: Delete expired WebAuthn challenges from database.
@@ -520,6 +570,26 @@ def init_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
     logger.info("[SCHEDULER] Registered job: cleanup_expired_webauthn_challenges (every hour)")
+
+    # Job 8: Medicine maintenance (daily at 03:00 SYSTEM_TIMEZONE, after recurring facts at 02:00)
+    scheduler.add_job(
+        medicine_maintenance_job,
+        trigger=CronTrigger(hour=3, minute=0),
+        id="medicine_maintenance",
+        name="Medicine Maintenance (expiry alerts)",
+        replace_existing=True,
+    )
+    logger.info(f"[SCHEDULER] Registered job: medicine_maintenance (daily at 03:00 {settings.SYSTEM_TIMEZONE})")
+
+    # Job 9: Medicine reminder dispatch (every 5 minutes)
+    scheduler.add_job(
+        medicine_reminder_dispatch_job,
+        trigger=CronTrigger(minute="*/5"),
+        id="medicine_reminder_dispatch",
+        name="Medicine Reminder Dispatch (Telegram + Web Push)",
+        replace_existing=True,
+    )
+    logger.info("[SCHEDULER] Registered job: medicine_reminder_dispatch (every 5 minutes)")
 
     return scheduler
 

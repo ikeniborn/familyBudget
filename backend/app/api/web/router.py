@@ -489,6 +489,56 @@ async def shopping_list_detail_page(
     )
 
 
+@web_router.get("/medicines/catalog", response_class=HTMLResponse)
+async def medicines_catalog_page(request: Request, current_user: CurrentUser):
+    """Medicine catalog page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_catalog.html",
+        {"request": request, "user": current_user, "page_title": "Справочник лекарств"},
+    )
+
+
+@web_router.get("/medicines/stock", response_class=HTMLResponse)
+async def medicines_stock_page(request: Request, current_user: CurrentUser):
+    """Medicine stock (аптечка) page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_stock.html",
+        {"request": request, "user": current_user, "page_title": "Аптечка"},
+    )
+
+
+@web_router.get("/medicines", response_class=HTMLResponse)
+async def medicines_dashboard_page(request: Request, current_user: CurrentUser):
+    """Medicine dashboard — today's intakes."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_dashboard.html",
+        {"request": request, "user": current_user, "page_title": "Приём лекарств"},
+    )
+
+
+@web_router.get("/medicines/courses", response_class=HTMLResponse)
+async def medicines_courses_page(request: Request, current_user: CurrentUser):
+    """Medicine courses list page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_courses.html",
+        {"request": request, "user": current_user, "page_title": "Курсы приёма"},
+    )
+
+
+@web_router.get("/medicines/courses/{course_id:int}", response_class=HTMLResponse)
+async def medicines_course_detail_page(request: Request, course_id: int, current_user: CurrentUser):
+    """Medicine course detail page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_course_detail.html",
+        {"request": request, "user": current_user, "page_title": "Курс лечения", "course_id": course_id},
+    )
+
+
 # =============================================================================
 # Authentication Web Pages (Public and Authenticated)
 # =============================================================================
