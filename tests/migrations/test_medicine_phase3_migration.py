@@ -1,6 +1,7 @@
 """Verify t_medicine_reminder + UNIQUE(intake_log_id, recipient_user_id)."""
 import pytest
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 
 @pytest.mark.asyncio
@@ -29,7 +30,7 @@ async def test_reminder_unique_recipient_per_intake(db_session):
     await db_session.execute(text(
         "INSERT INTO t_medicine_reminder (intake_log_id,recipient_user_id,reminder_datetime,status) "
         "VALUES (9101,1,'2026-06-16 08:00:00','pending')"))
-    with pytest.raises(Exception):
+    with pytest.raises(IntegrityError):
         await db_session.execute(text(
             "INSERT INTO t_medicine_reminder (intake_log_id,recipient_user_id,reminder_datetime,status) "
             "VALUES (9101,1,'2026-06-16 08:00:00','pending')"))
