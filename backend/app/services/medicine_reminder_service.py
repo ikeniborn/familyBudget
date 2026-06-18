@@ -209,6 +209,10 @@ class MedicineReminderService:
             row.status = "pending"
             row.reminder_datetime = snooze_at
             row.sent_at = None
+            row.retry_count = 0
+            row.telegram_sent = False
+            row.web_push_sent = False
+            row.error_message = None
         else:
             row = MedicineReminder(
                 intake_log_id=intake_id, recipient_user_id=recipient_user_id,
