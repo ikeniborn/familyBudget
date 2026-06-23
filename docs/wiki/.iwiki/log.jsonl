@@ -1,0 +1,10 @@
+{"op":"init","source":"backend/app/main.py","page":"docs/wiki/architecture.md","date":"2026-06-23"}
+{"op":"init","source":"backend/app/api/v1/endpoints","page":"docs/wiki/api.md","date":"2026-06-23"}
+{"op":"init","source":"backend/app/services/auth_service.py","page":"docs/wiki/auth.md","date":"2026-06-23"}
+{"op":"init","source":"backend/app/models","page":"docs/wiki/database.md","date":"2026-06-23"}
+{"op":"init","source":"backend/app/services","page":"docs/wiki/domain.md","date":"2026-06-23"}
+{"op":"init","source":"backend/app/services/medicine_service.py","page":"docs/wiki/medicine.md","date":"2026-06-23"}
+{"op":"init","source":"backend/app/services/import_executor.py","page":"docs/wiki/import.md","date":"2026-06-23"}
+{"op":"init","source":"backend/app/services/redis_pubsub_service.py","page":"docs/wiki/realtime.md","date":"2026-06-23"}
+{"op":"init","source":"bot","page":"docs/wiki/bot.md","date":"2026-06-23"}
+{"op":"init","source":"frontend","page":"docs/wiki/frontend.md","date":"2026-06-23"}
