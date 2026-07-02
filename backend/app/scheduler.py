@@ -39,6 +39,7 @@ LOCK_ID_RECURRING_PLANS = 1007
 LOCK_ID_WEBAUTHN_CLEANUP = 1008
 LOCK_ID_MEDICINE_DISPATCH = 1009      # reserved for Phase 3 (every 5 min)
 LOCK_ID_MEDICINE_MAINTENANCE = 1010   # daily medicine maintenance (expiry + Phase 2 generation)
+LOCK_ID_PARTITION_RUNWAY = 1011       # daily t_f_budget_fact partition pre-creation
 
 
 @asynccontextmanager
@@ -471,6 +472,42 @@ async def cleanup_expired_webauthn_challenges_job():
         raise
 
 
+async def ensure_partition_runway_job():
+    """
+    Job: Pre-create t_f_budget_fact partitions for the next 6 months.
+
+    Keeps a rolling runway of monthly partitions so the fact insert path
+    almost never has to create a partition inline. Creation is bounded by
+    the SQL function's window guard (2020-01-01 .. current month + 6 months).
+
+    Schedule: Daily at 04:00 SYSTEM_TIMEZONE (no-op when partitions exist)
+
+    Uses PostgreSQL advisory lock to prevent duplicate execution
+    when running with multiple uvicorn workers.
+    """
+    logger.info("[SCHEDULER] Starting partition runway job")
+
+    try:
+        async with advisory_xact_lock(LOCK_ID_PARTITION_RUNWAY) as acquired:
+            if not acquired:
+                logger.info(
+                    "[SCHEDULER] Partition runway job skipped - "
+                    "another worker is already executing"
+                )
+                return
+
+            from backend.app.services.partition_service import ensure_partition_runway
+
+            async with get_session_context() as session:
+                await ensure_partition_runway(session)
+
+            logger.info("[SCHEDULER] Partition runway job completed")
+
+    except Exception as e:
+        logger.error("[SCHEDULER] Error in partition runway job: %s", e, exc_info=True)
+        raise
+
+
 def init_scheduler() -> AsyncIOScheduler:
     """
     Initialize and configure APScheduler.
@@ -590,6 +627,16 @@ def init_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
     logger.info("[SCHEDULER] Registered job: medicine_reminder_dispatch (every 5 minutes)")
+
+    # Job 10: Partition runway for t_f_budget_fact (daily at 04:00 SYSTEM_TIMEZONE)
+    scheduler.add_job(
+        ensure_partition_runway_job,
+        trigger=CronTrigger(hour=4, minute=0),
+        id="ensure_partition_runway",
+        name="Ensure Budget Fact Partition Runway (+6 months)",
+        replace_existing=True,
+    )
+    logger.info(f"[SCHEDULER] Registered job: ensure_partition_runway (daily at 04:00 {settings.SYSTEM_TIMEZONE})")
 
     return scheduler
 

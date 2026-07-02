@@ -19,6 +19,7 @@ from backend.app.core.dependencies import CurrentAdmin, get_session
 from backend.app.models.budget_fact_history import BudgetFactHistory
 from backend.app.models.fact import BudgetFact
 from backend.app.models.import_staging import ImportStaging
+from backend.app.services.partition_service import ensure_partitions_for_dates
 from backend.app.schemas.import_multibank_schema import (
     BulkUpdateRequest,
     ImportExecuteRequest,
@@ -595,6 +596,9 @@ async def execute_import(
             final_description = f"{base_description}. {record.user_comment}" if base_description else record.user_comment
         else:
             final_description = base_description or None
+
+        # Ensure the monthly partition exists before creating the fact
+        await ensure_partitions_for_dates(session, [record.fact_date])
 
         # Create BudgetFact
         fact = BudgetFact(

@@ -19,6 +19,7 @@ from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.recurring_plan import RecurringPlan
 from backend.app.models.scheduled_reminder import ScheduledReminder
+from backend.app.services.partition_service import ensure_partitions_for_dates
 from backend.app.schemas.recurring_plan import (
     RecurringPlanCreate,
     RecurringPlanUpdate,
@@ -735,6 +736,9 @@ class RecurringPlanService:
                     f"[RECURRING] Plan {plan.id}: Fact already exists for {current_date}, skipping"
                 )
             else:
+                # Ensure the monthly partition exists before creating the fact
+                await ensure_partitions_for_dates(session, [current_date])
+
                 # Create fact
                 fact = BudgetFact(
                     user_id=plan.user_id,

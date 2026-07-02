@@ -46,6 +46,7 @@ from backend.app.schemas.fact import (
 )
 from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
 from backend.app.services.id_generator import get_next_fact_id
+from backend.app.services.partition_service import ensure_partitions_for_dates
 from backend.app.services.write_behind_service import write_behind_service
 
 # WebSocket broadcast functions (lazy import to avoid circular dependencies)
@@ -352,6 +353,9 @@ async def create_fact(
     # Convert amount to absolute value (always store positive)
     fact_dict = fact_data.model_dump()
     fact_dict['amount'] = abs(fact_dict['amount'])
+
+    # Ensure the monthly partition exists before creating the fact
+    await ensure_partitions_for_dates(session, [fact_dict["fact_date"]])
 
     fact = BudgetFact(
         **fact_dict,
@@ -1532,6 +1536,10 @@ async def update_fact(
     # Convert amount to absolute value if amount is being updated
     if "amount" in update_data:
         update_data["amount"] = abs(update_data["amount"])
+
+    # Moving a fact to another month requires that partition to exist
+    if "fact_date" in update_data:
+        await ensure_partitions_for_dates(session, [update_data["fact_date"]])
 
     for key, value in update_data.items():
         setattr(fact, key, value)
