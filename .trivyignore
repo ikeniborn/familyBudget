@@ -188,6 +188,18 @@ CVE-2026-6100
 # Review: Weekly (security patches)
 CVE-2026-26007
 
+# CVE-2026-11940: CPython tarfile extraction filter bypass (CRITICAL)
+# Status: fix_deferred in Debian 12 (bookworm) - no fixed package reported by Trivy
+# Impact: tarfile.extractall() filters ("data" / "tar") can be bypassed during archive extraction
+# Package: libpython3.11-minimal, libpython3.11-stdlib, python3.11-minimal v3.11.2-6+deb12u6
+# Mitigation:
+#   - Application import uploads are restricted to .xlsx, .csv, .json (NO tar archives accepted)
+#   - No tarfile.extractall() usage in backend, bot, tests, or scripts
+#   - Nginx body size limit and FastAPI validation limit malicious archive payload surface
+# Risk assessment: LOW (vulnerable stdlib path is not exposed by application functionality)
+# Next review: 2026-08-06 (monthly check for Debian DSA)
+CVE-2026-11940
+
 # ============================================================================
 # New Vulnerabilities (Added 2026-05-15)
 # ============================================================================
