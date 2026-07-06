@@ -1,6 +1,6 @@
 ---
 review:
-  plan_hash: cf04ba95e5ef4a12
+  plan_hash: 82676594ad8d07e6
   last_run: 2026-07-06
   phases:
     structure: { status: passed }
@@ -51,9 +51,11 @@ chain:
 | `deploy.sh` | Modify | Rename user-facing full-profile proxy text and stop calling nginx/certbot deploy assumptions |
 | `scripts/lib/services.sh` | Modify | Rename selective restart flags and service arrays from nginx to Traefik |
 | `scripts/lib/sync.sh` | Modify | Detect `traefik/` changes instead of `nginx/` changes |
+| `scripts/lib/docker.sh` | Modify | Rename smart-cleanup proxy container decisions from nginx to Traefik |
 | `scripts/lib/registry.sh` | Modify | Remove nginx image version generation and compare official Traefik as compose-managed service |
 | `scripts/lib/status.sh` | Modify | Print HTTP/HTTPS URLs when `traefik` is running |
 | `scripts/lib/network.sh` | Modify | Remove certbot-specific port conflict recommendation for nginx/certbot |
+| `scripts/lib/firewall.sh` | Modify | Keep ports `80` and `443` open for Traefik HTTP-01 and HTTPS traffic |
 | `scripts/lib/ssl.sh` | Modify | Keep legacy functions inert for rollback docs; deploy path must not call standalone certbot |
 | `.github/workflows/build-and-push.yml` | Modify | Remove nginx image outputs, metadata, build, IMAGE_VERSIONS updates, registry summary usage |
 | `IMAGE_VERSIONS.json` | Modify | Delete the `nginx` image entry |
@@ -512,8 +514,10 @@ Expected: commit succeeds.
 - Modify: `deploy.sh`
 - Modify: `scripts/lib/services.sh`
 - Modify: `scripts/lib/sync.sh`
+- Modify: `scripts/lib/docker.sh`
 - Modify: `scripts/lib/status.sh`
 - Modify: `scripts/lib/network.sh`
+- Modify: `scripts/lib/firewall.sh`
 - Modify: `scripts/lib/ssl.sh`
 - Verify: `bash -n deploy.sh scripts/lib/*.sh`
 
@@ -531,7 +535,34 @@ grep -n 'Checking if ports are available for Traefik' deploy.sh
 
 Expected: first two commands print matching lines; third command prints nothing and exits `0`.
 
-- [ ] **Step 2: Rename selective restart flags in `scripts/lib/services.sh`**
+- [ ] **Step 2: Ensure the external monitoring network exists before full-profile starts**
+
+Add a small helper in `deploy.sh` or `scripts/lib/network.sh`:
+
+```bash
+ensure_monitoring_network() {
+    if ! docker network inspect monitoring >/dev/null 2>&1; then
+        info "Creating external Docker network: monitoring"
+        docker network create monitoring >> "$LOG_FILE" 2>&1
+        success "External Docker network created: monitoring"
+    else
+        info "External Docker network already exists: monitoring"
+    fi
+}
+```
+
+Call it after Docker is confirmed running and before any `docker compose --profile full up` path when `DEPLOYMENT_PROFILE=full`.
+
+Run:
+
+```bash
+grep -n 'ensure_monitoring_network' deploy.sh scripts/lib/network.sh
+grep -n 'docker network create monitoring' deploy.sh scripts/lib/network.sh
+```
+
+Expected: both commands print matching lines.
+
+- [ ] **Step 3: Rename selective restart flags in `scripts/lib/services.sh`**
 
 In `scripts/lib/services.sh`, replace `NEEDS_NGINX_RECREATE` with `NEEDS_TRAEFIK_RECREATE`, service `nginx` with `traefik`, and message labels `Nginx` with `Traefik` inside `start_application_services()`.
 
@@ -546,7 +577,7 @@ grep -n 'Traefik recreate' scripts/lib/services.sh
 
 Expected: first three commands print matching lines; fourth command prints nothing and exits `0`.
 
-- [ ] **Step 3: Update sync-change detection**
+- [ ] **Step 4: Update sync-change detection**
 
 In `scripts/lib/sync.sh`, replace nginx-specific change categories with Traefik equivalents:
 
@@ -566,7 +597,29 @@ grep -n 'traefik/' scripts/lib/sync.sh
 
 Expected: first two commands print matching lines; third command prints nothing and exits `0`.
 
-- [ ] **Step 4: Update status output**
+- [ ] **Step 5: Update smart cleanup proxy references**
+
+In `scripts/lib/docker.sh`, rename proxy cleanup variables and containers from nginx to Traefik:
+
+```bash
+needs_traefik_restart=false
+count_traefik_config=0
+familybudget-traefik
+```
+
+Traefik config change patterns should include `traefik/traefik.yml`, `traefik/conf.d/*.tmpl`, and `traefik/docker-entrypoint.sh`.
+
+Run:
+
+```bash
+grep -n 'familybudget-traefik' scripts/lib/docker.sh
+grep -n 'traefik/' scripts/lib/docker.sh
+! grep -n 'familybudget-nginx' scripts/lib/docker.sh
+```
+
+Expected: first two commands print matching lines; third command prints nothing and exits `0`.
+
+- [ ] **Step 6: Update status output**
 
 In `scripts/lib/status.sh`, replace the nginx URL condition:
 
@@ -589,7 +642,7 @@ grep -n 'compose_cmd ps -q traefik' scripts/lib/status.sh
 
 Expected: first command prints matching line; second command prints nothing and exits `0`.
 
-- [ ] **Step 5: Remove certbot-specific port handling from the active deploy path**
+- [ ] **Step 7: Remove certbot-specific port handling from the active deploy path**
 
 In `scripts/lib/network.sh`, keep generic port conflict detection, but replace the certbot branch with a warning that Traefik needs exclusive access to ports `80` and `443` for HTTP challenge traffic. The active port handler must not stop or disable `certbot.service` automatically.
 
@@ -603,7 +656,21 @@ grep -n 'Traefik needs exclusive access' scripts/lib/network.sh
 
 Expected: first command prints matching line; second and third commands print nothing and exit `0`.
 
-- [ ] **Step 6: Keep legacy SSL functions out of deploy execution**
+- [ ] **Step 8: Keep ports 80 and 443 open for Traefik**
+
+In `scripts/lib/firewall.sh`, change SSL firewall behavior: Traefik needs port `80` open for HTTP-01 challenge and HTTP-to-HTTPS redirect, and port `443` open for HTTPS. The script must not close port `80` as a certbot-only temporary port.
+
+Run:
+
+```bash
+grep -n 'Port 80 (HTTP).*OPEN' scripts/lib/firewall.sh
+grep -n 'Traefik HTTP-01' scripts/lib/firewall.sh
+! grep -n 'opens only for certbot' scripts/lib/firewall.sh
+```
+
+Expected: first two commands print matching lines; third command prints nothing and exits `0`.
+
+- [ ] **Step 9: Keep legacy SSL functions out of deploy execution**
 
 In `deploy.sh`, ensure `setup_ssl_certificates` and `verify_ssl` are not called from `main()`. The `scripts/lib/ssl.sh` file can remain for rollback tooling, but no active deploy step should invoke host certbot.
 
@@ -616,7 +683,7 @@ Run:
 
 Expected: both commands print nothing and exit `0`.
 
-- [ ] **Step 7: Validate shell syntax**
+- [ ] **Step 10: Validate shell syntax**
 
 Run:
 
@@ -626,12 +693,12 @@ bash -n deploy.sh scripts/lib/*.sh scripts/ci/*.sh
 
 Expected: command exits `0`.
 
-- [ ] **Step 8: Commit deployment script changes**
+- [ ] **Step 11: Commit deployment script changes**
 
 Run:
 
 ```bash
-git add deploy.sh scripts/lib/services.sh scripts/lib/sync.sh scripts/lib/status.sh scripts/lib/network.sh scripts/lib/ssl.sh
+git add deploy.sh scripts/lib/services.sh scripts/lib/sync.sh scripts/lib/docker.sh scripts/lib/status.sh scripts/lib/network.sh scripts/lib/firewall.sh scripts/lib/ssl.sh
 git commit -m "feat: update deploy scripts for Traefik"
 ```
 
