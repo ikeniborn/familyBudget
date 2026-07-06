@@ -332,6 +332,9 @@ sync_mirror() {
         find "$DEPLOY_DIR/scripts" -type f -name "*.sh" -exec chmod 755 {} \;
         success "Shell scripts permissions updated"
 
+        export SYNC_FORCE_FULL_RESTART=true
+        info "Mirror sync mode: forcing full restart for conservative service recreation"
+
         return 0
     else
         error "Failed to sync code. Check $LOG_FILE for details."
@@ -497,8 +500,9 @@ sync_update() {
         fi
     done < "$temp_deploy_list"
 
-    # Cleanup temp files
-    rm -f "$temp_repo_list" "$temp_deploy_list" "$SYNC_FILES_TEMP"
+    # Cleanup local temp files. SYNC_FILES_TEMP is kept for analyze_sync_changes()
+    # and removed by deploy.sh EXIT trap.
+    rm -f "$temp_repo_list" "$temp_deploy_list"
 
     # Remove empty directories
     find "$DEPLOY_DIR" -type d -empty -delete 2>/dev/null || true
@@ -525,7 +529,7 @@ sync_clean() {
 
     warning "Clean sync: DELETES EVERYTHING in $DEPLOY_DIR except protected files"
     warning "⚠️  This will DELETE:"
-    warning "  - All code (backend/, bot/, nginx/, frontend/, scripts/)"
+    warning "  - All code (backend/, bot/, traefik/, frontend/, scripts/)"
     warning "  - All Docker volumes (including PostgreSQL database)"
     warning "  - All logs (logs/* except current deploy.log)"
     warning "  - All backups (backups/)"
@@ -585,7 +589,7 @@ sync_clean() {
     warning "Removing all directories and files (except .env)..."
 
     # Remove code directories completely
-    local dirs_to_remove=("backend" "bot" "nginx" "frontend" "scripts" "backups")
+    local dirs_to_remove=("backend" "bot" "traefik" "frontend" "scripts" "backups")
     for dir in "${dirs_to_remove[@]}"; do
         if [[ -d "$DEPLOY_DIR/$dir" ]]; then
             info "  Removing $DEPLOY_DIR/$dir"
@@ -640,6 +644,7 @@ sync_clean() {
 
         # Mark PostgreSQL as stopped (will be initialized fresh)
         POSTGRES_WAS_STOPPED=true
+        export SYNC_FORCE_FULL_RESTART=true
 
         success "Clean sync completed: EVERYTHING deleted except .env, fresh code copied"
         return 0
@@ -656,7 +661,7 @@ sync_clean() {
 #   - NEEDS_REDIS_RECREATE=true     if redis code/config changed
 #   - NEEDS_BACKEND_RECREATE=true   if frontend/web/templates, static, or backend/app changed
 #   - NEEDS_BOT_RECREATE=true       if bot/ changed
-#   - NEEDS_NGINX_RECREATE=true     if nginx/ changed
+#   - NEEDS_TRAEFIK_RECREATE=true   if traefik/ changed
 #   - NEEDS_FULL_RESTART=true       if docker-compose.yml global changes (volumes/networks)
 analyze_sync_changes() {
     info "Analyzing sync changes for smart restart decisions..."
@@ -666,8 +671,15 @@ analyze_sync_changes() {
     export NEEDS_REDIS_RECREATE=false
     export NEEDS_BACKEND_RECREATE=false
     export NEEDS_BOT_RECREATE=false
-    export NEEDS_NGINX_RECREATE=false
+    export NEEDS_TRAEFIK_RECREATE=false
     export NEEDS_FULL_RESTART=false
+
+    if [[ "${SYNC_FORCE_FULL_RESTART:-false}" == "true" ]]; then
+        export NEEDS_FULL_RESTART=true
+        warning "Sync mode requires conservative full restart"
+        report_service_decisions
+        return 0
+    fi
 
     # Check if SYNC_FILES_TEMP exists and is not empty (from sync_update)
     if [[ ! -s "${SYNC_FILES_TEMP:-}" ]]; then
@@ -692,7 +704,7 @@ analyze_sync_changes() {
     local redis_changes=false
     local backend_related_changes=false
     local bot_changes=false
-    local nginx_changes=false
+    local traefik_changes=false
     local config_changes=false
 
     while IFS= read -r file; do
@@ -733,7 +745,7 @@ analyze_sync_changes() {
     # - Other Python files not in backend/app or bot/
     if [[ "$backend_related_changes" == "false" ]] && \
        [[ "$bot_changes" == "false" ]] && \
-       [[ "$nginx_changes" == "false" ]] && \
+       [[ "$traefik_changes" == "false" ]] && \
        [[ "$postgres_changes" == "false" ]] && \
        [[ "$redis_changes" == "false" ]] && \
        [[ "$config_changes" == "false" ]] && \
@@ -776,11 +788,13 @@ match_file_to_services() {
         info "  → Bot affected: $file"
     fi
 
-    # Nginx patterns (existing logic)
-    if [[ "$file" =~ ^nginx/(nginx\.conf|conf\.d/) ]]; then
-        export NEEDS_NGINX_RECREATE=true
-        nginx_changes=true
-        info "  → Nginx affected: $file"
+    # Traefik patterns
+    if [[ "$file" == "traefik/traefik.yml" ]] || \
+       [[ "$file" == traefik/conf.d/* ]] || \
+       [[ "$file" == "traefik/docker-entrypoint.sh" ]]; then
+        export NEEDS_TRAEFIK_RECREATE=true
+        traefik_changes=true
+        info "  → Traefik affected: $file"
     fi
 
     # PostgreSQL patterns (NEW)
@@ -849,7 +863,7 @@ detect_compose_changes() {
     # Format: "+  postgres:" or "-  backend:"
     local changed_services
     changed_services=$(echo "$diff_output" | \
-                       grep -E "^[\+\-]\s{2}(postgres|redis|backend|bot|nginx):" | \
+                       grep -E "^[\+\-]\s{2}(postgres|redis|backend|bot|traefik):" | \
                        sed -E 's/^[\+\-]\s{2}([^:]+):.*/\1/' | \
                        sort -u)
 
@@ -878,10 +892,10 @@ detect_compose_changes() {
         info "  → Bot service definition changed in docker-compose.yml"
     fi
 
-    if echo "$changed_services" | grep -q "nginx"; then
-        export NEEDS_NGINX_RECREATE=true
-        nginx_changes=true
-        info "  → Nginx service definition changed in docker-compose.yml"
+    if echo "$changed_services" | grep -q "traefik"; then
+        export NEEDS_TRAEFIK_RECREATE=true
+        traefik_changes=true
+        info "  → Traefik service definition changed in docker-compose.yml"
     fi
 
     return 0
@@ -974,18 +988,18 @@ detect_env_changes() {
         info "  → Bot affected: BACKEND_API variables"
     fi
 
-    # Nginx variables
-    if echo "$changed_vars" | grep -qE "DOMAIN|HTTP_PORT|HTTPS_PORT"; then
-        export NEEDS_NGINX_RECREATE=true
-        nginx_changes=true
-        local nginx_vars=$(echo "$changed_vars" | grep -E "DOMAIN|PORT" | tr '\n' ', ')
-        info "  → Nginx affected: $nginx_vars"
+    # Traefik variables
+    if echo "$changed_vars" | grep -qE "DOMAIN|HTTP_PORT|HTTPS_PORT|LETSENCRYPT_EMAIL"; then
+        export NEEDS_TRAEFIK_RECREATE=true
+        traefik_changes=true
+        local traefik_vars=$(echo "$changed_vars" | grep -E "DOMAIN|PORT|LETSENCRYPT_EMAIL" | tr '\n' ', ')
+        info "  → Traefik affected: $traefik_vars"
     fi
 
     # Handle unknown variables (conservative fallback)
     # Any variable not matched above → assume backend affected
     local unmapped_vars
-    unmapped_vars=$(echo "$changed_vars" | grep -vE "POSTGRES_|DATABASE_URL|DB_|REDIS_|JWT_|TELEGRAM_|ADMIN_|CORS_|WORKERS|VAPID_|WEBAUTHN_|BACKEND_API|DOMAIN|HTTP_PORT|HTTPS_PORT|APP_ENV|DEBUG" || echo "")
+    unmapped_vars=$(echo "$changed_vars" | grep -vE "POSTGRES_|DATABASE_URL|DB_|REDIS_|JWT_|TELEGRAM_|ADMIN_|CORS_|WORKERS|VAPID_|WEBAUTHN_|BACKEND_API|DOMAIN|HTTP_PORT|HTTPS_PORT|LETSENCRYPT_EMAIL|APP_ENV|DEBUG" || echo "")
 
     if [[ -n "$unmapped_vars" ]]; then
         export NEEDS_BACKEND_RECREATE=true
@@ -1021,10 +1035,10 @@ report_service_decisions() {
     print_service_decision "Redis" "${NEEDS_REDIS_RECREATE:-false}" "config/code"
     print_service_decision "Backend" "${NEEDS_BACKEND_RECREATE:-false}" "code/templates/config"
 
-    # Bot and Nginx only in full profile
+    # Bot and Traefik only in full profile
     if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
         print_service_decision "Bot" "${NEEDS_BOT_RECREATE:-false}" "code/config"
-        print_service_decision "Nginx" "${NEEDS_NGINX_RECREATE:-false}" "config"
+        print_service_decision "Traefik" "${NEEDS_TRAEFIK_RECREATE:-false}" "config"
     fi
 
     echo ""

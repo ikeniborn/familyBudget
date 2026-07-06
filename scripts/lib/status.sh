@@ -114,8 +114,8 @@ print_status() {
         fi
     fi
 
-    # Nginx URLs
-    if compose_cmd ps -q nginx >/dev/null 2>&1; then
+    # Traefik URLs
+    if compose_cmd ps -q traefik >/dev/null 2>&1; then
         if [[ "$domain" == "localhost" ]]; then
             print_message "$CYAN" "  HTTP:        http://localhost:$http_port"
             if [[ "$https_port" != "443" ]]; then

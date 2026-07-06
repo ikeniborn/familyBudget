@@ -15,6 +15,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.fact import BudgetFact
 from backend.app.models.import_staging import ImportStaging
+from backend.app.services.partition_service import ensure_partitions_for_dates
 
 logger = logging.getLogger(__name__)
 
@@ -234,6 +235,10 @@ class ImportExecutor:
                         description = f"{description} ({record.budget_description})"
                     else:
                         description = record.budget_description
+
+                # Ensure the monthly partition exists (historical imports may
+                # target months whose partition was never created)
+                await ensure_partitions_for_dates(session, [record.fact_date])
 
                 # Create BudgetFact
                 fact = BudgetFact(

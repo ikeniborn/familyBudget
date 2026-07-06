@@ -8,7 +8,6 @@ on:
       - 'VERSION'
       - 'backend/**'
       - 'bot/**'
-      - 'nginx/**'
       - 'redis/**'
       - 'postgres/**'
       - 'frontend/**'
@@ -202,7 +201,6 @@ jobs:
     outputs:
       backend_built: ${{ steps.changes.outputs.backend }}
       bot_built: ${{ steps.changes.outputs.bot }}
-      nginx_built: ${{ steps.changes.outputs.nginx }}
       redis_built: ${{ steps.changes.outputs.redis }}
       postgresql_built: ${{ steps.changes.outputs.postgresql }}
     steps:
@@ -296,7 +294,6 @@ jobs:
 
           needs_build backend    && echo "backend=true"    >> $GITHUB_OUTPUT || echo "backend=false"    >> $GITHUB_OUTPUT
           needs_build bot        && echo "bot=true"        >> $GITHUB_OUTPUT || echo "bot=false"        >> $GITHUB_OUTPUT
-          needs_build nginx      && echo "nginx=true"      >> $GITHUB_OUTPUT || echo "nginx=false"      >> $GITHUB_OUTPUT
           needs_build redis      && echo "redis=true"      >> $GITHUB_OUTPUT || echo "redis=false"      >> $GITHUB_OUTPUT
           needs_build postgresql && echo "postgresql=true" >> $GITHUB_OUTPUT || echo "postgresql=false" >> $GITHUB_OUTPUT
 
@@ -324,20 +321,6 @@ jobs:
           labels: |
             org.opencontainers.image.title=Family Budget Bot
             org.opencontainers.image.description=Family Budget Telegram bot
-            org.opencontainers.image.vendor=Family Budget Team
-            org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
-            org.opencontainers.image.revision=${{ github.sha }}
-
-      - name: Docker meta (nginx)
-        id: meta-nginx
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/familybudget-nginx
-          tags: |
-            type=raw,value=${{ steps.version.outputs.VERSION }}
-          labels: |
-            org.opencontainers.image.title=Family Budget Nginx
-            org.opencontainers.image.description=Family Budget Nginx reverse proxy
             org.opencontainers.image.vendor=Family Budget Team
             org.opencontainers.image.version=${{ steps.version.outputs.VERSION }}
             org.opencontainers.image.revision=${{ github.sha }}
@@ -416,18 +399,6 @@ jobs:
             GIT_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ steps.build-date.outputs.date }}
 
-      - name: Build and push nginx
-        if: steps.changes.outputs.nginx == 'true'
-        uses: docker/build-push-action@v5
-        with:
-          context: ./nginx
-          file: ./nginx/Dockerfile
-          push: true
-          tags: ${{ steps.meta-nginx.outputs.tags }}
-          labels: ${{ steps.meta-nginx.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=min
-
       - name: Build and push redis
         if: steps.changes.outputs.redis == 'true'
         uses: docker/build-push-action@v5
@@ -459,7 +430,6 @@ jobs:
         if: |
           steps.changes.outputs.backend == 'true' ||
           steps.changes.outputs.bot == 'true' ||
-          steps.changes.outputs.nginx == 'true' ||
           steps.changes.outputs.redis == 'true' ||
           steps.changes.outputs.postgresql == 'true'
         run: sudo apt-get update && sudo apt-get install -y jq
@@ -471,10 +441,6 @@ jobs:
       - name: Update bot version in IMAGE_VERSIONS.json
         if: steps.changes.outputs.bot == 'true'
         run: bash scripts/ci/update_image_version.sh bot "${{ steps.version.outputs.VERSION }}"
-
-      - name: Update nginx version in IMAGE_VERSIONS.json
-        if: steps.changes.outputs.nginx == 'true'
-        run: bash scripts/ci/update_image_version.sh nginx "${{ steps.version.outputs.VERSION }}"
 
       - name: Update redis version in IMAGE_VERSIONS.json
         if: steps.changes.outputs.redis == 'true'
@@ -491,7 +457,6 @@ jobs:
         if: |
           steps.changes.outputs.backend == 'true' ||
           steps.changes.outputs.bot == 'true' ||
-          steps.changes.outputs.nginx == 'true' ||
           steps.changes.outputs.redis == 'true' ||
           steps.changes.outputs.postgresql == 'true'
         run: |
@@ -535,7 +500,6 @@ jobs:
           PACKAGES=(
             "familybudget-backend"
             "familybudget-bot"
-            "familybudget-nginx"
             "familybudget-redis"
             "familybudget-postgresql"
           )
@@ -890,7 +854,6 @@ jobs:
 
           echo "backend=$(    get_latest_tag familybudget-backend)"    >> "$GITHUB_OUTPUT"
           echo "bot=$(        get_latest_tag familybudget-bot)"        >> "$GITHUB_OUTPUT"
-          echo "nginx=$(      get_latest_tag familybudget-nginx)"      >> "$GITHUB_OUTPUT"
           echo "redis=$(      get_latest_tag familybudget-redis)"      >> "$GITHUB_OUTPUT"
           echo "postgresql=$( get_latest_tag familybudget-postgresql)" >> "$GITHUB_OUTPUT"
 
@@ -905,12 +868,10 @@ jobs:
           RESULT_TESTS:    ${{ needs.post-deploy-tests.result }}
           BUILT_BACKEND:   ${{ needs.image-build-push.outputs.backend_built }}
           BUILT_BOT:       ${{ needs.image-build-push.outputs.bot_built }}
-          BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
           BUILT_REDIS:     ${{ needs.image-build-push.outputs.redis_built }}
           BUILT_PG:        ${{ needs.image-build-push.outputs.postgresql_built }}
           VER_BACKEND:     ${{ steps.registry.outputs.backend }}
           VER_BOT:         ${{ steps.registry.outputs.bot }}
-          VER_NGINX:       ${{ steps.registry.outputs.nginx }}
           VER_REDIS:       ${{ steps.registry.outputs.redis }}
           VER_PG:          ${{ steps.registry.outputs.postgresql }}
           BRANCH:          ${{ github.ref_name }}
@@ -979,7 +940,6 @@ jobs:
             echo "Containers:"
             echo "$(c_line backend    "$BUILT_BACKEND" "$VER_BACKEND")"
             echo "$(c_line bot        "$BUILT_BOT"     "$VER_BOT")"
-            echo "$(c_line nginx      "$BUILT_NGINX"   "$VER_NGINX")"
             echo "$(c_line redis      "$BUILT_REDIS"   "$VER_REDIS")"
             echo "$(c_line postgresql "$BUILT_PG"      "$VER_PG")"
             echo ""
@@ -997,12 +957,10 @@ jobs:
           RESULT_TESTS:    ${{ needs.post-deploy-tests.result }}
           BUILT_BACKEND:   ${{ needs.image-build-push.outputs.backend_built }}
           BUILT_BOT:       ${{ needs.image-build-push.outputs.bot_built }}
-          BUILT_NGINX:     ${{ needs.image-build-push.outputs.nginx_built }}
           BUILT_REDIS:     ${{ needs.image-build-push.outputs.redis_built }}
           BUILT_PG:        ${{ needs.image-build-push.outputs.postgresql_built }}
           VER_BACKEND:     ${{ steps.registry.outputs.backend }}
           VER_BOT:         ${{ steps.registry.outputs.bot }}
-          VER_NGINX:       ${{ steps.registry.outputs.nginx }}
           VER_REDIS:       ${{ steps.registry.outputs.redis }}
           VER_PG:          ${{ steps.registry.outputs.postgresql }}
         run: |
@@ -1050,7 +1008,6 @@ jobs:
             echo "|-------|---------|--------|"
             echo "$(c_md backend    "$BUILT_BACKEND" "$VER_BACKEND")"
             echo "$(c_md bot        "$BUILT_BOT"     "$VER_BOT")"
-            echo "$(c_md nginx      "$BUILT_NGINX"   "$VER_NGINX")"
             echo "$(c_md redis      "$BUILT_REDIS"   "$VER_REDIS")"
             echo "$(c_md postgresql "$BUILT_PG"      "$VER_PG")"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -1130,8 +1087,8 @@ jobs:
             echo "🏥 Checking backend health..."
             curl -f http://localhost:8000/health || exit 1
 
-            # Check nginx response
-            echo "🌐 Checking nginx..."
+            # Check public HTTP entrypoint response
+            echo "🌐 Checking public HTTP entrypoint..."
             curl -f http://localhost:80 || exit 1
 
             echo "✅ Deployment completed successfully!"
@@ -1347,4 +1304,3 @@ jobs:
           echo "[Post-Deploy Tests job logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Data Safety:** Backend tests run with \`-m 'not e2e and not destructive'\` filter. DB is snapshotted via pg_dump before tests and restored via EXIT trap after — even on test failure." >> $GITHUB_STEP_SUMMARY
-
