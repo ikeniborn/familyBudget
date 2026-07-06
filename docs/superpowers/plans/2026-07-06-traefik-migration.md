@@ -1,6 +1,6 @@
 ---
 review:
-  plan_hash: de8c6f3e408cc8e5
+  plan_hash: cf04ba95e5ef4a12
   last_run: 2026-07-06
   phases:
     structure: { status: passed }
@@ -20,7 +20,7 @@ chain:
 
 **Goal:** Replace the nginx reverse proxy with Traefik v3.3, native ACME HTTP-01 certificates, file-provider routing, and private Prometheus metrics readiness.
 
-**Architecture:** Traefik becomes the only public HTTP/HTTPS entry point and proxies every route to the existing `backend:8000` service. Static Traefik configuration lives in `traefik/traefik.yml`; dynamic routers and middlewares live in `traefik/conf.d/app.yml.tmpl` and are rendered from `DOMAIN` at container start. Deployment remains registry-first: the server pulls backend/bot/redis/postgresql images and runs the pinned official `traefik:v3.3` image without building a proxy image.
+**Architecture:** Traefik becomes the only public HTTP/HTTPS entry point and proxies every route to the existing `backend:8000` service. Static Traefik configuration lives in `traefik/traefik.yml` as a runtime-rendered template for the ACME email; dynamic routers and middlewares live in `traefik/conf.d/app.yml.tmpl` and are rendered from `DOMAIN` into a writable runtime directory at container start. Deployment remains registry-first: the server pulls backend/bot/redis/postgresql images and runs the pinned official `traefik:v3.3` image without building a proxy image.
 
 **Tech Stack:** Docker Compose, Traefik v3.3, Bash deployment scripts, GitHub Actions, FastAPI backend, Redis WebSocket fan-out, PostgreSQL.
 
@@ -44,9 +44,9 @@ chain:
 
 | Path | Action | Responsibility |
 |------|--------|----------------|
-| `traefik/traefik.yml` | Create | Static Traefik entryPoints, ACME, file provider, metrics, ping health endpoint, logging |
+| `traefik/traefik.yml` | Create | Static Traefik config template for entryPoints, rendered ACME email, file provider, metrics, ping health endpoint, logging |
 | `traefik/conf.d/app.yml.tmpl` | Create | Dynamic routers, services, middlewares, cache headers, WebSocket transport |
-| `traefik/docker-entrypoint.sh` | Create | Render `{{DOMAIN}}`, validate required env, initialize `/data/acme.json`, start Traefik |
+| `traefik/docker-entrypoint.sh` | Create | Validate `DOMAIN` and required env, render static and dynamic config into runtime paths, initialize `/data/acme.json`, start Traefik |
 | `docker-compose.yml` | Modify | Replace `nginx` service with `traefik`, add `traefik_acme`, add external `monitoring` network |
 | `deploy.sh` | Modify | Rename user-facing full-profile proxy text and stop calling nginx/certbot deploy assumptions |
 | `scripts/lib/services.sh` | Modify | Rename selective restart flags and service arrays from nginx to Traefik |
@@ -100,14 +100,14 @@ ping:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: "${LETSENCRYPT_EMAIL}"
+      email: "{{LETSENCRYPT_EMAIL}}"
       storage: /data/acme.json
       httpChallenge:
         entryPoint: web
 
 providers:
   file:
-    directory: /conf.d
+    directory: /rendered-conf.d
     watch: true
 
 metrics:
@@ -124,6 +124,8 @@ Run:
 test -f traefik/traefik.yml
 grep -q 'dashboard: false' traefik/traefik.yml
 grep -q 'address: ":8082"' traefik/traefik.yml
+grep -q 'email: "{{LETSENCRYPT_EMAIL}}"' traefik/traefik.yml
+grep -q 'directory: /rendered-conf.d' traefik/traefik.yml
 ```
 
 Expected: all commands exit `0`.
@@ -267,8 +269,41 @@ Write `traefik/docker-entrypoint.sh`:
 #!/bin/sh
 set -eu
 
+validate_hostname() {
+    host=$1
+    [ -n "$host" ] || return 1
+    [ ${#host} -le 253 ] || return 1
+    case "$host" in
+        *[!A-Za-z0-9.-]* | .* | *. | *..*)
+            return 1
+            ;;
+    esac
+
+    old_ifs=$IFS
+    IFS=.
+    set -- $host
+    IFS=$old_ifs
+
+    for label do
+        [ -n "$label" ] || return 1
+        [ ${#label} -le 63 ] || return 1
+        case "$label" in
+            -* | *-)
+                return 1
+                ;;
+        esac
+    done
+
+    return 0
+}
+
 if [ -z "${DOMAIN:-}" ]; then
     echo "ERROR: DOMAIN environment variable is not set" >&2
+    exit 1
+fi
+
+if ! validate_hostname "$DOMAIN"; then
+    echo "ERROR: DOMAIN must be a valid hostname" >&2
     exit 1
 fi
 
@@ -277,17 +312,42 @@ if [ -z "${LETSENCRYPT_EMAIL:-}" ]; then
     exit 1
 fi
 
-mkdir -p /conf.d /data
+case "$LETSENCRYPT_EMAIL" in
+    *@*@* | @* | *@ | '')
+        echo "ERROR: LETSENCRYPT_EMAIL must be a valid email address" >&2
+        exit 1
+        ;;
+esac
+
+local_part=${LETSENCRYPT_EMAIL%@*}
+domain_part=${LETSENCRYPT_EMAIL#*@}
+
+case "$local_part" in
+    *[!A-Za-z0-9._%+-]* | '')
+        echo "ERROR: LETSENCRYPT_EMAIL must be a valid email address" >&2
+        exit 1
+        ;;
+esac
+
+if ! validate_hostname "$domain_part"; then
+    echo "ERROR: LETSENCRYPT_EMAIL must be a valid email address" >&2
+    exit 1
+fi
+
+mkdir -p /rendered-conf.d /data
 touch /data/acme.json
 chmod 600 /data/acme.json
 
+sed "s|{{LETSENCRYPT_EMAIL}}|$LETSENCRYPT_EMAIL|g" /traefik.yml > /tmp/traefik.yml
+
 for template in /conf.d/*.tmpl; do
     [ -f "$template" ] || continue
-    target="${template%.tmpl}"
+    filename="${template##*/}"
+    target="/rendered-conf.d/${filename%.tmpl}"
     sed "s|{{DOMAIN}}|$DOMAIN|g" "$template" > "$target"
 done
 
-exec traefik --configFile=/traefik.yml
+exec traefik --configFile=/tmp/traefik.yml
 ```
 
 Run:
@@ -295,6 +355,10 @@ Run:
 ```bash
 chmod +x traefik/docker-entrypoint.sh
 sh -n traefik/docker-entrypoint.sh
+grep -q '/tmp/traefik.yml' traefik/docker-entrypoint.sh
+grep -q '/rendered-conf.d' traefik/docker-entrypoint.sh
+grep -q 'validate_hostname' traefik/docker-entrypoint.sh
+grep -q 'local_part=' traefik/docker-entrypoint.sh
 ```
 
 Expected: `sh -n` exits `0`.
@@ -346,7 +410,7 @@ In `docker-compose.yml`, replace the existing `nginx:` service block with:
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:?LETSENCRYPT_EMAIL is required}
     volumes:
       - ./traefik/traefik.yml:/traefik.yml:ro
-      - ./traefik/conf.d:/conf.d
+      - ./traefik/conf.d:/conf.d:ro
       - ./traefik/docker-entrypoint.sh:/docker-entrypoint.sh:ro
       - traefik_acme:/data
       - ./logs/traefik:/var/log/traefik
@@ -722,10 +786,10 @@ Run:
 docker run --rm -e DOMAIN=fbd.ikeniborn.ru -e LETSENCRYPT_EMAIL=admin@example.com -v "$PWD/traefik/traefik.yml:/traefik.yml:ro" -v "$PWD/traefik/conf.d:/conf.d:ro" -v "$PWD/traefik/docker-entrypoint.sh:/docker-entrypoint.sh:ro" -v traefik_config_check:/data --entrypoint /docker-entrypoint.sh traefik:v3.3 check-config --configFile=/traefik.yml
 ```
 
-Expected: command exits `0`. If Traefik returns an entrypoint argument error, run this fallback and expect exit `0`:
+Expected: command exits `0`. If Traefik returns an entrypoint argument error because the entrypoint intentionally ignores appended args, run this fallback and expect exit `0`:
 
 ```bash
-docker run --rm -v "$PWD/traefik/traefik.yml:/traefik.yml:ro" -v "/tmp/familybudget-traefik:/conf.d:ro" traefik:v3.3 check-config --configFile=/traefik.yml
+docker run --rm -e DOMAIN=fbd.ikeniborn.ru -e LETSENCRYPT_EMAIL=admin@ikeniborn.ru -v "$PWD/traefik/traefik.yml:/traefik.yml:ro" -v "$PWD/traefik/conf.d:/conf.d:ro" -v "$PWD/traefik/docker-entrypoint.sh:/docker-entrypoint.sh:ro" -v traefik_config_check:/data --entrypoint sh traefik:v3.3 -c '/docker-entrypoint.sh & pid=$!; sleep 2; kill "$pid" 2>/dev/null || true; test -f /tmp/traefik.yml; test -f /rendered-conf.d/app.yml; traefik check-config --configFile=/tmp/traefik.yml'
 ```
 
 - [ ] **Step 5: Validate scripts**
