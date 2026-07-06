@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IDD-SDD Chain Report: traefik-migration</title>
+<style>
+:root{--bg:#0d1117;--surface:#161b22;--surface2:#1f2630;--text:#e6edf3;--muted:#8b949e;--border:#30363d;--accent:#58a6ff;--ok:#3fb950;--warn:#d29922;--bad:#f85149;--info:#a371f7}
+body:has(#theme-toggle:checked){--bg:#ffffff;--surface:#f6f8fa;--surface2:#ffffff;--text:#24292f;--muted:#57606a;--border:#d0d7de;--accent:#0969da;--ok:#1a7f37;--warn:#9a6700;--bad:#cf222e;--info:#8250df}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}header{padding:24px 28px;border-bottom:1px solid var(--border);background:var(--surface)}h1{margin:0 0 6px;font-size:24px}h2{margin:0 0 16px;font-size:22px}h3{margin:24px 0 10px;font-size:17px}.muted{color:var(--muted)}.theme-btn{float:right;cursor:pointer;border:1px solid var(--border);border-radius:8px;padding:6px 10px;background:var(--surface2)}
+.chain-tabs{display:flex;gap:6px;padding:0 28px;border-bottom:1px solid var(--border);background:var(--surface)}.chain-tabs label{cursor:pointer;padding:10px 16px;border:1px solid var(--border);border-bottom:none;border-radius:8px 8px 0 0;background:var(--surface2);color:var(--muted)}
+.tab-pane{display:none;padding:28px;max-width:1180px}.tab-radio{display:none}
+body:has(#tab-intent:checked) #pane-intent,body:has(#tab-spec:checked) #pane-spec,body:has(#tab-plan:checked) #pane-plan,body:has(#tab-result:checked) #pane-result{display:block}
+body:has(#tab-intent:checked) label[for=tab-intent],body:has(#tab-spec:checked) label[for=tab-spec],body:has(#tab-plan:checked) label[for=tab-plan],body:has(#tab-result:checked) label[for=tab-result]{color:var(--accent);border-color:var(--accent);font-weight:700}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin:14px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.badge{display:inline-block;border-radius:999px;padding:2px 8px;font-size:12px;font-weight:700}.ok{background:color-mix(in srgb,var(--ok) 25%,transparent);color:var(--ok);border:1px solid var(--ok)}.warn{background:color-mix(in srgb,var(--warn) 25%,transparent);color:var(--warn);border:1px solid var(--warn)}.info{background:color-mix(in srgb,var(--info) 25%,transparent);color:var(--info);border:1px solid var(--info)}.note{border-left:4px solid var(--accent);padding:10px 12px;background:var(--surface2);border-radius:4px}
+table{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--border);border-radius:8px;overflow:hidden}th,td{border-bottom:1px solid var(--border);padding:9px 10px;text-align:left;vertical-align:top}th{background:var(--surface2)}tr:last-child td{border-bottom:0}code{background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 4px}pre{white-space:pre-wrap;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;overflow:auto}
+.flow{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}.node{border:1px solid var(--border);border-radius:8px;background:var(--surface2);padding:12px;position:relative}.node strong{display:block;margin-bottom:4px;color:var(--accent)}details{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin:12px 0}summary{cursor:pointer;font-weight:700}
+</style>
+</head>
+<body>
+<input type="checkbox" id="theme-toggle" hidden>
+<input type="radio" name="chain-tab" id="tab-intent" class="tab-radio" hidden>
+<input type="radio" name="chain-tab" id="tab-spec" class="tab-radio" hidden>
+<input type="radio" name="chain-tab" id="tab-plan" class="tab-radio" hidden checked>
+<input type="radio" name="chain-tab" id="tab-result" class="tab-radio" hidden>
+<header>
+<label for="theme-toggle" class="theme-btn">Тема</label>
+<h1>traefik-migration</h1>
+<div class="muted">Единый отчёт цепочки intent → spec → plan → result. Обновлено: 2026-07-06.</div>
+</header>
+<nav class="chain-tabs">
+<label for="tab-intent">Intent</label>
+<label for="tab-spec">Spec</label>
+<label for="tab-plan">Plan</label>
+<label for="tab-result">Result</label>
+</nav>
+<!-- TAB:intent START -->
+<section class="tab-pane" id="pane-intent">
+<p class="note">Этап ещё не проверен. Для этой цепочки intent отсутствует и в TODO отмечен как n/a.</p>
+</section>
+<!-- TAB:intent END -->
+<!-- TAB:spec START -->
+<section class="tab-pane" id="pane-spec">
+<h2>Проверка spec — 2026-07-06</h2>
+<div class="card">
+<p>Spec фиксирует переход с nginx на Traefik v3.3 без изменения backend/bot/postgres/redis. Gate прошёл как cached OK: body hash совпал с сохранённым `2c54e277b1f6c7ea`, все фазы passed, открытых CRITICAL нет.</p>
+<p>Значение проверки: реализация может переходить к плану, потому что scope, решения, rollout и rollback уже согласованы в source artifact.</p>
+</div>
+<h3>Source Anchors</h3>
+<table><tr><th>Источник</th><th>Секции</th></tr><tr><td><code>docs/superpowers/specs/2026-06-24-traefik-migration-design.md</code></td><td>Goal, Scope, Decisions, Target architecture, deploy.sh &amp; CI changes, Rollout &amp; rollback, Risks &amp; mitigations</td></tr><tr><td><code>docs/TODO.md</code></td><td>row <code>traefik-migration</code></td></tr></table>
+<h3>Approval Lens</h3>
+<div class="grid">
+<div class="card"><span class="badge ok">safe</span><p>Spec covers public HTTPS, ACME, routing, WebSocket, WebApp headers, metrics readiness, CI and deploy changes.</p></div>
+<div class="card"><span class="badge warn">risk</span><p>Cutover touches public edge routing and certificate issuance; dev-first rollout and nginx rollback are mandatory.</p></div>
+<div class="card"><span class="badge ok">not blocked</span><p>No open CRITICAL findings. Warnings and info findings in frontmatter are fixed.</p></div>
+<div class="card"><span class="badge info">approval</span><p>Human approval needed before prod ACME rollout and before retiring certbot cron after prod confirmation.</p></div>
+</div>
+<h3>Requirement Coverage Map</h3>
+<table><tr><th>Требование</th><th>Acceptance Criterion</th><th>Gate</th></tr>
+<tr><td>Replace nginx with Traefik</td><td><code>docker-compose.yml</code> has <code>traefik:v3.3</code>, no active <code>nginx</code> service</td><td><span class="badge ok">covered</span></td></tr>
+<tr><td>Native ACME HTTP challenge</td><td><code>certificatesResolvers.letsencrypt.acme.httpChallenge.entryPoint=web</code>, storage <code>/data/acme.json</code></td><td><span class="badge ok">covered</span></td></tr>
+<tr><td>File provider routes</td><td>Dynamic config in <code>traefik/conf.d/*.tmpl</code>, no Docker socket</td><td><span class="badge ok">covered</span></td></tr>
+<tr><td>Metrics readiness</td><td>entryPoint <code>:8082</code>, external <code>monitoring</code> network, no host publish</td><td><span class="badge ok">covered</span></td></tr>
+<tr><td>Deploy and CI update</td><td>Deploy starts Traefik and CI drops <code>familybudget-nginx</code> build</td><td><span class="badge ok">covered</span></td></tr>
+</table>
+<h3>Component Graph</h3>
+<div class="flow">
+<div class="node"><strong>Internet</strong>HTTP/HTTPS on 80/443</div>
+<div class="node"><strong>Traefik</strong>ACME, TLS, routes, metrics</div>
+<div class="node"><strong>Backend</strong><code>backend:8000</code></div>
+<div class="node"><strong>Monitoring</strong><code>traefik:8082</code> scrape target</div>
+</div>
+<h3>Data Flow</h3>
+<div class="flow">
+<div class="node"><strong>Spec markdown</strong>requirements and risks</div>
+<div class="node"><strong>check-chain</strong>hash + phases</div>
+<div class="node"><strong>html-report</strong>spec tab rendering</div>
+<div class="node"><strong>User approval</strong>plan can start</div>
+</div>
+<h3>Risk/Mitigation Map</h3>
+<table><tr><th>Risk</th><th>Mitigation</th></tr><tr><td>Let's Encrypt rate limit</td><td>Dev staging ACME before production ACME</td></tr><tr><td>Lost access during cutover</td><td>Rollback keeps nginx image and host certificates available</td></tr><tr><td>WebSocket timeout regression</td><td>Dedicated Traefik router and 86400s transport timeout</td></tr><tr><td>Metrics exposure</td><td><code>:8082</code> only on private <code>monitoring</code> network</td></tr></table>
+<details><summary>Findings</summary><table><tr><th>ID</th><th>Severity</th><th>Section</th><th>Text</th><th>Verdict</th></tr><tr><td>F-001</td><td>WARNING</td><td>Risks &amp; mitigations</td><td>logrotate SIGHUP mitigation lacked DoD</td><td><span class="badge ok">fixed</span></td></tr><tr><td>F-002</td><td>WARNING</td><td>deploy.sh &amp; CI changes</td><td>cache-busting verification lacked acceptance criterion</td><td><span class="badge ok">fixed</span></td></tr><tr><td>F-003</td><td>INFO</td><td>Dynamic config</td><td>WebSocket timeout pinned to 86400s</td><td><span class="badge ok">fixed</span></td></tr><tr><td>F-004</td><td>INFO</td><td>Static config</td><td>LETSENCRYPT_EMAIL clarified as reused</td><td><span class="badge ok">fixed</span></td></tr></table></details>
+<h3>Phase Evidence</h3>
+<p><span class="badge ok">structure passed</span> <span class="badge ok">coverage passed</span> <span class="badge ok">clarity passed</span> <span class="badge ok">consistency passed</span></p>
+<p><span class="badge ok">Вердикт: OK cached</span></p>
+</section>
+<!-- TAB:spec END -->
+<!-- TAB:plan START -->
+<section class="tab-pane" id="pane-plan">
+<h2>Проверка plan — 2026-07-06</h2>
+<div class="card">
+<p>Implementation plan создан в <code>docs/superpowers/plans/2026-07-06-traefik-migration.md</code>. Gate прошёл: структура, coverage, dependencies, verifiability и consistency отмечены как passed; findings отсутствуют.</p>
+<p>План переводит spec R1-R9 в шесть проверяемых задач: Traefik config, Compose, deploy scripts, CI/registry, local validation, dev rollout.</p>
+</div>
+<h3>Source Anchors</h3>
+<table><tr><th>Источник</th><th>Секции</th></tr><tr><td><code>docs/superpowers/plans/2026-07-06-traefik-migration.md</code></td><td>Source Requirements, File Structure, Tasks 1-6, Rollback Path, Self-Review</td></tr><tr><td><code>docs/superpowers/specs/2026-06-24-traefik-migration-design.md</code></td><td>Scope, Decisions, Target architecture, deploy.sh &amp; CI changes, Rollout &amp; rollback</td></tr></table>
+<h3>Approval Lens</h3>
+<div class="grid">
+<div class="card"><span class="badge ok">safe</span><p>Plan starts with config and compose validation before server deploy.</p></div>
+<div class="card"><span class="badge warn">risk</span><p>Task 3 and Task 4 touch broad deployment automation; review checkpoints should happen between tasks.</p></div>
+<div class="card"><span class="badge ok">not blocked</span><p>No missing requirement coverage or cyclic dependency detected.</p></div>
+<div class="card"><span class="badge info">approval</span><p>Human checkpoint before prod rollout remains outside this plan's dev verification stage.</p></div>
+</div>
+<h3>Step DAG</h3>
+<div class="flow">
+<div class="node"><strong>Task 1</strong>Traefik files</div>
+<div class="node"><strong>Task 2</strong>Compose service</div>
+<div class="node"><strong>Task 3</strong>Deploy scripts</div>
+<div class="node"><strong>Task 4</strong>CI and registry</div>
+<div class="node"><strong>Task 5</strong>Local validation</div>
+<div class="node"><strong>Task 6</strong>Dev rollout</div>
+</div>
+<p class="muted">Order: Task 1 → Task 2 → Tasks 3/4 → Task 5 → Task 6.</p>
+<h3>Artifact Impact Map</h3>
+<table><tr><th>Task</th><th>Files and systems</th><th>Spec requirements</th></tr><tr><td>1</td><td><code>traefik/traefik.yml</code>, <code>traefik/conf.d/app.yml.tmpl</code>, <code>traefik/docker-entrypoint.sh</code></td><td>R2, R3, R4, R5, R8, R9</td></tr><tr><td>2</td><td><code>docker-compose.yml</code>, volumes, networks</td><td>R1, R2, R5, R9</td></tr><tr><td>3</td><td><code>deploy.sh</code>, <code>scripts/lib/*.sh</code></td><td>R6, R9</td></tr><tr><td>4</td><td><code>.github/workflows/build-and-push.yml</code>, <code>IMAGE_VERSIONS.json</code>, <code>scripts/lib/registry.sh</code></td><td>R7</td></tr><tr><td>5</td><td>Compose render, Traefik render, shell syntax</td><td>R1-R9 evidence</td></tr><tr><td>6</td><td>Dev server, headers, WebSocket, metrics, iwiki</td><td>R2, R5, R6, R9</td></tr></table>
+<h3>Verification Map</h3>
+<table><tr><th>Step</th><th>Command/check</th><th>Expected evidence</th></tr><tr><td>Config</td><td><code>grep</code>, <code>sh -n</code>, <code>traefik version</code></td><td>Static/dynamic config contains required routes and binary is v3.3</td></tr><tr><td>Compose</td><td><code>docker compose --profile full config</code></td><td>Rendered service uses <code>familybudget-traefik</code>, no nginx</td></tr><tr><td>Scripts</td><td><code>bash -n deploy.sh scripts/lib/*.sh</code></td><td>Shell syntax OK</td></tr><tr><td>CI</td><td><code>jq empty</code> and workflow string scan</td><td>No nginx image references remain</td></tr><tr><td>Rollout</td><td><code>curl</code>, Playwright, private metrics curl</td><td>HTTPS, WebSocket, WebApp headers, metrics ready</td></tr></table>
+<h3>Human Checkpoint Flow</h3>
+<div class="flow">
+<div class="node"><strong>After Task 2</strong>Review public edge shape</div>
+<div class="node"><strong>After Task 4</strong>Review CI image removal</div>
+<div class="node"><strong>Before prod</strong>Approve production ACME rollout</div>
+<div class="node"><strong>After prod stable</strong>Separate certbot retirement</div>
+</div>
+<details><summary>Plan Findings</summary><p>Новых findings нет.</p></details>
+<h3>Phase Evidence</h3>
+<p><span class="badge ok">structure passed</span> <span class="badge ok">coverage passed</span> <span class="badge ok">dependencies passed</span> <span class="badge ok">verifiability passed</span> <span class="badge ok">consistency passed</span></p>
+<p><span class="badge ok">Вердикт: OK</span></p>
+</section>
+<!-- TAB:plan END -->
+<!-- TAB:result START -->
+<section class="tab-pane" id="pane-result">
+<p class="note">Этап ещё не проверен. Implementation diff отсутствует; result запускается после выполнения plan.</p>
+</section>
+<!-- TAB:result END -->
+</body>
+</html>
