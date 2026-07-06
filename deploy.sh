@@ -98,7 +98,6 @@ source "$SCRIPT_DIR/scripts/lib/backup_integration.sh"  # Depends on config.sh, 
 source "$SCRIPT_DIR/scripts/lib/sync.sh"        # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/docker.sh"      # Depends on config.sh, utils.sh, postgres.sh
 source "$SCRIPT_DIR/scripts/lib/network.sh"     # Depends on config.sh, utils.sh, docker.sh (is_our_docker_container)
-source "$SCRIPT_DIR/scripts/lib/ssl.sh"         # Depends on config.sh, utils.sh
 source "$SCRIPT_DIR/scripts/lib/registry.sh"    # Depends on config.sh, utils.sh (container registry integration)
 
 # =============================================================================
@@ -203,12 +202,6 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # MIGRATION FUNCTIONS (Loaded from scripts/lib/migrations.sh)
 # =============================================================================
 # Functions: run_migrations, apply_migrations_directly, verify_database_schema
-
-# =============================================================================
-# SSL FUNCTIONS (Loaded from scripts/lib/ssl.sh)
-# =============================================================================
-# Functions: cleanup_nginx_markers, setup_ssl_certificates,
-#            update_nginx_for_https, verify_ssl
 
 # =============================================================================
 # BACKUP FUNCTIONS (Loaded from scripts/lib/backup_integration.sh)
@@ -610,6 +603,23 @@ validate_firewall_rules() {
     fi
 
     return 0
+}
+
+force_traefik_recreate_for_env() {
+    if [[ -f "$DEPLOY_DIR/.env" ]]; then
+        set -a
+        source "$DEPLOY_DIR/.env" 2>/dev/null || true
+        set +a
+    fi
+
+    if [[ "${DEPLOYMENT_PROFILE:-basic}" != "full" ]]; then
+        return 0
+    fi
+
+    if [[ -n "${DOMAIN:-}" || -n "${HTTP_PORT:-}" || -n "${HTTPS_PORT:-}" || -n "${LETSENCRYPT_EMAIL:-}" ]]; then
+        export NEEDS_TRAEFIK_RECREATE=true
+        info "Traefik recreate forced: env-sensitive proxy settings are present"
+    fi
 }
 
 # =============================================================================
@@ -1115,6 +1125,7 @@ main() {
         error "Failed to compare container images"
         exit 1
     fi
+    force_traefik_recreate_for_env
     echo ""
 
 

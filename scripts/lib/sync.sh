@@ -332,6 +332,9 @@ sync_mirror() {
         find "$DEPLOY_DIR/scripts" -type f -name "*.sh" -exec chmod 755 {} \;
         success "Shell scripts permissions updated"
 
+        export SYNC_FORCE_FULL_RESTART=true
+        info "Mirror sync mode: forcing full restart for conservative service recreation"
+
         return 0
     else
         error "Failed to sync code. Check $LOG_FILE for details."
@@ -497,8 +500,9 @@ sync_update() {
         fi
     done < "$temp_deploy_list"
 
-    # Cleanup temp files
-    rm -f "$temp_repo_list" "$temp_deploy_list" "$SYNC_FILES_TEMP"
+    # Cleanup local temp files. SYNC_FILES_TEMP is kept for analyze_sync_changes()
+    # and removed by deploy.sh EXIT trap.
+    rm -f "$temp_repo_list" "$temp_deploy_list"
 
     # Remove empty directories
     find "$DEPLOY_DIR" -type d -empty -delete 2>/dev/null || true
@@ -640,6 +644,7 @@ sync_clean() {
 
         # Mark PostgreSQL as stopped (will be initialized fresh)
         POSTGRES_WAS_STOPPED=true
+        export SYNC_FORCE_FULL_RESTART=true
 
         success "Clean sync completed: EVERYTHING deleted except .env, fresh code copied"
         return 0
@@ -668,6 +673,13 @@ analyze_sync_changes() {
     export NEEDS_BOT_RECREATE=false
     export NEEDS_TRAEFIK_RECREATE=false
     export NEEDS_FULL_RESTART=false
+
+    if [[ "${SYNC_FORCE_FULL_RESTART:-false}" == "true" ]]; then
+        export NEEDS_FULL_RESTART=true
+        warning "Sync mode requires conservative full restart"
+        report_service_decisions
+        return 0
+    fi
 
     # Check if SYNC_FILES_TEMP exists and is not empty (from sync_update)
     if [[ ! -s "${SYNC_FILES_TEMP:-}" ]]; then
@@ -977,17 +989,17 @@ detect_env_changes() {
     fi
 
     # Traefik variables
-    if echo "$changed_vars" | grep -qE "DOMAIN|HTTP_PORT|HTTPS_PORT"; then
+    if echo "$changed_vars" | grep -qE "DOMAIN|HTTP_PORT|HTTPS_PORT|LETSENCRYPT_EMAIL"; then
         export NEEDS_TRAEFIK_RECREATE=true
         traefik_changes=true
-        local traefik_vars=$(echo "$changed_vars" | grep -E "DOMAIN|PORT" | tr '\n' ', ')
+        local traefik_vars=$(echo "$changed_vars" | grep -E "DOMAIN|PORT|LETSENCRYPT_EMAIL" | tr '\n' ', ')
         info "  → Traefik affected: $traefik_vars"
     fi
 
     # Handle unknown variables (conservative fallback)
     # Any variable not matched above → assume backend affected
     local unmapped_vars
-    unmapped_vars=$(echo "$changed_vars" | grep -vE "POSTGRES_|DATABASE_URL|DB_|REDIS_|JWT_|TELEGRAM_|ADMIN_|CORS_|WORKERS|VAPID_|WEBAUTHN_|BACKEND_API|DOMAIN|HTTP_PORT|HTTPS_PORT|APP_ENV|DEBUG" || echo "")
+    unmapped_vars=$(echo "$changed_vars" | grep -vE "POSTGRES_|DATABASE_URL|DB_|REDIS_|JWT_|TELEGRAM_|ADMIN_|CORS_|WORKERS|VAPID_|WEBAUTHN_|BACKEND_API|DOMAIN|HTTP_PORT|HTTPS_PORT|LETSENCRYPT_EMAIL|APP_ENV|DEBUG" || echo "")
 
     if [[ -n "$unmapped_vars" ]]; then
         export NEEDS_BACKEND_RECREATE=true

@@ -76,14 +76,20 @@ check_port_available() {
         if [[ "$is_certbot" == "true" ]]; then
             warning "Certbot is currently using port $port."
             warning "Traefik needs exclusive access to ports 80/443 for HTTP-01 challenges and HTTPS traffic."
+            warning "Stop or disable host certbot outside deploy, then rerun deployment."
             echo ""
+
+            if [[ ! -t 0 ]]; then
+                error "Non-interactive deploy cannot resolve certbot port conflict safely. Stop certbot manually and rerun deploy."
+                return 1
+            fi
         fi
 
         # Standard handling for any process using the port.
         warning "This will prevent $service_name from starting."
         echo ""
 
-        # Non-interactive mode (no TTY) - automatically stop process
+        # Non-interactive mode (no TTY) - automatically stop non-certbot process
         if [[ ! -t 0 ]]; then
             info "Non-interactive mode: automatically stopping process on port $port"
             choice="1"
@@ -103,7 +109,7 @@ check_port_available() {
             1)
                 info "Попытка остановить процесс на порту $port..."
                 if [[ -n "$process_info" ]]; then
-                    sudo kill -9 $process_info 2>/dev/null || true
+                    sudo kill -TERM $process_info 2>/dev/null || true
                     sleep 2
 
                     # Verify port is free
