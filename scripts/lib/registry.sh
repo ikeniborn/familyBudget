@@ -296,7 +296,7 @@ generate_env_from_image_versions() {
     # Copy existing .env, removing old version variables and their auto-generated comments
     if [[ -f "$env_file" ]]; then
         # Filter out version variables and their section comments (exit code 1 if no matches is OK)
-        grep -v -E '^(BACKEND|BOT|REDIS|POSTGRESQL)_VERSION=|^# Image versions \(auto-generated|^# Updated: [0-9]{4}-[0-9]{2}' "$env_file" > "$temp_env" 2>/dev/null || : > "$temp_env"
+        grep -v -E '^(BACKEND|BOT|NGINX|REDIS|POSTGRESQL)_VERSION=|^# Image versions \(auto-generated|^# Updated: [0-9]{4}-[0-9]{2}' "$env_file" > "$temp_env" 2>/dev/null || : > "$temp_env"
         # Remove trailing empty lines to prevent accumulation on each deploy
         if [[ -s "$temp_env" ]]; then
             awk 'NF{found=NR} {lines[NR]=$0} END{for(i=1;i<=found;i++) print lines[i]}' "$temp_env" > "${temp_env}.clean" && mv "${temp_env}.clean" "$temp_env"

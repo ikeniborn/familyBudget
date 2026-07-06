@@ -1,6 +1,6 @@
 ---
 review:
-  plan_hash: ded4ede3d340b3e3
+  plan_hash: 4b3da6269eddd0fb
   last_run: 2026-07-06
   phases:
     structure: { status: passed }
@@ -799,18 +799,18 @@ Expected: all commands print nothing and exit `0`.
 
 - [ ] **Step 3: Remove nginx env generation from registry helper**
 
-In `scripts/lib/registry.sh`, remove `nginx` from the services arrays and remove generation of `NGINX_VERSION`. The helper should still generate `BACKEND_VERSION`, `BOT_VERSION`, `REDIS_VERSION`, and `POSTGRESQL_VERSION`.
+In `scripts/lib/registry.sh`, remove `nginx` from the active services arrays and remove generation of `NGINX_VERSION`. Keep `NGINX_VERSION` only in the cleanup regex that strips stale generated variables from an existing deployed `.env`. The helper should still generate `BACKEND_VERSION`, `BOT_VERSION`, `REDIS_VERSION`, and `POSTGRESQL_VERSION`.
 
 Run:
 
 ```bash
 grep -n 'BACKEND_VERSION=' scripts/lib/registry.sh
 grep -n 'POSTGRESQL_VERSION=' scripts/lib/registry.sh
-! grep -n 'NGINX_VERSION' scripts/lib/registry.sh
+grep -n 'NGINX_VERSION' scripts/lib/registry.sh | grep 'grep -v -E'
 ! grep -n '"nginx"' scripts/lib/registry.sh
 ```
 
-Expected: first two commands print matching lines; third and fourth commands print nothing and exit `0`.
+Expected: first two commands print matching lines; third command prints only the stale-env cleanup regex line; fourth command prints nothing and exits `0`.
 
 - [ ] **Step 4: Validate YAML and JSON syntax**
 
