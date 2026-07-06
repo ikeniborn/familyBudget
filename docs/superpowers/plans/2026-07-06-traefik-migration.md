@@ -1,6 +1,6 @@
 ---
 review:
-  plan_hash: 82676594ad8d07e6
+  plan_hash: ded4ede3d340b3e3
   last_run: 2026-07-06
   phases:
     structure: { status: passed }
@@ -52,7 +52,7 @@ chain:
 | `scripts/lib/services.sh` | Modify | Rename selective restart flags and service arrays from nginx to Traefik |
 | `scripts/lib/sync.sh` | Modify | Detect `traefik/` changes instead of `nginx/` changes |
 | `scripts/lib/docker.sh` | Modify | Rename smart-cleanup proxy container decisions from nginx to Traefik |
-| `scripts/lib/registry.sh` | Modify | Remove nginx image version generation and compare official Traefik as compose-managed service |
+| `scripts/lib/registry.sh` | Modify | Remove active nginx registry deploy handling and compare official Traefik as compose-managed service |
 | `scripts/lib/status.sh` | Modify | Print HTTP/HTTPS URLs when `traefik` is running |
 | `scripts/lib/network.sh` | Modify | Remove certbot-specific port conflict recommendation for nginx/certbot |
 | `scripts/lib/firewall.sh` | Modify | Keep ports `80` and `443` open for Traefik HTTP-01 and HTTPS traffic |
@@ -515,6 +515,7 @@ Expected: commit succeeds.
 - Modify: `scripts/lib/services.sh`
 - Modify: `scripts/lib/sync.sh`
 - Modify: `scripts/lib/docker.sh`
+- Modify: `scripts/lib/registry.sh`
 - Modify: `scripts/lib/status.sh`
 - Modify: `scripts/lib/network.sh`
 - Modify: `scripts/lib/firewall.sh`
@@ -597,7 +598,22 @@ grep -n 'traefik/' scripts/lib/sync.sh
 
 Expected: first two commands print matching lines; third command prints nothing and exits `0`.
 
-- [ ] **Step 5: Update smart cleanup proxy references**
+- [ ] **Step 5: Remove active nginx registry handling**
+
+In `scripts/lib/registry.sh`, remove `nginx` from active registry validation, pull, env generation, and running-vs-pulled comparison. Traefik uses the official `traefik:v3.3` image from `docker-compose.yml`; the deploy helper should set `NEEDS_TRAEFIK_RECREATE=true` when `familybudget-traefik` is missing, unhealthy, or not using `traefik:v3.3`.
+
+Run:
+
+```bash
+! grep -n '"nginx"' scripts/lib/registry.sh
+! grep -n 'NGINX_VERSION' scripts/lib/registry.sh
+grep -n 'familybudget-traefik' scripts/lib/registry.sh
+grep -n 'traefik:v3.3' scripts/lib/registry.sh
+```
+
+Expected: first two commands print nothing and exit `0`; last two commands print matching lines.
+
+- [ ] **Step 6: Update smart cleanup proxy references**
 
 In `scripts/lib/docker.sh`, rename proxy cleanup variables and containers from nginx to Traefik:
 
@@ -619,7 +635,7 @@ grep -n 'traefik/' scripts/lib/docker.sh
 
 Expected: first two commands print matching lines; third command prints nothing and exits `0`.
 
-- [ ] **Step 6: Update status output**
+- [ ] **Step 7: Update status output**
 
 In `scripts/lib/status.sh`, replace the nginx URL condition:
 
@@ -642,7 +658,7 @@ grep -n 'compose_cmd ps -q traefik' scripts/lib/status.sh
 
 Expected: first command prints matching line; second command prints nothing and exits `0`.
 
-- [ ] **Step 7: Remove certbot-specific port handling from the active deploy path**
+- [ ] **Step 8: Remove certbot-specific port handling from the active deploy path**
 
 In `scripts/lib/network.sh`, keep generic port conflict detection, but replace the certbot branch with a warning that Traefik needs exclusive access to ports `80` and `443` for HTTP challenge traffic. The active port handler must not stop or disable `certbot.service` automatically.
 
@@ -654,9 +670,9 @@ grep -n 'Traefik needs exclusive access' scripts/lib/network.sh
 ! grep -n 'containerized certbot' scripts/lib/network.sh
 ```
 
-Expected: first command prints matching line; second and third commands print nothing and exit `0`.
+Expected: first command prints matching line; second and third commands print nothing and exit `0`. In non-interactive mode, certbot-specific conflicts must abort with instructions instead of stopping or disabling certbot.
 
-- [ ] **Step 8: Keep ports 80 and 443 open for Traefik**
+- [ ] **Step 9: Keep ports 80 and 443 open for Traefik**
 
 In `scripts/lib/firewall.sh`, change SSL firewall behavior: Traefik needs port `80` open for HTTP-01 challenge and HTTP-to-HTTPS redirect, and port `443` open for HTTPS. The script must not close port `80` as a certbot-only temporary port.
 
@@ -670,7 +686,7 @@ grep -n 'Traefik HTTP-01' scripts/lib/firewall.sh
 
 Expected: first two commands print matching lines; third command prints nothing and exits `0`.
 
-- [ ] **Step 9: Keep legacy SSL functions out of deploy execution**
+- [ ] **Step 10: Keep legacy SSL functions out of deploy execution**
 
 In `deploy.sh`, ensure `setup_ssl_certificates` and `verify_ssl` are not called from `main()`. The `scripts/lib/ssl.sh` file can remain for rollback tooling, but no active deploy step should invoke host certbot.
 
@@ -681,9 +697,35 @@ Run:
 ! awk '/main\\(\\)/,/^}/ {print}' deploy.sh | grep -n 'verify_ssl'
 ```
 
-Expected: both commands print nothing and exit `0`.
+Expected: both commands print nothing and exit `0`. If `scripts/lib/ssl.sh` remains in the repository for rollback, it must not be sourced by `deploy.sh` during Traefik deployments, or its functions must be explicit no-ops for Traefik deployments.
 
-- [ ] **Step 10: Validate shell syntax**
+- [ ] **Step 11: Keep sync-change evidence until analysis**
+
+Ensure `sync_update` and other sync modes do not delete `SYNC_FILES_TEMP` before `analyze_sync_changes` runs. The deploy exit trap can remove `/tmp/sync_changed_files_*` after the analysis phase.
+
+Run:
+
+```bash
+grep -n 'SYNC_FILES_TEMP' scripts/lib/sync.sh
+! awk '/sync_update\\(\\)/,/^}/ {print}' scripts/lib/sync.sh | grep -n 'rm -f.*SYNC_FILES_TEMP'
+```
+
+Expected: first command prints matching lines; second command prints nothing and exits `0`.
+
+- [ ] **Step 12: Recreate Traefik on relevant env changes**
+
+Because `.env` is intentionally excluded from repository sync, add deploy-side conservative handling for full-profile Traefik env values. Changes or presence of `DOMAIN`, `HTTP_PORT`, `HTTPS_PORT`, or `LETSENCRYPT_EMAIL` must be able to force `NEEDS_TRAEFIK_RECREATE=true` so rendered config, ports, and ACME email are refreshed.
+
+Run:
+
+```bash
+grep -n 'LETSENCRYPT_EMAIL' scripts/lib/sync.sh deploy.sh scripts/lib/registry.sh
+grep -n 'NEEDS_TRAEFIK_RECREATE=true' scripts/lib/sync.sh deploy.sh scripts/lib/registry.sh
+```
+
+Expected: both commands print matching lines.
+
+- [ ] **Step 13: Validate shell syntax**
 
 Run:
 
@@ -693,12 +735,12 @@ bash -n deploy.sh scripts/lib/*.sh scripts/ci/*.sh
 
 Expected: command exits `0`.
 
-- [ ] **Step 11: Commit deployment script changes**
+- [ ] **Step 14: Commit deployment script changes**
 
 Run:
 
 ```bash
-git add deploy.sh scripts/lib/services.sh scripts/lib/sync.sh scripts/lib/docker.sh scripts/lib/status.sh scripts/lib/network.sh scripts/lib/firewall.sh scripts/lib/ssl.sh
+git add deploy.sh scripts/lib/services.sh scripts/lib/sync.sh scripts/lib/docker.sh scripts/lib/registry.sh scripts/lib/status.sh scripts/lib/network.sh scripts/lib/firewall.sh scripts/lib/ssl.sh
 git commit -m "feat: update deploy scripts for Traefik"
 ```
 
