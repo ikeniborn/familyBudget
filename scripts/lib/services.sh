@@ -85,10 +85,10 @@ start_services() {
         start_result=$?
 
         if [[ $start_result -eq 0 ]]; then
-            # Step 2: Recreate backend/bot/nginx (clears Python .pyc cache)
-            info "Recreating backend/bot/nginx (fresh containers for cache invalidation)..."
+            # Step 2: Recreate backend/bot/traefik (clears Python .pyc cache)
+            info "Recreating backend/bot/traefik (fresh containers for cache invalidation)..."
             if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-                compose_cmd --profile full up $build_flag -d backend bot nginx >> "$LOG_FILE" 2>&1
+                compose_cmd --profile full up $build_flag -d backend bot traefik >> "$LOG_FILE" 2>&1
                 start_result=$?
             else
                 compose_cmd up $build_flag -d backend >> "$LOG_FILE" 2>&1
@@ -587,7 +587,7 @@ cleanup_stuck_containers() {
     fi
 }
 
-# Phase 2: Start application services (backend, bot, nginx)
+# Phase 2: Start application services (backend, bot, Traefik)
 start_application_services() {
     step "Starting Application Services (Phase 2/2)"
 
@@ -599,7 +599,7 @@ start_application_services() {
     fi
 
     info "Registry-first mode: Using pre-pulled images from ghcr.io"
-    info "Starting backend/bot/nginx containers..."
+    info "Starting backend/bot/traefik containers..."
     local start_result=0
     local build_flag=""  # Registry-first mode: never use --build
 
@@ -619,7 +619,7 @@ start_application_services() {
         export NEEDS_BACKEND_RECREATE=true
         if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
             export NEEDS_BOT_RECREATE=true
-            export NEEDS_NGINX_RECREATE=true
+            export NEEDS_TRAEFIK_RECREATE=true
         fi
 
         info "All application services will be recreated"
@@ -632,14 +632,14 @@ start_application_services() {
     # - NEEDS_REDIS_RECREATE: Redis code/config changed
     # - NEEDS_BACKEND_RECREATE: Jinja2 templates, static files, Python code changed
     # - NEEDS_BOT_RECREATE: Bot Python code changed
-    # - NEEDS_NGINX_RECREATE: Nginx config changed
+    # - NEEDS_TRAEFIK_RECREATE: Traefik config changed
     # - NEEDS_FULL_RESTART: docker-compose.yml global changes
 
     info "Smart restart mode enabled:"
     info "  Backend recreate: ${NEEDS_BACKEND_RECREATE:-false}"
     if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
         info "  Bot recreate:     ${NEEDS_BOT_RECREATE:-false}"
-        info "  Nginx recreate:   ${NEEDS_NGINX_RECREATE:-false}"
+        info "  Traefik recreate: ${NEEDS_TRAEFIK_RECREATE:-false}"
     fi
     echo ""
 
@@ -668,12 +668,12 @@ start_application_services() {
             info "  Bot will be kept running (no changes)"
         fi
 
-        if [[ "${NEEDS_NGINX_RECREATE:-false}" == "true" ]]; then
-            services_to_recreate+=("nginx")
-            info "✓ Nginx will be recreated (config changed)"
+        if [[ "${NEEDS_TRAEFIK_RECREATE:-false}" == "true" ]]; then
+            services_to_recreate+=("traefik")
+            info "✓ Traefik will be recreated (config changed)"
         else
-            services_to_check+=("nginx")
-            info "  Nginx will be kept running (no changes)"
+            services_to_check+=("traefik")
+            info "  Traefik will be kept running (no changes)"
         fi
     fi
     echo ""

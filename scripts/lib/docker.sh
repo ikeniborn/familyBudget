@@ -66,7 +66,7 @@ categorize_file_changes() {
     local needs_postgres_restart=false
     local needs_backend_restart=false
     local needs_bot_restart=false
-    local needs_nginx_restart=false
+    local needs_traefik_restart=false
     local needs_backend_rebuild=false
     local needs_bot_rebuild=false
     local needs_api_change=false
@@ -76,7 +76,7 @@ categorize_file_changes() {
     local count_postgres_critical=0
     local count_backend_code=0
     local count_bot_code=0
-    local count_nginx_config=0
+    local count_traefik_config=0
     local count_backend_deps=0
     local count_bot_deps=0
     local count_webapp=0
@@ -147,9 +147,9 @@ categorize_file_changes() {
                 ((count_backend_code++))
                 ;;
             frontend/web/static/*)
-                # Static files - only nginx serves
-                needs_nginx_restart=true
-                ((count_nginx_config++))
+                # Static files are served by the backend behind Traefik
+                needs_backend_restart=true
+                ((count_backend_code++))
                 ;;
             frontend/webapp/*)
                 # Telegram Web Apps - volume-mounted static files
@@ -158,9 +158,9 @@ categorize_file_changes() {
                 ((count_webapp++))
                 ;;
             frontend/shared/*)
-                # Shared frontend static files
-                needs_nginx_restart=true
-                ((count_nginx_config++))
+                # Shared frontend static files are served by the backend behind Traefik
+                needs_backend_restart=true
+                ((count_backend_code++))
                 ;;
 
             # Bot dependencies (требуют пересборки образа)
@@ -181,10 +181,10 @@ categorize_file_changes() {
                 ((count_bot_code++))
                 ;;
 
-            # Nginx config (требуют только перезапуска)
-            nginx/*.conf|nginx/conf.d/*.conf|nginx/conf.d/**/*.conf)
-                needs_nginx_restart=true
-                ((count_nginx_config++))
+            # Traefik config (требуют только перезапуска)
+            traefik/traefik.yml|traefik/conf.d/*.tmpl|traefik/docker-entrypoint.sh)
+                needs_traefik_restart=true
+                ((count_traefik_config++))
                 ;;
         esac
     done
@@ -193,7 +193,7 @@ categorize_file_changes() {
     echo "needs_postgres_restart=$needs_postgres_restart"
     echo "needs_backend_restart=$needs_backend_restart"
     echo "needs_bot_restart=$needs_bot_restart"
-    echo "needs_nginx_restart=$needs_nginx_restart"
+    echo "needs_traefik_restart=$needs_traefik_restart"
     echo "needs_backend_rebuild=$needs_backend_rebuild"
     echo "needs_bot_rebuild=$needs_bot_rebuild"
     echo "needs_api_change=$needs_api_change"
@@ -201,7 +201,7 @@ categorize_file_changes() {
     echo "count_postgres_critical=$count_postgres_critical"
     echo "count_backend_code=$count_backend_code"
     echo "count_bot_code=$count_bot_code"
-    echo "count_nginx_config=$count_nginx_config"
+    echo "count_traefik_config=$count_traefik_config"
     echo "count_backend_deps=$count_backend_deps"
     echo "count_bot_deps=$count_bot_deps"
     echo "count_webapp=$count_webapp"
@@ -221,7 +221,7 @@ cleanup_containers_networks_v2() {
         echo ""
 
         # Принудительная полная пересборка
-        local -a services_to_stop=("familybudget-postgres" "familybudget-backend" "familybudget-bot" "familybudget-nginx")
+        local -a services_to_stop=("familybudget-postgres" "familybudget-backend" "familybudget-bot" "familybudget-traefik")
         local -a images_to_rebuild=("backend" "bot")
 
         # Остановить все сервисы
@@ -329,7 +329,7 @@ cleanup_containers_networks_v2() {
     local needs_postgres_restart=false
     local needs_backend_restart=false
     local needs_bot_restart=false
-    local needs_nginx_restart=false
+    local needs_traefik_restart=false
     local needs_backend_rebuild=false
     local needs_bot_rebuild=false
     local needs_api_change=false
@@ -337,7 +337,7 @@ cleanup_containers_networks_v2() {
     local count_postgres_critical=0
     local count_backend_code=0
     local count_bot_code=0
-    local count_nginx_config=0
+    local count_traefik_config=0
     local count_backend_deps=0
     local count_bot_deps=0
     local count_webapp=0
@@ -353,7 +353,7 @@ cleanup_containers_networks_v2() {
     [[ $count_backend_code -gt 0 ]] && categories_found+=("backend-code ($count_backend_code files)")
     [[ $count_bot_deps -gt 0 ]] && categories_found+=("bot-deps ($count_bot_deps files)")
     [[ $count_bot_code -gt 0 ]] && categories_found+=("bot-code ($count_bot_code files)")
-    [[ $count_nginx_config -gt 0 ]] && categories_found+=("nginx-config ($count_nginx_config files)")
+    [[ $count_traefik_config -gt 0 ]] && categories_found+=("traefik-config ($count_traefik_config files)")
     [[ $count_webapp -gt 0 ]] && categories_found+=("webapp ($count_webapp files)")
 
     if [[ ${#categories_found[@]} -gt 0 ]]; then
@@ -374,7 +374,7 @@ cleanup_containers_networks_v2() {
         info "Stopping ALL services including PostgreSQL..."
         echo ""
 
-        services_to_stop=("familybudget-postgres" "familybudget-backend" "familybudget-bot" "familybudget-nginx")
+        services_to_stop=("familybudget-postgres" "familybudget-backend" "familybudget-bot" "familybudget-traefik")
         POSTGRES_WAS_STOPPED=true
 
     else
@@ -397,15 +397,15 @@ cleanup_containers_networks_v2() {
                 fi
             fi
 
-            # Nginx рестартится только при nginx config/static files changes
-            if [[ "$needs_nginx_restart" == "true" ]]; then
-                services_to_stop+=("familybudget-nginx")
-                info "Nginx config/static files changed → will restart nginx"
+            # Traefik рестартится только при Traefik config changes
+            if [[ "$needs_traefik_restart" == "true" ]]; then
+                services_to_stop+=("familybudget-traefik")
+                info "Traefik config changed → will restart Traefik"
             fi
         else
             # Backend NOT changed - selective restarts
             [[ "$needs_bot_restart" == "true" ]] && services_to_stop+=("familybudget-bot") && info "Bot code changed → will restart bot"
-            [[ "$needs_nginx_restart" == "true" ]] && services_to_stop+=("familybudget-nginx") && info "Nginx config changed → will restart nginx"
+            [[ "$needs_traefik_restart" == "true" ]] && services_to_stop+=("familybudget-traefik") && info "Traefik config changed → will restart Traefik"
         fi
 
         POSTGRES_WAS_STOPPED=false
@@ -561,7 +561,7 @@ cleanup_containers_networks_legacy() {
         echo ""
 
         # Stop only app containers (NOT postgres)
-        local app_containers=("familybudget-backend" "familybudget-bot" "familybudget-nginx")
+        local app_containers=("familybudget-backend" "familybudget-bot" "familybudget-traefik")
         for container in "${app_containers[@]}"; do
             if docker ps -a --format "{{.Names}}" 2>/dev/null | grep -q "^${container}$"; then
                 info "Stopping $container..."
@@ -611,7 +611,7 @@ cleanup_full() {
     warning "⚠️  FULL CLEANUP MODE"
     echo ""
     echo "This will:"
-    echo "  1. Stop all containers (PostgreSQL, backend, bot, nginx)"
+    echo "  1. Stop all containers (PostgreSQL, backend, bot, Traefik)"
     echo "  2. Remove Docker networks"
     echo "  3. Run PostgreSQL data repair (if corrupted)"
     echo ""

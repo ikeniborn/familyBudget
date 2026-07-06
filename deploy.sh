@@ -25,7 +25,7 @@
 #
 # Examples:
 #   ./deploy.sh                    # Basic deployment (postgres + backend)
-#   ./deploy.sh --profile full     # Full deployment (+ nginx + bot + certbot)
+#   ./deploy.sh --profile full     # full deployment (+ traefik + bot)
 #   ./deploy.sh --clean            # Clean deployment (removes data!)
 #
 # Note: Docker images are pre-built in GitHub Actions CI/CD (registry-first v9.0+).
@@ -184,7 +184,7 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # =============================================================================
 # NETWORK FUNCTIONS (Loaded from scripts/lib/network.sh)
 # =============================================================================
-# Functions: check_port_available
+# Functions: check_port_available, ensure_monitoring_network
 
 # =============================================================================
 # DEPLOYMENT FUNCTIONS
@@ -226,25 +226,10 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # Functions: get_service_status, print_status
 
 # =============================================================================
-# NGINX CONFIGURATION (REGISTRY-FIRST v9.0+)
+# TRAEFIK CONFIGURATION (REGISTRY-FIRST v9.0+)
 # =============================================================================
-# REMOVED: regenerate_nginx_config() function
-#
-# In registry-first mode, nginx configuration is embedded in Docker image:
-#   - Templates: nginx/conf.d/*.template (in git, built into image)
-#   - Runtime: docker-entrypoint.sh processes templates with DOMAIN env var
-#   - No bind mount: configuration lives inside container, not on host
-#
-# SSL certificate changes are picked up automatically:
-#   - /etc/letsencrypt bind mounted read-only
-#   - Entrypoint checks SSL cert existence and selects HTTP/HTTPS template
-#   - Container restart applies new configuration
-#
-# To change nginx config:
-#   1. Edit templates in nginx/conf.d/*.template
-#   2. Commit to git
-#   3. GitHub Actions rebuilds nginx image
-#   4. Server pulls new image and restarts container
+# Traefik uses native ACME and file-provider templates from git.
+# Runtime: traefik/docker-entrypoint.sh renders DOMAIN into config templates.
 
 # =============================================================================
 # PWA ICONS REGENERATION
@@ -559,16 +544,11 @@ validate_firewall_rules() {
     echo ""
     info "Checking security rules..."
 
-    # HTTP (80) - SHOULD BE CLOSED (except during certbot)
+    # HTTP (80) - REQUIRED for Traefik HTTP-01 and HTTP-to-HTTPS redirect
     if echo "$ufw_status" | grep -q "80/tcp.*ALLOW"; then
-        warning "⚠ Port 80 (HTTP) is OPEN"
-        echo ""
-        warning "SECURITY ISSUE: Port 80 should be closed!"
-        info "Port 80 should only open temporarily during certbot renewal"
-        info "The deploy script will close it automatically"
-        echo ""
+        success "✓ Port 80 (HTTP) is open for Traefik HTTP-01"
     else
-        success "✓ Port 80 (HTTP) is closed (correct)"
+        warning "⚠ Port 80 (HTTP) is NOT open - Traefik HTTP-01 will fail"
     fi
 
     # PostgreSQL (5432) - Check if restricted
@@ -825,7 +805,7 @@ main() {
     # Validate firewall rules before deployment
     validate_firewall_rules
 
-    # Check if HTTP/HTTPS ports are available (for full profile with nginx)
+    # Check if HTTP/HTTPS ports are available (for full profile with Traefik)
     if [[ "${DEPLOYMENT_PROFILE:-}" == "full" ]]; then
         step "Checking Port Availability"
 
@@ -839,7 +819,7 @@ main() {
         local http_port="${HTTP_PORT:-80}"
         local https_port="${HTTPS_PORT:-443}"
 
-        info "Checking if ports are available for nginx..."
+        info "Checking if ports are available for Traefik..."
         check_port_available "$http_port" "HTTP"
         check_port_available "$https_port" "HTTPS"
         echo ""
@@ -868,6 +848,12 @@ main() {
     fi
     success "Docker daemon running"
     echo ""
+
+    # Traefik metrics use an external monitoring network in full profile.
+    if [[ "${DEPLOYMENT_PROFILE:-}" == "full" ]]; then
+        ensure_monitoring_network
+        echo ""
+    fi
 
     # CHECK: Ensure repository is synchronized with remote
     # Prevents deploying outdated code from un-updated repository
@@ -1000,7 +986,7 @@ main() {
     #   NEEDS_REDIS_RECREATE     (redis code/config changed)
     #   NEEDS_BACKEND_RECREATE   (templates/static/Python changed)
     #   NEEDS_BOT_RECREATE       (bot code changed)
-    #   NEEDS_NGINX_RECREATE     (nginx config changed)
+    #   NEEDS_TRAEFIK_RECREATE   (Traefik config changed)
     #   NEEDS_FULL_RESTART       (docker-compose.yml global changes)
     # - Flags used by start_postgres_only(), start_redis_only(), start_application_services()
     analyze_sync_changes
@@ -1013,9 +999,7 @@ main() {
     # No server-side version bumping - all changes committed to git first
     echo ""
 
-    # NOTE: Nginx configuration regeneration removed in v9.0 (registry-first)
-    # Configuration is embedded in Docker image and processed by entrypoint.sh
-    # See nginx/docker-entrypoint.sh for template processing logic
+    # NOTE: Traefik configuration is rendered by traefik/docker-entrypoint.sh
 
     # Regenerate PWA icons if trigger file exists (AFTER sync)
     # This ensures new icons are available before Service Worker cache is updated
@@ -1105,7 +1089,7 @@ main() {
     fi
     echo ""
 
-    # Pull images from ghcr.io (backend, bot, nginx, redis, postgresql)
+    # Pull images from ghcr.io (backend, bot, redis, postgresql)
     # Versions exported to .env: BACKEND_VERSION, BOT_VERSION, etc.
     info "Pulling Docker images from registry..."
     if ! pull_from_registry; then
@@ -1285,8 +1269,7 @@ main() {
 
     # stop_services removed - redundant after cleanup_old_deployment
 
-    # NOTE: Nginx configuration removed in v9.0 (registry-first)
-    # Configuration embedded in Docker image, processed by entrypoint.sh
+    # NOTE: Traefik configuration is rendered by traefik/docker-entrypoint.sh
 
     # NOTE: PostgreSQL permissions validation removed after migration to Docker managed volume
     # Docker managed volumes handle permissions automatically
@@ -1327,7 +1310,7 @@ main() {
     # Phase 1: PostgreSQL only
     # Phase 1.2: Redis only (dependency for backend)
     # Phase 1.5: Backend container (for running migrations)
-    # Phase 2: Bot/Nginx (backend already running from Phase 1.5)
+    # Phase 2: Bot/Traefik (backend already running from Phase 1.5)
 
     # Phase 1: Start PostgreSQL only
     if ! start_postgres_only; then
@@ -1404,8 +1387,8 @@ main() {
         fi
         echo ""
 
-        # Phase 2: Start remaining application services (bot, nginx)
-        # Backend already running, this starts bot/nginx only
+        # Phase 2: Start remaining application services (bot, Traefik)
+        # Backend already running, this starts bot/Traefik only
         if ! start_application_services; then
             error "Deployment failed: Application services failed to start"
             error "Log file: $LOG_FILE"
@@ -1451,14 +1434,8 @@ main() {
         install_systemd_service
         echo ""
 
-        # Configure firewall before SSL certificate setup
+        # Configure firewall for Traefik HTTP-01 and HTTPS traffic
         configure_firewall_for_ssl
-        echo ""
-
-        setup_ssl_certificates
-        echo ""
-
-        verify_ssl
         echo ""
 
         verify_all_services
