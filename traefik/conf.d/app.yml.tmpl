@@ -1,0 +1,113 @@
+http:
+  routers:
+    app-ws:
+      rule: "Host(`{{DOMAIN}}`) && Path(`/api/v1/budget/ws`)"
+      entryPoints:
+        - websecure
+      service: app-ws
+      middlewares:
+        - security-headers
+        - compression
+      tls:
+        certResolver: letsencrypt
+      priority: 100
+
+    webapp:
+      rule: "Host(`{{DOMAIN}}`) && PathPrefix(`/webapp/`)"
+      entryPoints:
+        - websecure
+      service: app
+      middlewares:
+        - telegram-webapp-headers
+        - request-body-limit
+        - compression
+      tls:
+        certResolver: letsencrypt
+      priority: 90
+
+    shared-static:
+      rule: "Host(`{{DOMAIN}}`) && PathPrefix(`/shared/`)"
+      entryPoints:
+        - websecure
+      service: app
+      middlewares:
+        - security-headers
+        - shared-cache
+        - compression
+      tls:
+        certResolver: letsencrypt
+      priority: 80
+
+    app:
+      rule: "Host(`{{DOMAIN}}`)"
+      entryPoints:
+        - websecure
+      service: app
+      middlewares:
+        - security-headers
+        - request-body-limit
+        - compression
+      tls:
+        certResolver: letsencrypt
+      priority: 1
+
+  services:
+    app:
+      loadBalancer:
+        passHostHeader: true
+        serversTransport: app-transport
+        servers:
+          - url: "http://backend:8000"
+
+    app-ws:
+      loadBalancer:
+        passHostHeader: true
+        serversTransport: websocket-transport
+        servers:
+          - url: "http://backend:8000"
+
+  serversTransports:
+    app-transport:
+      forwardingTimeouts:
+        dialTimeout: "75s"
+        responseHeaderTimeout: "300s"
+        idleConnTimeout: "300s"
+
+    websocket-transport:
+      forwardingTimeouts:
+        dialTimeout: "75s"
+        responseHeaderTimeout: "86400s"
+        idleConnTimeout: "86400s"
+
+  middlewares:
+    security-headers:
+      headers:
+        frameDeny: false
+        customFrameOptionsValue: "SAMEORIGIN"
+        contentTypeNosniff: true
+        browserXssFilter: true
+
+    telegram-webapp-headers:
+      headers:
+        contentTypeNosniff: true
+        browserXssFilter: true
+        customResponseHeaders:
+          X-Frame-Options: ""
+          Content-Security-Policy: "frame-ancestors https://web.telegram.org https://*.telegram.org"
+          Access-Control-Allow-Origin: "https://web.telegram.org"
+          Access-Control-Allow-Methods: "GET, POST, OPTIONS"
+          Access-Control-Allow-Headers: "Content-Type, X-Requested-With"
+          Access-Control-Allow-Credentials: "true"
+          Cache-Control: "public, must-revalidate"
+
+    shared-cache:
+      headers:
+        customResponseHeaders:
+          Cache-Control: "public, max-age=604800, must-revalidate"
+
+    request-body-limit:
+      buffering:
+        maxRequestBodyBytes: 20971520
+
+    compression:
+      compress: {}

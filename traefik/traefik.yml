@@ -1,0 +1,40 @@
+api:
+  dashboard: false
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: ":443"
+  metrics:
+    address: ":8082"
+  internal:
+    address: ":8080"
+
+ping:
+  entryPoint: internal
+
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: "${LETSENCRYPT_EMAIL}"
+      storage: /data/acme.json
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  file:
+    directory: /conf.d
+    watch: true
+
+metrics:
+  prometheus:
+    entryPoint: metrics
+
+log:
+  level: INFO
