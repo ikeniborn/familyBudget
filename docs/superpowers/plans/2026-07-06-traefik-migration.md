@@ -1,6 +1,6 @@
 ---
 review:
-  plan_hash: 4b3da6269eddd0fb
+  plan_hash: 8d9456905b437b70
   last_run: 2026-07-06
   phases:
     structure: { status: passed }
@@ -806,7 +806,7 @@ Run:
 ```bash
 grep -n 'BACKEND_VERSION=' scripts/lib/registry.sh
 grep -n 'POSTGRESQL_VERSION=' scripts/lib/registry.sh
-grep -n 'NGINX_VERSION' scripts/lib/registry.sh | grep 'grep -v -E'
+grep -n 'BACKEND|BOT|NGINX|REDIS|POSTGRESQL' scripts/lib/registry.sh | grep 'grep -v -E'
 ! grep -n '"nginx"' scripts/lib/registry.sh
 ```
 
