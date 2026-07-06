@@ -130,7 +130,29 @@ table{width:100%;border-collapse:collapse;background:var(--surface);border:1px s
 <!-- TAB:plan END -->
 <!-- TAB:result START -->
 <section class="tab-pane" id="pane-result">
-<p class="note">Этап ещё не проверен. Implementation diff отсутствует; result запускается после выполнения plan.</p>
+<h2>Проверка result — 2026-07-06</h2>
+<p>Результат сверяет реализацию Traefik migration с планом и rollout-доказательствами. Все плановые области закрыты: Traefik config, Compose replacement, deploy scripts, CI/registry cleanup, local validation, dev rollout, wiki update.</p>
+<h3>Diff Reconciliation</h3>
+<table>
+<tr><th>Plan step</th><th>Status</th><th>Evidence</th></tr>
+<tr><td>Task 1: Traefik config</td><td><span class="badge ok">DONE</span></td><td><code>traefik/traefik.yml</code>, <code>traefik/conf.d/app.yml.tmpl</code>, <code>traefik/docker-entrypoint.sh</code></td></tr>
+<tr><td>Task 2: Compose migration</td><td><span class="badge ok">DONE</span></td><td><code>docker-compose.yml</code>: <code>familybudget-traefik</code>, <code>traefik_acme</code>, external <code>monitoring</code>, internal ping healthcheck</td></tr>
+<tr><td>Task 3: Deploy scripts</td><td><span class="badge ok">DONE</span></td><td><code>deploy.sh</code>, <code>scripts/lib/services.sh</code>, <code>sync.sh</code>, <code>docker.sh</code>, <code>network.sh</code>, <code>firewall.sh</code>, <code>registry.sh</code>, <code>ssl.sh</code>, <code>status.sh</code></td></tr>
+<tr><td>Task 4: CI/registry cleanup</td><td><span class="badge ok">DONE</span></td><td><code>.github/workflows/build-and-push.yml</code>, <code>IMAGE_VERSIONS.json</code>, stale <code>NGINX_VERSION</code> cleanup retained only for deployed env cleanup</td></tr>
+<tr><td>Task 5: Local validation</td><td><span class="badge ok">DONE</span></td><td>Compose render OK, template render OK, shell syntax OK, Traefik container <code>/ping</code> smoke OK</td></tr>
+<tr><td>Task 6: Dev rollout</td><td><span class="badge ok">DONE</span></td><td><code>budget-test</code> deploy OK; backend, bot, postgres, redis, Traefik healthy; Let's Encrypt cert issued for <code>fbd.ikeniborn.ru</code>; no running <code>familybudget-nginx</code></td></tr>
+</table>
+<h3>Outcome Evidence</h3>
+<ul>
+<li>Public edge moved to Traefik v3.3: <code>familybudget-traefik</code> listens on ports 80/443.</li>
+<li>Native ACME works: certificate issuer is Let's Encrypt, CN <code>fbd.ikeniborn.ru</code>, valid 2026-07-06 to 2026-10-04.</li>
+<li>HTTP redirect works: loopback Host-header probe returned <code>308</code> to HTTPS.</li>
+<li>Application route works: HTTPS follow-redirect probe returned HTML <code>200</code>.</li>
+<li>Firewall matches plan: UFW allows 22, 443, restricted 5432, and 80 for Traefik HTTP-01.</li>
+</ul>
+<h3>Findings</h3>
+<p>Новых findings нет. Excess changes: <code>deploy.sh</code>/<code>validation.sh</code> help text and Traefik healthcheck fix are rollout-discovered corrections inside planned deploy/healthcheck scope.</p>
+<p><span class="badge ok">Вердикт: OK</span></p>
 </section>
 <!-- TAB:result END -->
 </body>

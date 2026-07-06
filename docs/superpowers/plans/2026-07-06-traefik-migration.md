@@ -1,6 +1,6 @@
 ---
 review:
-  plan_hash: 8d9456905b437b70
+  plan_hash: 7e127211600ba637
   last_run: 2026-07-06
   phases:
     structure: { status: passed }
@@ -12,6 +12,10 @@ review:
 chain:
   intent: null
   spec: docs/superpowers/specs/2026-06-24-traefik-migration-design.md
+result_check:
+  verdict: OK
+  plan_hash: 7e127211600ba637
+  last_run: 2026-07-06
 ---
 
 # Traefik Migration Implementation Plan
@@ -426,7 +430,7 @@ In `docker-compose.yml`, replace the existing `nginx:` service block with:
     profiles:
       - full
     healthcheck:
-      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/ping >/dev/null"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -892,14 +896,10 @@ Expected: all commands exit `0`.
 Run:
 
 ```bash
-docker run --rm -e DOMAIN=fbd.ikeniborn.ru -e LETSENCRYPT_EMAIL=admin@example.com -v "$PWD/traefik/traefik.yml:/traefik.yml:ro" -v "$PWD/traefik/conf.d:/conf.d:ro" -v "$PWD/traefik/docker-entrypoint.sh:/docker-entrypoint.sh:ro" -v traefik_config_check:/data --entrypoint /docker-entrypoint.sh traefik:v3.3 check-config --configFile=/traefik.yml
+docker run --rm -e DOMAIN=fbd.ikeniborn.ru -e LETSENCRYPT_EMAIL=admin@ikeniborn.ru -v "$PWD/traefik/traefik.yml:/traefik.yml:ro" -v "$PWD/traefik/conf.d:/conf.d:ro" -v "$PWD/traefik/docker-entrypoint.sh:/docker-entrypoint.sh:ro" -v traefik_config_check:/data --entrypoint sh traefik:v3.3 -c 'set -e; /docker-entrypoint.sh >/tmp/traefik.log 2>&1 & pid=$!; for i in $(seq 1 20); do if wget -q -O - http://127.0.0.1:8080/ping >/tmp/ping.out 2>/tmp/ping.err; then cat /tmp/ping.out; kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; exit 0; fi; sleep 0.5; done; tail -80 /tmp/traefik.log >&2; kill "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; exit 1'
 ```
 
-Expected: command exits `0`. If Traefik returns an entrypoint argument error because the entrypoint intentionally ignores appended args, run this fallback and expect exit `0`:
-
-```bash
-docker run --rm -e DOMAIN=fbd.ikeniborn.ru -e LETSENCRYPT_EMAIL=admin@ikeniborn.ru -v "$PWD/traefik/traefik.yml:/traefik.yml:ro" -v "$PWD/traefik/conf.d:/conf.d:ro" -v "$PWD/traefik/docker-entrypoint.sh:/docker-entrypoint.sh:ro" -v traefik_config_check:/data --entrypoint sh traefik:v3.3 -c '/docker-entrypoint.sh & pid=$!; sleep 2; kill "$pid" 2>/dev/null || true; test -f /tmp/traefik.yml; test -f /rendered-conf.d/app.yml; traefik check-config --configFile=/tmp/traefik.yml'
-```
+Expected: command prints `OK` and exits `0`.
 
 - [ ] **Step 5: Validate scripts**
 

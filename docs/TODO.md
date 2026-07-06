@@ -34,4 +34,4 @@ Index of elaboration chains (intent → spec → plan → result) reconstructed 
 | bot-weekly-report-stub | in-progress | ✓ | – | – | – | 2026-06-17 | | Intent only; spec/plan not started |
 | medicine-alert-docstring | in-progress | ✓ | – | – | – | 2026-06-17 | | Intent only; spec/plan not started |
 | ws-plan-broadcast-filter | in-progress | ✓ | – | – | – | 2026-06-17 | | Intent only; spec/plan not started |
-| traefik-migration | in-progress | n/a | ✓ | ✓ | – | 2026-06-24 | | Design + plan checks OK; implementation not started |
+| traefik-migration | done | n/a | ✓ | ✓ | OK | 2026-06-24 | 2026-07-06 | Dev rollout OK; Traefik healthy on fbd.ikeniborn.ru |
