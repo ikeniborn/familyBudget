@@ -22,14 +22,14 @@ ping:
 certificatesResolvers:
   letsencrypt:
     acme:
-      email: "${LETSENCRYPT_EMAIL}"
+      email: "{{LETSENCRYPT_EMAIL}}"
       storage: /data/acme.json
       httpChallenge:
         entryPoint: web
 
 providers:
   file:
-    directory: /conf.d
+    directory: /rendered-conf.d
     watch: true
 
 metrics:
