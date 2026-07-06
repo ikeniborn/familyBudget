@@ -9,7 +9,7 @@
 # - Starts services (PostgreSQL uses Docker managed volume)
 # - Waits for healthy status
 # - Runs database migrations
-# - Configures UFW firewall rules for PostgreSQL (automatic)
+# - Configures UFW firewall rules for PostgreSQL/Traefik (automatic)
 # - Displays deployment status and URLs
 #
 # Usage:
@@ -17,16 +17,13 @@
 #
 # Options:
 #   -h, --help              Show this help message
-#   -d, --detach            Run in detached mode (default)
-#   -f, --foreground        Run in foreground (show logs)
-#   -p, --profile PROFILE   Docker Compose profile (default: none, full: all services)
-#   --no-migrate            Skip database migrations
-#   --clean                 Clean deployment (remove volumes)
+#   --sync-mode MODE        Code sync mode: mirror|update|clean|skip
+#   --cleanup-mode MODE     Cleanup mode: skip|smart|full
+#   --use-registry          Pull pre-built images from ghcr.io
 #
 # Examples:
-#   ./deploy.sh                    # Basic deployment (postgres + backend)
-#   ./deploy.sh --profile full     # full deployment (+ traefik + bot)
-#   ./deploy.sh --clean            # Clean deployment (removes data!)
+#   ./deploy.sh --sync-mode mirror --cleanup-mode smart
+#   ./deploy.sh --use-registry --image-tag test
 #
 # Note: Docker images are pre-built in GitHub Actions CI/CD (registry-first v9.0+).
 #       Server only pulls ready images from ghcr.io - no local building occurs.
