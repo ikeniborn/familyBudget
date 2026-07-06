@@ -18,14 +18,6 @@
       "bot/"
     ]
   },
-  "nginx": {
-    "version": "0.6.171",
-    "hash": "c3989467",
-    "lastModified": "2026-05-31T09:57:11Z",
-    "paths": [
-      "nginx/"
-    ]
-  },
   "redis": {
     "version": "0.7.10",
     "hash": "4ac9563b",
