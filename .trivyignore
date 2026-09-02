@@ -364,3 +364,33 @@ CVE-2026-48818
 # Risk assessment: MEDIUM (rate-limited + body-capped); accept until FastAPI allows starlette 1.x
 # Next review: 2026-07-18 (monthly - track FastAPI release supporting starlette 1.x)
 CVE-2026-54283
+
+# CVE-2026-66046: Expat denial of service (HIGH)
+# Status: affected - no fix available in any Debian 12 build as of 2026-09-02
+# Package: libexpat1 v2.5.0-1+deb12u3 (no fixed version published)
+# Mitigation: NOT applicable - the application parses no XML
+#   - grep over backend/ and bot/ finds no xml.etree, minidom, lxml or pyexpat import
+#   - expat is present only as a transitive library of the distroless Python runtime
+# Risk assessment: NONE (no XML input reaches the parser)
+# Next review: 2026-10-02 (monthly - check for a published Debian fix)
+CVE-2026-66046
+
+# CVE-2026-15308: CPython CPU denial of service in the HTML parser (HIGH)
+# Status: fix_deferred - Debian security team deferred the fix for bookworm
+# Package: libpython3.11-minimal / libpython3.11-stdlib / python3.11-minimal v3.11.2-6+deb12u6
+# Mitigation: NOT applicable - the application does not parse HTML
+#   - grep over backend/ and bot/ finds no html.parser or HTMLParser usage
+#   - Jinja2 renders templates, it does not parse untrusted HTML input
+# Risk assessment: NONE (the vulnerable parser is never invoked)
+# Next review: 2026-10-02 (monthly - track the deferred Debian fix)
+CVE-2026-15308
+
+# CVE-2026-53613: util-linux TOCTOU in the mount program (HIGH)
+# Status: affected - no fix available for Debian 12 as of 2026-09-02
+# Package: libuuid1 v2.38.1-5+deb12u3 (reported against the util-linux source package)
+# Mitigation: NOT applicable - the vulnerability is in the mount binary, which the image lacks
+#   - Distroless carries no shell and no mount binary; only libuuid1 is present
+#   - The application invokes no mount operation; volumes are mounted by the container runtime
+# Risk assessment: NONE (vulnerable binary absent from the image)
+# Next review: 2026-10-02 (monthly - check for a published Debian fix)
+CVE-2026-53613

@@ -43,3 +43,9 @@ apscheduler==3.11.0
 
 # Push Notifications (Web Push / VAPID)
 pywebpush==2.0.0
+
+# Transitive packages pinned for security
+# Both arrive as transitive dependencies, so the pin is what keeps the resolved
+# version above the vulnerable one — see .trivyignore for the exceptions we accept.
+setuptools>=78.1.1  # Security fix for CVE-2025-47273 (path traversal in PackageIndex)
+msgpack>=1.2.1      # Security fix for GHSA-6v7p-g79w-8964 (OOB read on Unpacker reuse)
