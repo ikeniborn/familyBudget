@@ -1,2 +1,47 @@
 read = ["familybudget"]
-write = "familybudget"
+write = ["familybudget"]
+primary = "familybudget"
+
+
+# GWT specification policy for every visible local domain.
+# Choose one value:
+# - "disabled": keep specification pages as ordinary Markdown; semantic tools are off.
+# - "optional": report advisory findings and project only valid scenarios (recommended).
+# - "strict": reject invalid specification mutations atomically.
+# Ordinary Wiki pages work in every mode and never require the code graph.
+[specifications]
+mode = "strict"
+
+[code_graph]
+enabled = true
+languages = ["python","typescript","javascript","bash"]
+auto_rebuild = "bounded"
+max_rebuild_seconds = 1800
+max_full_rebuild_seconds = 1800
+max_file_bytes = 100000000
+max_total_files = 20000
+include_tests = true
+exclude = [
+  ".worktrees/",
+  ".superpowers/",
+  ".pytest_cache/",
+  ".ruff_cache/",
+  ".claude",
+  ".logwatch",
+  "tests/fixtures/",
+  "build/",
+  "dist/",
+  "vendor/",
+  "node_modules/",
+  "*.generated.py",
+  "*.generated.ts",
+]
+typescript_type_boost = false
+publish_mode = "mcp"
+read_mode = "mcp"
+max_snapshot_age_seconds = 86400
+max_batch_rows = 1000
+max_batch_bytes = 1000000
+publication_session_ttl_seconds = 1800
+staging_retention_seconds = 86400
+staging_cleanup_limit = 100
