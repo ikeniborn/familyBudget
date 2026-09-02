@@ -1,3 +1,46 @@
+---
+review:
+  intent_hash: 52b15b605c5246f4
+  last_run: 2026-09-02
+  phases:
+    structure: passed
+    completeness: passed
+    clarity: passed
+    consistency: passed
+    alignment: passed
+  findings:
+    - id: F-001
+      phase: structure
+      severity: INFO
+      section: Constraints
+      section_hash: b555f1b3f776f39f
+      fragment: "`TODO` comment in the source."
+      text: "The literal TODO matches the placeholder scan, but it is the word used as a term inside a steering constraint, not an unfilled placeholder."
+      fix: "No change needed; recorded so a later run does not re-raise it."
+      verdict: wontfix
+      verdict_at: 2026-09-02
+    - id: F-002
+      phase: alignment
+      severity: INFO
+      section: Desired Outcomes
+      section_hash: 1a49f4c5b8d127ff
+      fragment: null
+      text: "The intent covers only step 1 of the three-step session-revocation design. This matches the user's explicit decision to ship the steps as separate pull requests."
+      fix: "None; steps 2 and 3 get their own intents."
+      verdict: accepted
+      verdict_at: 2026-09-02
+    - id: F-003
+      phase: alignment
+      severity: INFO
+      section: Strategic Context
+      section_hash: null
+      fragment: null
+      text: "The wiki section auth.md#JWT Tokens & Refresh documents the current claim set and goes stale once this ships. Updating it is not named in Desired Outcomes."
+      fix: "Covered by the Keep Docs Current rule; update the section as part of implementation."
+      verdict: accepted
+      verdict_at: 2026-09-02
+---
+
 # Intent: Emit and enforce a token_type claim on access tokens
 
 **Date:** 2026-09-02
