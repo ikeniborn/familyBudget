@@ -1,4 +1,14 @@
 ---
+result_check:
+  verdict: OK
+  intent_hash: 52b15b605c5246f4
+  last_run: 2026-09-02
+  diff_base: origin/test
+  outcomes:
+    refresh-token-refused-on-access-path: DONE
+    pre-change-sessions-keep-working: DONE
+    issued-token-declares-its-type: DONE
+    logout-ends-both-paths: PARTIAL
 review:
   intent_hash: 52b15b605c5246f4
   last_run: 2026-09-02
