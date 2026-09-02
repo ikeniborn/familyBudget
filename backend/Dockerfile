@@ -19,6 +19,7 @@ RUN echo "apt refresh: ${BUILD_DATE}" && \
     libpq-dev \
     libpq5 \
     curl \
+    libexpat1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Regenerate distroless-format dpkg metadata for packages whose .so files we
@@ -30,7 +31,8 @@ RUN mkdir -p /opt/dpkg-status && \
                libldap-2.5-0 liblber-2.5-0 libsasl2-2 \
                libgnutls30 libcom-err2 libkeyutils1 \
                libp11-kit0 libidn2-0 libunistring2 libtasn1-6 \
-               libnettle8 libhogweed6 libgmp10 libffi8 libpq5; do \
+               libnettle8 libhogweed6 libgmp10 libffi8 libpq5 \
+               libexpat1; do \
         dpkg-query -W -f='Package: ${Package}\nStatus: ${Status}\nPriority: ${Priority}\nSection: ${Section}\nInstalled-Size: ${Installed-Size}\nMaintainer: ${Maintainer}\nArchitecture: ${Architecture}\nMulti-Arch: ${Multi-Arch}\nSource: ${Source}\nVersion: ${Version}\nDepends: ${Depends}\nDescription: ${Description}\n' "$pkg" > "/opt/dpkg-status/$pkg" 2>/dev/null || true ; \
     done
 
@@ -134,6 +136,10 @@ COPY --from=python-builder /lib/x86_64-linux-gnu/libnettle.so.8* /lib/x86_64-lin
 COPY --from=python-builder /lib/x86_64-linux-gnu/libhogweed.so.6* /lib/x86_64-linux-gnu/
 COPY --from=python-builder /lib/x86_64-linux-gnu/libgmp.so.10* /lib/x86_64-linux-gnu/
 COPY --from=python-builder /lib/x86_64-linux-gnu/libffi.so.8* /lib/x86_64-linux-gnu/
+# XML parser: distroless ships expat deb12u2. The slim base carries no expat at
+# all, so the builder installs libexpat1 explicitly and gets deb12u3, which
+# fixes CVE-2026-56408 (integer overflow in copyString).
+COPY --from=python-builder /lib/x86_64-linux-gnu/libexpat.so.1* /lib/x86_64-linux-gnu/
 # SSL/TLS libraries (already in distroless, but copy for consistency)
 COPY --from=python-builder /lib/x86_64-linux-gnu/libssl.so.3* /lib/x86_64-linux-gnu/
 COPY --from=python-builder /lib/x86_64-linux-gnu/libcrypto.so.3* /lib/x86_64-linux-gnu/
