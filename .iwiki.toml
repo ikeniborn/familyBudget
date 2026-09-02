@@ -1,5 +1,5 @@
-read = ["familybudget"]
-write = ["familybudget"]
+read = ["familybudget","iwiki-mcp"]
+write = ["familybudget","iwiki-mcp"]
 primary = "familybudget"
 
 
