@@ -49,6 +49,22 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt && \
     pip install --upgrade 'jaraco.context>=6.1.0' 'wheel>=0.46.2'
 
+# Drop pip from the venv that ships to the runtime image.
+#
+# pip bundles its own dependencies under pip/_vendor and records their versions
+# in pip/_vendor/vendor.txt, which Trivy reads as installed packages. pip 26.2.1
+# pins msgpack==1.1.2 and setuptools==70.3.0 there, so the image reports
+# GHSA-6v7p-g79w-8964 and CVE-2025-47273 no matter what requirements.txt says —
+# those numbers are pip's internals, not what we installed.
+#
+# The runtime is distroless and installs nothing, and neither backend/ nor bot/
+# imports pip, setuptools or pkg_resources, so removing pip costs nothing.
+# setuptools itself stays: 84.0.0 is clean and some libraries still import
+# pkg_resources lazily.
+RUN rm -rf /opt/venv/lib/python3.11/site-packages/pip \
+           /opt/venv/lib/python3.11/site-packages/pip-*.dist-info \
+           /opt/venv/bin/pip /opt/venv/bin/pip3 /opt/venv/bin/pip3.11
+
 # Stage 2: Frontend builder
 FROM node:18-alpine as frontend-builder
 
