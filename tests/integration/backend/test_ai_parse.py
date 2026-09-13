@@ -203,3 +203,37 @@ async def test_parse_future_date_clamped_to_today(
     )
     assert response.status_code == 200
     assert response.json()["fact_date"] == date.today().isoformat()
+
+
+async def test_parse_missing_account_falls_back_to_most_used(
+    authenticated_client: AsyncClient,
+    authenticated_admin_client: AsyncClient,
+    seeded_refs,
+    monkeypatch,
+    db_session,
+):
+    """Model returns no account -> the most-used one is substituted with an
+    honest warning (categories are account-filtered, so a blank account
+    would block the whole form)."""
+    from backend.app.models.financial_center import FinancialCenter
+
+    second_fc = FinancialCenter(
+        user_id=seeded_refs["fc"].user_id, name="Вторая карта", is_active=True
+    )
+    db_session.add(second_fc)
+    await db_session.commit()
+
+    await enable_ai(authenticated_admin_client)
+    article_id = seeded_refs["article"].id
+    mock_chat(
+        monkeypatch,
+        f'{{"article_id": {article_id}, "amount": 200, "confidence": 0.9}}',
+    )
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/parse-transaction", json={"text": "что-то 200"}
+    )
+    assert response.status_code == 200
+    draft = response.json()
+    assert draft["financial_center_id"] is not None
+    assert any("основной" in w for w in draft["warnings"])
