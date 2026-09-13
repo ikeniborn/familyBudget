@@ -132,6 +132,7 @@ async def get_financial_centers(session: AsyncSession) -> list[dict[str, Any]]:
             select(
                 FinancialCenter.id,
                 FinancialCenter.name,
+                FinancialCenter.description,
                 func.coalesce(usage.c.cnt, 0).label("usage_count"),
             )
             .outerjoin(usage, usage.c.fc_id == FinancialCenter.id)
@@ -140,7 +141,12 @@ async def get_financial_centers(session: AsyncSession) -> list[dict[str, Any]]:
         )
     ).all()
     return [
-        {"id": row.id, "name": row.name, "usage_count": row.usage_count}
+        {
+            "id": row.id,
+            "name": row.name,
+            "description": (row.description or "").strip(),
+            "usage_count": row.usage_count,
+        }
         for row in rows
     ]
 
@@ -152,7 +158,9 @@ def _build_prompt(
 ) -> str:
     article_lines = format_candidate_lines(articles)
     center_lines = "\n".join(
-        f"{c['id']}: {c['name']}" + (" (основной)" if i == 0 else "")
+        f"{c['id']}: {c['name']}"
+        + (f" — {c['description']}" if c.get("description") else "")
+        + (" (основной)" if i == 0 else "")
         for i, c in enumerate(centers)
     )
     return (
@@ -160,7 +168,7 @@ def _build_prompt(
         "Разбери фразу пользователя (обычно на русском) в JSON-транзакцию.\n"
         f"Сегодня: {today.isoformat()}.\n\n"
         f"Категории (id: путь [тип] — описание):\n{article_lines}\n\n"
-        f"Счета (id: название):\n{center_lines}\n\n"
+        f"Счета (id: название — описание):\n{center_lines}\n\n"
         "Правила выбора категории:\n"
         "- Выбирай по СМЫСЛУ покупки (что именно куплено/получено), а не по "
         "поверхностному совпадению букв в названии категории.\n"
