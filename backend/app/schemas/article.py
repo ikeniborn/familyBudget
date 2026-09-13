@@ -46,6 +46,14 @@ class ArticleCreate(BaseModel):
         examples=[1, None]
     )
 
+    description: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="Free-text semantics for the category (synonyms, merchant "
+                    "examples); fed into AI parsing prompts",
+        examples=["кофе, кафе, рестораны, доставка еды", None]
+    )
+
     is_active: bool = Field(
         default=True,
         description="Active status flag (True = visible in UI, False = archived)",
@@ -127,6 +135,14 @@ class ArticleUpdate(BaseModel):
         default=None,
         description="Parent article ID for hierarchy",
         examples=[2]
+    )
+
+    description: str | None = Field(
+        default=None,
+        max_length=1000,
+        description="Free-text semantics for the category (synonyms, merchant "
+                    "examples); fed into AI parsing prompts",
+        examples=["кофе, кафе, рестораны, доставка еды"]
     )
 
     is_active: bool | None = Field(
@@ -236,6 +252,12 @@ class ArticleResponse(BaseModel):
     type: str = Field(
         description="Article type: income or expense",
         examples=["expense"]
+    )
+
+    description: str | None = Field(
+        default=None,
+        description="Free-text semantics for the category (used by AI parsing)",
+        examples=["кофе, кафе, рестораны, доставка еды", None]
     )
 
     code: str | None = Field(

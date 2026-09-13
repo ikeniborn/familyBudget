@@ -93,6 +93,47 @@ function waitForOption(
     });
 }
 
+/** Set the parsed category. The category control is the CategoryTreeSelect
+ *  widget (window.transactionCategoryTreeSelect on dashboard/plan pages) —
+ *  writing into the raw hidden <select> does not update it. Prefer the
+ *  widget API (it retries while options load after the account change);
+ *  fall back to the raw select where no widget is exposed. */
+async function trySetCategory(
+    form: HTMLFormElement,
+    draft: TransactionDraft
+): Promise<boolean> {
+    const widget = (
+        window as unknown as {
+            transactionCategoryTreeSelect?: {
+                setSelectedCategory(id: number): Promise<void>;
+                getSelectedCategory(): { id: number } | null;
+            };
+        }
+    ).transactionCategoryTreeSelect;
+    if (widget?.setSelectedCategory) {
+        try {
+            await widget.setSelectedCategory(draft.article_id);
+            if (widget.getSelectedCategory()?.id === draft.article_id) {
+                return true;
+            }
+        } catch {
+            /* fall through to the raw select */
+        }
+    }
+    const articleSelect = form.querySelector<HTMLSelectElement>(
+        'select[name="article_id"]'
+    );
+    if (articleSelect) {
+        const ok = await waitForOption(articleSelect, String(draft.article_id), 5000);
+        if (ok) {
+            articleSelect.value = String(draft.article_id);
+            articleSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+        }
+    }
+    return false;
+}
+
 async function fillForm(form: HTMLFormElement, draft: TransactionDraft): Promise<string[]> {
     const issues: string[] = [...draft.warnings];
 
@@ -113,48 +154,25 @@ async function fillForm(form: HTMLFormElement, draft: TransactionDraft): Promise
         fcSelect.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    // 3. Category. The category control is the CategoryTreeSelect widget
-    //    (window.transactionCategoryTreeSelect on dashboard/plan pages) —
-    //    writing into the raw hidden <select> does not update it. Prefer the
-    //    widget API (it retries while options load after the account change);
-    //    fall back to the raw select where no widget is exposed.
-    let categorySet = false;
-    const widget = (
-        window as unknown as {
-            transactionCategoryTreeSelect?: {
-                setSelectedCategory(id: number): Promise<void>;
-                getSelectedCategory(): { id: number } | null;
-            };
-        }
-    ).transactionCategoryTreeSelect;
-    if (widget?.setSelectedCategory) {
-        try {
-            await widget.setSelectedCategory(draft.article_id);
-            categorySet = widget.getSelectedCategory()?.id === draft.article_id;
-        } catch {
-            categorySet = false;
-        }
-    }
-    if (!categorySet) {
-        const articleSelect = form.querySelector<HTMLSelectElement>(
-            'select[name="article_id"]'
-        );
-        if (articleSelect) {
-            const ok = await waitForOption(
-                articleSelect,
-                String(draft.article_id),
-                5000
-            );
-            if (ok) {
-                articleSelect.value = String(draft.article_id);
-                articleSelect.dispatchEvent(new Event('change', { bubbles: true }));
-                categorySet = true;
-            }
-        }
-    }
+    // 3. Category (see trySetCategory: widget API first, raw select fallback).
+    const categorySet = await trySetCategory(form, draft);
     if (!categorySet) {
         issues.push(
             `Категория «${draft.article_path}» не подставилась (возможно, не привязана к счёту) — выберите вручную`
+        );
+        // Retry once automatically after the user picks an account: the
+        // category widget reloads its options on account change.
+        const fcSelectForRetry = form.querySelector<HTMLSelectElement>(
+            'select[name="financial_center_id"]'
+        );
+        fcSelectForRetry?.addEventListener(
+            'change',
+            () => {
+                window.setTimeout(() => {
+                    void trySetCategory(form, draft);
+                }, 300);
+            },
+            { once: true }
         );
     }
 

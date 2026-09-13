@@ -13,7 +13,7 @@ categorization batches).
 import json
 import logging
 import time
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
 from sqlmodel import func, select
@@ -21,6 +21,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.ai_settings import AISettings
 from backend.app.models.article import Article, ArticleUsageStats
+from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.schemas.ai import TransactionDraft
 from backend.app.services.ai_provider_client import AIProviderClient
@@ -115,14 +116,33 @@ def format_candidate_lines(articles: list[dict[str, Any]]) -> str:
 
 
 async def get_financial_centers(session: AsyncSession) -> list[dict[str, Any]]:
+    """Active accounts ordered by 90-day usage; first one is the default
+    when the phrase names no account."""
+    usage = (
+        select(
+            BudgetFact.financial_center_id.label("fc_id"),
+            func.count().label("cnt"),
+        )
+        .where(BudgetFact.fact_date >= date.today() - timedelta(days=90))
+        .group_by(BudgetFact.financial_center_id)
+        .subquery()
+    )
     rows = (
         await session.execute(
-            select(FinancialCenter.id, FinancialCenter.name).where(
-                FinancialCenter.is_active == True  # noqa: E712
+            select(
+                FinancialCenter.id,
+                FinancialCenter.name,
+                func.coalesce(usage.c.cnt, 0).label("usage_count"),
             )
+            .outerjoin(usage, usage.c.fc_id == FinancialCenter.id)
+            .where(FinancialCenter.is_active == True)  # noqa: E712
+            .order_by(func.coalesce(usage.c.cnt, 0).desc())
         )
     ).all()
-    return [{"id": row.id, "name": row.name} for row in rows]
+    return [
+        {"id": row.id, "name": row.name, "usage_count": row.usage_count}
+        for row in rows
+    ]
 
 
 def _build_prompt(
@@ -131,7 +151,10 @@ def _build_prompt(
     today: date,
 ) -> str:
     article_lines = format_candidate_lines(articles)
-    center_lines = "\n".join(f"{c['id']}: {c['name']}" for c in centers)
+    center_lines = "\n".join(
+        f"{c['id']}: {c['name']}" + (" (основной)" if i == 0 else "")
+        for i, c in enumerate(centers)
+    )
     return (
         "Ты — парсер финансовых записей семейного бюджета. "
         "Разбери фразу пользователя (обычно на русском) в JSON-транзакцию.\n"
@@ -149,7 +172,9 @@ def _build_prompt(
         "- Пометка «(часто используется)» — подсказка о типичных категориях "
         "этой семьи, при прочих равных предпочитай их.\n"
         "- Если уверенности в категории нет, всё равно выбери ближайшую по "
-        "смыслу, но укажи низкий confidence (< 0.5).\n\n"
+        "смыслу, но укажи низкий confidence (< 0.5).\n"
+        "- Счёт: если в фразе счёт не назван (карта, наличные и т.п.) — "
+        "выбери счёт с пометкой (основной).\n\n"
         "Ответь ТОЛЬКО одним JSON-объектом без пояснений и без markdown:\n"
         "{\n"
         '  "article_id": <int, id категории из списка>,\n'
@@ -328,10 +353,14 @@ async def parse_transaction_text(
     if fc_id is not None and fc_id not in centers_by_id:
         fc_id = None
     if fc_id is None:
-        if len(centers) == 1:
-            fc_id = centers[0]["id"]
-        else:
-            warnings.append("Счёт не распознан — выберите вручную")
+        # Centers are ordered by 90-day usage: fall back to the family's
+        # main account instead of leaving the form blocked (categories are
+        # filtered by account), and say so honestly.
+        fc_id = centers[0]["id"]
+        if len(centers) > 1:
+            warnings.append(
+                f"Счёт не назван — подставлен основной ({centers[0]['name']}), проверьте"
+            )
 
     raw_confidence = payload.get("confidence")
     confidence_value = (
