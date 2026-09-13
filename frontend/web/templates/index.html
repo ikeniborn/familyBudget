@@ -3,6 +3,7 @@
 
 {# v9.0 Tabbed Modals #}
 {% from "components/modal_fact.html" import modal_fact %}
+{% from "components/modal_ai_receipt.html" import modal_ai_receipt %}
 {% from "components/modal_plan.html" import modal_plan %}
 {% from "components/modal_confirm.html" import confirm_modal %}
 
@@ -184,6 +185,7 @@
 <script src="/static/js/facts.min.js?v=PLACEHOLDER"></script>
 <!-- Dashboard Module (ES Module bundle) -->
 <script src="/static/js/dashboard.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/aiQuickAdd.min.js?v=PLACEHOLDER"></script>
 <!-- HTMX Widgets Manager (auto-refresh on network recovery) -->
 <script src="/static/js/htmxWidgets.js?v=PLACEHOLDER"></script>
 <!-- Confirm Dialog (custom modal for delete confirmations) -->
@@ -202,6 +204,7 @@
 
 <!-- v9.0 Tabbed Modals -->
 {{ modal_fact('modal_fact') }}
+{{ modal_ai_receipt() }}
 {{ modal_plan('modal_plan') }}
 
 <!-- Confirmation Dialog Modal -->

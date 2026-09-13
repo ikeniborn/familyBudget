@@ -4,6 +4,7 @@
 
 {# v9.0 Tabbed Modals #}
 {% from "components/modal_fact.html" import modal_fact %}
+{% from "components/modal_ai_receipt.html" import modal_ai_receipt %}
 
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
@@ -200,6 +201,7 @@
 
 <!-- v9.0 Tabbed Modals -->
 {{ modal_fact('modal_fact') }}
+{{ modal_ai_receipt() }}
 
 <!-- Confirmation Dialog (from macro) -->
 {{ confirm_modal() }}
@@ -326,6 +328,7 @@
 <script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER"></script>
 <script src="/static/js/transfers.min.js?v=PLACEHOLDER"></script>
 <script src="/static/js/facts.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/aiQuickAdd.min.js?v=PLACEHOLDER"></script>
 <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) already included in base.html -->
 <!-- FactsManager: TypeScript ES Module (Phase 3 - WebSocket Integration) -->
 <!-- All functionality moved to facts.min.js - no inline JavaScript needed -->

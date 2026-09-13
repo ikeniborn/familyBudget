@@ -1,4 +1,19 @@
 <!-- Fact Transaction Tab Content -->
+<!-- AI quick-add: hidden until GET /api/v1/ai/status reports text=true -->
+<div class="form-control ai-quickadd hidden mb-1">
+    <label class="label py-1">
+        <span class="label-text">🤖 Быстрый ввод</span>
+    </label>
+    <div class="join w-full">
+        <input type="text" class="input input-bordered input-sm join-item w-full ai-quickadd-input"
+               placeholder="кофе 350" maxlength="500" autocomplete="off" />
+        <button type="button" class="btn btn-sm join-item ai-voice-btn hidden" title="Надиктовать">🎤</button>
+        <button type="button" class="btn btn-sm join-item ai-receipt-btn hidden" title="Фото чека">📷</button>
+        <button type="button" class="btn btn-sm btn-primary join-item ai-quickadd-btn">✨ Разобрать</button>
+    </div>
+    <div class="ai-quickadd-result text-xs mt-1 text-base-content/70"></div>
+</div>
+
 <!-- Дата -->
 <div class="form-control">
     <label class="label py-1">
