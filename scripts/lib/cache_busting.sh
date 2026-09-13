@@ -58,6 +58,8 @@ update_cache_versions() {
         "${repo_dir}/frontend/web/templates/lists.html"
         "${repo_dir}/frontend/web/templates/admin_dashboard.html"
         "${repo_dir}/frontend/web/templates/admin_monitoring.html"
+        "${repo_dir}/frontend/web/templates/admin_import.html"
+        "${repo_dir}/frontend/web/templates/admin_ai_settings.html"
         "${repo_dir}/frontend/web/templates/admin_articles.html"
         "${repo_dir}/frontend/web/templates/admin_cost_centers.html"
         "${repo_dir}/frontend/web/templates/admin_financial_centers.html"
