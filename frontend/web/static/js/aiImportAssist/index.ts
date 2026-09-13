@@ -25,6 +25,28 @@ interface CategorizeResponse {
 const STATUS_URL = '/api/v1/ai/status';
 const CATEGORIZE_URL = '/api/v1/ai/categorize-import';
 
+/** Backend error envelope is {"detail": {"message": ...}} (APIException)
+ *  or {"detail": "..."} (plain FastAPI); extract a human-readable string. */
+function extractErrorMessage(body: unknown, status: number): string {
+    if (body && typeof body === 'object') {
+        const detail = (body as { detail?: unknown }).detail;
+        if (detail && typeof detail === 'object') {
+            const message = (detail as { message?: unknown }).message;
+            if (typeof message === 'string' && message) {
+                return message;
+            }
+        }
+        if (typeof detail === 'string' && detail) {
+            return detail;
+        }
+        const message = (body as { message?: unknown }).message;
+        if (typeof message === 'string' && message) {
+            return message;
+        }
+    }
+    return `Ошибка ${status}`;
+}
+
 function setStatus(message: string, isError = false): void {
     const status = document.getElementById('ai-categorize-status');
     if (status) {
@@ -58,11 +80,8 @@ async function categorize(button: HTMLButtonElement): Promise<void> {
             body: JSON.stringify({ staging_ids: null }),
         });
         if (!response.ok) {
-            const body = (await response.json().catch(() => ({}))) as {
-                message?: string;
-                detail?: string;
-            };
-            setStatus(body.message || body.detail || `Ошибка ${response.status}`, true);
+            const body: unknown = await response.json().catch(() => ({}));
+            setStatus(extractErrorMessage(body, response.status), true);
             return;
         }
         const data = (await response.json()) as CategorizeResponse;

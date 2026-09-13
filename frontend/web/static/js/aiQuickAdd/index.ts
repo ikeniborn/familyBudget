@@ -27,6 +27,28 @@ interface TransactionDraft {
 
 const STATUS_URL = '/api/v1/ai/status';
 const PARSE_URL = '/api/v1/ai/parse-transaction';
+
+/** Backend error envelope is {"detail": {"message": ...}} (APIException)
+ *  or {"detail": "..."} (plain FastAPI); extract a human-readable string. */
+function extractErrorMessage(body: unknown, status: number): string {
+    if (body && typeof body === 'object') {
+        const detail = (body as { detail?: unknown }).detail;
+        if (detail && typeof detail === 'object') {
+            const message = (detail as { message?: unknown }).message;
+            if (typeof message === 'string' && message) {
+                return message;
+            }
+        }
+        if (typeof detail === 'string' && detail) {
+            return detail;
+        }
+        const message = (body as { message?: unknown }).message;
+        if (typeof message === 'string' && message) {
+            return message;
+        }
+    }
+    return `Ошибка ${status}`;
+}
 const TRANSCRIBE_URL = '/api/v1/ai/transcribe';
 const MAX_RECORDING_MS = 120_000;
 
@@ -148,15 +170,8 @@ async function handleParseClick(button: HTMLButtonElement): Promise<void> {
             body: JSON.stringify({ text }),
         });
         if (!response.ok) {
-            const body = (await response.json().catch(() => ({}))) as {
-                message?: string;
-                detail?: string;
-            };
-            setResult(
-                block,
-                body.message || body.detail || `Ошибка ${response.status}`,
-                true
-            );
+            const body: unknown = await response.json().catch(() => ({}));
+            setResult(block, extractErrorMessage(body, response.status), true);
             return;
         }
         const draft = (await response.json()) as TransactionDraft;
@@ -189,11 +204,8 @@ async function uploadRecording(block: HTMLElement, blob: Blob): Promise<void> {
     try {
         const response = await fetch(TRANSCRIBE_URL, { method: 'POST', body: formData });
         if (!response.ok) {
-            const body = (await response.json().catch(() => ({}))) as {
-                message?: string;
-                detail?: string;
-            };
-            setResult(block, body.message || body.detail || `Ошибка ${response.status}`, true);
+            const body: unknown = await response.json().catch(() => ({}));
+            setResult(block, extractErrorMessage(body, response.status), true);
             return;
         }
         const data = (await response.json()) as { text: string };
@@ -417,11 +429,8 @@ async function recognizeReceipt(): Promise<void> {
             loadArticleOptions(),
         ]);
         if (!response.ok) {
-            const body = (await response.json().catch(() => ({}))) as {
-                message?: string;
-                detail?: string;
-            };
-            window.alert(body.message || body.detail || `Ошибка ${response.status}`);
+            const body: unknown = await response.json().catch(() => ({}));
+            window.alert(extractErrorMessage(body, response.status));
             return;
         }
         renderReceipt((await response.json()) as ReceiptDraft, articles);

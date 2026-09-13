@@ -55,20 +55,36 @@ function setStatus(message: string, isError = false): void {
         : 'text-sm text-base-content/70';
 }
 
+/** Backend error envelope is {"detail": {"message": ...}} (APIException)
+ *  or {"detail": "..."} (plain FastAPI); extract a human-readable string. */
+function extractErrorMessage(body: unknown, status: number): string {
+    if (body && typeof body === 'object') {
+        const detail = (body as { detail?: unknown }).detail;
+        if (detail && typeof detail === 'object') {
+            const message = (detail as { message?: unknown }).message;
+            if (typeof message === 'string' && message) {
+                return message;
+            }
+        }
+        if (typeof detail === 'string' && detail) {
+            return detail;
+        }
+        const message = (body as { message?: unknown }).message;
+        if (typeof message === 'string' && message) {
+            return message;
+        }
+    }
+    return `Ошибка ${status}`;
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await fetch(`${API_BASE}${path}`, {
         headers: { 'Content-Type': 'application/json' },
         ...init,
     });
     if (!response.ok) {
-        let detail = `HTTP ${response.status}`;
-        try {
-            const body = (await response.json()) as { message?: string; detail?: string };
-            detail = body.message || body.detail || detail;
-        } catch {
-            /* keep the HTTP status as the message */
-        }
-        throw new Error(detail);
+        const body: unknown = await response.json().catch(() => ({}));
+        throw new Error(extractErrorMessage(body, response.status));
     }
     return (await response.json()) as T;
 }

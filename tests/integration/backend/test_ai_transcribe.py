@@ -5,7 +5,6 @@ Provider mocked at AIProviderClient.transcribe. Conversion is exercised for
 both branches: RIFF passthrough (no ffmpeg) and a real ffmpeg round-trip
 (WAV -> ogg/opus -> WAV) using the bundled imageio-ffmpeg binary.
 """
-import asyncio
 import io
 import struct
 import subprocess
@@ -97,7 +96,7 @@ async def test_transcribe_garbage_audio_is_422(
     assert response.status_code == 422
 
 
-def test_convert_roundtrip_via_ffmpeg():
+async def test_convert_roundtrip_via_ffmpeg():
     """WAV -> ogg/opus (browser-like) -> convert_to_wav produces RIFF."""
     ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
     ogg = subprocess.run(
@@ -107,7 +106,5 @@ def test_convert_roundtrip_via_ffmpeg():
     ).stdout
     assert not ogg.startswith(b"RIFF")
 
-    wav = asyncio.get_event_loop().run_until_complete(
-        speech_service.convert_to_wav(ogg)
-    )
+    wav = await speech_service.convert_to_wav(ogg)
     assert wav.startswith(b"RIFF")
