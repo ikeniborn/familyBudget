@@ -16,11 +16,11 @@ import time
 from datetime import date
 from typing import Any
 
-from sqlmodel import select
+from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.ai_settings import AISettings
-from backend.app.models.article import Article
+from backend.app.models.article import Article, ArticleUsageStats
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.schemas.ai import TransactionDraft
 from backend.app.services.ai_provider_client import AIProviderClient
@@ -44,7 +44,12 @@ def invalidate_candidates_cache() -> None:
 
 
 async def get_article_candidates(session: AsyncSession) -> list[dict[str, Any]]:
-    """Active articles as {id, path, type}, path built from parent chain."""
+    """Active articles as {id, path, type, description, usage_count}.
+
+    Description carries the family's own semantics for the category, and
+    usage_count (daily-precomputed t_article_usage_stats) orders candidates
+    so the model sees the frequently used ones first.
+    """
     global _articles_cache, _articles_cache_at
     if (
         _articles_cache is not None
@@ -54,9 +59,16 @@ async def get_article_candidates(session: AsyncSession) -> list[dict[str, Any]]:
 
     rows = (
         await session.execute(
-            select(Article.id, Article.name, Article.type, Article.parent_id).where(
-                Article.is_active == True  # noqa: E712
+            select(
+                Article.id,
+                Article.name,
+                Article.type,
+                Article.parent_id,
+                Article.description,
+                func.coalesce(ArticleUsageStats.usage_count, 0).label("usage_count"),
             )
+            .outerjoin(ArticleUsageStats, Article.id == ArticleUsageStats.article_id)
+            .where(Article.is_active == True)  # noqa: E712
         )
     ).all()
     by_id = {row.id: row for row in rows}
@@ -72,11 +84,34 @@ async def get_article_candidates(session: AsyncSession) -> list[dict[str, Any]]:
             current = by_id.get(current.parent_id) if current.parent_id else None
         return " > ".join(reversed(parts))
 
-    _articles_cache = [
-        {"id": row.id, "path": build_path(row.id), "type": row.type} for row in rows
+    candidates = [
+        {
+            "id": row.id,
+            "path": build_path(row.id),
+            "type": row.type,
+            "description": (row.description or "").strip(),
+            "usage_count": row.usage_count,
+        }
+        for row in rows
     ]
+    candidates.sort(key=lambda c: c["usage_count"], reverse=True)
+    _articles_cache = candidates
     _articles_cache_at = time.monotonic()
     return _articles_cache
+
+
+def format_candidate_lines(articles: list[dict[str, Any]]) -> str:
+    """One prompt line per category: id, full path, type, own description,
+    and a frequency marker for commonly used ones."""
+    lines = []
+    for a in articles:
+        line = f"{a['id']}: {a['path']} [{a['type']}]"
+        if a.get("description"):
+            line += f" — {a['description']}"
+        if a.get("usage_count", 0) >= 10:
+            line += " (часто используется)"
+        lines.append(line)
+    return "\n".join(lines)
 
 
 async def get_financial_centers(session: AsyncSession) -> list[dict[str, Any]]:
@@ -95,16 +130,26 @@ def _build_prompt(
     centers: list[dict[str, Any]],
     today: date,
 ) -> str:
-    article_lines = "\n".join(
-        f"{a['id']}: {a['path']} [{a['type']}]" for a in articles
-    )
+    article_lines = format_candidate_lines(articles)
     center_lines = "\n".join(f"{c['id']}: {c['name']}" for c in centers)
     return (
         "Ты — парсер финансовых записей семейного бюджета. "
         "Разбери фразу пользователя (обычно на русском) в JSON-транзакцию.\n"
         f"Сегодня: {today.isoformat()}.\n\n"
-        f"Категории (id: путь [тип]):\n{article_lines}\n\n"
+        f"Категории (id: путь [тип] — описание):\n{article_lines}\n\n"
         f"Счета (id: название):\n{center_lines}\n\n"
+        "Правила выбора категории:\n"
+        "- Выбирай по СМЫСЛУ покупки (что именно куплено/получено), а не по "
+        "поверхностному совпадению букв в названии категории.\n"
+        "- Примеры смысла: кофе, капучино, обед, бизнес-ланч — еда вне дома / "
+        "кафе; аспирин, лекарства, витамины — аптека/здоровье; бензин, АЗС — "
+        "транспорт/авто; зарплата, аванс — доход.\n"
+        "- Путь категории читай целиком (родитель > потомок) и предпочитай "
+        "наиболее специфичную подходящую категорию.\n"
+        "- Пометка «(часто используется)» — подсказка о типичных категориях "
+        "этой семьи, при прочих равных предпочитай их.\n"
+        "- Если уверенности в категории нет, всё равно выбери ближайшую по "
+        "смыслу, но укажи низкий confidence (< 0.5).\n\n"
         "Ответь ТОЛЬКО одним JSON-объектом без пояснений и без markdown:\n"
         "{\n"
         '  "article_id": <int, id категории из списка>,\n'
@@ -139,13 +184,17 @@ CATEGORIZE_CHUNK_SIZE = 20
 
 
 def _build_categorize_prompt(articles: list[dict[str, Any]]) -> str:
-    article_lines = "\n".join(
-        f"{a['id']}: {a['path']} [{a['type']}]" for a in articles
-    )
+    article_lines = format_candidate_lines(articles)
     return (
         "Ты — классификатор банковских операций семейного бюджета. "
         "Для каждой строки подбери категорию из списка.\n\n"
-        f"Категории (id: путь [тип]):\n{article_lines}\n\n"
+        f"Категории (id: путь [тип] — описание):\n{article_lines}\n\n"
+        "Правила: выбирай по смыслу покупки (название магазина/мерчанта "
+        "подсказывает, что куплено: PYATEROCHKA/MAGNIT — продукты, APTEKA — "
+        "аптека, AZS/LUKOIL — топливо, кафе/рестораны — еда вне дома); "
+        "пометка «(часто используется)» — типичные категории этой семьи; "
+        "не уверен — ставь ближайшую по смыслу с confidence < 0.5, "
+        "совсем не понятно — article_id: null.\n\n"
         "На вход подаётся JSON-массив строк вида {\"id\": ..., \"text\": ...}. "
         "Ответь ТОЛЬКО JSON-массивом без пояснений и без markdown:\n"
         '[{"id": <id строки>, "article_id": <int id категории или null>, '
