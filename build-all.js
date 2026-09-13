@@ -67,6 +67,14 @@ const builds = [
     globalName: 'AISettingsApp'
   },
 
+  // === AI quick-add in the fact modal (ai-assisted-transaction-input, phase 2) ===
+  {
+    name: 'aiQuickAdd',
+    input: 'frontend/web/static/js/aiQuickAdd/index.ts',
+    output: 'frontend/web/static/js/aiQuickAdd.min.js',
+    globalName: 'AIQuickAddApp'
+  },
+
   {
     name: 'confirm-dialog',
     input: 'frontend/web/static/js/confirm-dialog-bundle.ts',

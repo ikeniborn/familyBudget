@@ -10,22 +10,30 @@ import struct
 import time
 import wave
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from backend.app.core.dependencies import CurrentAdmin, get_session
-from backend.app.core.exceptions import ServiceUnavailableException
+from backend.app.core.dependencies import CurrentAdmin, CurrentUser, get_session
+from backend.app.core.exceptions import (
+    ServiceUnavailableException,
+    UnprocessableEntityException,
+)
+from backend.app.middleware.rate_limiter import limiter
 from backend.app.schemas.ai import (
     AIHealthCheckResponse,
     AIModelInfo,
     AIModelsResponse,
     AISettingsResponse,
     AISettingsUpdate,
+    AIStatusResponse,
+    ParseTransactionRequest,
     SlotHealth,
+    TransactionDraft,
 )
 from backend.app.schemas.errors import get_common_responses
-from backend.app.services import ai_settings_service
+from backend.app.services import ai_settings_service, llm_parse_service
 from backend.app.services.ai_provider_client import AIProviderClient, AIProviderError
+from backend.app.services.llm_parse_service import AIParseError
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
@@ -115,6 +123,49 @@ async def list_provider_models(
         if entry.get("id")
     ]
     return AIModelsResponse(models=models)
+
+
+@router.get("/status", response_model=AIStatusResponse)
+async def ai_status(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> AIStatusResponse:
+    """Which AI features are available; drives visibility of UI buttons."""
+    settings = await ai_settings_service.get_settings_cached(session)
+    return AIStatusResponse(
+        enabled=settings.enabled,
+        text=settings.enabled and bool(settings.model_text),
+        image=settings.enabled and bool(settings.model_image),
+        voice=settings.enabled and bool(settings.model_voice),
+    )
+
+
+@router.post(
+    "/parse-transaction",
+    response_model=TransactionDraft,
+    responses=get_common_responses(include_422=True),
+)
+@limiter.limit("20/minute")
+async def parse_transaction(
+    request: Request,
+    data: ParseTransactionRequest,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> TransactionDraft:
+    """Parse a free-text phrase into a transaction draft (user confirms)."""
+    settings = await ai_settings_service.get_settings_cached(session)
+    if not settings.enabled or not settings.model_text:
+        raise ServiceUnavailableException(
+            "AI-функции выключены или текстовая модель не настроена"
+        )
+    try:
+        return await llm_parse_service.parse_transaction_text(
+            session, settings, data.text
+        )
+    except AIParseError:
+        raise UnprocessableEntityException(f"Не понял: «{data.text}»")
+    except AIProviderError as exc:
+        raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
 
 
 async def _check_text_slot(client: AIProviderClient, model: str) -> SlotHealth:
