@@ -12,6 +12,7 @@ from backend.app.api.v1.admin_export import router as admin_export_router
 from backend.app.api.v1.admin_staging import router as admin_staging_router
 from backend.app.api.v1.analytics import router as analytics_router
 from backend.app.api.v1.endpoints import (
+    ai_router,
     articles_router,
     auth_router,
     budget_ws_router,
@@ -64,6 +65,9 @@ api_router.include_router(webapp_router)
 
 # Articles endpoints (TASK-015) ✅
 api_router.include_router(articles_router)
+
+# AI module endpoints (ai-assisted-transaction-input, phase 1) ✅
+api_router.include_router(ai_router)
 
 # Financial Centers endpoints (TASK-007) ✅
 api_router.include_router(financial_centers_router)

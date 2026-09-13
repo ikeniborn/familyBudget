@@ -85,6 +85,29 @@ async def admin_users(
     )
 
 
+@web_router.get("/admin/ai-settings", response_class=HTMLResponse)
+async def admin_ai_settings(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    AI module settings page (admin only).
+
+    Configures the OpenAI-compatible provider endpoint, token, and the
+    model per slot (text / image / voice), with a per-slot health check.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_ai_settings.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "Настройки AI"
+        }
+    )
+
+
 @web_router.get("/admin/articles", response_class=HTMLResponse)
 async def admin_articles(
     request: Request,

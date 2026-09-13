@@ -59,6 +59,14 @@ const builds = [
     output: 'frontend/shared/static/js/calendar-widget.min.js',
     globalName: 'CalendarWidget'
   },
+  // === AI Settings admin page (ai-assisted-transaction-input, phase 1) ===
+  {
+    name: 'aiSettings',
+    input: 'frontend/web/static/js/aiSettings/index.ts',
+    output: 'frontend/web/static/js/aiSettings.min.js',
+    globalName: 'AISettingsApp'
+  },
+
   {
     name: 'confirm-dialog',
     input: 'frontend/web/static/js/confirm-dialog-bundle.ts',

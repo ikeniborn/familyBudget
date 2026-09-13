@@ -1,3 +1,26 @@
+---
+review:
+  intent_hash: aa69701f9d85f1ef
+  last_run: 2026-09-13
+  phases:
+    structure: passed
+    completeness: passed
+    clarity: passed
+    consistency: passed
+    alignment: passed
+  findings:
+    - id: F-001
+      phase: clarity
+      severity: WARNING
+      section: Health Metrics
+      section_hash: 34fe8742742537bd
+      fragment: "Fact form open time and PWA bundle size do not grow noticeably"
+      text: "No numeric threshold for 'noticeably' - metric not strictly measurable"
+      fix: "Define thresholds, e.g. bundle growth < 50 KB gzip, form open < +100 ms"
+      verdict: open
+      verdict_at: null
+---
+
 # Intent: ai-assisted-transaction-input
 
 **Date:** 2026-09-13

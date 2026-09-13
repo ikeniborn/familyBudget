@@ -23,6 +23,7 @@ This package contains all API endpoint routers organized by domain:
 - family_members: Family member CRUD endpoints (Medicine Tracking Feature)
 """
 
+from backend.app.api.v1.endpoints.ai import router as ai_router
 from backend.app.api.v1.endpoints.articles import router as articles_router
 from backend.app.api.v1.endpoints.family_members import router as family_members_router
 from backend.app.api.v1.endpoints.medicine_courses import router as medicine_courses_router
@@ -74,6 +75,7 @@ from backend.app.api.v1.endpoints.webauthn import router as webauthn_router
 
 __all__ = [
     "auth_router",
+    "ai_router",
     "articles_router",
     "family_members_router",
     "medicine_courses_router",
