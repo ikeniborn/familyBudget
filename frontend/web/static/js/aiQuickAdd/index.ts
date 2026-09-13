@@ -9,6 +9,8 @@
  * confirms with the normal save button — nothing is created automatically.
  */
 
+/* global MediaRecorder */
+
 interface TransactionDraft {
     article_id: number;
     article_path: string;
@@ -25,6 +27,11 @@ interface TransactionDraft {
 
 const STATUS_URL = '/api/v1/ai/status';
 const PARSE_URL = '/api/v1/ai/parse-transaction';
+const TRANSCRIBE_URL = '/api/v1/ai/transcribe';
+const MAX_RECORDING_MS = 120_000;
+
+let activeRecorder: MediaRecorder | null = null;
+let recorderStopTimer: number | undefined;
 
 function isoToDisplayDate(iso: string): string {
     const [year, month, day] = iso.split('-');
@@ -167,6 +174,88 @@ async function handleParseClick(button: HTMLButtonElement): Promise<void> {
     }
 }
 
+function stopRecording(): void {
+    if (activeRecorder && activeRecorder.state !== 'inactive') {
+        activeRecorder.stop();
+    }
+    window.clearTimeout(recorderStopTimer);
+}
+
+async function uploadRecording(block: HTMLElement, blob: Blob): Promise<void> {
+    setResult(block, 'Распознаю речь (первый запуск может занять минуту)…');
+    const formData = new FormData();
+    const extension = blob.type.includes('mp4') ? 'm4a' : 'webm';
+    formData.append('file', blob, `voice.${extension}`);
+    try {
+        const response = await fetch(TRANSCRIBE_URL, { method: 'POST', body: formData });
+        if (!response.ok) {
+            const body = (await response.json().catch(() => ({}))) as {
+                message?: string;
+                detail?: string;
+            };
+            setResult(block, body.message || body.detail || `Ошибка ${response.status}`, true);
+            return;
+        }
+        const data = (await response.json()) as { text: string };
+        const input = block.querySelector<HTMLInputElement>('.ai-quickadd-input');
+        if (input) {
+            input.value = data.text;
+        }
+        if (data.text.trim()) {
+            const parseButton = block.querySelector<HTMLButtonElement>('.ai-quickadd-btn');
+            if (parseButton) {
+                await handleParseClick(parseButton);
+            }
+        } else {
+            setResult(block, 'Ничего не расслышал — попробуйте ещё раз', true);
+        }
+    } catch {
+        setResult(block, 'Сеть недоступна — попробуйте позже', true);
+    }
+}
+
+async function handleVoiceClick(button: HTMLButtonElement): Promise<void> {
+    const block = button.closest<HTMLElement>('.ai-quickadd');
+    if (!block) {
+        return;
+    }
+    if (activeRecorder) {
+        // Second tap stops the active recording.
+        stopRecording();
+        return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+        setResult(block, 'Запись звука не поддерживается этим браузером', true);
+        return;
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream);
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                chunks.push(event.data);
+            }
+        };
+        recorder.onstop = () => {
+            stream.getTracks().forEach((track) => track.stop());
+            activeRecorder = null;
+            button.classList.remove('btn-error');
+            button.textContent = '🎤';
+            const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+            void uploadRecording(block, blob);
+        };
+        activeRecorder = recorder;
+        recorder.start();
+        button.classList.add('btn-error');
+        button.textContent = '⏹';
+        setResult(block, 'Говорите… (нажмите ⏹, чтобы закончить)');
+        recorderStopTimer = window.setTimeout(stopRecording, MAX_RECORDING_MS);
+    } catch {
+        setResult(block, 'Нет доступа к микрофону', true);
+    }
+}
+
 async function revealIfAvailable(): Promise<void> {
     const blocks = document.querySelectorAll<HTMLElement>('.ai-quickadd');
     if (blocks.length === 0) {
@@ -177,9 +266,14 @@ async function revealIfAvailable(): Promise<void> {
         if (!response.ok) {
             return;
         }
-        const status = (await response.json()) as { text: boolean };
+        const status = (await response.json()) as { text: boolean; voice: boolean };
         if (status.text) {
             blocks.forEach((b) => b.classList.remove('hidden'));
+        }
+        if (status.text && status.voice) {
+            document
+                .querySelectorAll<HTMLElement>('.ai-voice-btn')
+                .forEach((b) => b.classList.remove('hidden'));
         }
     } catch {
         // AI unavailable — blocks stay hidden, manual entry unaffected.
@@ -192,6 +286,11 @@ function init(): void {
         const button = target?.closest<HTMLButtonElement>('.ai-quickadd-btn');
         if (button) {
             void handleParseClick(button);
+            return;
+        }
+        const voiceButton = target?.closest<HTMLButtonElement>('.ai-voice-btn');
+        if (voiceButton) {
+            void handleVoiceClick(voiceButton);
         }
     });
     void revealIfAvailable();

@@ -10,7 +10,7 @@ import struct
 import time
 import wave
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, File, Request, UploadFile
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentAdmin, CurrentUser, get_session
@@ -31,9 +31,10 @@ from backend.app.schemas.ai import (
     TransactionDraft,
 )
 from backend.app.schemas.errors import get_common_responses
-from backend.app.services import ai_settings_service, llm_parse_service
+from backend.app.services import ai_settings_service, llm_parse_service, speech_service
 from backend.app.services.ai_provider_client import AIProviderClient, AIProviderError
 from backend.app.services.llm_parse_service import AIParseError
+from backend.app.services.speech_service import SpeechError
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
@@ -166,6 +167,33 @@ async def parse_transaction(
         raise UnprocessableEntityException(f"Не понял: «{data.text}»")
     except AIProviderError as exc:
         raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
+
+
+@router.post(
+    "/transcribe",
+    responses=get_common_responses(include_422=True),
+)
+@limiter.limit("10/minute")
+async def transcribe(
+    request: Request,
+    current_user: CurrentUser,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+) -> dict[str, str]:
+    """Transcribe a browser voice recording; audio is processed and discarded."""
+    settings = await ai_settings_service.get_settings_cached(session)
+    if not settings.enabled or not settings.model_voice:
+        raise ServiceUnavailableException(
+            "AI-функции выключены или голосовая модель не настроена"
+        )
+    data = await file.read()
+    try:
+        text = await speech_service.transcribe_audio(settings, data)
+    except SpeechError as exc:
+        raise UnprocessableEntityException(str(exc))
+    except AIProviderError as exc:
+        raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
+    return {"text": text}
 
 
 async def _check_text_slot(client: AIProviderClient, model: str) -> SlotHealth:
