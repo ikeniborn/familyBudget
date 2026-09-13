@@ -50,6 +50,8 @@ files=(
     "frontend/web/templates/admin_stores.html"
     "frontend/web/templates/admin_product_groups.html"
     "frontend/web/templates/admin_monitoring.html"
+    "frontend/web/templates/admin_import.html"
+    "frontend/web/templates/admin_ai_settings.html"
     "frontend/web/templates/admin_logs.html"
     "frontend/web/templates/2fa_setup.html"
     "frontend/web/templates/2fa_setup_login.html"
