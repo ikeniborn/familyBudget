@@ -75,6 +75,14 @@ const builds = [
     globalName: 'AIQuickAddApp'
   },
 
+  // === AI import categorization (ai-assisted-transaction-input, phase 4) ===
+  {
+    name: 'aiImportAssist',
+    input: 'frontend/web/static/js/aiImportAssist/index.ts',
+    output: 'frontend/web/static/js/aiImportAssist.min.js',
+    globalName: 'AIImportAssistApp'
+  },
+
   {
     name: 'confirm-dialog',
     input: 'frontend/web/static/js/confirm-dialog-bundle.ts',

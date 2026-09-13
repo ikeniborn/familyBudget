@@ -135,6 +135,100 @@ def _extract_json(content: str) -> dict[str, Any]:
     return payload
 
 
+CATEGORIZE_CHUNK_SIZE = 20
+
+
+def _build_categorize_prompt(articles: list[dict[str, Any]]) -> str:
+    article_lines = "\n".join(
+        f"{a['id']}: {a['path']} [{a['type']}]" for a in articles
+    )
+    return (
+        "Ты — классификатор банковских операций семейного бюджета. "
+        "Для каждой строки подбери категорию из списка.\n\n"
+        f"Категории (id: путь [тип]):\n{article_lines}\n\n"
+        "На вход подаётся JSON-массив строк вида {\"id\": ..., \"text\": ...}. "
+        "Ответь ТОЛЬКО JSON-массивом без пояснений и без markdown:\n"
+        '[{"id": <id строки>, "article_id": <int id категории или null>, '
+        '"confidence": <float 0..1>}]'
+    )
+
+
+async def categorize_texts(
+    session: AsyncSession,
+    settings: AISettings,
+    rows: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Suggest an article for each {id, text} row; invalid answers -> skipped.
+
+    Returns [{id, article_id, article_path, confidence_value}] for rows the
+    model matched to a real article; unmatched rows are simply absent.
+    """
+    articles = await get_article_candidates(session)
+    if not articles or not rows:
+        return []
+    articles_by_id = {a["id"]: a for a in articles}
+    prompt = _build_categorize_prompt(articles)
+    client = AIProviderClient(settings.endpoint_url, settings.api_token)
+
+    suggestions: list[dict[str, Any]] = []
+    for start in range(0, len(rows), CATEGORIZE_CHUNK_SIZE):
+        chunk = rows[start : start + CATEGORIZE_CHUNK_SIZE]
+        content = await client.chat_completions(
+            model=settings.model_text or "",
+            messages=[
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": json.dumps(chunk, ensure_ascii=False)},
+            ],
+            max_tokens=2048,
+        )
+        try:
+            payload = _extract_json_array(content)
+        except AIParseError:
+            logger.warning("Categorize chunk returned unparseable output; skipped")
+            continue
+
+        chunk_ids = {row["id"] for row in chunk}
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            row_id = item.get("id")
+            article = articles_by_id.get(item.get("article_id"))
+            if row_id not in chunk_ids or article is None:
+                continue
+            raw_confidence = item.get("confidence")
+            confidence_value = (
+                float(raw_confidence)
+                if isinstance(raw_confidence, (int, float))
+                and not isinstance(raw_confidence, bool)
+                else 0.0
+            )
+            suggestions.append(
+                {
+                    "id": row_id,
+                    "article_id": article["id"],
+                    "article_path": article["path"],
+                    "confidence_value": confidence_value,
+                }
+            )
+    return suggestions
+
+
+def _extract_json_array(content: str) -> list[Any]:
+    text = content.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.startswith("json"):
+            text = text[4:]
+        text = text.strip()
+    try:
+        payload = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise AIParseError("Model returned non-JSON output") from exc
+    if not isinstance(payload, list):
+        raise AIParseError("Model returned non-array JSON")
+    return payload
+
+
 async def parse_transaction_text(
     session: AsyncSession,
     settings: AISettings,

@@ -11,6 +11,7 @@ import time
 import wave
 
 from fastapi import APIRouter, Depends, File, Request, UploadFile
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentAdmin, CurrentUser, get_session
@@ -19,6 +20,7 @@ from backend.app.core.exceptions import (
     UnprocessableEntityException,
 )
 from backend.app.middleware.rate_limiter import limiter
+from backend.app.models.import_staging import ImportStaging
 from backend.app.schemas.ai import (
     AIHealthCheckResponse,
     AIModelInfo,
@@ -26,6 +28,9 @@ from backend.app.schemas.ai import (
     AISettingsResponse,
     AISettingsUpdate,
     AIStatusResponse,
+    CategorizeImportRequest,
+    CategorizeImportResponse,
+    ImportCategorySuggestion,
     ParseTransactionRequest,
     SlotHealth,
     TransactionDraft,
@@ -167,6 +172,67 @@ async def parse_transaction(
         raise UnprocessableEntityException(f"Не понял: «{data.text}»")
     except AIProviderError as exc:
         raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
+
+
+@router.post(
+    "/categorize-import",
+    response_model=CategorizeImportResponse,
+    responses=get_common_responses(include_422=True),
+)
+@limiter.limit("10/minute")
+async def categorize_import(
+    request: Request,
+    data: CategorizeImportRequest,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> CategorizeImportResponse:
+    """Suggest articles for the user's uncategorized staging rows.
+
+    Read-only: suggestions are returned, the client applies the accepted
+    ones through the normal staging PATCH endpoints.
+    """
+    settings = await ai_settings_service.get_settings_cached(session)
+    if not settings.enabled or not settings.model_text:
+        raise ServiceUnavailableException(
+            "AI-функции выключены или текстовая модель не настроена"
+        )
+
+    stmt = select(ImportStaging).where(
+        ImportStaging.user_id == current_user.id,
+        ImportStaging.article_id == None,  # noqa: E711
+    )
+    if data.staging_ids:
+        stmt = stmt.where(ImportStaging.id.in_(data.staging_ids))
+    rows = (await session.execute(stmt.limit(100))).scalars().all()
+
+    inputs = [
+        {"id": row.id, "text": (row.description or row.budget_description or "").strip()}
+        for row in rows
+        if (row.description or row.budget_description or "").strip()
+    ]
+    try:
+        raw = await llm_parse_service.categorize_texts(session, settings, inputs)
+    except AIProviderError as exc:
+        raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
+
+    suggestions = [
+        ImportCategorySuggestion(
+            staging_id=item["id"],
+            article_id=item["article_id"],
+            article_path=item["article_path"],
+            confidence=(
+                "high"
+                if item["confidence_value"] >= settings.confidence_threshold
+                else "low"
+            ),
+        )
+        for item in raw
+    ]
+    return CategorizeImportResponse(
+        suggestions=suggestions,
+        processed=len(inputs),
+        unmatched=len(inputs) - len(suggestions),
+    )
 
 
 @router.post(

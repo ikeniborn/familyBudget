@@ -89,6 +89,27 @@ class TransactionDraft(BaseModel):
     warnings: list[str] = []
 
 
+class CategorizeImportRequest(BaseModel):
+    """Optional narrowing to specific staging rows; empty = all uncategorized."""
+
+    staging_ids: list[int] | None = None
+
+
+class ImportCategorySuggestion(BaseModel):
+    staging_id: int
+    article_id: int
+    article_path: str
+    confidence: Literal["high", "low"]
+
+
+class CategorizeImportResponse(BaseModel):
+    """Suggestions only — nothing is written; the client applies them."""
+
+    suggestions: list[ImportCategorySuggestion]
+    processed: int
+    unmatched: int
+
+
 class AIModelInfo(BaseModel):
     """One model alias reported by the provider's GET /v1/models."""
 
