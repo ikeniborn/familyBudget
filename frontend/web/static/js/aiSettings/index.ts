@@ -139,26 +139,9 @@ async function loadSettings(): Promise<void> {
     fillForm(settings);
 }
 
-async function loadModels(): Promise<void> {
-    const button = el<HTMLButtonElement>('ai-load-models');
-    button.disabled = true;
-    setStatus('Загружаю список моделей…');
-    try {
-        const data = await apiFetch<{ models: AIModelInfo[] }>('/models');
-        fillModelSelects(data.models);
-        setStatus(`Моделей доступно: ${data.models.length}`);
-    } catch (error) {
-        setStatus(`Не удалось получить модели: ${(error as Error).message}`, true);
-    } finally {
-        button.disabled = false;
-    }
-}
-
-async function saveSettings(): Promise<void> {
-    const button = el<HTMLButtonElement>('ai-save');
-    button.disabled = true;
-    setStatus('Сохраняю…');
-
+/** PUT the current form state; providers read stored settings, so both
+ *  "load models" and "health check" persist the form first. */
+async function persistForm(): Promise<boolean> {
     const payload: Record<string, unknown> = {
         enabled: el<HTMLInputElement>('ai-enabled').checked,
         endpoint_url: el<HTMLInputElement>('ai-endpoint').value.trim(),
@@ -180,9 +163,39 @@ async function saveSettings(): Promise<void> {
             body: JSON.stringify(payload),
         });
         fillForm(settings);
-        setStatus('Настройки сохранены.');
+        return true;
     } catch (error) {
         setStatus(`Ошибка сохранения: ${(error as Error).message}`, true);
+        return false;
+    }
+}
+
+async function loadModels(): Promise<void> {
+    const button = el<HTMLButtonElement>('ai-load-models');
+    button.disabled = true;
+    setStatus('Сохраняю настройки и загружаю список моделей…');
+    try {
+        if (!(await persistForm())) {
+            return;
+        }
+        const data = await apiFetch<{ models: AIModelInfo[] }>('/models');
+        fillModelSelects(data.models);
+        setStatus(`Моделей доступно: ${data.models.length}`);
+    } catch (error) {
+        setStatus(`Не удалось получить модели: ${(error as Error).message}`, true);
+    } finally {
+        button.disabled = false;
+    }
+}
+
+async function saveSettings(): Promise<void> {
+    const button = el<HTMLButtonElement>('ai-save');
+    button.disabled = true;
+    setStatus('Сохраняю…');
+    try {
+        if (await persistForm()) {
+            setStatus('Настройки сохранены.');
+        }
     } finally {
         button.disabled = false;
     }
@@ -221,6 +234,9 @@ async function runHealthCheck(): Promise<void> {
     button.disabled = true;
     setStatus('Проверяю доступность (холодный старт модели может занять минуты)…');
     try {
+        if (!(await persistForm())) {
+            return;
+        }
         const result = await apiFetch<HealthCheckResponse>('/health-check', {
             method: 'POST',
         });
