@@ -1,6 +1,14 @@
 ---
+result_check:
+  verdict: OK
+  intent_hash: 0a5be0fb77a00552
+  last_run: 2026-09-13
+  note: >-
+    Diff reconciled against origin/test...HEAD (34 files, +3574). All six
+    Desired Outcomes covered by code+tests (43 AI tests green); outcome
+    verification on the dev stand (fbd, 375/768/1280) pending deploy.
 review:
-  intent_hash: aa69701f9d85f1ef
+  intent_hash: 0a5be0fb77a00552
   last_run: 2026-09-13
   phases:
     structure: passed
