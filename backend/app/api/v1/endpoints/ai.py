@@ -32,11 +32,17 @@ from backend.app.schemas.ai import (
     CategorizeImportResponse,
     ImportCategorySuggestion,
     ParseTransactionRequest,
+    ReceiptDraft,
     SlotHealth,
     TransactionDraft,
 )
 from backend.app.schemas.errors import get_common_responses
-from backend.app.services import ai_settings_service, llm_parse_service, speech_service
+from backend.app.services import (
+    ai_settings_service,
+    llm_parse_service,
+    speech_service,
+    vision_receipt_service,
+)
 from backend.app.services.ai_provider_client import AIProviderClient, AIProviderError
 from backend.app.services.llm_parse_service import AIParseError
 from backend.app.services.speech_service import SpeechError
@@ -260,6 +266,40 @@ async def transcribe(
     except AIProviderError as exc:
         raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
     return {"text": text}
+
+
+@router.post(
+    "/parse-receipt",
+    response_model=ReceiptDraft,
+    responses=get_common_responses(include_422=True),
+)
+@limiter.limit("10/minute")
+async def parse_receipt(
+    request: Request,
+    current_user: CurrentUser,
+    file: UploadFile = File(...),
+    session: AsyncSession = Depends(get_session),
+) -> ReceiptDraft:
+    """Recognize a receipt photo into an editable expense draft.
+
+    Read-only: the client creates facts through the normal POST /facts
+    after the user edits and confirms the item table. The image is
+    processed in memory and discarded.
+    """
+    settings = await ai_settings_service.get_settings_cached(session)
+    if not settings.enabled or not settings.model_image:
+        raise ServiceUnavailableException(
+            "AI-функции выключены или модель изображений не настроена"
+        )
+    data = await file.read()
+    try:
+        return await vision_receipt_service.parse_receipt(
+            session, settings, data, file.content_type or ""
+        )
+    except AIParseError as exc:
+        raise UnprocessableEntityException(f"Не удалось распознать чек: {exc}")
+    except AIProviderError as exc:
+        raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
 
 
 async def _check_text_slot(client: AIProviderClient, model: str) -> SlotHealth:

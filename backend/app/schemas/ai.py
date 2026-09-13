@@ -110,6 +110,25 @@ class CategorizeImportResponse(BaseModel):
     unmatched: int
 
 
+class ReceiptItemDraft(BaseModel):
+    """One recognized receipt line; article may be null for manual choice."""
+
+    name: str
+    amount: int
+    article_id: int | None = None
+    article_path: str | None = None
+    confidence: Literal["high", "low"]
+
+
+class ReceiptDraft(BaseModel):
+    """Editable draft built from a receipt photo; user confirms creation."""
+
+    store: str | None = None
+    receipt_date: date | None = None
+    items: list[ReceiptItemDraft]
+    total: int
+
+
 class AIModelInfo(BaseModel):
     """One model alias reported by the provider's GET /v1/models."""
 
