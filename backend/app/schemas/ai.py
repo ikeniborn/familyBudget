@@ -156,6 +156,26 @@ class AnalyticsChatResponse(BaseModel):
     income_total: float
 
 
+class AnalyticsChatHistoryItem(BaseModel):
+    """One persisted analytics-chat exchange (ai-analytics-chat-history)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    question: str
+    answer: str | None = None
+    status: Literal["ok", "parse_error", "provider_error"]
+    # Resolved scope + aggregates the answer was grounded in; null on failure.
+    scope: dict | None = None
+    created_at: datetime
+
+
+class AnalyticsChatHistoryResponse(BaseModel):
+    """The current user's recent exchanges, newest first."""
+
+    items: list[AnalyticsChatHistoryItem]
+
+
 class ParseBatchRequest(BaseModel):
     """Free-text describing one or many transactions (facts and/or plans)."""
 

@@ -1,4 +1,8 @@
 ---
+result_check:
+  verdict: OK
+  intent_hash: 15dea42f576f6bf6
+  last_run: 2026-09-15
 review:
   intent_hash: 15dea42f576f6bf6
   last_run: 2026-09-15

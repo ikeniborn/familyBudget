@@ -29,6 +29,7 @@ from backend.app.services.llm_parse_service import (
     AIParseError,
     _coerce_int,
     _extract_json,
+    format_candidate_lines,
     get_article_candidates,
 )
 
@@ -39,13 +40,15 @@ BREAKDOWN_LIMIT = 15
 
 
 def _build_extract_prompt(articles: list[dict[str, Any]], today: date) -> str:
-    article_lines = "\n".join(f"{a['id']}: {a['path']} [{a['type']}]" for a in articles)
+    # format_candidate_lines carries the family's own category descriptions
+    # and frequency markers — the semantic layer name matching alone lacks.
+    article_lines = format_candidate_lines(articles)
     return (
         "Ты — разборщик аналитических вопросов о семейном бюджете. "
         "Определи, за какой период и по каким категориям пользователь "
         "спрашивает.\n"
         f"Сегодня: {today.isoformat()}.\n\n"
-        f"Категории (id: путь [тип]):\n{article_lines}\n\n"
+        f"Категории (id: путь [тип] — описание):\n{article_lines}\n\n"
         "Правила:\n"
         "- «текущий месяц» — с 1-го числа по сегодня; «прошлый месяц» — "
         "весь предыдущий календарный месяц; «за год» — с 1 января; период "
@@ -69,10 +72,16 @@ _ANSWER_SYSTEM_PROMPT = (
     "Ты — финансовый аналитик семейного бюджета. Отвечай на вопрос "
     "пользователя ТОЛЬКО по переданным агрегированным данным: не выдумывай "
     "цифры и категории, не делай предположений о данных, которых нет. "
-    "Если данные не покрывают вопрос — скажи это прямо. Отвечай на "
-    "русском, кратко и структурно: сначала главная цифра/вывод, затем "
-    "детализация по категориям, если уместна. Суммы — в рублях, с "
-    "разделителями тысяч (например 12 350 ₽). Проценты округляй до целых."
+    "Если данные не покрывают вопрос — скажи это прямо. "
+    "Если итоги нулевые и список categories пуст — скажи прямо, что за "
+    "этот период данных нет; ничего не оценивай и не предполагай. "
+    "Если categories_truncated: true — перечислены только крупнейшие "
+    "категории; обязательно скажи, что показаны топ-категории и что "
+    "сумма перечисленного может быть меньше итога. "
+    "Отвечай на русском, кратко и структурно: сначала главная "
+    "цифра/вывод, затем детализация по категориям, если уместна. Суммы — "
+    "в рублях, с разделителями тысяч (например 12 350 ₽). Проценты "
+    "округляй до целых."
 )
 
 
@@ -161,6 +170,7 @@ async def answer_question(
             {"role": "system", "content": _build_extract_prompt(articles, today)},
             {"role": "user", "content": question},
         ],
+        response_format={"type": "json_object"},
         max_tokens=1536,
     )
     try:
