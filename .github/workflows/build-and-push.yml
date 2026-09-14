@@ -672,7 +672,13 @@ jobs:
         needs.check-version.outputs.trivyignore_changed == 'true' ||
         github.event_name == 'workflow_dispatch'
       ) &&
-      needs.image-build-push.result == 'success'
+      (
+        needs.image-build-push.result == 'success' ||
+        (
+          needs.check-version.outputs.trivyignore_changed == 'true' &&
+          needs.image-build-push.result == 'skipped'
+        )
+      )
     permissions:
       contents: read
       security-events: write
