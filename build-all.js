@@ -99,6 +99,14 @@ const builds = [
     globalName: 'AIBulkEntryApp'
   },
 
+  // === AI analytics chat: questions over budget aggregates (ai-analytics-chat) ===
+  {
+    name: 'aiAnalyticsChat',
+    input: 'frontend/web/static/js/aiAnalyticsChat/index.ts',
+    output: 'frontend/web/static/js/aiAnalyticsChat.min.js',
+    globalName: 'AIAnalyticsChatApp'
+  },
+
   {
     name: 'confirm-dialog',
     input: 'frontend/web/static/js/confirm-dialog-bundle.ts',

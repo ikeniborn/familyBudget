@@ -129,6 +129,31 @@ class ReceiptDraft(BaseModel):
     total: int
 
 
+class AnalyticsChatRequest(BaseModel):
+    """Natural-language question about the family budget data."""
+
+    question: str = Field(..., min_length=1, max_length=500)
+
+    @field_validator("question")
+    @classmethod
+    def question_strip(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("question must not be blank")
+        return v
+
+
+class AnalyticsChatResponse(BaseModel):
+    """Grounded answer plus the resolved scope for the UI badge."""
+
+    answer: str
+    period_start: date
+    period_end: date
+    record_type: Literal["fact", "plan"]
+    expense_total: float
+    income_total: float
+
+
 class ParseBatchRequest(BaseModel):
     """Free-text describing one or many transactions (facts and/or plans)."""
 

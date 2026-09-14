@@ -3,6 +3,8 @@
 {% block extra_head %}
 <!-- ECharts library -->
 <script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
+<!-- AI analytics chat (ai-analytics-chat) -->
+<script src="/static/js/aiAnalyticsChat.min.js?v=PLACEHOLDER" defer></script>
 <!-- BudgetShared bundle already included in base.html -->
 <link rel="stylesheet" href="/static/css/calendar-widget.min.css?v=PLACEHOLDER">
 
@@ -38,6 +40,25 @@
             <span>Пожалуйста, <a href="/api/v1/auth/telegram-login" class="link link-hover font-semibold">войдите</a> для просмотра аналитики.</span>
         </div>
     {% else %}
+        <!-- AI analytics chat (ai-analytics-chat): ask questions about the
+             data in natural language; hidden until GET /api/v1/ai/status
+             reports the text slot (revealed by the aiAnalyticsChat bundle) -->
+        <div id="ai-chat-card" class="card bg-base-100 shadow-md hidden">
+            <div class="card-body p-4">
+                <h2 class="font-semibold text-sm">💬 Спросить ИИ о данных</h2>
+                <div id="ai-chat-log" class="space-y-2 max-h-80 overflow-y-auto hidden"></div>
+                <div class="flex gap-2 mt-1">
+                    <input type="text" id="ai-chat-input" maxlength="500"
+                           class="input input-bordered input-sm flex-1 h-12"
+                           placeholder="Какие затраты по продуктам за текущий месяц?"
+                           autocomplete="off">
+                    <button type="button" id="ai-chat-voice" class="btn btn-sm btn-outline btn-info h-12 hidden">🎤</button>
+                    <button type="button" id="ai-chat-send" class="btn btn-sm btn-primary h-12">✨ <span class="hidden sm:inline">Спросить</span></button>
+                </div>
+                <div id="ai-chat-status" class="text-xs mt-1 text-base-content/70"></div>
+            </div>
+        </div>
+
         <!-- Period Filter (Unified for ALL charts) -->
         <div class="card bg-base-100 shadow-md" role="group" aria-label="Фильтр периода для всех графиков">
             <div class="card-body p-4">
