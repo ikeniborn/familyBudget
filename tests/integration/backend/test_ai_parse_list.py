@@ -15,6 +15,7 @@ from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.models.product_group import ProductGroup
+from backend.app.models.store import Store
 from backend.app.models.user import User
 from backend.app.schemas.ai import AISettingsUpdate
 from backend.app.services import ai_settings_service
@@ -34,10 +35,13 @@ async def seeded_groups(db_session: AsyncSession, test_user: User) -> dict:
     child = ProductGroup(
         creator_id=test_user.id, name="Молочные", parent_id=root.id, is_active=True
     )
+    store = Store(creator_id=test_user.id, name="Пятёрочка", is_active=True)
     db_session.add(child)
+    db_session.add(store)
     await db_session.commit()
     await db_session.refresh(child)
-    yield {"root": root, "child": child}
+    await db_session.refresh(store)
+    yield {"root": root, "child": child, "store": store}
     ai_settings_service.invalidate_cache()
 
 
@@ -76,16 +80,17 @@ async def test_valid_answer_maps_groups(
 ):
     await enable_text(db_session, test_user.id)
     child = seeded_groups["child"]
+    store = seeded_groups["store"]
     mock_chat(
         monkeypatch,
         '[{"name": "Молоко", "quantity": "2", "unit": "л", '
-        f'"group_id": {child.id}, "confidence": 0.9}},'
+        f'"group_id": {child.id}, "store_id": {store.id}, "confidence": 0.9}},'
         '{"name": "Хлеб", "quantity": null, "unit": "буханка", '
-        '"group_id": 99999, "confidence": 0.9}]',
+        '"group_id": 99999, "store_id": 88888, "confidence": 0.9}]',
     )
 
     response = await authenticated_client.post(
-        "/api/v1/ai/parse-list", json={"text": "молоко 2 л, хлеб"}
+        "/api/v1/ai/parse-list", json={"text": "молоко 2 л и хлеб из пятёрочки"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -97,11 +102,15 @@ async def test_valid_answer_maps_groups(
     assert milk["unit"] == "л"
     assert milk["product_group_id"] == child.id
     assert milk["product_group_path"] == "Продукты > Молочные"
+    # Store mention mapped onto the real dictionary row.
+    assert milk["store_id"] == store.id
+    assert milk["store_name"] == "Пятёрочка"
     assert milk["confidence"] == "high"
 
     bread = data["items"][1]
-    # Invented group id -> null for manual choice, low confidence flag.
+    # Invented group/store ids -> null for manual choice, low confidence flag.
     assert bread["product_group_id"] is None
+    assert bread["store_id"] is None
     assert bread["confidence"] == "low"
     assert bread["unit"] is None  # "буханка" is outside the allowed set
     assert data["warnings"]  # low-confidence warning present

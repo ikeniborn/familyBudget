@@ -118,7 +118,6 @@ export {
   openAddItemModal,
   openEditItemModal,
   closeItemModal,
-  applyItemDraft,
   handleDeleteFromModal,
   handleSaveItem,
   openCreateListModal,

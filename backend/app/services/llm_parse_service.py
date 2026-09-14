@@ -24,6 +24,7 @@ from backend.app.models.article import Article, ArticleUsageStats
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.product_group import ProductGroup
+from backend.app.models.store import Store
 from backend.app.schemas.ai import ListDraft, ListItemDraft, TransactionDraft
 from backend.app.services.ai_provider_client import AIProviderClient
 
@@ -379,25 +380,47 @@ async def get_product_group_candidates(session: AsyncSession) -> list[dict[str, 
     return [{"id": row.id, "path": build_path(row.id)} for row in rows]
 
 
-def _build_list_prompt(groups: list[dict[str, Any]]) -> str:
+async def get_store_candidates(session: AsyncSession) -> list[dict[str, Any]]:
+    """Active stores as {id, name} for the list-parsing prompt."""
+    rows = (
+        await session.execute(
+            select(Store.id, Store.name).where(Store.is_active == True)  # noqa: E712
+        )
+    ).all()
+    return [{"id": row.id, "name": row.name} for row in rows]
+
+
+def _build_list_prompt(
+    groups: list[dict[str, Any]], stores: list[dict[str, Any]]
+) -> str:
     group_lines = "\n".join(f"{g['id']}: {g['path']}" for g in groups)
+    store_lines = "\n".join(f"{s['id']}: {s['name']}" for s in stores)
     units = ", ".join(LIST_UNITS)
     return (
         "Ты — парсер списка покупок семейного бюджета. Пользователь "
         "перечисляет товары одной фразой (обычно на русском), возможно с "
-        "количеством и единицами. Разбей фразу на отдельные товары.\n\n"
+        "количеством, единицами и магазином. Разбей фразу на отдельные товары.\n\n"
         f"Группы товаров (id: путь):\n{group_lines}\n\n"
+        f"Магазины (id: название):\n{store_lines}\n\n"
         "Правила:\n"
         "- Для каждого товара подбери группу по смыслу (молоко, кефир — "
         "молочные; хлеб, батон — выпечка; мясо, курица — мясные и т.п.). "
         "Не уверен — group_id: null.\n"
+        "- Название магазина — НЕ товар. Упоминание магазина («в Пятёрочке», "
+        "«из Ленты», «магнит: ...») задаёт store_id для товаров, к которым "
+        "оно относится: до следующего упоминания магазина, или для всей "
+        "фразы, если магазин один. Сопоставляй только с магазинами из "
+        "списка (по смыслу и написанию); нет в списке или не упомянут — "
+        "store_id: null.\n"
         "- quantity — число, если названо («2 литра молока» → 2), иначе null.\n"
         f"- unit — одно из: {units}; иначе null («десяток яиц» → 10 шт).\n"
-        "- Название товара пиши кратко и с большой буквы, без количества.\n\n"
+        "- Название товара пиши кратко и с большой буквы, без количества "
+        "и без названия магазина.\n\n"
         "Ответь ТОЛЬКО JSON-массивом: без пояснений, без markdown, без "
         "текста до или после. Все числа — JSON-числа без кавычек.\n"
         '[{"name": "<название>", "quantity": <число или null>, '
         '"unit": "<единица или null>", "group_id": <int id группы или null>, '
+        '"store_id": <int id магазина или null>, '
         '"confidence": <float 0..1>}]\n'
         'Если фраза не содержит товаров, ответь: {"error": "not_understood"}'
     )
@@ -413,12 +436,14 @@ async def parse_shopping_list_text(
     if not groups:
         raise AIParseError("No active product groups to match against")
     groups_by_id = {g["id"]: g for g in groups}
+    stores = await get_store_candidates(session)
+    stores_by_id = {s["id"]: s for s in stores}
 
     client = AIProviderClient(settings.endpoint_url, settings.api_token)
     content = await client.chat_completions(
         model=settings.model_text or "",
         messages=[
-            {"role": "system", "content": _build_list_prompt(groups)},
+            {"role": "system", "content": _build_list_prompt(groups, stores)},
             {"role": "user", "content": text},
         ],
         max_tokens=2048,
@@ -457,6 +482,7 @@ async def parse_shopping_list_text(
         if unit not in LIST_UNITS:
             unit = None
         group = groups_by_id.get(_coerce_int(entry.get("group_id")))
+        store = stores_by_id.get(_coerce_int(entry.get("store_id")))
         raw_confidence = _coerce_float(entry.get("confidence")) or 0.0
         confidence = (
             "high"
@@ -470,6 +496,8 @@ async def parse_shopping_list_text(
                 unit=unit,
                 product_group_id=group["id"] if group else None,
                 product_group_path=group["path"] if group else None,
+                store_id=store["id"] if store else None,
+                store_name=store["name"] if store else None,
                 confidence=confidence,
             )
         )

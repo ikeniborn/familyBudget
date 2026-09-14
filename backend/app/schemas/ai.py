@@ -144,13 +144,15 @@ class ParseListRequest(BaseModel):
 
 
 class ListItemDraft(BaseModel):
-    """One parsed shopping list item; group may be null for manual choice."""
+    """One parsed shopping list item; group/store may be null for manual choice."""
 
     product_name: str
     quantity: float | None = None
     unit: str | None = None
     product_group_id: int | None = None
     product_group_path: str | None = None
+    store_id: int | None = None
+    store_name: str | None = None
     confidence: Literal["high", "low"]
 
 
