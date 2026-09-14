@@ -26,13 +26,11 @@
         </div>
 
         <div id="ai-bulk-result-step" class="hidden">
-            <div class="overflow-x-auto max-h-[60vh]">
-                <table class="table table-sm" id="ai-bulk-table">
-                    <thead>
-                        <tr><th></th><th>Тип</th><th>Дата</th><th>Сумма, ₽</th><th>Категория</th><th>Счёт</th><th>Описание</th></tr>
-                    </thead>
-                    <tbody><!-- rows rendered by aiBulkEntry bundle --></tbody>
-                </table>
+            <!-- Accordion rows: collapsed line shows the gist, expanding
+                 reveals the editable fields (no horizontal scroll on any
+                 breakpoint) -->
+            <div id="ai-bulk-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                <!-- rows rendered by aiBulkEntry bundle -->
             </div>
 
             <div class="mt-2">

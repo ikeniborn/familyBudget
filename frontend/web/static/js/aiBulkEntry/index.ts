@@ -150,34 +150,90 @@ function buildSelect(
     return select;
 }
 
+function isoToDisplay(iso: string): string {
+    const [year, month, day] = iso.split('-');
+    return year && month && day ? `${day}.${month}.${year}` : iso;
+}
+
+function fieldWrap(label: string, control: HTMLElement): HTMLElement {
+    const wrap = document.createElement('div');
+    const labelEl = document.createElement('div');
+    labelEl.className = 'text-xs text-base-content/60 mb-1';
+    labelEl.textContent = label;
+    wrap.append(labelEl, control);
+    return wrap;
+}
+
+/** Rewrite the collapsed one-line gist of a row from its current fields. */
+function updateSummary(index: string): void {
+    const pick = <T extends HTMLElement>(cls: string): T | null =>
+        document.querySelector<T>(`.${cls}[data-index="${index}"]`);
+    const summary = document.querySelector<HTMLElement>(
+        `.ai-bulk-summary[data-index="${index}"]`
+    );
+    if (!summary) {
+        return;
+    }
+    const typeValue = pick<HTMLSelectElement>('ai-bulk-type')?.value;
+    const dateValue = pick<HTMLInputElement>('ai-bulk-date')?.value ?? '';
+    const amount = pick<HTMLInputElement>('ai-bulk-amount')?.value || '?';
+    const articleSelect = pick<HTMLSelectElement>('ai-bulk-article');
+    const fcSelect = pick<HTMLSelectElement>('ai-bulk-fc');
+    const articleName =
+        articleSelect?.selectedOptions[0]?.value
+            ? articleSelect.selectedOptions[0].textContent
+            : '⚠ без категории';
+    const fcName = fcSelect?.selectedOptions[0]?.value
+        ? fcSelect.selectedOptions[0].textContent
+        : '⚠ без счёта';
+    summary.textContent = [
+        typeValue === 'plan' ? '📅 План' : '💸 Факт',
+        isoToDisplay(dateValue),
+        `${amount} ₽`,
+        articleName,
+        fcName,
+    ].join(' · ');
+}
+
 function renderItems(items: TransactionDraft[], warnings: string[]): void {
     currentItems = items;
     el<HTMLElement>('ai-bulk-input-step')?.classList.add('hidden');
     el<HTMLElement>('ai-bulk-result-step')?.classList.remove('hidden');
 
-    const tbody = document.querySelector<HTMLElement>('#ai-bulk-table tbody');
-    if (!tbody) {
+    const list = el<HTMLElement>('ai-bulk-list');
+    if (!list) {
         return;
     }
-    tbody.innerHTML = '';
+    list.innerHTML = '';
     items.forEach((item, index) => {
-        const row = document.createElement('tr');
+        const row = document.createElement('div');
+        row.className = 'flex items-start gap-2';
 
-        const checkCell = document.createElement('td');
+        // The include checkbox lives OUTSIDE the <details> so toggling it
+        // never expands/collapses the row.
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.className = 'checkbox checkbox-sm ai-bulk-include';
+        checkbox.className = 'checkbox checkbox-sm mt-4 ai-bulk-include';
         checkbox.checked = true;
         checkbox.dataset.index = String(index);
-        checkCell.appendChild(checkbox);
 
-        const typeCell = document.createElement('td');
+        const details = document.createElement('details');
+        details.className = 'collapse collapse-arrow bg-base-200 rounded-lg flex-1';
+
+        const summary = document.createElement('summary');
+        summary.className = 'collapse-title text-sm min-h-0 py-3 pr-10 cursor-pointer';
+        const summaryText = document.createElement('span');
+        summaryText.className = 'ai-bulk-summary';
+        summaryText.dataset.index = String(index);
+        summary.appendChild(summaryText);
+
+        const content = document.createElement('div');
+        content.className = 'collapse-content';
+        const grid = document.createElement('div');
+        grid.className = 'grid grid-cols-2 gap-2';
+
         const typeSelect = document.createElement('select');
-        // Explicit width: an unsized select-xs gets squeezed to nothing
-        // next to the wide category select, hiding the fact/plan choice.
-        // Inline styles: Tailwind's content scan does not cover .ts sources.
-        typeSelect.className = 'select select-bordered select-xs ai-bulk-type';
-        typeSelect.style.minWidth = '6.5rem';
+        typeSelect.className = 'select select-bordered select-sm w-full ai-bulk-type';
         typeSelect.dataset.index = String(index);
         for (const [value, label] of [
             ['fact', '💸 Факт'],
@@ -189,69 +245,60 @@ function renderItems(items: TransactionDraft[], warnings: string[]): void {
             typeSelect.appendChild(option);
         }
         typeSelect.value = item.record_type;
-        typeCell.appendChild(typeSelect);
 
-        const dateCell = document.createElement('td');
         const dateInput = document.createElement('input');
         dateInput.type = 'date';
-        dateInput.className = 'input input-bordered input-xs w-32 ai-bulk-date';
+        dateInput.className = 'input input-bordered input-sm w-full ai-bulk-date';
         dateInput.value = item.fact_date;
         dateInput.dataset.index = String(index);
-        dateCell.appendChild(dateInput);
 
-        const amountCell = document.createElement('td');
         const amountInput = document.createElement('input');
         amountInput.type = 'number';
         amountInput.min = '1';
         amountInput.step = '1';
-        amountInput.className = 'input input-bordered input-xs w-20 ai-bulk-amount';
+        amountInput.className = 'input input-bordered input-sm w-full ai-bulk-amount';
         amountInput.value = String(item.amount);
         amountInput.dataset.index = String(index);
-        amountCell.appendChild(amountInput);
 
-        const articleCell = document.createElement('td');
         const articleSelect = buildSelect(
-            'select select-bordered select-xs ai-bulk-article',
+            'select select-bordered select-sm w-full ai-bulk-article',
             articleOptions,
             item.article_id,
             index
         );
-        articleSelect.style.maxWidth = '10rem';
         if (item.confidence === 'low') {
             articleSelect.classList.add('select-warning');
             articleSelect.title = 'Проверь категорию';
         }
-        articleCell.appendChild(articleSelect);
 
-        const fcCell = document.createElement('td');
         const fcSelect = buildSelect(
-            'select select-bordered select-xs ai-bulk-fc',
+            'select select-bordered select-sm w-full ai-bulk-fc',
             centerOptions,
             item.financial_center_id,
             index
         );
-        fcSelect.style.maxWidth = '9rem';
-        fcCell.appendChild(fcSelect);
 
-        const descriptionCell = document.createElement('td');
         const descriptionInput = document.createElement('input');
         descriptionInput.type = 'text';
-        descriptionInput.className = 'input input-bordered input-xs w-32 ai-bulk-description';
+        descriptionInput.className =
+            'input input-bordered input-sm w-full ai-bulk-description';
         descriptionInput.value = item.description ?? '';
         descriptionInput.maxLength = 1000;
         descriptionInput.dataset.index = String(index);
-        descriptionCell.appendChild(descriptionInput);
 
-        row.append(
-            checkCell,
-            typeCell,
-            dateCell,
-            amountCell,
-            articleCell,
-            fcCell,
-            descriptionCell
+        grid.append(
+            fieldWrap('Тип', typeSelect),
+            fieldWrap('Дата', dateInput),
+            fieldWrap('Сумма, ₽', amountInput),
+            fieldWrap('Категория', articleSelect),
+            fieldWrap('Счёт', fcSelect),
+            fieldWrap('Описание', descriptionInput)
         );
-        tbody.appendChild(row);
+        content.appendChild(grid);
+        details.append(summary, content);
+        row.append(checkbox, details);
+        list.appendChild(row);
+        updateSummary(String(index));
     });
 
     const rowWarnings = items.flatMap((i) => i.warnings);
@@ -382,7 +429,7 @@ async function createRecords(): Promise<void> {
             if (response.ok) {
                 created += 1;
                 checkbox.checked = false;
-                checkbox.closest('tr')?.classList.add('opacity-40');
+                checkbox.parentElement?.classList.add('opacity-40');
             } else {
                 failed += 1;
             }
@@ -401,6 +448,15 @@ async function createRecords(): Promise<void> {
     setResultStatus(parts.join(' · '), failed > 0 || skipped > 0);
     if (button) {
         button.disabled = false;
+    }
+
+    // Everything selected was saved — close the dialog, the job is done.
+    if (created > 0 && failed === 0 && skipped === 0) {
+        const toast = (
+            window as unknown as { showToast?: (m: string, t?: string) => void }
+        ).showToast;
+        toast?.(`Создано записей: ${created}`, 'success');
+        (document.getElementById('modal_ai_bulk') as HTMLDialogElement | null)?.close();
     }
 }
 
@@ -567,6 +623,15 @@ function init(): void {
         const target = event.target as HTMLInputElement | null;
         if (target?.id === 'ai-bulk-photo' && target.files?.[0]) {
             void parsePhoto(target.files[0]);
+            return;
+        }
+        // Any edit inside an accordion row refreshes its collapsed gist.
+        if (
+            target?.dataset.index !== undefined &&
+            target.className.includes('ai-bulk-') &&
+            !target.className.includes('ai-bulk-include')
+        ) {
+            updateSummary(target.dataset.index);
         }
     });
     void revealIfAvailable();
