@@ -241,10 +241,27 @@ async def categorize_import(
         stmt = stmt.where(ImportStaging.id.in_(data.staging_ids))
     rows = (await session.execute(stmt.limit(100))).scalars().all()
 
+    def staging_text(row: ImportStaging) -> str:
+        """Description plus the bank's own CSV category — the strongest
+        classification signal the file carries («Оксана Т.» alone is
+        unclassifiable, with «категория банка: Переводы» it is not)."""
+        parts = [
+            p
+            for p in (
+                (row.description or "").strip(),
+                (row.budget_description or "").strip(),
+            )
+            if p
+        ]
+        csv_category = str((row.csv_metadata or {}).get("category") or "").strip()
+        if csv_category:
+            parts.append(f"категория банка: {csv_category}")
+        return " · ".join(parts)
+
     inputs = [
-        {"id": row.id, "text": (row.description or row.budget_description or "").strip()}
+        {"id": row.id, "text": text}
         for row in rows
-        if (row.description or row.budget_description or "").strip()
+        if (text := staging_text(row))
     ]
     try:
         raw = await llm_parse_service.categorize_texts(session, settings, inputs)

@@ -254,7 +254,10 @@ def _extract_json(content: str) -> dict[str, Any]:
     return payload
 
 
-CATEGORIZE_CHUNK_SIZE = 20
+# Small reasoning models think before answering: 10 rows per chunk keeps
+# the JSON answer inside the token budget (20 rows overflowed and lost the
+# whole chunk as unparseable output).
+CATEGORIZE_CHUNK_SIZE = 10
 
 
 def _build_categorize_prompt(articles: list[dict[str, Any]]) -> str:
@@ -263,15 +266,23 @@ def _build_categorize_prompt(articles: list[dict[str, Any]]) -> str:
         "Ты — классификатор банковских операций семейного бюджета. "
         "Для каждой строки подбери категорию из списка.\n\n"
         f"Категории (id: путь [тип] — описание):\n{article_lines}\n\n"
-        "Правила: выбирай по смыслу покупки (название магазина/мерчанта "
+        "Правила:\n"
+        "- Выбирай по смыслу покупки (название магазина/мерчанта "
         "подсказывает, что куплено: PYATEROCHKA/MAGNIT — продукты, APTEKA — "
-        "аптека, AZS/LUKOIL — топливо, кафе/рестораны — еда вне дома); "
-        "пометка «(часто используется)» — типичные категории этой семьи; "
-        "не уверен — ставь ближайшую по смыслу с confidence < 0.5, "
+        "аптека, AZS/LUKOIL — топливо, кафе/рестораны — еда вне дома).\n"
+        "- Часть строк содержит «категория банка: X» — это готовая "
+        "классификация банка, самый сильный сигнал: Супермаркеты — "
+        "продукты; Фастфуд, Рестораны — еда вне дома; Переводы (обычно "
+        "имя человека) — переводы/прочие расходы; Местный транспорт — "
+        "транспорт; Автоуслуги — авто; ЖКХ — коммунальные. Подбери "
+        "ближайшую категорию семьи по этому смыслу.\n"
+        "- Пометка «(часто используется)» — типичные категории этой семьи.\n"
+        "- Не уверен — ставь ближайшую по смыслу с confidence < 0.5; "
         "совсем не понятно — article_id: null.\n\n"
         "На вход подаётся JSON-массив строк вида {\"id\": ..., \"text\": ...}. "
-        "Ответь ТОЛЬКО JSON-массивом: без пояснений, без markdown, без текста "
-        "до или после. Все числа — JSON-числа без кавычек.\n"
+        "Ответь ТОЛЬКО JSON-массивом с ответом для КАЖДОЙ строки входа: "
+        "без пояснений, без markdown, без текста до или после. Все числа — "
+        "JSON-числа без кавычек.\n"
         '[{"id": <id строки>, "article_id": <int id категории или null>, '
         '"confidence": <float 0..1>}]'
     )
@@ -303,12 +314,19 @@ async def categorize_texts(
                 {"role": "system", "content": prompt},
                 {"role": "user", "content": json.dumps(chunk, ensure_ascii=False)},
             ],
-            max_tokens=2048,
+            # Reasoning models spend tokens thinking before the JSON.
+            max_tokens=4096,
         )
         try:
             payload = _extract_json_array(content)
         except AIParseError:
-            logger.warning("Categorize chunk returned unparseable output; skipped")
+            logger.warning(
+                "Categorize chunk of %d rows returned unparseable output "
+                "(len=%d): %.200s",
+                len(chunk),
+                len(content),
+                content,
+            )
             continue
 
         chunk_ids = {row["id"] for row in chunk}
