@@ -86,6 +86,15 @@ export function initTransactionCategoryTree(): void {
 
     setCreateCategoryTreeSelect(instance);
 
+    // Expose for cross-bundle consumers (AI quick-add fills the parsed
+    // category through the widget API). The dashboard bundle defines the
+    // same window property on its pages; facts pages have no dashboard
+    // bundle, so this assignment is the only provider here.
+    try {
+        (window as unknown as Record<string, unknown>).transactionCategoryTreeSelect =
+            instance;
+    } catch (_) { /* defineProperty getter without setter on hybrid pages */ }
+
     // Initial state: disabled until FC is selected (mirrors dashboard behaviour)
     instance.disable();
 
