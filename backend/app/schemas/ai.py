@@ -129,6 +129,38 @@ class ReceiptDraft(BaseModel):
     total: int
 
 
+class ParseListRequest(BaseModel):
+    """Free-text enumeration of products to parse into shopping list items."""
+
+    text: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("text")
+    @classmethod
+    def text_strip(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("text must not be blank")
+        return v
+
+
+class ListItemDraft(BaseModel):
+    """One parsed shopping list item; group may be null for manual choice."""
+
+    product_name: str
+    quantity: float | None = None
+    unit: str | None = None
+    product_group_id: int | None = None
+    product_group_path: str | None = None
+    confidence: Literal["high", "low"]
+
+
+class ListDraft(BaseModel):
+    """Editable draft of shopping list items; user confirms creation."""
+
+    items: list[ListItemDraft]
+    warnings: list[str] = []
+
+
 class AIModelInfo(BaseModel):
     """One model alias reported by the provider's GET /v1/models."""
 

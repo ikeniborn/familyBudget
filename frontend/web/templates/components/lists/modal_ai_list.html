@@ -1,0 +1,48 @@
+{% macro modal_ai_list() %}
+<!-- AI shopping list parsing modal (ai-assist-plan-lists).
+     Opened from the ✨ FAB button on the list detail view; driven by the
+     aiListAssist bundle. Items are created only after user confirmation. -->
+<dialog id="modal_ai_list" class="modal">
+    <div class="modal-box max-w-3xl">
+        <h3 class="font-bold text-lg mb-2">✨ Добавить товары списком</h3>
+
+        <div id="ai-list-input-step">
+            <textarea id="ai-list-text" class="textarea textarea-bordered w-full" rows="3"
+                      maxlength="2000"
+                      placeholder="молоко 2 л, хлеб, десяток яиц, куриное филе 1 кг"></textarea>
+            <p class="text-xs text-base-content/60 mt-1">Перечислите товары через запятую — ИИ разберёт названия, количество и группы.</p>
+            <div class="modal-action">
+                <button type="button" id="ai-list-parse" class="btn btn-primary">✨ Разобрать</button>
+                <form method="dialog"><button class="btn btn-ghost">Отмена</button></form>
+            </div>
+        </div>
+
+        <div id="ai-list-result-step" class="hidden">
+            <div class="form-control max-w-xs mb-3">
+                <label class="label py-1" for="ai-list-store"><span class="label-text text-xs">Магазин *</span></label>
+                <select id="ai-list-store" class="select select-bordered select-sm"></select>
+            </div>
+
+            <div class="overflow-x-auto max-h-96">
+                <table class="table table-sm" id="ai-list-table">
+                    <thead>
+                        <tr><th></th><th>Товар</th><th>Кол-во</th><th>Ед.</th><th>Группа</th></tr>
+                    </thead>
+                    <tbody><!-- rows rendered by aiListAssist bundle --></tbody>
+                </table>
+            </div>
+
+            <div class="mt-2">
+                <span id="ai-list-status" class="text-xs text-base-content/70"></span>
+            </div>
+
+            <div class="modal-action">
+                <button type="button" id="ai-list-create" class="btn btn-primary">Добавить в список</button>
+                <button type="button" id="ai-list-back" class="btn btn-ghost">← Изменить текст</button>
+                <form method="dialog"><button class="btn btn-ghost">Закрыть</button></form>
+            </div>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+{% endmacro %}

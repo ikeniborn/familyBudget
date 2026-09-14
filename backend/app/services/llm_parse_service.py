@@ -23,7 +23,8 @@ from backend.app.models.ai_settings import AISettings
 from backend.app.models.article import Article, ArticleUsageStats
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
-from backend.app.schemas.ai import TransactionDraft
+from backend.app.models.product_group import ProductGroup
+from backend.app.schemas.ai import ListDraft, ListItemDraft, TransactionDraft
 from backend.app.services.ai_provider_client import AIProviderClient
 
 logger = logging.getLogger(__name__)
@@ -349,6 +350,140 @@ def _extract_json_array(content: str) -> list[Any]:
     if not isinstance(payload, list):
         raise AIParseError("Model returned non-array JSON")
     return payload
+
+
+LIST_UNITS = ("шт", "кг", "г", "л", "мл", "уп", "пач")
+
+
+async def get_product_group_candidates(session: AsyncSession) -> list[dict[str, Any]]:
+    """Active product groups as {id, path} with the parent chain in the path."""
+    rows = (
+        await session.execute(
+            select(ProductGroup.id, ProductGroup.name, ProductGroup.parent_id).where(
+                ProductGroup.is_active == True  # noqa: E712
+            )
+        )
+    ).all()
+    by_id = {row.id: row for row in rows}
+
+    def build_path(group_id: int) -> str:
+        parts: list[str] = []
+        current = by_id.get(group_id)
+        for _ in range(20):
+            if current is None:
+                break
+            parts.append(current.name)
+            current = by_id.get(current.parent_id) if current.parent_id else None
+        return " > ".join(reversed(parts))
+
+    return [{"id": row.id, "path": build_path(row.id)} for row in rows]
+
+
+def _build_list_prompt(groups: list[dict[str, Any]]) -> str:
+    group_lines = "\n".join(f"{g['id']}: {g['path']}" for g in groups)
+    units = ", ".join(LIST_UNITS)
+    return (
+        "Ты — парсер списка покупок семейного бюджета. Пользователь "
+        "перечисляет товары одной фразой (обычно на русском), возможно с "
+        "количеством и единицами. Разбей фразу на отдельные товары.\n\n"
+        f"Группы товаров (id: путь):\n{group_lines}\n\n"
+        "Правила:\n"
+        "- Для каждого товара подбери группу по смыслу (молоко, кефир — "
+        "молочные; хлеб, батон — выпечка; мясо, курица — мясные и т.п.). "
+        "Не уверен — group_id: null.\n"
+        "- quantity — число, если названо («2 литра молока» → 2), иначе null.\n"
+        f"- unit — одно из: {units}; иначе null («десяток яиц» → 10 шт).\n"
+        "- Название товара пиши кратко и с большой буквы, без количества.\n\n"
+        "Ответь ТОЛЬКО JSON-массивом: без пояснений, без markdown, без "
+        "текста до или после. Все числа — JSON-числа без кавычек.\n"
+        '[{"name": "<название>", "quantity": <число или null>, '
+        '"unit": "<единица или null>", "group_id": <int id группы или null>, '
+        '"confidence": <float 0..1>}]\n'
+        'Если фраза не содержит товаров, ответь: {"error": "not_understood"}'
+    )
+
+
+async def parse_shopping_list_text(
+    session: AsyncSession,
+    settings: AISettings,
+    text: str,
+) -> ListDraft:
+    """Parse a free-text product enumeration into validated list item drafts."""
+    groups = await get_product_group_candidates(session)
+    if not groups:
+        raise AIParseError("No active product groups to match against")
+    groups_by_id = {g["id"]: g for g in groups}
+
+    client = AIProviderClient(settings.endpoint_url, settings.api_token)
+    content = await client.chat_completions(
+        model=settings.model_text or "",
+        messages=[
+            {"role": "system", "content": _build_list_prompt(groups)},
+            {"role": "user", "content": text},
+        ],
+        max_tokens=2048,
+    )
+
+    try:
+        payload = _extract_json_array(content)
+    except AIParseError:
+        # The not_understood answer is an object, not an array.
+        try:
+            obj = _extract_json(content)
+        except AIParseError:
+            logger.warning(
+                "AI list parse: non-JSON model output (len=%d): %.200s",
+                len(content),
+                content,
+            )
+            raise
+        if obj.get("error"):
+            raise AIParseError("Model reported not_understood")
+        raise AIParseError("Model returned non-array JSON")
+
+    warnings: list[str] = []
+    items: list[ListItemDraft] = []
+    for entry in payload:
+        if not isinstance(entry, dict):
+            continue
+        name = str(entry.get("name") or "").strip()[:255]
+        if not name:
+            continue
+        quantity = _coerce_float(entry.get("quantity"))
+        if quantity is not None and quantity <= 0:
+            quantity = None
+        unit = entry.get("unit")
+        unit = str(unit).strip().lower() if unit else None
+        if unit not in LIST_UNITS:
+            unit = None
+        group = groups_by_id.get(_coerce_int(entry.get("group_id")))
+        raw_confidence = _coerce_float(entry.get("confidence")) or 0.0
+        confidence = (
+            "high"
+            if group is not None and raw_confidence >= settings.confidence_threshold
+            else "low"
+        )
+        items.append(
+            ListItemDraft(
+                product_name=name,
+                quantity=quantity,
+                unit=unit,
+                product_group_id=group["id"] if group else None,
+                product_group_path=group["path"] if group else None,
+                confidence=confidence,
+            )
+        )
+
+    if not items:
+        logger.warning(
+            "AI list parse: no valid items in model output: %.200s", content
+        )
+        raise AIParseError("Model returned no valid items")
+
+    low_count = sum(1 for i in items if i.confidence == "low")
+    if low_count:
+        warnings.append(f"Проверь группу у позиций с ⚠ ({low_count})")
+    return ListDraft(items=items, warnings=warnings)
 
 
 async def parse_transaction_text(

@@ -99,6 +99,23 @@ interface CategoryWidget {
     waitForReady?(): Promise<void>;
 }
 
+/** The plan modal keeps its own widget instance (planCategoryTreeSelect);
+ *  the fact modal uses transactionCategoryTreeSelect. */
+function isPlanForm(form: HTMLFormElement): boolean {
+    return (
+        form.querySelector<HTMLInputElement>('input[name="context"]')?.value ===
+        'plan'
+    );
+}
+
+function resolveCategoryWidget(form: HTMLFormElement): CategoryWidget | undefined {
+    const w = window as unknown as {
+        transactionCategoryTreeSelect?: CategoryWidget;
+        planCategoryTreeSelect?: CategoryWidget;
+    };
+    return isPlanForm(form) ? w.planCategoryTreeSelect : w.transactionCategoryTreeSelect;
+}
+
 function sleep(ms: number): Promise<void> {
     return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -116,9 +133,7 @@ async function trySetCategory(
     form: HTMLFormElement,
     draft: TransactionDraft
 ): Promise<boolean> {
-    const widget = (
-        window as unknown as { transactionCategoryTreeSelect?: CategoryWidget }
-    ).transactionCategoryTreeSelect;
+    const widget = resolveCategoryWidget(form);
     const target = String(draft.article_id);
     const articleSelect = form.querySelector<HTMLSelectElement>(
         'select[name="article_id"]'
@@ -181,10 +196,24 @@ async function fillForm(form: HTMLFormElement, draft: TransactionDraft): Promise
     }
 
     // 3. Plain fields first — they have no async reload interplay.
+    //    The fact form has a date input; the plan form has month-period
+    //    buttons instead (offset 0..2 from the current month).
     const dateInput = form.querySelector<HTMLInputElement>('input[name="fact_date"]');
     if (dateInput) {
         dateInput.value = isoToDisplayDate(draft.fact_date);
         dateInput.dispatchEvent(new Event('input', { bubbles: true }));
+    } else if (isPlanForm(form)) {
+        const now = new Date();
+        const [draftYear, draftMonth] = draft.fact_date.split('-').map(Number);
+        const offset =
+            (draftYear - now.getFullYear()) * 12 + (draftMonth - 1 - now.getMonth());
+        if (offset >= 0 && offset <= 2) {
+            form.querySelector<HTMLElement>(
+                `.period-btn[data-offset="${offset}"]`
+            )?.click();
+        } else if (offset !== 0) {
+            issues.push('Период вне доступных месяцев — выберите вручную');
+        }
     }
     const amountInput = form.querySelector<HTMLInputElement>('input[name="amount"]');
     if (amountInput) {
@@ -233,9 +262,7 @@ async function fillForm(form: HTMLFormElement, draft: TransactionDraft): Promise
  *  the selection AFTER trySetCategory confirmed it. Watch for ~6 s and
  *  re-apply; reloads are finite, so the last write wins. */
 function startCategoryGuard(form: HTMLFormElement, draft: TransactionDraft): void {
-    const widget = (
-        window as unknown as { transactionCategoryTreeSelect?: CategoryWidget }
-    ).transactionCategoryTreeSelect;
+    const widget = resolveCategoryWidget(form);
     const articleSelect = form.querySelector<HTMLSelectElement>(
         'select[name="article_id"]'
     );
@@ -302,6 +329,13 @@ async function handleParseClick(button: HTMLButtonElement): Promise<void> {
     }
 }
 
+/** Keep the sm:hidden label span so the button stays icon-only on mobile. */
+function setVoiceButtonLabel(button: HTMLButtonElement, recording: boolean): void {
+    button.innerHTML = recording
+        ? '⏹ <span class="hidden sm:inline">Стоп</span>'
+        : '🎤 <span class="hidden sm:inline">Голос</span>';
+}
+
 function stopRecording(): void {
     if (activeRecorder && activeRecorder.state !== 'inactive') {
         activeRecorder.stop();
@@ -366,14 +400,14 @@ async function handleVoiceClick(button: HTMLButtonElement): Promise<void> {
             stream.getTracks().forEach((track) => track.stop());
             activeRecorder = null;
             button.classList.remove('btn-error');
-            button.textContent = '🎤 Голос';
+            setVoiceButtonLabel(button, false);
             const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
             void uploadRecording(block, blob);
         };
         activeRecorder = recorder;
         recorder.start();
         button.classList.add('btn-error');
-        button.textContent = '⏹ Стоп';
+        setVoiceButtonLabel(button, true);
         setResult(block, 'Говорите… (нажмите ⏹, чтобы закончить)');
         recorderStopTimer = window.setTimeout(stopRecording, MAX_RECORDING_MS);
     } catch {
