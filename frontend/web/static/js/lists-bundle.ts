@@ -76,7 +76,8 @@ import {
 
   // Cross-bundle state access (aiListAssist)
   getState,
-  loadShoppingListItems
+  loadShoppingListItems,
+  applyItemDraft
 } from './lists/listsManager/index';
 
 // Адаптеры с confirm dialogs
@@ -255,7 +256,9 @@ try {
         // AI list assist (separate IIFE bundle) needs the open list and a
         // refresh hook after batch-creating parsed items
         getCurrentListId: () => getState().currentListId,
-        reloadItems: (listId: number) => loadShoppingListItems(listId)
+        reloadItems: (listId: number) => loadShoppingListItems(listId),
+        // Fill the open item form from an AI-parsed draft (Choices-aware)
+        applyItemDraft
       },
       writable: false,
       configurable: false,
