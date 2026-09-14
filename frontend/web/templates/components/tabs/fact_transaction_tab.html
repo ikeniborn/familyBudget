@@ -4,12 +4,13 @@
     <label class="label py-1">
         <span class="label-text">🤖 Быстрый ввод</span>
     </label>
-    <div class="join w-full">
-        <input type="text" class="input input-bordered input-sm join-item w-full ai-quickadd-input"
-               placeholder="кофе 350" maxlength="500" autocomplete="off" />
-        <button type="button" class="btn btn-sm join-item ai-voice-btn hidden" title="Надиктовать">🎤</button>
-        <button type="button" class="btn btn-sm join-item ai-receipt-btn hidden" title="Фото чека">📷</button>
-        <button type="button" class="btn btn-sm btn-primary join-item ai-quickadd-btn">✨ Разобрать</button>
+    <input type="text" class="input input-bordered input-sm w-full ai-quickadd-input"
+           placeholder="кофе 350" maxlength="500" autocomplete="off" />
+    <!-- Buttons on their own row: the modal is narrow on mobile (375px) -->
+    <div class="flex gap-2 mt-2">
+        <button type="button" class="btn btn-sm btn-primary flex-1 gap-1 ai-quickadd-btn">✨ Разобрать</button>
+        <button type="button" class="btn btn-sm btn-outline btn-info flex-1 gap-1 ai-voice-btn hidden">🎤 Голос</button>
+        <button type="button" class="btn btn-sm btn-outline flex-1 gap-1 ai-receipt-btn hidden">📷 Чек</button>
     </div>
     <div class="ai-quickadd-result text-xs mt-1 text-base-content/70"></div>
 </div>
