@@ -394,3 +394,20 @@ CVE-2026-15308
 # Risk assessment: NONE (vulnerable binary absent from the image)
 # Next review: 2026-10-02 (monthly - check for a published Debian fix)
 CVE-2026-53613
+
+# CVE-2026-76642: util-linux failed external mount helper still runs privileged X-mount post-hooks (HIGH)
+# CVE-2026-78408: util-linux nsenter --join-cgroup leaks root cgroup migration authority (HIGH)
+# CVE-2026-78409: util-linux X-mount.subdir detached-tree resolution escapes via intermediate symlinks (HIGH)
+# CVE-2026-78410: util-linux restricted bind mounts do not pin the source (X-mount.owner/group/mode redirection) (HIGH)
+# Status: affected - no fix available for Debian 12 as of 2026-09-14
+# Package: libuuid1 v2.38.1-5+deb12u3 (all four reported against the util-linux source package)
+# Mitigation: NOT applicable - every one of these lives in the mount/nsenter binaries, which the image lacks
+#   - verified 2026-09-14: docker export of familybudget-backend:0.8.15 contains no bin/{mount,umount,nsenter,unshare}
+#   - only libuuid1 (the UUID library) is installed from the util-linux source package
+#   - the application performs no mount or namespace operation; the container runtime handles volumes
+# Risk assessment: NONE (vulnerable binaries absent from the image; same class as CVE-2026-53613 above)
+# Next review: 2026-10-14 (monthly - check for a published Debian fix)
+CVE-2026-76642
+CVE-2026-78408
+CVE-2026-78409
+CVE-2026-78410
