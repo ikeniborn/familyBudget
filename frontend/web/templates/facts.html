@@ -4,7 +4,6 @@
 
 {# v9.0 Tabbed Modals #}
 {% from "components/modal_fact.html" import modal_fact %}
-{% from "components/modal_ai_receipt.html" import modal_ai_receipt %}
 
 {% block extra_head %}
 <!-- CalendarWidget CSS -->
@@ -201,7 +200,6 @@
 
 <!-- v9.0 Tabbed Modals -->
 {{ modal_fact('modal_fact') }}
-{{ modal_ai_receipt() }}
 
 <!-- Confirmation Dialog (from macro) -->
 {{ confirm_modal() }}
