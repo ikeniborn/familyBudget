@@ -93,42 +93,68 @@ function waitForOption(
     });
 }
 
-/** Set the parsed category. The category control is the CategoryTreeSelect
- *  widget (window.transactionCategoryTreeSelect on dashboard/plan pages) —
- *  writing into the raw hidden <select> does not update it. Prefer the
- *  widget API (it retries while options load after the account change);
- *  fall back to the raw select where no widget is exposed. */
+interface CategoryWidget {
+    setSelectedCategory(id: number): Promise<void>;
+    getSelectedCategory(): { id: number } | null;
+    waitForReady?(): Promise<void>;
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+/** Set the parsed category and make it STICK.
+ *
+ *  The category control is the ChoicesCategoryTree widget
+ *  (window.transactionCategoryTreeSelect); writing into the raw hidden
+ *  <select> does not update it. Worse, our own account-change event kicks
+ *  off an async updateFinancialCenter() which, in mode='create' on the
+ *  initial account selection, force-clears any selection after reloading
+ *  the option list — a race that silently erases a value set once.
+ *  So: retry the set until it survives a settle window unchanged. */
 async function trySetCategory(
     form: HTMLFormElement,
     draft: TransactionDraft
 ): Promise<boolean> {
     const widget = (
-        window as unknown as {
-            transactionCategoryTreeSelect?: {
-                setSelectedCategory(id: number): Promise<void>;
-                getSelectedCategory(): { id: number } | null;
-            };
-        }
+        window as unknown as { transactionCategoryTreeSelect?: CategoryWidget }
     ).transactionCategoryTreeSelect;
-    if (widget?.setSelectedCategory) {
-        try {
-            await widget.setSelectedCategory(draft.article_id);
-            if (widget.getSelectedCategory()?.id === draft.article_id) {
-                return true;
-            }
-        } catch {
-            /* fall through to the raw select */
-        }
-    }
+    const target = String(draft.article_id);
     const articleSelect = form.querySelector<HTMLSelectElement>(
         'select[name="article_id"]'
     );
-    if (articleSelect) {
-        const ok = await waitForOption(articleSelect, String(draft.article_id), 5000);
-        if (ok) {
-            articleSelect.value = String(draft.article_id);
-            articleSelect.dispatchEvent(new Event('change', { bubbles: true }));
-            return true;
+
+    const isHeld = (): boolean =>
+        widget
+            ? widget.getSelectedCategory()?.id === draft.article_id
+            : articleSelect?.value === target;
+
+    for (let attempt = 0; attempt < 8; attempt++) {
+        if (widget?.setSelectedCategory) {
+            try {
+                await widget.waitForReady?.();
+                await widget.setSelectedCategory(draft.article_id);
+            } catch {
+                /* option list may still be reloading — retry below */
+            }
+        } else if (articleSelect) {
+            const ok = await waitForOption(articleSelect, target, 1000);
+            if (ok) {
+                articleSelect.value = target;
+                articleSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        } else {
+            return false;
+        }
+
+        // Survive one settle window: background category reloads (account /
+        // type change handlers) clear the selection when they finish.
+        await sleep(400);
+        if (isHeld()) {
+            await sleep(300);
+            if (isHeld()) {
+                return true;
+            }
         }
     }
     return false;
