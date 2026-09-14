@@ -173,11 +173,15 @@ function renderItems(items: TransactionDraft[], warnings: string[]): void {
 
         const typeCell = document.createElement('td');
         const typeSelect = document.createElement('select');
+        // Explicit width: an unsized select-xs gets squeezed to nothing
+        // next to the wide category select, hiding the fact/plan choice.
+        // Inline styles: Tailwind's content scan does not cover .ts sources.
         typeSelect.className = 'select select-bordered select-xs ai-bulk-type';
+        typeSelect.style.minWidth = '6.5rem';
         typeSelect.dataset.index = String(index);
         for (const [value, label] of [
-            ['fact', 'Факт'],
-            ['plan', 'План'],
+            ['fact', '💸 Факт'],
+            ['plan', '📅 План'],
         ] as const) {
             const option = document.createElement('option');
             option.value = value;
@@ -212,6 +216,7 @@ function renderItems(items: TransactionDraft[], warnings: string[]): void {
             item.article_id,
             index
         );
+        articleSelect.style.maxWidth = '10rem';
         if (item.confidence === 'low') {
             articleSelect.classList.add('select-warning');
             articleSelect.title = 'Проверь категорию';
@@ -225,6 +230,7 @@ function renderItems(items: TransactionDraft[], warnings: string[]): void {
             item.financial_center_id,
             index
         );
+        fcSelect.style.maxWidth = '9rem';
         fcCell.appendChild(fcSelect);
 
         const descriptionCell = document.createElement('td');
