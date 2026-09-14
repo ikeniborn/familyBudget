@@ -70,8 +70,10 @@ http:
     app-transport:
       forwardingTimeouts:
         dialTimeout: "75s"
-        responseHeaderTimeout: "300s"
-        idleConnTimeout: "300s"
+        # Above the AI provider client's 300 s read timeout: the backend
+        # must time out first (honest error), never the proxy (blank 504).
+        responseHeaderTimeout: "360s"
+        idleConnTimeout: "360s"
 
     websocket-transport:
       forwardingTimeouts:
