@@ -13,6 +13,7 @@ existing (non-AI) request paths.
 """
 import asyncio
 import logging
+import re
 from typing import Any
 
 import httpx
@@ -124,11 +125,19 @@ class AIProviderClient:
         )
         payload = response.json()
         try:
-            return payload["choices"][0]["message"]["content"] or ""
+            content = payload["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError) as exc:
             raise AIProviderError(
                 f"Unexpected chat response shape: {payload!r:.300}"
             ) from exc
+        # Reasoning models (qwen3 thinking variants) wrap or prepend their
+        # chain of thought in <think>...</think>; strip it so callers see
+        # only the final answer. An unclosed tag means the model spent the
+        # whole budget thinking — treat as empty.
+        if "<think>" in content:
+            content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL)
+            content = re.sub(r"<think>.*\Z", "", content, flags=re.DOTALL)
+        return content.strip()
 
     async def transcribe(
         self, wav_bytes: bytes, model: str, language: str = "ru"
