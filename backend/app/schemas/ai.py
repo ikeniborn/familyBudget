@@ -79,7 +79,9 @@ class TransactionDraft(BaseModel):
     article_id: int
     article_path: str
     article_type: str
-    amount: int
+    # None when the phrase names no amount — the model must not invent one;
+    # the user fills it in manually.
+    amount: int | None = None
     fact_date: date
     description: str | None = None
     financial_center_id: int | None = None

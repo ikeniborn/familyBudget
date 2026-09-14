@@ -117,6 +117,32 @@ async def test_parse_happy_path(
     assert draft["record_type"] == "fact"
 
 
+async def test_missing_amount_stays_empty_never_invented(
+    authenticated_client: AsyncClient,
+    authenticated_admin_client: AsyncClient,
+    seeded_refs,
+    monkeypatch,
+):
+    """No amount in the phrase -> amount null + a manual-entry warning."""
+    await enable_ai(authenticated_admin_client)
+    article_id = seeded_refs["article"].id
+    fc_id = seeded_refs["fc"].id
+    mock_chat(
+        monkeypatch,
+        f'{{"article_id": {article_id}, "amount": null, '
+        f'"fact_date": "{date.today()}", "description": null, '
+        f'"financial_center_id": {fc_id}, "confidence": 0.9}}',
+    )
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/parse-transaction", json={"text": "кофе завтра счёт тбанк"}
+    )
+    assert response.status_code == 200
+    draft = response.json()
+    assert draft["amount"] is None
+    assert any("Сумма не указана" in w for w in draft["warnings"])
+
+
 async def test_parse_not_understood_is_422(
     authenticated_client: AsyncClient,
     authenticated_admin_client: AsyncClient,
