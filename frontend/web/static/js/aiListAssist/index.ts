@@ -7,7 +7,13 @@
  * table (name, quantity, unit, product group). Items are created via the
  * normal POST /api/v1/shopping-list-items only after user confirmation —
  * the LLM never writes to the database.
+ *
+ * Also drives the AI block in the single-item modal (#ai-item-assist):
+ * voice dictation and parse of the product-name field, filled through
+ * window.listsManager.applyItemDraft (Choices-aware).
  */
+
+/* global MediaRecorder */
 
 interface ListItemDraft {
     product_name: string;
@@ -29,19 +35,31 @@ interface Option {
     parent_id?: number | null;
 }
 
+interface ItemDraftPayload {
+    name: string;
+    quantity: number | null;
+    unit: string | null;
+    groupId: number | null;
+}
+
 interface ListsManagerBridge {
     getCurrentListId?: () => number | null;
     reloadItems?: (listId: number) => Promise<void>;
+    applyItemDraft?: (draft: ItemDraftPayload) => void;
 }
 
 const STATUS_URL = '/api/v1/ai/status';
 const PARSE_URL = '/api/v1/ai/parse-list';
+const TRANSCRIBE_URL = '/api/v1/ai/transcribe';
 const ITEMS_URL = '/api/v1/shopping-list-items';
 const UNITS = ['шт', 'кг', 'г', 'л', 'мл', 'уп', 'пач'];
+const MAX_RECORDING_MS = 120_000;
 
 let storeOptions: Option[] = [];
 let groupOptions: Option[] = [];
 let currentDraft: ListDraft | null = null;
+let activeRecorder: MediaRecorder | null = null;
+let recorderStopTimer: number | undefined;
 
 /** Backend error envelope is {"detail": {"message": ...}} (APIException)
  *  or {"detail": "..."} (plain FastAPI); extract a human-readable string. */
@@ -344,6 +362,166 @@ async function createItems(): Promise<void> {
     }
 }
 
+// ==================== Item modal assist (single product) ====================
+
+function setItemStatus(message: string, isError = false): void {
+    const status = el<HTMLElement>('ai-item-status');
+    if (status) {
+        status.textContent = message;
+        status.className = isError ? 'text-xs mt-1 text-error' : 'text-xs mt-1 text-base-content/70';
+    }
+}
+
+/** Parse the product-name field text into name/quantity/unit/group and
+ *  fill the item form through the listsManager bridge (Choices-aware). */
+async function parseItemText(): Promise<void> {
+    const nameInput = el<HTMLInputElement>('item-product-name');
+    const button = el<HTMLButtonElement>('ai-item-parse');
+    const text = nameInput?.value.trim() ?? '';
+    if (!text) {
+        setItemStatus('Введите или надиктуйте товар, например: «молоко 2 литра»', true);
+        return;
+    }
+    if (button) {
+        button.disabled = true;
+    }
+    setItemStatus('Разбираю…');
+    try {
+        const response = await fetch(PARSE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text }),
+        });
+        if (!response.ok) {
+            const body: unknown = await response.json().catch(() => ({}));
+            setItemStatus(extractErrorMessage(body, response.status), true);
+            return;
+        }
+        const draft = (await response.json()) as ListDraft;
+        const item = draft.items[0];
+        if (!item) {
+            setItemStatus('Не понял — уточните название', true);
+            return;
+        }
+        bridge().applyItemDraft?.({
+            name: item.product_name,
+            quantity: item.quantity,
+            unit: item.unit,
+            groupId: item.product_group_id,
+        });
+        const notes: string[] = [];
+        if (item.product_group_id === null) {
+            notes.push('группа не определена — выберите вручную');
+        }
+        if (draft.items.length > 1) {
+            notes.push(
+                `распознано позиций: ${draft.items.length}, заполнена первая (для нескольких — «Добавить списком»)`
+            );
+        }
+        setItemStatus(notes.length > 0 ? `⚠ ${notes.join('; ')}` : `→ ${item.product_name}`);
+    } catch {
+        setItemStatus('Сеть недоступна — попробуйте позже', true);
+    } finally {
+        if (button) {
+            button.disabled = false;
+        }
+    }
+}
+
+// ==================== Voice recording (shared) ====================
+
+function setVoiceLabel(button: HTMLButtonElement, recording: boolean): void {
+    button.innerHTML = recording
+        ? '⏹ <span class="hidden sm:inline">Стоп</span>'
+        : '🎤 <span class="hidden sm:inline">Голос</span>';
+}
+
+function stopRecording(): void {
+    if (activeRecorder && activeRecorder.state !== 'inactive') {
+        activeRecorder.stop();
+    }
+    window.clearTimeout(recorderStopTimer);
+}
+
+/** Record, transcribe, put the text into the target and auto-parse.
+ *  target 'list' -> #ai-list-text + parseText; 'item' -> #item-product-name + parseItemText. */
+async function handleVoice(button: HTMLButtonElement, target: 'list' | 'item'): Promise<void> {
+    const say = target === 'list' ? setStatus : setItemStatus;
+    if (activeRecorder) {
+        stopRecording();
+        return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+        say('Запись звука не поддерживается этим браузером', true);
+        return;
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream);
+        const chunks: Blob[] = [];
+        recorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                chunks.push(event.data);
+            }
+        };
+        recorder.onstop = () => {
+            stream.getTracks().forEach((track) => track.stop());
+            activeRecorder = null;
+            button.classList.remove('btn-error');
+            setVoiceLabel(button, false);
+            const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
+            void uploadRecording(blob, target);
+        };
+        activeRecorder = recorder;
+        recorder.start();
+        button.classList.add('btn-error');
+        setVoiceLabel(button, true);
+        say('Говорите… (нажмите ⏹, чтобы закончить)');
+        recorderStopTimer = window.setTimeout(stopRecording, MAX_RECORDING_MS);
+    } catch {
+        say('Нет доступа к микрофону', true);
+    }
+}
+
+async function uploadRecording(blob: Blob, target: 'list' | 'item'): Promise<void> {
+    const say = target === 'list' ? setStatus : setItemStatus;
+    say('Распознаю речь (первый запуск может занять минуту)…');
+    const formData = new FormData();
+    const extension = blob.type.includes('mp4') ? 'm4a' : 'webm';
+    formData.append('file', blob, `voice.${extension}`);
+    try {
+        const response = await fetch(TRANSCRIBE_URL, { method: 'POST', body: formData });
+        if (!response.ok) {
+            const body: unknown = await response.json().catch(() => ({}));
+            say(extractErrorMessage(body, response.status), true);
+            return;
+        }
+        const data = (await response.json()) as { text: string };
+        const text = data.text.trim();
+        if (!text) {
+            say('Ничего не расслышал — попробуйте ещё раз', true);
+            return;
+        }
+        if (target === 'list') {
+            const textarea = el<HTMLTextAreaElement>('ai-list-text');
+            if (textarea) {
+                textarea.value = textarea.value.trim()
+                    ? `${textarea.value.trim()}, ${text}`
+                    : text;
+            }
+            await parseText();
+        } else {
+            const nameInput = el<HTMLInputElement>('item-product-name');
+            if (nameInput) {
+                nameInput.value = text;
+            }
+            await parseItemText();
+        }
+    } catch {
+        say('Сеть недоступна — попробуйте позже', true);
+    }
+}
+
 function openModal(): void {
     const dialog = document.getElementById('modal_ai_list') as HTMLDialogElement | null;
     if (!dialog) {
@@ -369,12 +547,17 @@ async function revealIfAvailable(): Promise<void> {
         if (!response.ok) {
             return;
         }
-        const status = (await response.json()) as { text: boolean };
+        const status = (await response.json()) as { text: boolean; voice: boolean };
         if (status.text) {
             el<HTMLElement>('fab-item-ai-list')?.classList.remove('hidden');
+            el<HTMLElement>('ai-item-assist')?.classList.remove('hidden');
+        }
+        if (status.text && status.voice) {
+            el<HTMLElement>('ai-list-voice')?.classList.remove('hidden');
+            el<HTMLElement>('ai-item-voice')?.classList.remove('hidden');
         }
     } catch {
-        // AI unavailable — the button stays hidden, manual entry unaffected.
+        // AI unavailable — the buttons stay hidden, manual entry unaffected.
     }
 }
 
@@ -393,6 +576,20 @@ function init(): void {
         if (target?.closest('#ai-list-back')) {
             el<HTMLElement>('ai-list-input-step')?.classList.remove('hidden');
             el<HTMLElement>('ai-list-result-step')?.classList.add('hidden');
+            return;
+        }
+        const listVoice = target?.closest<HTMLButtonElement>('#ai-list-voice');
+        if (listVoice) {
+            void handleVoice(listVoice, 'list');
+            return;
+        }
+        const itemVoice = target?.closest<HTMLButtonElement>('#ai-item-voice');
+        if (itemVoice) {
+            void handleVoice(itemVoice, 'item');
+            return;
+        }
+        if (target?.closest('#ai-item-parse')) {
+            void parseItemText();
         }
     });
     void revealIfAvailable();
