@@ -4,13 +4,10 @@
  * Standalone IIFE bundle for lists.html. Reveals the ✨ FAB button when
  * GET /api/v1/ai/status reports the text slot available; "Разобрать" sends
  * the phrase to POST /api/v1/ai/parse-list and renders an editable draft
- * table (name, quantity, unit, product group). Items are created via the
- * normal POST /api/v1/shopping-list-items only after user confirmation —
- * the LLM never writes to the database.
- *
- * Also drives the AI block in the single-item modal (#ai-item-assist):
- * voice dictation and parse of the product-name field, filled through
- * window.listsManager.applyItemDraft (Choices-aware).
+ * table (name, quantity, unit, product group, per-item store — the model
+ * maps store mentions like «в Пятёрочке» onto real stores). Items are
+ * created via the normal POST /api/v1/shopping-list-items only after user
+ * confirmation — the LLM never writes to the database.
  */
 
 /* global MediaRecorder */
@@ -21,6 +18,8 @@ interface ListItemDraft {
     unit: string | null;
     product_group_id: number | null;
     product_group_path: string | null;
+    store_id: number | null;
+    store_name: string | null;
     confidence: 'high' | 'low';
 }
 
@@ -35,17 +34,9 @@ interface Option {
     parent_id?: number | null;
 }
 
-interface ItemDraftPayload {
-    name: string;
-    quantity: number | null;
-    unit: string | null;
-    groupId: number | null;
-}
-
 interface ListsManagerBridge {
     getCurrentListId?: () => number | null;
     reloadItems?: (listId: number) => Promise<void>;
-    applyItemDraft?: (draft: ItemDraftPayload) => void;
 }
 
 const STATUS_URL = '/api/v1/ai/status';
@@ -127,12 +118,9 @@ async function loadDictionaries(): Promise<void> {
     }
 }
 
-function renderStoreSelect(): void {
-    const select = el<HTMLSelectElement>('ai-list-store');
-    if (!select) {
-        return;
-    }
-    select.innerHTML = '';
+function buildStoreSelect(className: string, selectedId: number | null): HTMLSelectElement {
+    const select = document.createElement('select');
+    select.className = className;
     const placeholder = document.createElement('option');
     placeholder.value = '';
     placeholder.textContent = '— выберите —';
@@ -143,16 +131,45 @@ function renderStoreSelect(): void {
         option.textContent = store.name;
         select.appendChild(option);
     }
+    if (selectedId !== null) {
+        select.value = String(selectedId);
+    }
+    return select;
+}
+
+/** The top select is the DEFAULT store: changing it fills every per-item
+ *  select that has no value yet (recognized stores are not overwritten). */
+function renderDefaultStoreSelect(): void {
+    const holder = el<HTMLElement>('ai-list-store-holder');
+    if (!holder) {
+        return;
+    }
+    holder.innerHTML = '';
+    const select = buildStoreSelect('select select-bordered select-sm', null);
+    select.id = 'ai-list-store';
     if (storeOptions.length === 1) {
         select.value = String(storeOptions[0].id);
     }
+    select.addEventListener('change', () => {
+        if (!select.value) {
+            return;
+        }
+        document
+            .querySelectorAll<HTMLSelectElement>('.ai-list-item-store')
+            .forEach((rowSelect) => {
+                if (!rowSelect.value) {
+                    rowSelect.value = select.value;
+                }
+            });
+    });
+    holder.appendChild(select);
 }
 
 function renderDraft(draft: ListDraft): void {
     currentDraft = draft;
     el<HTMLElement>('ai-list-input-step')?.classList.add('hidden');
     el<HTMLElement>('ai-list-result-step')?.classList.remove('hidden');
-    renderStoreSelect();
+    renderDefaultStoreSelect();
 
     const byId = new Map(groupOptions.map((g) => [g.id, g]));
     const sortedGroups = groupOptions
@@ -234,7 +251,15 @@ function renderDraft(draft: ListDraft): void {
         }
         groupCell.appendChild(groupSelect);
 
-        row.append(checkCell, nameCell, qtyCell, unitCell, groupCell);
+        const storeCell = document.createElement('td');
+        const storeSelect = buildStoreSelect(
+            'select select-bordered select-xs ai-list-item-store',
+            item.store_id
+        );
+        storeSelect.dataset.index = String(index);
+        storeCell.appendChild(storeSelect);
+
+        row.append(checkCell, nameCell, qtyCell, unitCell, groupCell, storeCell);
         tbody.appendChild(row);
     });
 
@@ -282,11 +307,7 @@ async function createItems(): Promise<void> {
         setStatus('Откройте список, в который добавлять товары', true);
         return;
     }
-    const storeId = Number(el<HTMLSelectElement>('ai-list-store')?.value || 0);
-    if (!storeId) {
-        setStatus('Выберите магазин', true);
-        return;
-    }
+    const defaultStoreId = Number(el<HTMLSelectElement>('ai-list-store')?.value || 0);
     const button = el<HTMLButtonElement>('ai-list-create');
     if (button) {
         button.disabled = true;
@@ -295,6 +316,7 @@ async function createItems(): Promise<void> {
     let created = 0;
     let skipped = 0;
     let failed = 0;
+    let noStore = 0;
     const rows = document.querySelectorAll<HTMLInputElement>('.ai-list-include');
     for (const checkbox of Array.from(rows)) {
         if (!checkbox.checked) {
@@ -315,6 +337,17 @@ async function createItems(): Promise<void> {
                 `.ai-list-group[data-index="${index}"]`
             )?.value || 0
         );
+        // Per-item store wins; the top select is only the default fallback.
+        const storeId =
+            Number(
+                document.querySelector<HTMLSelectElement>(
+                    `.ai-list-item-store[data-index="${index}"]`
+                )?.value || 0
+            ) || defaultStoreId;
+        if (!storeId) {
+            noStore += 1;
+            continue;
+        }
         if (!name || !groupId) {
             skipped += 1;
             continue;
@@ -347,13 +380,16 @@ async function createItems(): Promise<void> {
     }
 
     const parts = [`добавлено: ${created}`];
+    if (noStore > 0) {
+        parts.push(`без магазина: ${noStore} — выберите магазин в строке или по умолчанию`);
+    }
     if (skipped > 0) {
         parts.push(`пропущено (нет группы/названия): ${skipped}`);
     }
     if (failed > 0) {
         parts.push(`ошибок: ${failed}`);
     }
-    setStatus(parts.join(' · '), failed > 0);
+    setStatus(parts.join(' · '), failed > 0 || noStore > 0);
     if (created > 0) {
         void bridge().reloadItems?.(listId);
     }
@@ -362,73 +398,7 @@ async function createItems(): Promise<void> {
     }
 }
 
-// ==================== Item modal assist (single product) ====================
-
-function setItemStatus(message: string, isError = false): void {
-    const status = el<HTMLElement>('ai-item-status');
-    if (status) {
-        status.textContent = message;
-        status.className = isError ? 'text-xs mt-1 text-error' : 'text-xs mt-1 text-base-content/70';
-    }
-}
-
-/** Parse the product-name field text into name/quantity/unit/group and
- *  fill the item form through the listsManager bridge (Choices-aware). */
-async function parseItemText(): Promise<void> {
-    const nameInput = el<HTMLInputElement>('item-product-name');
-    const button = el<HTMLButtonElement>('ai-item-parse');
-    const text = nameInput?.value.trim() ?? '';
-    if (!text) {
-        setItemStatus('Введите или надиктуйте товар, например: «молоко 2 литра»', true);
-        return;
-    }
-    if (button) {
-        button.disabled = true;
-    }
-    setItemStatus('Разбираю…');
-    try {
-        const response = await fetch(PARSE_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text }),
-        });
-        if (!response.ok) {
-            const body: unknown = await response.json().catch(() => ({}));
-            setItemStatus(extractErrorMessage(body, response.status), true);
-            return;
-        }
-        const draft = (await response.json()) as ListDraft;
-        const item = draft.items[0];
-        if (!item) {
-            setItemStatus('Не понял — уточните название', true);
-            return;
-        }
-        bridge().applyItemDraft?.({
-            name: item.product_name,
-            quantity: item.quantity,
-            unit: item.unit,
-            groupId: item.product_group_id,
-        });
-        const notes: string[] = [];
-        if (item.product_group_id === null) {
-            notes.push('группа не определена — выберите вручную');
-        }
-        if (draft.items.length > 1) {
-            notes.push(
-                `распознано позиций: ${draft.items.length}, заполнена первая (для нескольких — «Добавить списком»)`
-            );
-        }
-        setItemStatus(notes.length > 0 ? `⚠ ${notes.join('; ')}` : `→ ${item.product_name}`);
-    } catch {
-        setItemStatus('Сеть недоступна — попробуйте позже', true);
-    } finally {
-        if (button) {
-            button.disabled = false;
-        }
-    }
-}
-
-// ==================== Voice recording (shared) ====================
+// ==================== Voice recording ====================
 
 function setVoiceLabel(button: HTMLButtonElement, recording: boolean): void {
     button.innerHTML = recording
@@ -443,16 +413,14 @@ function stopRecording(): void {
     window.clearTimeout(recorderStopTimer);
 }
 
-/** Record, transcribe, put the text into the target and auto-parse.
- *  target 'list' -> #ai-list-text + parseText; 'item' -> #item-product-name + parseItemText. */
-async function handleVoice(button: HTMLButtonElement, target: 'list' | 'item'): Promise<void> {
-    const say = target === 'list' ? setStatus : setItemStatus;
+/** Record, transcribe, append the text to the textarea and auto-parse. */
+async function handleVoice(button: HTMLButtonElement): Promise<void> {
     if (activeRecorder) {
         stopRecording();
         return;
     }
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-        say('Запись звука не поддерживается этим браузером', true);
+        setStatus('Запись звука не поддерживается этим браузером', true);
         return;
     }
     try {
@@ -470,22 +438,21 @@ async function handleVoice(button: HTMLButtonElement, target: 'list' | 'item'): 
             button.classList.remove('btn-error');
             setVoiceLabel(button, false);
             const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
-            void uploadRecording(blob, target);
+            void uploadRecording(blob);
         };
         activeRecorder = recorder;
         recorder.start();
         button.classList.add('btn-error');
         setVoiceLabel(button, true);
-        say('Говорите… (нажмите ⏹, чтобы закончить)');
+        setStatus('Говорите… (нажмите ⏹, чтобы закончить)');
         recorderStopTimer = window.setTimeout(stopRecording, MAX_RECORDING_MS);
     } catch {
-        say('Нет доступа к микрофону', true);
+        setStatus('Нет доступа к микрофону', true);
     }
 }
 
-async function uploadRecording(blob: Blob, target: 'list' | 'item'): Promise<void> {
-    const say = target === 'list' ? setStatus : setItemStatus;
-    say('Распознаю речь (первый запуск может занять минуту)…');
+async function uploadRecording(blob: Blob): Promise<void> {
+    setStatus('Распознаю речь (первый запуск может занять минуту)…');
     const formData = new FormData();
     const extension = blob.type.includes('mp4') ? 'm4a' : 'webm';
     formData.append('file', blob, `voice.${extension}`);
@@ -493,32 +460,24 @@ async function uploadRecording(blob: Blob, target: 'list' | 'item'): Promise<voi
         const response = await fetch(TRANSCRIBE_URL, { method: 'POST', body: formData });
         if (!response.ok) {
             const body: unknown = await response.json().catch(() => ({}));
-            say(extractErrorMessage(body, response.status), true);
+            setStatus(extractErrorMessage(body, response.status), true);
             return;
         }
         const data = (await response.json()) as { text: string };
         const text = data.text.trim();
         if (!text) {
-            say('Ничего не расслышал — попробуйте ещё раз', true);
+            setStatus('Ничего не расслышал — попробуйте ещё раз', true);
             return;
         }
-        if (target === 'list') {
-            const textarea = el<HTMLTextAreaElement>('ai-list-text');
-            if (textarea) {
-                textarea.value = textarea.value.trim()
-                    ? `${textarea.value.trim()}, ${text}`
-                    : text;
-            }
-            await parseText();
-        } else {
-            const nameInput = el<HTMLInputElement>('item-product-name');
-            if (nameInput) {
-                nameInput.value = text;
-            }
-            await parseItemText();
+        const textarea = el<HTMLTextAreaElement>('ai-list-text');
+        if (textarea) {
+            textarea.value = textarea.value.trim()
+                ? `${textarea.value.trim()}, ${text}`
+                : text;
         }
+        await parseText();
     } catch {
-        say('Сеть недоступна — попробуйте позже', true);
+        setStatus('Сеть недоступна — попробуйте позже', true);
     }
 }
 
@@ -550,11 +509,9 @@ async function revealIfAvailable(): Promise<void> {
         const status = (await response.json()) as { text: boolean; voice: boolean };
         if (status.text) {
             el<HTMLElement>('fab-item-ai-list')?.classList.remove('hidden');
-            el<HTMLElement>('ai-item-assist')?.classList.remove('hidden');
         }
         if (status.text && status.voice) {
             el<HTMLElement>('ai-list-voice')?.classList.remove('hidden');
-            el<HTMLElement>('ai-item-voice')?.classList.remove('hidden');
         }
     } catch {
         // AI unavailable — the buttons stay hidden, manual entry unaffected.
@@ -580,16 +537,7 @@ function init(): void {
         }
         const listVoice = target?.closest<HTMLButtonElement>('#ai-list-voice');
         if (listVoice) {
-            void handleVoice(listVoice, 'list');
-            return;
-        }
-        const itemVoice = target?.closest<HTMLButtonElement>('#ai-item-voice');
-        if (itemVoice) {
-            void handleVoice(itemVoice, 'item');
-            return;
-        }
-        if (target?.closest('#ai-item-parse')) {
-            void parseItemText();
+            void handleVoice(listVoice);
         }
     });
     void revealIfAvailable();

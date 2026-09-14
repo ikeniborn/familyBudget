@@ -19,15 +19,16 @@
         </div>
 
         <div id="ai-list-result-step" class="hidden">
-            <div class="form-control max-w-xs mb-3">
-                <label class="label py-1" for="ai-list-store"><span class="label-text text-xs">Магазин *</span></label>
-                <select id="ai-list-store" class="select select-bordered select-sm"></select>
+            <!-- Default store: fills per-item selects that have no recognized store -->
+            <div class="form-control max-w-xs mb-3" id="ai-list-store-holder-wrap">
+                <label class="label py-1" for="ai-list-store"><span class="label-text text-xs">Магазин по умолчанию (для строк без магазина)</span></label>
+                <div id="ai-list-store-holder"><!-- select rendered by aiListAssist bundle --></div>
             </div>
 
             <div class="overflow-x-auto max-h-96">
                 <table class="table table-sm" id="ai-list-table">
                     <thead>
-                        <tr><th></th><th>Товар</th><th>Кол-во</th><th>Ед.</th><th>Группа</th></tr>
+                        <tr><th></th><th>Товар</th><th>Кол-во</th><th>Ед.</th><th>Группа</th><th>Магазин</th></tr>
                     </thead>
                     <tbody><!-- rows rendered by aiListAssist bundle --></tbody>
                 </table>

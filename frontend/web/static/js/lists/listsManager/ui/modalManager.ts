@@ -291,36 +291,6 @@ export function openEditItemModal(itemId: number): void {
 }
 
 /**
- * Fill the open item form from an AI-parsed draft (aiListAssist bridge).
- *
- * The group select is a Choices.js instance, so a raw select.value write
- * would not render — go through setChoiceByValue like openEditItemModal.
- */
-export function applyItemDraft(draft: {
-  name: string;
-  quantity: number | null;
-  unit: string | null;
-  groupId: number | null;
-}): void {
-  const nameInput = document.getElementById('item-product-name') as HTMLInputElement | null;
-  const quantityInput = document.getElementById('item-quantity') as HTMLInputElement | null;
-  const unitSelect = document.getElementById('item-unit') as HTMLSelectElement | null;
-  if (nameInput) {
-    nameInput.value = draft.name;
-  }
-  if (quantityInput) {
-    quantityInput.value = draft.quantity !== null ? String(draft.quantity) : '';
-  }
-  if (unitSelect) {
-    unitSelect.value = draft.unit ?? '';
-  }
-  const state = getState();
-  if (state.choicesInstances?.productGroup && draft.groupId !== null) {
-    state.choicesInstances.productGroup.setChoiceByValue(String(draft.groupId));
-  }
-}
-
-/**
  * Close item modal
  *
  * IMPORTANT: Cleans up swipe state before closing to prevent visual glitches
