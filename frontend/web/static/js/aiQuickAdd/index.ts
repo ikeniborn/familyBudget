@@ -180,29 +180,7 @@ async function fillForm(form: HTMLFormElement, draft: TransactionDraft): Promise
         fcSelect.dispatchEvent(new Event('change', { bubbles: true }));
     }
 
-    // 3. Category (see trySetCategory: widget API first, raw select fallback).
-    const categorySet = await trySetCategory(form, draft);
-    if (!categorySet) {
-        issues.push(
-            `Категория «${draft.article_path}» не подставилась (возможно, не привязана к счёту) — выберите вручную`
-        );
-        // Retry once automatically after the user picks an account: the
-        // category widget reloads its options on account change.
-        const fcSelectForRetry = form.querySelector<HTMLSelectElement>(
-            'select[name="financial_center_id"]'
-        );
-        fcSelectForRetry?.addEventListener(
-            'change',
-            () => {
-                window.setTimeout(() => {
-                    void trySetCategory(form, draft);
-                }, 300);
-            },
-            { once: true }
-        );
-    }
-
-    // 4. Plain fields.
+    // 3. Plain fields first — they have no async reload interplay.
     const dateInput = form.querySelector<HTMLInputElement>('input[name="fact_date"]');
     if (dateInput) {
         dateInput.value = isoToDisplayDate(draft.fact_date);
@@ -220,7 +198,67 @@ async function fillForm(form: HTMLFormElement, draft: TransactionDraft): Promise
         descriptionInput.value = draft.description;
     }
 
+    // 4. Category LAST. The account change above kicked off an async
+    //    category reload whose network fetch can take seconds and clears
+    //    the selection when it lands — give it a head start, then set the
+    //    category and keep a guard re-applying it if a late reload wipes it.
+    await sleep(800);
+    const categorySet = await trySetCategory(form, draft);
+    if (categorySet) {
+        startCategoryGuard(form, draft);
+    } else {
+        issues.push(
+            `Категория «${draft.article_path}» не подставилась (возможно, не привязана к счёту) — выберите вручную`
+        );
+        // Retry once automatically after the user picks an account: the
+        // category widget reloads its options on account change.
+        const fcSelectForRetry = form.querySelector<HTMLSelectElement>(
+            'select[name="financial_center_id"]'
+        );
+        fcSelectForRetry?.addEventListener(
+            'change',
+            () => {
+                window.setTimeout(() => {
+                    void trySetCategory(form, draft);
+                }, 500);
+            },
+            { once: true }
+        );
+    }
+
     return issues;
+}
+
+/** Late background reloads (slow updateFinancialCenter fetch) can still wipe
+ *  the selection AFTER trySetCategory confirmed it. Watch for ~6 s and
+ *  re-apply; reloads are finite, so the last write wins. */
+function startCategoryGuard(form: HTMLFormElement, draft: TransactionDraft): void {
+    const widget = (
+        window as unknown as { transactionCategoryTreeSelect?: CategoryWidget }
+    ).transactionCategoryTreeSelect;
+    const articleSelect = form.querySelector<HTMLSelectElement>(
+        'select[name="article_id"]'
+    );
+    const target = String(draft.article_id);
+    let ticks = 0;
+    const timer = window.setInterval(() => {
+        ticks += 1;
+        if (ticks > 12) {
+            window.clearInterval(timer);
+            return;
+        }
+        const held = widget
+            ? widget.getSelectedCategory()?.id === draft.article_id
+            : articleSelect?.value === target;
+        if (!held) {
+            if (widget?.setSelectedCategory) {
+                void widget.setSelectedCategory(draft.article_id);
+            } else if (articleSelect) {
+                articleSelect.value = target;
+                articleSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        }
+    }, 500);
 }
 
 async function handleParseClick(button: HTMLButtonElement): Promise<void> {
