@@ -76,6 +76,19 @@
 
     <!-- Desktop Speed Dial FAB (≥ 1024px) -->
     <div class="desktop-fab-wrapper fab-common-wrapper closed" id="desktop-fab-wrapper">
+        <!-- AI bulk entry: hidden until /api/v1/ai/status reports text=true
+             (revealed by the aiBulkEntry bundle) -->
+        <div class="fab-menu-item fab-common-menu-item ai-bulk-fab-item hidden">
+            <span class="badge badge-neutral mr-2 fab-common-badge hidden lg:inline">Добавить с ИИ</span>
+            <button
+                onclick="window.openAIBulkModal(); window.closeDesktopFabMenu();"
+                class="btn btn-sm btn-circle btn-secondary shadow-lg fab-common-action-btn"
+                aria-label="Добавить записи с помощью ИИ"
+                title="Добавить с ИИ">
+                ✨
+            </button>
+        </div>
+
         <!-- Speed Dial Menu Items (shown above FAB button) -->
         <div class="fab-menu-item fab-common-menu-item">
             <span class="badge badge-neutral mr-2 fab-common-badge hidden lg:inline">Добавить факт</span>
@@ -130,6 +143,18 @@
     <div class="fab-wrapper" id="fab-wrapper">
         <!-- Speed Dial меню (показывается только на /) -->
         <div id="fab-speed-dial-menu" class="mobile-fab-menu" style="display: none;">
+            <!-- AI bulk entry: hidden until /api/v1/ai/status reports text=true -->
+            <div class="mobile-fab-item ai-bulk-fab-item hidden">
+                <span class="mobile-fab-label">Добавить с ИИ</span>
+                <button
+                    onclick="window.openAIBulkModal(); closeFabMenu();"
+                    class="btn btn-sm btn-circle btn-secondary shadow-lg"
+                    aria-label="Добавить записи с помощью ИИ"
+                    title="Добавить с ИИ">
+                    ✨
+                </button>
+            </div>
+
             <!-- Опция 1: Добавить план -->
             <div class="mobile-fab-item">
                 <span class="mobile-fab-label">Добавить план</span>

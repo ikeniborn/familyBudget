@@ -28,10 +28,12 @@ from backend.app.schemas.ai import (
     AISettingsResponse,
     AISettingsUpdate,
     AIStatusResponse,
+    BatchDraft,
     CategorizeImportRequest,
     CategorizeImportResponse,
     ImportCategorySuggestion,
     ListDraft,
+    ParseBatchRequest,
     ParseListRequest,
     ParseTransactionRequest,
     ReceiptDraft,
@@ -178,6 +180,34 @@ async def parse_transaction(
         )
     except AIParseError:
         raise UnprocessableEntityException(f"Не понял: «{data.text}»")
+    except AIProviderError as exc:
+        raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
+
+
+@router.post(
+    "/parse-batch",
+    response_model=BatchDraft,
+    responses=get_common_responses(include_422=True),
+)
+@limiter.limit("10/minute")
+async def parse_batch(
+    request: Request,
+    data: ParseBatchRequest,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> BatchDraft:
+    """Parse free text into a list of fact/plan drafts (bulk AI entry)."""
+    settings = await ai_settings_service.get_settings_cached(session)
+    if not settings.enabled or not settings.model_text:
+        raise ServiceUnavailableException(
+            "AI-функции выключены или текстовая модель не настроена"
+        )
+    try:
+        return await llm_parse_service.parse_transactions_batch(
+            session, settings, data.text
+        )
+    except AIParseError:
+        raise UnprocessableEntityException(f"Не понял: «{data.text[:100]}»")
     except AIProviderError as exc:
         raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
 

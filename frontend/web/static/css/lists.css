@@ -254,9 +254,10 @@
     height: 0.625rem;
 }
 
-/* AI list draft table: compact checkboxes — the touch-target min-size
-   above makes them huge inside the narrow modal */
-#ai-list-table input[type="checkbox"] {
+/* AI draft tables: compact checkboxes — the touch-target min-size
+   above makes them huge inside the narrow modals */
+#ai-list-table input[type="checkbox"],
+#ai-bulk-table input[type="checkbox"] {
     min-height: 0;
     min-width: 0;
     width: 1.25rem;
