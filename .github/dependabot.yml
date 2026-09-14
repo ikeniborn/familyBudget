@@ -1,0 +1,29 @@
+# Dependency updates flow through the normal pipeline (dev/* -> test -> prod):
+# every Dependabot PR targets `test`, never `prod` directly. GitHub's
+# automated security-fix PRs (which always target the default branch) are
+# disabled in the repository settings in favour of these version updates.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    target-branch: "test"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      npm-dev-dependencies:
+        dependency-type: "development"
+
+  - package-ecosystem: "pip"
+    directory: "/backend"
+    target-branch: "test"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "test"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
