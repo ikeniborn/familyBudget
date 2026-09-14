@@ -6,11 +6,12 @@
     </label>
     <input type="text" class="input input-bordered input-sm w-full ai-quickadd-input"
            placeholder="кофе 350" maxlength="500" autocomplete="off" />
-    <!-- Buttons on their own row: the modal is narrow on mobile (375px) -->
+    <!-- Buttons on their own row: the modal is narrow on mobile (375px),
+         so labels are icon-only below the sm breakpoint -->
     <div class="flex gap-2 mt-2">
-        <button type="button" class="btn btn-sm btn-outline btn-info flex-1 gap-1 ai-voice-btn hidden">🎤 Голос</button>
-        <button type="button" class="btn btn-sm btn-outline flex-1 gap-1 ai-receipt-btn hidden">📷 Чек</button>
-        <button type="button" class="btn btn-sm btn-primary flex-1 gap-1 ai-quickadd-btn">✨ Разобрать</button>
+        <button type="button" class="btn btn-sm btn-outline btn-info flex-1 gap-1 ai-voice-btn hidden">🎤 <span class="hidden sm:inline">Голос</span></button>
+        <button type="button" class="btn btn-sm btn-outline flex-1 gap-1 ai-receipt-btn hidden">📷 <span class="hidden sm:inline">Чек</span></button>
+        <button type="button" class="btn btn-sm btn-primary flex-1 gap-1 ai-quickadd-btn">✨ <span class="hidden sm:inline">Разобрать</span></button>
     </div>
     <div class="ai-quickadd-result text-xs mt-1 text-base-content/70"></div>
 </div>

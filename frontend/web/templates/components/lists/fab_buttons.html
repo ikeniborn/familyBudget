@@ -50,6 +50,15 @@
         </button>
     </div>
 
+    <!-- AI list parsing: hidden until GET /api/v1/ai/status reports text=true
+         (revealed by the aiListAssist bundle) -->
+    <div id="fab-item-ai-list" class="fab-item flex items-center gap-2 hidden">
+        <span class="badge badge-neutral shadow whitespace-nowrap hidden lg:inline">Добавить списком (ИИ)</span>
+        <button onclick="window.openAIListModal()" class="btn btn-secondary btn-circle shadow-lg" aria-label="Добавить списком (ИИ)">
+            ✨
+        </button>
+    </div>
+
     <div id="fab-item-delete-completed" class="fab-item flex items-center gap-2">
         <span class="badge badge-neutral shadow whitespace-nowrap hidden lg:inline">Удалить выполненные</span>
         <button onclick="window.deleteCompletedWithConfirm()" class="btn btn-error btn-circle shadow-lg" aria-label="Удалить выполненные">

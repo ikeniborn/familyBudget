@@ -72,7 +72,11 @@ import {
   handleItemCreated,
   handleItemUpdated,
   handleItemDeleted,
-  handleShoppingListUpdated
+  handleShoppingListUpdated,
+
+  // Cross-bundle state access (aiListAssist)
+  getState,
+  loadShoppingListItems
 } from './lists/listsManager/index';
 
 // Адаптеры с confirm dialogs
@@ -247,7 +251,11 @@ try {
         updateItemInUI: handleItemUpdated,
         removeItemFromUI: handleItemDeleted,
         // Shopping list update handler (v11.5.x - stats refresh on item add/delete)
-        handleShoppingListUpdated
+        handleShoppingListUpdated,
+        // AI list assist (separate IIFE bundle) needs the open list and a
+        // refresh hook after batch-creating parsed items
+        getCurrentListId: () => getState().currentListId,
+        reloadItems: (listId: number) => loadShoppingListItems(listId)
       },
       writable: false,
       configurable: false,

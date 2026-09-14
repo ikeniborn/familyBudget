@@ -31,6 +31,8 @@ from backend.app.schemas.ai import (
     CategorizeImportRequest,
     CategorizeImportResponse,
     ImportCategorySuggestion,
+    ListDraft,
+    ParseListRequest,
     ParseTransactionRequest,
     ReceiptDraft,
     SlotHealth,
@@ -172,6 +174,34 @@ async def parse_transaction(
         )
     try:
         return await llm_parse_service.parse_transaction_text(
+            session, settings, data.text
+        )
+    except AIParseError:
+        raise UnprocessableEntityException(f"Не понял: «{data.text}»")
+    except AIProviderError as exc:
+        raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
+
+
+@router.post(
+    "/parse-list",
+    response_model=ListDraft,
+    responses=get_common_responses(include_422=True),
+)
+@limiter.limit("10/minute")
+async def parse_list(
+    request: Request,
+    data: ParseListRequest,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> ListDraft:
+    """Parse a free-text product enumeration into shopping list item drafts."""
+    settings = await ai_settings_service.get_settings_cached(session)
+    if not settings.enabled or not settings.model_text:
+        raise ServiceUnavailableException(
+            "AI-функции выключены или текстовая модель не настроена"
+        )
+    try:
+        return await llm_parse_service.parse_shopping_list_text(
             session, settings, data.text
         )
     except AIParseError:

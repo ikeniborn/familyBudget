@@ -180,6 +180,12 @@ class ChoicesCategoryTree {
         this.categoryMap = new Map();  // id -> category
         this.childrenMap = new Map();  // parent_id -> [child_ids]
         this._initPromise = null;  // Promise resolver for waitForReady()
+        // Last programmatic selection (setSelectedCategory) with an expiry.
+        // updateFinancialCenter() in mode='create' force-clears the selection
+        // after reloading options; a recent programmatic value survives that
+        // clear so AI/pre-fill selections are not silently erased by the
+        // async reload race (slow networks on mobile PWA hit this hardest).
+        this._stickySelection = null;  // { id, until } | null
 
         this.init();
     }
@@ -1081,9 +1087,19 @@ class ChoicesCategoryTree {
                     ? categoryStillAvailable  // Edit: restore saved state
                     : (!isInitialFiltering && categoryStillAvailable);  // Create: only if FC changing
 
+                // A recent programmatic selection (AI quick-add / pre-fill)
+                // survives the initial-filter clear when still available.
+                const sticky = this._stickySelection;
+                const stickyValid = sticky &&
+                    Date.now() < sticky.until &&
+                    this.categoryMap.has(sticky.id);
+
                 if (shouldPreserve) {
                     await this.setSelectedCategory(previousSelectionId);
                     debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
+                } else if (stickyValid) {
+                    await this.setSelectedCategory(sticky.id);
+                    debugLog(`[ChoicesCategoryTree] Restored sticky selection: ${sticky.id}`);
                 } else {
                     // Clear selection ONLY if category not available
                     this.choices.removeActiveItems();
@@ -1152,6 +1168,9 @@ class ChoicesCategoryTree {
     clearSelection() {
         if (!this.choices) return;
 
+        // An explicit clear also drops the sticky programmatic selection.
+        this._stickySelection = null;
+
         // Remove all selected items using Choices.js API
         this.choices.removeActiveItems();
 
@@ -1189,6 +1208,9 @@ class ChoicesCategoryTree {
                 const valueToSet = targetChoice.value;
 
                 this.choices.setChoiceByValue(valueToSet);
+                // Remember the programmatic selection so a concurrent
+                // updateFinancialCenter() reload cannot silently erase it.
+                this._stickySelection = { id: categoryId, until: Date.now() + 20000 };
                 return; // Success - exit
             }
 

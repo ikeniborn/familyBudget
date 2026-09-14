@@ -83,6 +83,14 @@ const builds = [
     globalName: 'AIImportAssistApp'
   },
 
+  // === AI shopping list parsing (ai-assist-plan-lists) ===
+  {
+    name: 'aiListAssist',
+    input: 'frontend/web/static/js/aiListAssist/index.ts',
+    output: 'frontend/web/static/js/aiListAssist.min.js',
+    globalName: 'AIListAssistApp'
+  },
+
   {
     name: 'confirm-dialog',
     input: 'frontend/web/static/js/confirm-dialog-bundle.ts',
