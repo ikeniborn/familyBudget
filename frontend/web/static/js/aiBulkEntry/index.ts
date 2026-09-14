@@ -16,7 +16,7 @@ interface TransactionDraft {
     article_id: number;
     article_path: string;
     article_type: string;
-    amount: number;
+    amount: number | null;
     fact_date: string;
     description: string | null;
     financial_center_id: number | null;
@@ -262,7 +262,7 @@ function renderItems(items: TransactionDraft[], warnings: string[]): void {
         amountInput.min = '1';
         amountInput.step = '1';
         amountInput.className = 'input input-bordered input-sm w-full ai-bulk-amount';
-        amountInput.value = String(item.amount);
+        amountInput.value = item.amount !== null ? String(item.amount) : '';
         amountInput.dataset.index = String(index);
 
         const articleSelect = buildSelect(

@@ -117,6 +117,34 @@ async def test_fact_and_plan_mix_validated(
     assert any("Проверь категорию" in w for w in data["warnings"])
 
 
+async def test_missing_amount_row_kept_empty(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_refs,
+    monkeypatch,
+):
+    """A row without an amount survives with amount null, never invented."""
+    await enable_text(db_session, test_user.id)
+    article = seeded_refs["article"]
+    fc = seeded_refs["fc"]
+    mock_chat(
+        monkeypatch,
+        f'[{{"article_id": {article.id}, "amount": null, '
+        f'"fact_date": "{date.today().isoformat()}", "description": "кофе", '
+        f'"financial_center_id": {fc.id}, "record_type": "fact", '
+        '"confidence": 0.9}]',
+    )
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/parse-batch", json={"text": "кофе счёт тбанк"}
+    )
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    assert item["amount"] is None
+    assert any("Сумма не указана" in w for w in item["warnings"])
+
+
 async def test_not_understood_returns_422(
     authenticated_client: AsyncClient,
     db_session: AsyncSession,

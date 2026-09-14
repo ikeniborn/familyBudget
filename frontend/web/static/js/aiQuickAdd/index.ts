@@ -15,7 +15,7 @@ interface TransactionDraft {
     article_id: number;
     article_path: string;
     article_type: string;
-    amount: number;
+    amount: number | null;
     fact_date: string;
     description: string | null;
     financial_center_id: number | null;
@@ -216,7 +216,7 @@ async function fillForm(form: HTMLFormElement, draft: TransactionDraft): Promise
         }
     }
     const amountInput = form.querySelector<HTMLInputElement>('input[name="amount"]');
-    if (amountInput) {
+    if (amountInput && draft.amount !== null) {
         amountInput.value = String(draft.amount);
         amountInput.dispatchEvent(new Event('input', { bubbles: true }));
     }
@@ -316,7 +316,10 @@ async function handleParseClick(button: HTMLButtonElement): Promise<void> {
         }
         const draft = (await response.json()) as TransactionDraft;
         const issues = await fillForm(form, draft);
-        const summary = `→ ${draft.article_path} · ${draft.amount} ₽`;
+        const summary =
+            draft.amount !== null
+                ? `→ ${draft.article_path} · ${draft.amount} ₽`
+                : `→ ${draft.article_path}`;
         if (issues.length > 0) {
             setResult(block, `${summary} · ⚠ ${issues.join('; ')}`, draft.confidence === 'low');
         } else {

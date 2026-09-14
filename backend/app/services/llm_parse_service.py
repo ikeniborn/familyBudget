@@ -219,18 +219,20 @@ def _build_prompt(
         "- Если уверенности в категории нет, всё равно выбери ближайшую по "
         "смыслу, но укажи низкий confidence (< 0.5).\n"
         "- Счёт: если в фразе счёт не назван (карта, наличные и т.п.) — "
-        "выбери счёт с пометкой (основной).\n\n"
+        "выбери счёт с пометкой (основной).\n"
+        "- Сумму бери ТОЛЬКО из текста фразы: если сумма не названа — "
+        "amount: null. НИКОГДА не выдумывай и не оценивай сумму сам.\n\n"
         "Ответь ТОЛЬКО одним JSON-объектом: без пояснений, без markdown, без "
         "текста до или после. Все числа — JSON-числа без кавычек.\n"
         "{\n"
         '  "article_id": <int, id категории из списка>,\n'
-        '  "amount": <int, сумма в рублях, > 0>,\n'
+        '  "amount": <int, сумма в рублях из фразы, или null если не названа>,\n'
         '  "fact_date": "<YYYY-MM-DD, дата операции; сегодня, если не указана>",\n'
         '  "description": "<краткое описание или null>",\n'
         '  "financial_center_id": <int, id счёта из списка, или null если не понятно>,\n'
         '  "confidence": <float 0..1, уверенность в выборе категории>\n'
         "}\n"
-        'Если фраза не описывает транзакцию или сумма не ясна, ответь: {"error": "not_understood"}'
+        'Если фраза не описывает транзакцию, ответь: {"error": "not_understood"}'
     )
 
 
@@ -416,6 +418,8 @@ def _build_batch_prompt(
         "- fact_date: дата операции; для плана — планируемая дата (может "
         "быть в будущем); не указана — сегодня.\n"
         "- Счёт: не назван — счёт с пометкой (основной).\n"
+        "- Сумму бери ТОЛЬКО из текста: не названа для операции — "
+        "amount: null. НИКОГДА не выдумывай и не оценивай сумму сам.\n"
         "- Если уверенности в категории нет — ближайшая по смыслу с "
         "confidence < 0.5.\n\n"
         "Ответь ТОЛЬКО JSON-массивом (по объекту на операцию): без "
@@ -423,7 +427,7 @@ def _build_batch_prompt(
         "JSON-числа без кавычек.\n"
         "[{\n"
         '  "article_id": <int, id категории из списка>,\n'
-        '  "amount": <int, сумма в рублях, > 0>,\n'
+        '  "amount": <int, сумма в рублях из текста, или null если не названа>,\n'
         '  "fact_date": "<YYYY-MM-DD>",\n'
         '  "description": "<краткое описание или null>",\n'
         '  "financial_center_id": <int, id счёта из списка, или null>,\n'
@@ -482,15 +486,20 @@ async def parse_transactions_batch(
         if not isinstance(entry, dict):
             continue
         article = articles_by_id.get(_coerce_int(entry.get("article_id")))
-        amount = _coerce_int(entry.get("amount"))
-        if article is None or amount is None or amount <= 0:
+        if article is None:
             continue
+        # No amount named -> keep the row with an empty sum, never invent one.
+        amount = _coerce_int(entry.get("amount"))
+        if amount is not None and amount <= 0:
+            amount = None
         record_type = "plan" if entry.get("record_type") == "plan" else "fact"
         try:
             fact_date = date.fromisoformat(str(entry.get("fact_date") or today))
         except ValueError:
             fact_date = today
         entry_warnings: list[str] = []
+        if amount is None:
+            entry_warnings.append("Сумма не указана — введите вручную")
         # Facts cannot live in the future (schema rule); plans can.
         if record_type == "fact" and fact_date > today:
             fact_date = today
@@ -752,20 +761,18 @@ async def parse_transaction_text(
         )
         raise AIParseError(f"Unknown article_id: {payload.get('article_id')!r}")
 
+    warnings: list[str] = []
+    # No amount in the phrase -> honest empty field, never an invented sum.
     amount = _coerce_int(payload.get("amount"))
-    if amount is None or amount <= 0:
-        logger.warning(
-            "AI parse: invalid amount %r in model output: %.200s",
-            payload.get("amount"),
-            content,
-        )
-        raise AIParseError(f"Invalid amount: {payload.get('amount')!r}")
+    if amount is not None and amount <= 0:
+        amount = None
+    if amount is None:
+        warnings.append("Сумма не указана — введите вручную")
 
     try:
         fact_date = date.fromisoformat(str(payload.get("fact_date") or today))
     except ValueError as exc:
         raise AIParseError(f"Invalid fact_date: {payload.get('fact_date')!r}") from exc
-    warnings: list[str] = []
     if fact_date > today:
         fact_date = today
         warnings.append("Дата была в будущем — заменена на сегодня")
