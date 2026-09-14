@@ -38,6 +38,36 @@ class AIParseError(Exception):
     """The model could not produce a valid draft from the input text."""
 
 
+def _coerce_int(value: Any) -> int | None:
+    """Small models often emit numbers as strings ('12', '1500.0')."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value) if value.is_integer() else None
+    if isinstance(value, str):
+        try:
+            number = float(value.strip().replace(",", "."))
+        except ValueError:
+            return None
+        return int(number) if number.is_integer() else None
+    return None
+
+
+def _coerce_float(value: Any) -> float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        try:
+            return float(value.strip().replace(",", "."))
+        except ValueError:
+            return None
+    return None
+
+
 def invalidate_candidates_cache() -> None:
     global _articles_cache, _articles_cache_at
     _articles_cache = None
@@ -183,7 +213,8 @@ def _build_prompt(
         "смыслу, но укажи низкий confidence (< 0.5).\n"
         "- Счёт: если в фразе счёт не назван (карта, наличные и т.п.) — "
         "выбери счёт с пометкой (основной).\n\n"
-        "Ответь ТОЛЬКО одним JSON-объектом без пояснений и без markdown:\n"
+        "Ответь ТОЛЬКО одним JSON-объектом: без пояснений, без markdown, без "
+        "текста до или после. Все числа — JSON-числа без кавычек.\n"
         "{\n"
         '  "article_id": <int, id категории из списка>,\n'
         '  "amount": <int, сумма в рублях, > 0>,\n'
@@ -197,7 +228,8 @@ def _build_prompt(
 
 
 def _extract_json(content: str) -> dict[str, Any]:
-    """Parse the model answer; tolerate a fenced code block around the JSON."""
+    """Parse the model answer; tolerate a fenced code block or prose around
+    the JSON object (small models often add commentary despite the prompt)."""
     text = content.strip()
     if text.startswith("```"):
         text = text.strip("`")
@@ -206,8 +238,15 @@ def _extract_json(content: str) -> dict[str, Any]:
         text = text.strip()
     try:
         payload = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise AIParseError("Model returned non-JSON output") from exc
+    except json.JSONDecodeError:
+        start = text.find("{")
+        end = text.rfind("}")
+        if start == -1 or end <= start:
+            raise AIParseError("Model returned non-JSON output")
+        try:
+            payload = json.loads(text[start : end + 1])
+        except json.JSONDecodeError as exc:
+            raise AIParseError("Model returned non-JSON output") from exc
     if not isinstance(payload, dict):
         raise AIParseError("Model returned non-object JSON")
     return payload
@@ -229,7 +268,8 @@ def _build_categorize_prompt(articles: list[dict[str, Any]]) -> str:
         "не уверен — ставь ближайшую по смыслу с confidence < 0.5, "
         "совсем не понятно — article_id: null.\n\n"
         "На вход подаётся JSON-массив строк вида {\"id\": ..., \"text\": ...}. "
-        "Ответь ТОЛЬКО JSON-массивом без пояснений и без markdown:\n"
+        "Ответь ТОЛЬКО JSON-массивом: без пояснений, без markdown, без текста "
+        "до или после. Все числа — JSON-числа без кавычек.\n"
         '[{"id": <id строки>, "article_id": <int id категории или null>, '
         '"confidence": <float 0..1>}]'
     )
@@ -274,7 +314,7 @@ async def categorize_texts(
             if not isinstance(item, dict):
                 continue
             row_id = item.get("id")
-            article = articles_by_id.get(item.get("article_id"))
+            article = articles_by_id.get(_coerce_int(item.get("article_id")))
             if row_id not in chunk_ids or article is None:
                 continue
             raw_confidence = item.get("confidence")
@@ -334,20 +374,38 @@ async def parse_transaction_text(
         max_tokens=1536,
     )
 
-    payload = _extract_json(content)
+    try:
+        payload = _extract_json(content)
+    except AIParseError:
+        logger.warning(
+            "AI parse: non-JSON model output (len=%d): %.200s",
+            len(content),
+            content,
+        )
+        raise
     if payload.get("error"):
         raise AIParseError("Model reported not_understood")
 
     articles_by_id = {a["id"]: a for a in articles}
     centers_by_id = {c["id"]: c for c in centers}
 
-    article = articles_by_id.get(payload.get("article_id"))
+    article = articles_by_id.get(_coerce_int(payload.get("article_id")))
     if article is None:
+        logger.warning(
+            "AI parse: unknown article_id %r in model output: %.200s",
+            payload.get("article_id"),
+            content,
+        )
         raise AIParseError(f"Unknown article_id: {payload.get('article_id')!r}")
 
-    amount = payload.get("amount")
-    if not isinstance(amount, int) or isinstance(amount, bool) or amount <= 0:
-        raise AIParseError(f"Invalid amount: {amount!r}")
+    amount = _coerce_int(payload.get("amount"))
+    if amount is None or amount <= 0:
+        logger.warning(
+            "AI parse: invalid amount %r in model output: %.200s",
+            payload.get("amount"),
+            content,
+        )
+        raise AIParseError(f"Invalid amount: {payload.get('amount')!r}")
 
     try:
         fact_date = date.fromisoformat(str(payload.get("fact_date") or today))
@@ -358,7 +416,7 @@ async def parse_transaction_text(
         fact_date = today
         warnings.append("Дата была в будущем — заменена на сегодня")
 
-    fc_id = payload.get("financial_center_id")
+    fc_id = _coerce_int(payload.get("financial_center_id"))
     if fc_id is not None and fc_id not in centers_by_id:
         fc_id = None
     if fc_id is None:
@@ -371,12 +429,7 @@ async def parse_transaction_text(
                 f"Счёт не назван — подставлен основной ({centers[0]['name']}), проверьте"
             )
 
-    raw_confidence = payload.get("confidence")
-    confidence_value = (
-        float(raw_confidence)
-        if isinstance(raw_confidence, (int, float)) and not isinstance(raw_confidence, bool)
-        else 0.0
-    )
+    confidence_value = _coerce_float(payload.get("confidence")) or 0.0
     confidence = (
         "high" if confidence_value >= settings.confidence_threshold else "low"
     )
