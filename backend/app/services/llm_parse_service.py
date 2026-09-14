@@ -25,7 +25,12 @@ from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.product_group import ProductGroup
 from backend.app.models.store import Store
-from backend.app.schemas.ai import ListDraft, ListItemDraft, TransactionDraft
+from backend.app.schemas.ai import (
+    BatchDraft,
+    ListDraft,
+    ListItemDraft,
+    TransactionDraft,
+)
 from backend.app.services.ai_provider_client import AIProviderClient
 
 logger = logging.getLogger(__name__)
@@ -369,6 +374,166 @@ def _extract_json_array(content: str) -> list[Any]:
     if not isinstance(payload, list):
         raise AIParseError("Model returned non-array JSON")
     return payload
+
+
+def _build_batch_prompt(
+    articles: list[dict[str, Any]],
+    centers: list[dict[str, Any]],
+    today: date,
+) -> str:
+    """Multi-transaction variant of the parse prompt: the phrase may describe
+    several operations, each classified as a completed fact or a future plan."""
+    article_lines = format_candidate_lines(articles)
+    center_lines = "\n".join(
+        f"{c['id']}: {c['name']}"
+        + (f" — {c['description']}" if c.get("description") else "")
+        + (" (основной)" if i == 0 else "")
+        for i, c in enumerate(centers)
+    )
+    return (
+        "Ты — парсер финансовых записей семейного бюджета. Пользователь "
+        "описывает одну или НЕСКОЛЬКО операций одной фразой (обычно на "
+        "русском). Разбей текст на отдельные операции.\n"
+        f"Сегодня: {today.isoformat()}.\n\n"
+        f"Категории (id: путь [тип] — описание):\n{article_lines}\n\n"
+        f"Счета (id: название — описание):\n{center_lines}\n\n"
+        "Правила:\n"
+        "- Категорию выбирай по СМЫСЛУ покупки (что именно куплено/получено), "
+        "а не по совпадению букв; путь читай целиком, предпочитай самую "
+        "специфичную; «(часто используется)» — типичные категории семьи.\n"
+        "- record_type: \"fact\" — операция уже совершена (прошлое или "
+        "сегодня: «купил», «потратил», «заплатил»); \"plan\" — будущая или "
+        "планируемая («заплачу», «планирую», «надо оплатить», будущая дата, "
+        "следующий месяц). Не ясно — \"fact\".\n"
+        "- fact_date: дата операции; для плана — планируемая дата (может "
+        "быть в будущем); не указана — сегодня.\n"
+        "- Счёт: не назван — счёт с пометкой (основной).\n"
+        "- Если уверенности в категории нет — ближайшая по смыслу с "
+        "confidence < 0.5.\n\n"
+        "Ответь ТОЛЬКО JSON-массивом (по объекту на операцию): без "
+        "пояснений, без markdown, без текста до или после. Все числа — "
+        "JSON-числа без кавычек.\n"
+        "[{\n"
+        '  "article_id": <int, id категории из списка>,\n'
+        '  "amount": <int, сумма в рублях, > 0>,\n'
+        '  "fact_date": "<YYYY-MM-DD>",\n'
+        '  "description": "<краткое описание или null>",\n'
+        '  "financial_center_id": <int, id счёта из списка, или null>,\n'
+        '  "record_type": "<fact или plan>",\n'
+        '  "confidence": <float 0..1>\n'
+        "}]\n"
+        'Если текст не описывает операции, ответь: {"error": "not_understood"}'
+    )
+
+
+async def parse_transactions_batch(
+    session: AsyncSession,
+    settings: AISettings,
+    text: str,
+) -> BatchDraft:
+    """Parse free text into a list of validated fact/plan drafts."""
+    articles = await get_article_candidates(session)
+    centers = await get_financial_centers(session)
+    if not articles or not centers:
+        raise AIParseError("No active articles or financial centers to match against")
+    articles_by_id = {a["id"]: a for a in articles}
+    centers_by_id = {c["id"]: c for c in centers}
+    today = date.today()
+
+    client = AIProviderClient(settings.endpoint_url, settings.api_token)
+    content = await client.chat_completions(
+        model=settings.model_text or "",
+        messages=[
+            {"role": "system", "content": _build_batch_prompt(articles, centers, today)},
+            {"role": "user", "content": text},
+        ],
+        max_tokens=4096,
+    )
+
+    try:
+        payload = _extract_json_array(content)
+    except AIParseError:
+        try:
+            obj = _extract_json(content)
+        except AIParseError:
+            logger.warning(
+                "AI batch parse: non-JSON model output (len=%d): %.200s",
+                len(content),
+                content,
+            )
+            raise
+        if obj.get("error"):
+            raise AIParseError("Model reported not_understood")
+        # A single-object answer for a single operation is tolerated.
+        payload = [obj]
+
+    warnings: list[str] = []
+    items: list[TransactionDraft] = []
+    default_used = False
+    for entry in payload:
+        if not isinstance(entry, dict):
+            continue
+        article = articles_by_id.get(_coerce_int(entry.get("article_id")))
+        amount = _coerce_int(entry.get("amount"))
+        if article is None or amount is None or amount <= 0:
+            continue
+        record_type = "plan" if entry.get("record_type") == "plan" else "fact"
+        try:
+            fact_date = date.fromisoformat(str(entry.get("fact_date") or today))
+        except ValueError:
+            fact_date = today
+        entry_warnings: list[str] = []
+        # Facts cannot live in the future (schema rule); plans can.
+        if record_type == "fact" and fact_date > today:
+            fact_date = today
+            entry_warnings.append("Дата факта была в будущем — заменена на сегодня")
+
+        fc_id = _coerce_int(entry.get("financial_center_id"))
+        if fc_id is not None and fc_id not in centers_by_id:
+            fc_id = None
+        if fc_id is None:
+            fc_id = centers[0]["id"]
+            default_used = True
+
+        confidence_value = _coerce_float(entry.get("confidence")) or 0.0
+        confidence = (
+            "high" if confidence_value >= settings.confidence_threshold else "low"
+        )
+
+        description = entry.get("description")
+        if description is not None:
+            description = str(description).strip()[:1000] or None
+
+        items.append(
+            TransactionDraft(
+                article_id=article["id"],
+                article_path=article["path"],
+                article_type=article["type"],
+                amount=amount,
+                fact_date=fact_date,
+                description=description,
+                financial_center_id=fc_id,
+                financial_center_name=centers_by_id[fc_id]["name"],
+                record_type=record_type,
+                confidence=confidence,
+                warnings=entry_warnings,
+            )
+        )
+
+    if not items:
+        logger.warning(
+            "AI batch parse: no valid operations in model output: %.200s", content
+        )
+        raise AIParseError("Model returned no valid operations")
+
+    if default_used and len(centers) > 1:
+        warnings.append(
+            f"Для части записей счёт не назван — подставлен основной ({centers[0]['name']}), проверьте"
+        )
+    low_count = sum(1 for i in items if i.confidence == "low")
+    if low_count:
+        warnings.append(f"Проверь категорию у записей с ⚠ ({low_count})")
+    return BatchDraft(items=items, warnings=warnings)
 
 
 LIST_UNITS = ("шт", "кг", "г", "л", "мл", "уп", "пач")

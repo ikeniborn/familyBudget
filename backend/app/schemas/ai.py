@@ -129,6 +129,27 @@ class ReceiptDraft(BaseModel):
     total: int
 
 
+class ParseBatchRequest(BaseModel):
+    """Free-text describing one or many transactions (facts and/or plans)."""
+
+    text: str = Field(..., min_length=1, max_length=3000)
+
+    @field_validator("text")
+    @classmethod
+    def text_strip(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("text must not be blank")
+        return v
+
+
+class BatchDraft(BaseModel):
+    """Editable list of transaction drafts (fact/plan per row); user confirms."""
+
+    items: list[TransactionDraft]
+    warnings: list[str] = []
+
+
 class ParseListRequest(BaseModel):
     """Free-text enumeration of products to parse into shopping list items."""
 

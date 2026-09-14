@@ -91,6 +91,14 @@ const builds = [
     globalName: 'AIListAssistApp'
   },
 
+  // === AI bulk entry: facts + plans from text/voice/photo (ai-bulk-entry) ===
+  {
+    name: 'aiBulkEntry',
+    input: 'frontend/web/static/js/aiBulkEntry/index.ts',
+    output: 'frontend/web/static/js/aiBulkEntry.min.js',
+    globalName: 'AIBulkEntryApp'
+  },
+
   {
     name: 'confirm-dialog',
     input: 'frontend/web/static/js/confirm-dialog-bundle.ts',
