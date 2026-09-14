@@ -40,8 +40,12 @@ async def staging_rows(db_session: AsyncSession, test_user: User) -> dict:
             fact_date=date(2026, 9, 1),
             amount_string="350.00",
             description=text,
+            csv_metadata={"category": csv_category} if csv_category else None,
         )
-        for text in ("PYATEROCHKA 1234", "UNKNOWN MERCHANT")
+        for text, csv_category in (
+            ("PYATEROCHKA 1234", "Супермаркеты"),
+            ("UNKNOWN MERCHANT", None),
+        )
     ]
     for row in rows:
         db_session.add(row)
@@ -89,8 +93,10 @@ async def test_categorize_returns_validated_suggestions(
     await enable_text(db_session, test_user.id)
     article_id = staging_rows["article"].id
     row_high, row_low = staging_rows["rows"]
+    seen_user_payloads: list[str] = []
 
     async def fake_chat(self, model, messages, response_format=None, max_tokens=1024, temperature=0.1):
+        seen_user_payloads.append(messages[-1]["content"])
         return json.dumps(
             [
                 {"id": row_high.id, "article_id": article_id, "confidence": 0.95},
@@ -114,6 +120,11 @@ async def test_categorize_returns_validated_suggestions(
     assert by_id[row_high.id]["article_path"] == "Продукты"
     # Unknown staging id and unknown article id are dropped, not invented.
     assert set(by_id) == {row_high.id, row_low.id}
+
+    # The bank's own CSV category reaches the model as an explicit signal.
+    payload = "".join(seen_user_payloads)
+    assert "категория банка: Супермаркеты" in payload
+    assert "PYATEROCHKA 1234" in payload
 
     # Endpoint is read-only: staging rows keep article_id = NULL.
     refreshed = (
