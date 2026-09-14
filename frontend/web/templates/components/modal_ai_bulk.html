@@ -37,10 +37,12 @@
                 <span id="ai-bulk-status" class="text-xs text-base-content/70"></span>
             </div>
 
-            <div class="modal-action">
-                <button type="button" id="ai-bulk-create" class="btn btn-primary">Создать записи</button>
-                <button type="button" id="ai-bulk-back" class="btn btn-ghost">← Изменить текст</button>
-                <form method="dialog"><button class="btn btn-ghost">Закрыть</button></form>
+            <!-- Mobile: the three buttons overflow a 375px modal in one row —
+                 primary goes full-width on its own line, the rest wrap under it -->
+            <div class="modal-action flex flex-wrap gap-2 justify-end">
+                <button type="button" id="ai-bulk-create" class="btn btn-primary w-full sm:w-auto order-1 sm:order-none">Создать записи</button>
+                <button type="button" id="ai-bulk-back" class="btn btn-ghost btn-sm sm:btn-md flex-1 sm:flex-none order-2 sm:order-none">← Изменить текст</button>
+                <form method="dialog" class="order-3 sm:order-none flex-1 sm:flex-none"><button class="btn btn-ghost btn-sm sm:btn-md w-full">Закрыть</button></form>
             </div>
         </div>
     </div>
