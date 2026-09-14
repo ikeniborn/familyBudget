@@ -328,14 +328,14 @@ async function handleVoiceClick(button: HTMLButtonElement): Promise<void> {
             stream.getTracks().forEach((track) => track.stop());
             activeRecorder = null;
             button.classList.remove('btn-error');
-            button.textContent = '🎤';
+            button.textContent = '🎤 Голос';
             const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
             void uploadRecording(block, blob);
         };
         activeRecorder = recorder;
         recorder.start();
         button.classList.add('btn-error');
-        button.textContent = '⏹';
+        button.textContent = '⏹ Стоп';
         setResult(block, 'Говорите… (нажмите ⏹, чтобы закончить)');
         recorderStopTimer = window.setTimeout(stopRecording, MAX_RECORDING_MS);
     } catch {
