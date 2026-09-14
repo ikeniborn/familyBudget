@@ -348,7 +348,7 @@ async function parseTextInput(): Promise<void> {
 }
 
 async function parsePhoto(file: File): Promise<void> {
-    setInputStatus('Распознаю чек…');
+    setInputStatus('Распознаю чек (первый запуск модели может занять пару минут)…');
     try {
         const formData = new FormData();
         formData.append('file', file);

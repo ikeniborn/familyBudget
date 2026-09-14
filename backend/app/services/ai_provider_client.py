@@ -21,8 +21,11 @@ import httpx
 logger = logging.getLogger(__name__)
 
 CONNECT_TIMEOUT = 5.0
-# Cold start of an unloaded local model can take minutes; keep read generous.
-READ_TIMEOUT = 120.0
+# Cold start of an unloaded local model can take minutes — the vision model
+# is the heaviest (120 s was hit in the field on receipt photos). Keep this
+# below Traefik's responseHeaderTimeout (360 s) so the client times out
+# first and the user gets our error message, not a proxy 504.
+READ_TIMEOUT = 300.0
 MAX_RETRIES_503 = 2
 RETRY_BACKOFF_SECONDS = (1.0, 3.0)
 

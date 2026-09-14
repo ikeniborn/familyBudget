@@ -567,7 +567,7 @@ async function recognizeReceipt(): Promise<void> {
         return;
     }
     button.disabled = true;
-    button.textContent = 'Распознаю…';
+    button.textContent = 'Распознаю… (до пары минут)';
     try {
         const formData = new FormData();
         formData.append('file', file);
