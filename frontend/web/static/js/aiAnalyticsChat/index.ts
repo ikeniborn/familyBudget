@@ -56,6 +56,77 @@ function setStatus(message: string, isError = false): void {
     }
 }
 
+// ==================== Lightweight markdown + history ====================
+
+const HISTORY_KEY = 'aiAnalyticsChatHistory';
+const HISTORY_LIMIT = 5;
+
+interface HistoryEntry {
+    q: string;
+    a: string;
+    meta: string;
+}
+
+function escapeHtml(text: string): string {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/** Render the model's typical markdown subset (**bold**, "- " bullets)
+ *  into safe HTML: everything is escaped first, then the two patterns
+ *  are re-introduced as tags. */
+function renderMarkdownLite(text: string): string {
+    const bolded = escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    const lines = bolded.split('\n');
+    const html: string[] = [];
+    let listOpen = false;
+    for (const line of lines) {
+        const bullet = /^\s*[-•]\s+(.*)$/.exec(line);
+        if (bullet) {
+            if (!listOpen) {
+                html.push('<ul class="list-disc list-inside my-1">');
+                listOpen = true;
+            }
+            html.push(`<li>${bullet[1]}</li>`);
+            continue;
+        }
+        if (listOpen) {
+            html.push('</ul>');
+            listOpen = false;
+        }
+        html.push(line.trim() === '' ? '<div class="h-2"></div>' : `<div>${line}</div>`);
+    }
+    if (listOpen) {
+        html.push('</ul>');
+    }
+    return html.join('');
+}
+
+function loadHistory(): HistoryEntry[] {
+    try {
+        const raw = window.localStorage.getItem(HISTORY_KEY);
+        const parsed: unknown = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed)
+            ? (parsed as HistoryEntry[]).filter(
+                  (e) => e && typeof e.q === 'string' && typeof e.a === 'string'
+              )
+            : [];
+    } catch {
+        return [];
+    }
+}
+
+function saveToHistory(entry: HistoryEntry): void {
+    try {
+        const history = [...loadHistory(), entry].slice(-HISTORY_LIMIT);
+        window.localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+    } catch {
+        // Storage full/blocked — the chat still works without history.
+    }
+}
+
 function isoToDisplay(iso: string): string {
     const [year, month, day] = iso.split('-');
     return year && month && day ? `${day}.${month}.${year}` : iso;
@@ -72,12 +143,15 @@ function appendBubble(role: 'question' | 'answer', text: string, meta?: string):
     }
     log.classList.remove('hidden');
     const bubble = document.createElement('div');
-    bubble.className =
-        role === 'question'
-            ? 'rounded-lg bg-primary/10 p-2 text-sm font-medium'
-            : 'rounded-lg bg-base-200 p-2 text-sm';
-    bubble.style.whiteSpace = 'pre-wrap';
-    bubble.textContent = text;
+    if (role === 'question') {
+        bubble.className = 'rounded-lg bg-primary/10 p-2 text-sm font-medium';
+        bubble.style.whiteSpace = 'pre-wrap';
+        bubble.textContent = text;
+    } else {
+        bubble.className = 'rounded-lg bg-base-200 p-2 text-sm';
+        // Escaped first inside renderMarkdownLite — safe to assign.
+        bubble.innerHTML = renderMarkdownLite(text);
+    }
     if (meta) {
         const metaEl = document.createElement('div');
         metaEl.className = 'text-xs text-base-content/60 mt-1';
@@ -126,6 +200,7 @@ async function ask(): Promise<void> {
             .filter(Boolean)
             .join(' · ');
         appendBubble('answer', data.answer, meta);
+        saveToHistory({ q: question, a: data.answer, meta });
         setStatus('');
     } catch {
         appendBubble('answer', '⚠ Сеть недоступна — попробуйте позже');
@@ -223,6 +298,11 @@ async function revealIfAvailable(): Promise<void> {
         const status = (await response.json()) as { text: boolean; voice: boolean };
         if (status.text) {
             el<HTMLElement>('ai-chat-card')?.classList.remove('hidden');
+            // Replay the last saved exchanges so the page keeps its history.
+            for (const entry of loadHistory()) {
+                appendBubble('question', entry.q);
+                appendBubble('answer', entry.a, entry.meta);
+            }
         }
         if (status.text && status.voice) {
             el<HTMLElement>('ai-chat-voice')?.classList.remove('hidden');
