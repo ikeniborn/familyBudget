@@ -156,6 +156,11 @@ function isoToDisplay(iso: string): string {
 }
 
 function fieldWrap(label: string, control: HTMLElement): HTMLElement {
+    // Project-wide quirk: selects/inputs without an explicit height get
+    // their text clipped by the CSS overrides — every form here pins the
+    // height (see daisyui-overrides «we need 3rem for consistency»).
+    control.style.height = '2.75rem';
+    control.style.minHeight = '2.75rem';
     const wrap = document.createElement('div');
     const labelEl = document.createElement('div');
     labelEl.className = 'text-xs text-base-content/60 mb-1';
