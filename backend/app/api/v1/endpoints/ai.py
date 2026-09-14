@@ -28,6 +28,8 @@ from backend.app.schemas.ai import (
     AISettingsResponse,
     AISettingsUpdate,
     AIStatusResponse,
+    AnalyticsChatRequest,
+    AnalyticsChatResponse,
     BatchDraft,
     CategorizeImportRequest,
     CategorizeImportResponse,
@@ -42,6 +44,7 @@ from backend.app.schemas.ai import (
 )
 from backend.app.schemas.errors import get_common_responses
 from backend.app.services import (
+    ai_analytics_service,
     ai_settings_service,
     llm_parse_service,
     speech_service,
@@ -182,6 +185,37 @@ async def parse_transaction(
         raise UnprocessableEntityException(f"Не понял: «{data.text}»")
     except AIProviderError as exc:
         raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
+
+
+@router.post(
+    "/analytics-chat",
+    response_model=AnalyticsChatResponse,
+    responses=get_common_responses(include_422=True),
+)
+@limiter.limit("10/minute")
+async def analytics_chat(
+    request: Request,
+    data: AnalyticsChatRequest,
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+) -> AnalyticsChatResponse:
+    """Answer a budget question from backend-computed aggregates (read-only)."""
+    settings = await ai_settings_service.get_settings_cached(session)
+    if not settings.enabled or not settings.model_text:
+        raise ServiceUnavailableException(
+            "AI-функции выключены или текстовая модель не настроена"
+        )
+    try:
+        result = await ai_analytics_service.answer_question(
+            session, settings, data.question
+        )
+    except AIParseError:
+        raise UnprocessableEntityException(
+            "Не понял вопрос — уточните период или категорию"
+        )
+    except AIProviderError as exc:
+        raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
+    return AnalyticsChatResponse(**result)
 
 
 @router.post(
