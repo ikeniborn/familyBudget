@@ -307,7 +307,9 @@ async def _check_text_slot(client: AIProviderClient, model: str) -> SlotHealth:
     content = await client.chat_completions(
         model=model,
         messages=[{"role": "user", "content": "Reply with exactly: OK"}],
-        max_tokens=16,
+        # Reasoning models spend tokens thinking before the visible answer;
+        # a tiny budget yields an empty content and a false "Empty response".
+        max_tokens=512,
     )
     latency = int((time.monotonic() - started) * 1000)
     if not content.strip():
@@ -333,7 +335,7 @@ async def _check_image_slot(client: AIProviderClient, model: str) -> SlotHealth:
                 ],
             }
         ],
-        max_tokens=32,
+        max_tokens=512,
     )
     latency = int((time.monotonic() - started) * 1000)
     if not content.strip():

@@ -107,3 +107,31 @@ async def test_4xx_raises_without_retry():
         await make_client(handler).list_models()
     assert exc_info.value.status_code == 401
     assert calls["n"] == 1
+
+
+async def test_chat_strips_reasoning_think_block():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {
+                "content": "<think>пользователь купил кофе...</think>\n{\"ok\": true}"
+            }}]},
+        )
+
+    content = await make_client(handler).chat_completions(
+        model="qwen", messages=[{"role": "user", "content": "hi"}]
+    )
+    assert content == '{"ok": true}'
+
+
+async def test_chat_unclosed_think_becomes_empty():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": "<think>ran out of budget"}}]},
+        )
+
+    content = await make_client(handler).chat_completions(
+        model="qwen", messages=[{"role": "user", "content": "hi"}]
+    )
+    assert content == ""

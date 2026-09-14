@@ -330,7 +330,8 @@ async def parse_transaction_text(
             {"role": "system", "content": _build_prompt(articles, centers, today)},
             {"role": "user", "content": text},
         ],
-        max_tokens=512,
+        # Reasoning models think before answering; leave room for the JSON.
+        max_tokens=1536,
     )
 
     payload = _extract_json(content)
