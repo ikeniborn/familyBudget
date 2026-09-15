@@ -5,6 +5,7 @@ Mirrors reminder_service.ReminderService. Reminder rows: one per (intake_log_id,
 from datetime import timedelta
 
 import httpx
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
@@ -27,6 +28,40 @@ logger = get_logger(__name__)
 
 def _now():
     return now_local().replace(tzinfo=None)
+
+
+async def cancel_pending_for_intake(session: AsyncSession, intake_log_id: int) -> int:
+    """pending → cancelled for one dose (it was taken or skipped). Caller commits."""
+    result = await session.execute(text("""
+        UPDATE t_medicine_reminder SET status = 'cancelled', updated_at = :now
+        WHERE intake_log_id = :iid AND status = 'pending'
+    """), {"iid": intake_log_id, "now": _now()})
+    return result.rowcount or 0
+
+
+async def cancel_pending_for_course(session: AsyncSession, course_id: int) -> int:
+    """pending → cancelled for every dose of a course (paused or completed). Caller commits."""
+    result = await session.execute(text("""
+        UPDATE t_medicine_reminder SET status = 'cancelled', updated_at = :now
+        WHERE status = 'pending' AND intake_log_id IN (
+            SELECT id FROM t_f_medicine_intake_log WHERE course_id = :cid)
+    """), {"cid": course_id, "now": _now()})
+    return result.rowcount or 0
+
+
+async def reactivate_cancelled_for_course(session: AsyncSession, course_id: int) -> int:
+    """cancelled → pending for a resumed course's future scheduled doses. Caller commits.
+
+    Only future reminders come back: re-arming past ones would fire a burst of
+    stale pushes on the next dispatch tick.
+    """
+    result = await session.execute(text("""
+        UPDATE t_medicine_reminder SET status = 'pending', updated_at = :now
+        WHERE status = 'cancelled' AND reminder_datetime >= :now AND intake_log_id IN (
+            SELECT id FROM t_f_medicine_intake_log
+            WHERE course_id = :cid AND status = 'scheduled')
+    """), {"cid": course_id, "now": _now()})
+    return result.rowcount or 0
 
 
 class MedicineReminderService:
@@ -76,6 +111,9 @@ class MedicineReminderService:
 
     # ---------- send ----------
     async def send(self, session: AsyncSession, reminder: MedicineReminder) -> tuple[bool, bool]:
+        if reminder.status != "pending":
+            # Cancelled/sent between get_due and send (course paused, dose marked) — skip untouched.
+            return False, False
         intake = await session.get(MedicineIntakeLog, reminder.intake_log_id)
         if not intake:
             reminder.mark_failed("intake not found")
