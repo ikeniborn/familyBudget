@@ -50,21 +50,21 @@ jobs:
             git pull origin prod
 
             echo "🔄 Syncing deploy scripts to /opt/budget..."
-            # Sync scripts before running deploy.sh to avoid using stale scripts
-            rsync -a --delete scripts/ /opt/budget/scripts/
-            cp deploy.sh /opt/budget/deploy.sh
-            cp IMAGE_VERSIONS.json /opt/budget/IMAGE_VERSIONS.json
-            cp VERSION /opt/budget/VERSION
+            # Sync scripts before running deploy.sh to avoid using stale scripts.
+            # sudo: /opt/budget and .env are root-owned.
+            sudo rsync -a --delete scripts/ /opt/budget/scripts/
+            sudo cp deploy.sh /opt/budget/deploy.sh
+            sudo cp IMAGE_VERSIONS.json /opt/budget/IMAGE_VERSIONS.json
+            sudo cp VERSION /opt/budget/VERSION
             for f in docker-compose*.yml; do
-              [ -f "$f" ] && cp "$f" /opt/budget/
+              [ -f "$f" ] && sudo cp "$f" /opt/budget/
             done
 
             echo "🐳 Deploying with existing registry images..."
             # --profile was removed from deploy.sh (profile auto-detected from .env);
             # mirror sync forces full recreate with --remove-orphans, which is what
             # retires the nginx container when Traefik takes over 80/443.
-            cd /opt/budget
-            ./deploy.sh --use-registry --sync-mode mirror --cleanup-mode smart --repo-dir /home/ikeniborn/familyBudget
+            sudo bash -c 'cd /opt/budget && ./deploy.sh --use-registry --sync-mode mirror --cleanup-mode smart --repo-dir /home/ikeniborn/familyBudget'
 
             echo "⏳ Waiting for services to stabilize..."
             sleep 15
