@@ -22,7 +22,14 @@ async function openFabAction(page: Page, label: string): Promise<void> {
   const desktopFab = page.locator('#desktop-fab-btn');
   if (await desktopFab.isVisible().catch(() => false)) {
     await desktopFab.click();
-    await page.locator(`#desktop-fab-wrapper button[aria-label="${label}"]`).click({ timeout: 5000 });
+    // On context pages (/plan, /facts…) the FAB opens its modal directly; on
+    // the home page it opens a menu whose items animate in
+    const modalOpenedDirectly = await page.locator('dialog[open]').first()
+      .isVisible({ timeout: 1500 }).catch(() => false);
+    if (!modalOpenedDirectly) {
+      await expect(page.locator('#desktop-fab-wrapper')).not.toHaveClass(/closed/, { timeout: 5000 });
+      await page.locator(`#desktop-fab-wrapper button[aria-label="${label}"]`).click({ timeout: 10000 });
+    }
   } else {
     await page.locator('#fab-btn').click();
     const speedDial = page.locator('#fab-speed-dial-menu');
