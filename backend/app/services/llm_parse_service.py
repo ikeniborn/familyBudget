@@ -21,6 +21,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.models.ai_settings import AISettings
 from backend.app.models.article import Article, ArticleUsageStats
+from backend.app.models.cost_center import CostCenter
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.product_group import ProductGroup
@@ -188,9 +189,69 @@ async def get_financial_centers(session: AsyncSession) -> list[dict[str, Any]]:
     ]
 
 
+async def get_cost_centers(session: AsyncSession) -> list[dict[str, Any]]:
+    """Active cost centers (МЗ) ordered by 90-day usage. Unlike accounts
+    there is no default: an unrecognized cost center stays null."""
+    usage = (
+        select(
+            BudgetFact.cost_center_id.label("cc_id"),
+            func.count().label("cnt"),
+        )
+        .where(BudgetFact.fact_date >= date.today() - timedelta(days=90))
+        .group_by(BudgetFact.cost_center_id)
+        .subquery()
+    )
+    rows = (
+        await session.execute(
+            select(
+                CostCenter.id,
+                CostCenter.name,
+                CostCenter.description,
+                func.coalesce(usage.c.cnt, 0).label("usage_count"),
+            )
+            .outerjoin(usage, usage.c.cc_id == CostCenter.id)
+            .where(CostCenter.is_active == True)  # noqa: E712
+            .order_by(func.coalesce(usage.c.cnt, 0).desc())
+        )
+    ).all()
+    return [
+        {
+            "id": row.id,
+            "name": row.name,
+            "description": (row.description or "").strip(),
+            "usage_count": row.usage_count,
+        }
+        for row in rows
+    ]
+
+
+def _format_cost_center_block(cost_centers: list[dict[str, Any]]) -> str:
+    """Prompt block for cost centers; empty string when the family has none."""
+    if not cost_centers:
+        return ""
+    lines = "\n".join(
+        f"{c['id']}: {c['name']}"
+        + (f" — {c['description']}" if c.get("description") else "")
+        for c in cost_centers
+    )
+    return f"Места затрат (id: название — описание):\n{lines}\n\n"
+
+
+def _cost_center_rule(cost_centers: list[dict[str, Any]]) -> str:
+    if not cost_centers:
+        return ""
+    return (
+        "- Место затрат: выбирай по смыслу из списка, опираясь на его "
+        "описание (проект, поездка, член семьи и т.п.). Если из фразы не "
+        "ясно, к какому месту затрат относится операция — "
+        "cost_center_id: null, ничего не подставляй.\n"
+    )
+
+
 def _build_prompt(
     articles: list[dict[str, Any]],
     centers: list[dict[str, Any]],
+    cost_centers: list[dict[str, Any]],
     today: date,
 ) -> str:
     article_lines = format_candidate_lines(articles)
@@ -206,6 +267,7 @@ def _build_prompt(
         f"Сегодня: {today.isoformat()}.\n\n"
         f"Категории (id: путь [тип] — описание):\n{article_lines}\n\n"
         f"Счета (id: название — описание):\n{center_lines}\n\n"
+        f"{_format_cost_center_block(cost_centers)}"
         "Правила выбора категории:\n"
         "- Выбирай по СМЫСЛУ покупки (что именно куплено/получено), а не по "
         "поверхностному совпадению букв в названии категории.\n"
@@ -220,6 +282,7 @@ def _build_prompt(
         "смыслу, но укажи низкий confidence (< 0.5).\n"
         "- Счёт: если в фразе счёт не назван (карта, наличные и т.п.) — "
         "выбери счёт с пометкой (основной).\n"
+        f"{_cost_center_rule(cost_centers)}"
         "- Сумму бери ТОЛЬКО из текста фразы: если сумма не названа — "
         "amount: null. НИКОГДА не выдумывай и не оценивай сумму сам.\n\n"
         "Ответь ТОЛЬКО одним JSON-объектом: без пояснений, без markdown, без "
@@ -230,6 +293,7 @@ def _build_prompt(
         '  "fact_date": "<YYYY-MM-DD, дата операции; сегодня, если не указана>",\n'
         '  "description": "<краткое описание или null>",\n'
         '  "financial_center_id": <int, id счёта из списка, или null если не понятно>,\n'
+        '  "cost_center_id": <int, id места затрат из списка, или null если не понятно>,\n'
         '  "confidence": <float 0..1, уверенность в выборе категории>\n'
         "}\n"
         'Если фраза не описывает транзакцию, ответь: {"error": "not_understood"}'
@@ -381,6 +445,7 @@ def _extract_json_array(content: str) -> list[Any]:
 def _build_batch_prompt(
     articles: list[dict[str, Any]],
     centers: list[dict[str, Any]],
+    cost_centers: list[dict[str, Any]],
     today: date,
 ) -> str:
     """Multi-transaction variant of the parse prompt: the phrase may describe
@@ -399,6 +464,7 @@ def _build_batch_prompt(
         f"Сегодня: {today.isoformat()}.\n\n"
         f"Категории (id: путь [тип] — описание):\n{article_lines}\n\n"
         f"Счета (id: название — описание):\n{center_lines}\n\n"
+        f"{_format_cost_center_block(cost_centers)}"
         "Правила:\n"
         "- КАЖДАЯ сумма в тексте — ОТДЕЛЬНАЯ операция со своей категорией. "
         "Никогда не объединяй разные покупки в одну запись и не суммируй их: "
@@ -418,6 +484,7 @@ def _build_batch_prompt(
         "- fact_date: дата операции; для плана — планируемая дата (может "
         "быть в будущем); не указана — сегодня.\n"
         "- Счёт: не назван — счёт с пометкой (основной).\n"
+        f"{_cost_center_rule(cost_centers)}"
         "- Сумму бери ТОЛЬКО из текста: не названа для операции — "
         "amount: null. НИКОГДА не выдумывай и не оценивай сумму сам.\n"
         "- Если уверенности в категории нет — ближайшая по смыслу с "
@@ -431,6 +498,7 @@ def _build_batch_prompt(
         '  "fact_date": "<YYYY-MM-DD>",\n'
         '  "description": "<краткое описание или null>",\n'
         '  "financial_center_id": <int, id счёта из списка, или null>,\n'
+        '  "cost_center_id": <int, id места затрат из списка, или null>,\n'
         '  "record_type": "<fact или plan>",\n'
         '  "confidence": <float 0..1>\n'
         "}]\n"
@@ -446,17 +514,19 @@ async def parse_transactions_batch(
     """Parse free text into a list of validated fact/plan drafts."""
     articles = await get_article_candidates(session)
     centers = await get_financial_centers(session)
+    cost_centers = await get_cost_centers(session)
     if not articles or not centers:
         raise AIParseError("No active articles or financial centers to match against")
     articles_by_id = {a["id"]: a for a in articles}
     centers_by_id = {c["id"]: c for c in centers}
+    cost_centers_by_id = {c["id"]: c for c in cost_centers}
     today = date.today()
 
     client = AIProviderClient(settings.endpoint_url, settings.api_token)
     content = await client.chat_completions(
         model=settings.model_text or "",
         messages=[
-            {"role": "system", "content": _build_batch_prompt(articles, centers, today)},
+            {"role": "system", "content": _build_batch_prompt(articles, centers, cost_centers, today)},
             {"role": "user", "content": text},
         ],
         max_tokens=4096,
@@ -512,6 +582,11 @@ async def parse_transactions_batch(
             fc_id = centers[0]["id"]
             default_used = True
 
+        # Cost center is optional by design: unrecognized -> stays empty.
+        cc_id = _coerce_int(entry.get("cost_center_id"))
+        if cc_id is not None and cc_id not in cost_centers_by_id:
+            cc_id = None
+
         confidence_value = _coerce_float(entry.get("confidence")) or 0.0
         confidence = (
             "high" if confidence_value >= settings.confidence_threshold else "low"
@@ -531,6 +606,8 @@ async def parse_transactions_batch(
                 description=description,
                 financial_center_id=fc_id,
                 financial_center_name=centers_by_id[fc_id]["name"],
+                cost_center_id=cc_id,
+                cost_center_name=cost_centers_by_id[cc_id]["name"] if cc_id else None,
                 record_type=record_type,
                 confidence=confidence,
                 warnings=entry_warnings,
@@ -749,6 +826,7 @@ async def parse_transaction_text(
     """Parse one free-text phrase into a validated TransactionDraft."""
     articles = await get_article_candidates(session)
     centers = await get_financial_centers(session)
+    cost_centers = await get_cost_centers(session)
     if not articles or not centers:
         raise AIParseError("No active articles or financial centers to match against")
 
@@ -757,7 +835,7 @@ async def parse_transaction_text(
     content = await client.chat_completions(
         model=settings.model_text or "",
         messages=[
-            {"role": "system", "content": _build_prompt(articles, centers, today)},
+            {"role": "system", "content": _build_prompt(articles, centers, cost_centers, today)},
             {"role": "user", "content": text},
         ],
         # Reasoning models think before answering; leave room for the JSON.
@@ -778,6 +856,7 @@ async def parse_transaction_text(
 
     articles_by_id = {a["id"]: a for a in articles}
     centers_by_id = {c["id"]: c for c in centers}
+    cost_centers_by_id = {c["id"]: c for c in cost_centers}
 
     article = articles_by_id.get(_coerce_int(payload.get("article_id")))
     if article is None:
@@ -817,6 +896,11 @@ async def parse_transaction_text(
                 f"Счёт не назван — подставлен основной ({centers[0]['name']}), проверьте"
             )
 
+    # Cost center is optional by design: unrecognized -> stays empty.
+    cc_id = _coerce_int(payload.get("cost_center_id"))
+    if cc_id is not None and cc_id not in cost_centers_by_id:
+        cc_id = None
+
     confidence_value = _coerce_float(payload.get("confidence")) or 0.0
     confidence = (
         "high" if confidence_value >= settings.confidence_threshold else "low"
@@ -837,6 +921,8 @@ async def parse_transaction_text(
         description=description,
         financial_center_id=fc_id,
         financial_center_name=centers_by_id[fc_id]["name"] if fc_id else None,
+        cost_center_id=cc_id,
+        cost_center_name=cost_centers_by_id[cc_id]["name"] if cc_id else None,
         record_type="fact",
         confidence=confidence,
         warnings=warnings,
