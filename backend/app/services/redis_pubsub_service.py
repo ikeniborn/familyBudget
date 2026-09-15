@@ -35,12 +35,11 @@ from collections.abc import Callable, Coroutine
 from datetime import datetime
 from typing import Any
 
-from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import TimeoutError as RedisTimeoutError
-
 from backend.app.core.json_utils import dumps as json_dumps
 from backend.app.core.json_utils import loads as json_loads
 from backend.app.services.redis_service import get_redis, is_redis_available
+from redis.exceptions import ConnectionError as RedisConnectionError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 logger = logging.getLogger(__name__)
 

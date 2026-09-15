@@ -19,11 +19,11 @@ from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.recurring_plan import RecurringPlan
 from backend.app.models.scheduled_reminder import ScheduledReminder
-from backend.app.services.partition_service import ensure_partitions_for_dates
 from backend.app.schemas.recurring_plan import (
     RecurringPlanCreate,
     RecurringPlanUpdate,
 )
+from backend.app.services.partition_service import ensure_partitions_for_dates
 from backend.app.utils.timezone import now_local, now_utc
 
 logger = get_logger(__name__)

@@ -9,11 +9,18 @@ from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 from backend.app.schemas.medicine import (
-    MedicineCreate, MedicineListResponse, MedicineResponse, MedicineUpdate,
+    MedicineCreate,
+    MedicineListResponse,
+    MedicineResponse,
+    MedicineUpdate,
 )
 from backend.app.schemas.medicine_stock import (
-    MedicineAnalyticsResponse, MedicineSpendByMedicine, MedicineStockCreate,
-    MedicineStockListResponse, MedicineStockResponse, MedicineStockUpdate,
+    MedicineAnalyticsResponse,
+    MedicineSpendByMedicine,
+    MedicineStockCreate,
+    MedicineStockListResponse,
+    MedicineStockResponse,
+    MedicineStockUpdate,
     validate_stock_invariants,
 )
 from backend.app.services import medicine_analytics_service, medicine_service, medicine_stock_service

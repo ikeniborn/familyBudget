@@ -6,20 +6,33 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.api.v1.endpoints.budget_ws import (
-    broadcast_medicine_changed, broadcast_medicine_course_changed,
+    broadcast_medicine_changed,
+    broadcast_medicine_course_changed,
     broadcast_medicine_intake_marked,
 )
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 from backend.app.schemas.medicine_course import (
-    MedicineCourseCreate, MedicineCourseListResponse, MedicineCourseResponse,
-    MedicineCourseUpdate, StockEstimate, validate_schedule_config,
+    MedicineCourseCreate,
+    MedicineCourseListResponse,
+    MedicineCourseResponse,
+    MedicineCourseUpdate,
+    StockEstimate,
+    validate_schedule_config,
 )
 from backend.app.schemas.medicine_intake import (
-    IntakeListItem, IntakeListResponse, IntakeMarkRequest, IntakeResponse,
+    IntakeListItem,
+    IntakeListResponse,
+    IntakeMarkRequest,
+    IntakeResponse,
 )
-from backend.app.services import family_member_service, medicine_course_service, medicine_intake_service, medicine_service
+from backend.app.services import (
+    family_member_service,
+    medicine_course_service,
+    medicine_intake_service,
+    medicine_service,
+)
 from backend.app.services.medicine_reminder_service import MedicineReminderService
 
 logger = logging.getLogger(__name__)
@@ -265,6 +278,7 @@ async def snooze_intake(
 # ---------- helpers ----------
 def _horizon_end(start: date) -> date:
     from datetime import timedelta
+
     from backend.app.services.medicine_intake_service import GENERATION_HORIZON_DAYS
     from backend.app.utils.timezone import now_local
     return max(now_local().date(), start) + timedelta(days=GENERATION_HORIZON_DAYS)

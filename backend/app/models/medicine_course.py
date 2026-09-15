@@ -3,8 +3,9 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import JSON
-from backend.app.utils.timezone import naive_now
 from sqlmodel import Column, Field, SQLModel
+
+from backend.app.utils.timezone import naive_now
 
 
 class MedicineCourse(SQLModel, table=True):

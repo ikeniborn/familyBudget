@@ -2,8 +2,9 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from backend.app.utils.timezone import naive_now
 from sqlmodel import Field, SQLModel
+
+from backend.app.utils.timezone import naive_now
 
 
 class MedicineStock(SQLModel, table=True):

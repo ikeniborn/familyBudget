@@ -3,8 +3,9 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import UniqueConstraint
-from backend.app.utils.timezone import naive_now
 from sqlmodel import Field, SQLModel
+
+from backend.app.utils.timezone import naive_now
 
 
 class MedicineIntakeLog(SQLModel, table=True):

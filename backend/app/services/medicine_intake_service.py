@@ -9,8 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 
 from backend.app.models.family_member import FamilyMember
-from backend.app.models.medicine_course import MedicineCourse
 from backend.app.models.medicine import Medicine
+from backend.app.models.medicine_course import MedicineCourse
 from backend.app.models.medicine_intake_log import MedicineIntakeLog
 from backend.app.services.medicine_reminder_service import MedicineReminderService
 from backend.app.services.medicine_schedule import expand_schedule
@@ -198,7 +198,8 @@ async def mark_intake(session: AsyncSession, intake: MedicineIntakeLog, *, statu
 
     if status == "taken":
         from backend.app.services.medicine_deduction_service import (
-            OUT_OF_STOCK, deduct_for_intake,
+            OUT_OF_STOCK,
+            deduct_for_intake,
         )
         from backend.app.services.medicine_shopping_integration import add_to_shopping_list
 

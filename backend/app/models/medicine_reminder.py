@@ -7,8 +7,9 @@ for one dose. Mirrors ScheduledReminder but targets medicine intakes instead of 
 from datetime import datetime
 
 from sqlalchemy import UniqueConstraint
-from backend.app.utils.timezone import naive_now
 from sqlmodel import Field, SQLModel
+
+from backend.app.utils.timezone import naive_now
 
 
 class MedicineReminder(SQLModel, table=True):
