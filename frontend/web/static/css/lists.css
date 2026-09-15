@@ -1465,6 +1465,7 @@ img[loading="lazy"] {
 @media (min-width: 1024px) {
     /* Main FAB buttons */
     #create-list-fab,
+    #fab-item-ai-list,
     .fab-main {
         width: 56px !important;
         height: 56px !important;
@@ -1501,6 +1502,7 @@ img[loading="lazy"] {
 @media (min-width: 1280px) {
     /* Main FAB buttons */
     #create-list-fab,
+    #fab-item-ai-list,
     .fab-main {
         width: 64px !important;
         height: 64px !important;
@@ -1550,6 +1552,11 @@ img[loading="lazy"] {
     opacity: 1;
     transform: scale(1) translateY(0);
     pointer-events: auto;
+}
+
+/* Standalone AI FAB - hidden while the speed dial is open */
+.fab-menu.open .ai-fab-standalone {
+    display: none !important;
 }
 
 /* Individual FAB item transition */
@@ -1613,6 +1620,7 @@ img[loading="lazy"] {
     /* NOTE: bottom position adjusted below at @media (max-width: 767px) to avoid mobile menu overlap */
 
     /* FAB для массовых операций (Detail View) */
+    #fab-item-ai-list,
     .fab-main {
         width: 48px !important;
         height: 48px !important;
