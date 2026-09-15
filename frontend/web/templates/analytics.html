@@ -305,7 +305,7 @@ let categoryChoices = null;  // Choices.js instance
 // Backend now handles all period logic directly, so we pass period as-is
 
 // Initialize charts on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Initialize CalendarWidget for custom date range (with custom trigger)
     new BudgetShared.CalendarWidget({
         mode: 'range',
@@ -319,8 +319,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Initialize CFO filter
-    loadCFOList();
+    // Initialize CFO filter and wait for the saved account (currentCFOId) to be
+    // restored from localStorage before the initial chart loads, otherwise the
+    // first data fetches run without cfo_id and ignore the saved filter
+    await loadCFOList();
 
     // Initialize category filter
     initCategoryFilter();

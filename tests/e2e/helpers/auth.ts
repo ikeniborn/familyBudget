@@ -63,6 +63,22 @@ function loadTestEnv(): { email: string; password: string; baseUrl: string } {
 }
 
 /**
+ * Dismiss the Service Worker update modal if it is blocking the page.
+ * The modal can appear on any page load when the deployed version differs
+ * from the cached one, and it intercepts clicks on the login form.
+ */
+async function dismissSwUpdateModal(page: Page): Promise<void> {
+  const openModal = page.locator('#sw-update-modal[open]');
+  if (await openModal.count().then((c) => c > 0).catch(() => false)) {
+    await page.evaluate(() => {
+      const dlg = document.getElementById('sw-update-modal') as HTMLDialogElement | null;
+      if (dlg && dlg.open) dlg.close();
+    });
+    await openModal.waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+  }
+}
+
+/**
  * Login to Family Budget with email/password
  *
  * @param page - Playwright page object
@@ -83,12 +99,14 @@ export async function login(page: Page, email?: string, password?: string): Prom
 
   // Step 1: Enter identifier (email)
   await page.waitForSelector('input[name="identifier"]', { timeout: 10000 });
+  await dismissSwUpdateModal(page);
   const identifierInput = page.locator('input[name="identifier"]');
   await identifierInput.fill(loginEmail);
 
   // Click "Продолжить" button
   const continueButton = page.locator('button[type="submit"]').first();
   await continueButton.click();
+  await dismissSwUpdateModal(page);
 
   // Step 2: Wait for authentication methods to appear
   // Check if biometric button is visible (some users have WebAuthn)
