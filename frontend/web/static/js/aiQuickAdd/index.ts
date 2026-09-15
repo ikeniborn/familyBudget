@@ -20,6 +20,8 @@ interface TransactionDraft {
     description: string | null;
     financial_center_id: number | null;
     financial_center_name: string | null;
+    cost_center_id: number | null;
+    cost_center_name: string | null;
     record_type: 'fact' | 'plan';
     confidence: 'high' | 'low';
     warnings: string[];
@@ -225,6 +227,27 @@ async function fillForm(form: HTMLFormElement, draft: TransactionDraft): Promise
     );
     if (descriptionInput && draft.description) {
         descriptionInput.value = draft.description;
+    }
+
+    // 3b. Cost center (optional). Its option list reloads after the account
+    //     change above, so wait for the option to appear; a cost center not
+    //     linked to the chosen account never appears — report, don't guess.
+    if (draft.cost_center_id !== null) {
+        const ccSelect = form.querySelector<HTMLSelectElement>(
+            'select[name="cost_center_id"]'
+        );
+        if (ccSelect) {
+            const ccValue = String(draft.cost_center_id);
+            const ccReady = await waitForOption(ccSelect, ccValue, 3000);
+            if (ccReady) {
+                ccSelect.value = ccValue;
+                ccSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            } else {
+                issues.push(
+                    `Место затрат «${draft.cost_center_name ?? draft.cost_center_id}» не подставилось — выберите вручную`
+                );
+            }
+        }
     }
 
     // 4. Category LAST. The account change above kicked off an async

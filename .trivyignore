@@ -411,3 +411,14 @@ CVE-2026-76642
 CVE-2026-78408
 CVE-2026-78409
 CVE-2026-78410
+
+# CVE-2026-82049: Python tarfile module file modification and content disclosure via crafted archives (HIGH)
+# Status: affected - no fixed package for Debian 12 (bookworm) as of 2026-09-15 (Trivy reports fixed: none)
+# Package: libpython3.11-minimal, libpython3.11-stdlib, python3.11-minimal v3.11.2-6+deb12u6
+# Mitigation:
+#   - No tarfile usage in backend, bot, tests, or scripts (verified 2026-09-15: only vendored pip inside .venv)
+#   - Application import uploads are restricted to .xlsx, .csv, .json (NO tar archives accepted)
+#   - Same exposure class as CVE-2026-11940 / CVE-2025-13462 already assessed above
+# Risk assessment: LOW (vulnerable stdlib path is not exposed by application functionality)
+# Next review: 2026-10-15 (monthly - check for a published Debian fix)
+CVE-2026-82049

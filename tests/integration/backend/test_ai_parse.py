@@ -263,3 +263,68 @@ async def test_parse_missing_account_falls_back_to_most_used(
     draft = response.json()
     assert draft["financial_center_id"] is not None
     assert any("основной" in w for w in draft["warnings"])
+
+
+async def test_parse_fills_recognized_cost_center(
+    authenticated_client: AsyncClient,
+    authenticated_admin_client: AsyncClient,
+    seeded_refs,
+    monkeypatch,
+    db_session,
+):
+    """Model names a real cost center -> it lands in the draft with its name."""
+    from backend.app.models.cost_center import CostCenter
+
+    cc = CostCenter(
+        user_id=seeded_refs["fc"].user_id,
+        name="Отпуск",
+        description="Поездка на море",
+        is_active=True,
+    )
+    db_session.add(cc)
+    await db_session.commit()
+    await db_session.refresh(cc)
+
+    await enable_ai(authenticated_admin_client)
+    article_id = seeded_refs["article"].id
+    fc_id = seeded_refs["fc"].id
+    mock_chat(
+        monkeypatch,
+        f'{{"article_id": {article_id}, "amount": 500, "fact_date": "{date.today()}",'
+        f' "description": null, "financial_center_id": {fc_id},'
+        f' "cost_center_id": {cc.id}, "confidence": 0.9}}',
+    )
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/parse-transaction", json={"text": "кафе в отпуске 500"}
+    )
+    assert response.status_code == 200
+    draft = response.json()
+    assert draft["cost_center_id"] == cc.id
+    assert draft["cost_center_name"] == "Отпуск"
+
+
+async def test_parse_unknown_cost_center_stays_null(
+    authenticated_client: AsyncClient,
+    authenticated_admin_client: AsyncClient,
+    seeded_refs,
+    monkeypatch,
+):
+    """Hallucinated cost_center_id -> null, no default is ever substituted."""
+    await enable_ai(authenticated_admin_client)
+    article_id = seeded_refs["article"].id
+    fc_id = seeded_refs["fc"].id
+    mock_chat(
+        monkeypatch,
+        f'{{"article_id": {article_id}, "amount": 500, "fact_date": "{date.today()}",'
+        f' "description": null, "financial_center_id": {fc_id},'
+        f' "cost_center_id": 999999, "confidence": 0.9}}',
+    )
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/parse-transaction", json={"text": "кофе 500"}
+    )
+    assert response.status_code == 200
+    draft = response.json()
+    assert draft["cost_center_id"] is None
+    assert draft["cost_center_name"] is None

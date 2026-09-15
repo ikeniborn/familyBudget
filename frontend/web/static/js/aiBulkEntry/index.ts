@@ -21,6 +21,8 @@ interface TransactionDraft {
     description: string | null;
     financial_center_id: number | null;
     financial_center_name: string | null;
+    cost_center_id: number | null;
+    cost_center_name: string | null;
     record_type: 'fact' | 'plan';
     confidence: 'high' | 'low';
     warnings: string[];
@@ -60,6 +62,7 @@ const MAX_RECORDING_MS = 120_000;
 
 let articleOptions: Option[] = [];
 let centerOptions: Option[] = [];
+let costCenterOptions: Option[] = [];
 let currentItems: TransactionDraft[] | null = null;
 let activeRecorder: MediaRecorder | null = null;
 let recorderStopTimer: number | undefined;
@@ -122,6 +125,9 @@ async function loadDictionaries(): Promise<void> {
     }
     if (centerOptions.length === 0) {
         centerOptions = await fetchList('/api/v1/financial-centers', 'financial_centers');
+    }
+    if (costCenterOptions.length === 0) {
+        costCenterOptions = await fetchList('/api/v1/cost-centers', 'cost_centers');
     }
 }
 
@@ -283,6 +289,13 @@ function renderItems(items: TransactionDraft[], warnings: string[]): void {
             index
         );
 
+        const ccSelect = buildSelect(
+            'select select-bordered select-sm w-full ai-bulk-cc',
+            costCenterOptions,
+            item.cost_center_id,
+            index
+        );
+
         const descriptionInput = document.createElement('input');
         descriptionInput.type = 'text';
         descriptionInput.className =
@@ -297,6 +310,7 @@ function renderItems(items: TransactionDraft[], warnings: string[]): void {
             fieldWrap('Сумма, ₽', amountInput),
             fieldWrap('Категория', articleSelect),
             fieldWrap('Счёт', fcSelect),
+            fieldWrap('Место затрат', ccSelect),
             fieldWrap('Описание', descriptionInput)
         );
         content.appendChild(grid);
@@ -372,6 +386,8 @@ async function parsePhoto(file: File): Promise<void> {
             description: receipt.store ? `${item.name} (${receipt.store})` : item.name,
             financial_center_id: null,
             financial_center_name: null,
+            cost_center_id: null,
+            cost_center_name: null,
             record_type: 'fact',
             confidence: item.confidence,
             warnings: [],
@@ -411,6 +427,7 @@ async function createRecords(): Promise<void> {
         const amount = Number(pick<HTMLInputElement>('ai-bulk-amount')?.value || 0);
         const articleId = Number(pick<HTMLSelectElement>('ai-bulk-article')?.value || 0);
         const fcId = Number(pick<HTMLSelectElement>('ai-bulk-fc')?.value || 0);
+        const ccId = Number(pick<HTMLSelectElement>('ai-bulk-cc')?.value || 0);
         const description =
             pick<HTMLInputElement>('ai-bulk-description')?.value.trim() || null;
         if (!factDate || amount <= 0 || !articleId || !fcId) {
@@ -428,6 +445,7 @@ async function createRecords(): Promise<void> {
                     amount,
                     description,
                     financial_center_id: fcId,
+                    ...(ccId > 0 ? { cost_center_id: ccId } : {}),
                     record_type: recordType,
                 }),
             });
