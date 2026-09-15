@@ -965,6 +965,22 @@ body.modal-open .fab-common-wrapper {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ============= Standalone AI FAB (above the main "+" button) ============= */
+
+/* Mobile wrapper: float the AI button directly above the "+" button */
+.fab-wrapper .ai-fab-standalone {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 0.75rem;
+}
+
+/* Hidden while the speed dial is open — menu items take its place */
+.fab-wrapper.open .ai-fab-standalone,
+.desktop-fab-wrapper.open .ai-fab-standalone {
+    display: none !important;
+}
+
 /* ==================================
    FAB Common Styles - Shared Desktop FAB Components
    Применяется к /, /facts, /plan (НЕ /lists - там отдельная система)
