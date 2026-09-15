@@ -2181,23 +2181,41 @@ class ChoicesCategoryTree {
             this.element.innerHTML = '';
         }
 
-        // Prepare choices data with parent chain
-        const choices = categories.map((cat: any) => {
-            const parentChain = this.getParentChain(cat.id);
-            const parentText = (Array.isArray(parentChain) && parentChain.length > 0)
-                ? parentChain.map((p: any) => p.name).join(' › ')
-                : '';
+        // Add an empty placeholder choice FIRST to prevent Choices.js from
+        // auto-selecting the first real category in select-one mode (the
+        // phantom article_id that emptied the facts/plan filter results).
+        // Mirrors choicesCategoryTree.js "FIX 1".
+        const placeholderValue = this.options.multiple
+            ? ''
+            : '— Выберите категорию —';
 
-            return {
-                value: cat.id,
-                label: cat.name,
-                customProperties: {
-                    usage_count: cat.usage_count || 0,
-                    parent_id: cat.parent_id,
-                    parent_text: parentText,  // Store formatted parent chain
-                }
-            };
-        });
+        // Prepare choices data with parent chain
+        const choices = [
+            {
+                value: '',
+                label: placeholderValue,
+                disabled: true,
+                selected: false,  // NOT selected (set programmatically if needed)
+                placeholder: true
+            },
+            ...categories.map((cat: any) => {
+                const parentChain = this.getParentChain(cat.id);
+                const parentText = (Array.isArray(parentChain) && parentChain.length > 0)
+                    ? parentChain.map((p: any) => p.name).join(' › ')
+                    : '';
+
+                return {
+                    value: cat.id,
+                    label: cat.name,
+                    selected: false,  // Explicitly NOT selected
+                    customProperties: {
+                        usage_count: cat.usage_count || 0,
+                        parent_id: cat.parent_id,
+                        parent_text: parentText,  // Store formatted parent chain
+                    }
+                };
+            })
+        ];
 
         // Initialize Choices.js with custom templates
         this.choices = new Choices(this.element, {
@@ -2262,6 +2280,14 @@ class ChoicesCategoryTree {
         // 4th parameter FALSE prevents Choices.js from auto-selecting
         if (this.choices) {
             this.choices.setChoices(choices, 'value', 'label', false);
+
+            // Force empty selection after initial setChoices(): Choices.js may
+            // auto-select the first non-disabled item despite the 'false'
+            // parameter (mirrors choicesCategoryTree.js critical fix).
+            this.choices.removeActiveItems();
+            if (this.element) {
+                (this.element as HTMLSelectElement).value = '';
+            }
         }
 
         // Listen for change events
