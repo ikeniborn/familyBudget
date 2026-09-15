@@ -6,14 +6,21 @@ import * as path from 'path';
  *
  * Tests Web Apps UI flows in a real browser environment.
  */
+
+/* Chromium's two-segment post-quantum (ML-KEM) TLS ClientHello stalls on some
+ * network paths in front of the Traefik SNI peek; disabling PQ key agreement
+ * keeps local runs reliable and is harmless in CI. */
+const chromiumLaunchArgs = ['--disable-features=PostQuantumKeyAgreement,UseMLKEM'];
+
 export default defineConfig({
   testDir: path.join(__dirname, '../tests/e2e'),
 
   /* Only match .spec.ts files (exclude Vitest .test.ts files) */
   testMatch: /.*\.spec\.ts$/,
 
-  /* Run tests in files in parallel */
-  fullyParallel: true,
+  /* Tests share one stand user and mutate the same data (lists, transactions),
+   * so parallel workers race each other — run serially for stability */
+  fullyParallel: false,
 
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
@@ -21,8 +28,9 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 1 : 0,
 
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 2 : undefined,
+  /* One worker everywhere: the suite is run rarely (manual workflow) and
+   * shared-user data races outweigh the speedup */
+  workers: 1,
 
   /* Per-test timeout: 60s (default 30s often too low for slow CI) */
   timeout: 60 * 1000,
@@ -41,6 +49,11 @@ export default defineConfig({
     /* Base URL to use in actions like `await page.goto('/')`. */
     /* E2E tests run against deployed test server (fbd.ikeniborn.ru) */
     baseURL: process.env.BASE_URL || 'https://fbd.ikeniborn.ru',
+
+    /* Optional proxy for local runs on networks where the direct TLS path to
+     * the test server is unreliable (e.g. E2E_PROXY=socks5://127.0.0.1:1080
+     * over an SSH tunnel). Unset in CI. */
+    ...(process.env.E2E_PROXY ? { proxy: { server: process.env.E2E_PROXY } } : {}),
 
     /* Navigation timeout: 30s (prevents networkidle-style hangs) */
     navigationTimeout: 30 * 1000,
@@ -68,6 +81,7 @@ export default defineConfig({
       testMatch: /.*\.setup\.ts/,
       use: {
         ...devices['Desktop Chrome'],
+        launchOptions: { args: chromiumLaunchArgs },
       },
     },
 
@@ -77,6 +91,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'tests/e2e/.auth/user.json',
+        launchOptions: { args: chromiumLaunchArgs },
       },
       dependencies: ['setup'],
     },

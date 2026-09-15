@@ -11,6 +11,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { waitForVisibleFab, openFactModal } from '../helpers/fab';
 
 // Test URLs
 // BASE_URL uses baseURL from playwright.config.ts (https://fbd.ikeniborn.ru for E2E tests)
@@ -29,7 +30,7 @@ test.describe('Form Submission - Transaction Creation', () => {
     await page.waitForLoadState('domcontentloaded');
 
     // Wait for critical resources
-    await page.waitForSelector('#fab-btn', { state: 'visible', timeout: 10000 });
+    await waitForVisibleFab(page);
 
     // Close cookie consent modal if present
     const acceptAllButton = page.locator('button:has-text("Принять все")');
@@ -44,11 +45,9 @@ test.describe('Form Submission - Transaction Creation', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal via FAB (opens directly without Speed Dial on production)
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
+    // Open modal via FAB
+    await openFactModal(page);
 
-    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
@@ -109,11 +108,9 @@ test.describe('Form Submission - Transaction Creation', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal via FAB (opens directly without Speed Dial on production)
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
+    // Open modal via FAB
+    await openFactModal(page);
 
-    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
@@ -134,18 +131,8 @@ test.describe('Form Submission - Transaction Creation', () => {
     // Set mobile viewport
     await page.setViewportSize(VIEWPORTS.mobile);
 
-    // Open modal via Speed Dial
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
-
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    // Wait for animation to complete before clicking buttons
-    await page.waitForTimeout(500);
-
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
+    // Open modal via FAB
+    await openFactModal(page);
 
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
@@ -197,11 +184,9 @@ test.describe('Form Submission - Transaction Creation', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal via FAB (opens directly without Speed Dial on production)
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
+    // Open modal via FAB
+    await openFactModal(page);
 
-    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
@@ -263,11 +248,9 @@ test.describe('Form Submission - Transaction Creation', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open modal via FAB (opens directly without Speed Dial on production)
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
+    // Open modal via FAB
+    await openFactModal(page);
 
-    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 

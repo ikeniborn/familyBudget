@@ -16,6 +16,7 @@
 
 import { test, expect } from '@playwright/test';
 import * as path from 'path';
+import { waitForVisibleFab } from '../helpers/fab';
 
 // Viewport sizes
 const VIEWPORTS = {
@@ -28,7 +29,7 @@ test.describe('CSV Import - Navigation and UI', () => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
-    await page.waitForSelector('#fab-btn', { state: 'visible', timeout: 10000 });
+    await waitForVisibleFab(page);
 
     const acceptAllButton = page.locator('button:has-text("Принять все")');
     const isVisible = await acceptAllButton.isVisible({ timeout: 3000 }).catch(() => false);

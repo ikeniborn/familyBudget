@@ -18,6 +18,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { openPlanModal } from '../helpers/fab';
 
 // Viewport sizes
 const VIEWPORTS = {
@@ -192,85 +193,22 @@ test.describe('Plan Page - Create Plan', () => {
     await page.setViewportSize(VIEWPORTS.desktop);
     await navigateToPlanPage(page);
 
-    // Wait for FAB to be available
-    const fabButton = page.locator('#fab-btn');
-    const fabVisible = await fabButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-    if (!fabVisible) {
-      // Try alternative: direct "Add Plan" button
-      const addButton = page.locator(
-        'button[onclick*="openAddPlanModal"], button:has-text("Добавить план")'
-      ).first();
-      const addVisible = await addButton.isVisible({ timeout: 3000 }).catch(() => false);
-      if (!addVisible) {
-        test.skip();
-        return;
-      }
-      await addButton.click();
-    } else {
-      await fabButton.click();
-      await page.waitForTimeout(500);
-
-      // SpeedDial may appear
-      const speedDial = page.locator('#fab-speed-dial-menu, .fab-speed-dial, [class*="speed-dial"]').first();
-      const speedDialVisible = await speedDial.isVisible({ timeout: 2000 }).catch(() => false);
-
-      if (speedDialVisible) {
-        // Look for plan creation button in speed dial
-        const planBtn = speedDial.locator(
-          'button:has-text("план"), button[title*="план"], button[onclick*="openAddPlanModal"]'
-        ).first();
-        const planBtnVisible = await planBtn.isVisible({ timeout: 2000 }).catch(() => false);
-        if (planBtnVisible) {
-          await planBtn.click();
-        }
-      }
-    }
+    await openPlanModal(page);
 
     // Modal should open
-    await page.waitForTimeout(500);
-    const modal = page.locator(
-      'dialog[open], .modal.modal-open, [id*="modal_plan"][open], [id*="modal_add_plan"]'
-    ).first();
-    const modalVisible = await modal.isVisible({ timeout: 5000 }).catch(() => false);
-
-    // It's OK if modal doesn't open — FAB may behave differently per environment
-    // The important thing is no JavaScript error occurs
-    if (!modalVisible) {
-      const errors: string[] = [];
-      page.on('console', msg => {
-        if (msg.type() === 'error') errors.push(msg.text());
-      });
-      await page.waitForTimeout(1000);
-      // Should not have critical JS errors related to plan functions
-      const planErrors = errors.filter(e => e.includes('openAddPlanModal') || e.includes('is not a function'));
-      expect(planErrors).toHaveLength(0);
-    } else {
-      await expect(modal).toBeVisible();
-    }
+    const modal = page.locator('dialog[open]').first();
+    await expect(modal).toBeVisible();
   });
 
   test('should open create plan modal on mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
     await navigateToPlanPage(page);
 
-    const fabButton = page.locator('#fab-btn');
-    const fabVisible = await fabButton.isVisible({ timeout: 5000 }).catch(() => false);
+    await openPlanModal(page);
 
-    if (!fabVisible) {
-      test.skip();
-      return;
-    }
-
-    await fabButton.click();
-    await page.waitForTimeout(500);
-
-    const speedDial = page.locator('#fab-speed-dial-menu').first();
-    const speedDialVisible = await speedDial.isVisible({ timeout: 3000 }).catch(() => false);
-
-    // Speed dial or modal should appear
-    const modalVisible = await page.locator('dialog[open]').isVisible({ timeout: 3000 }).catch(() => false);
-    expect(speedDialVisible || modalVisible).toBeTruthy();
+    // Modal should open
+    const modal = page.locator('dialog[open]').first();
+    await expect(modal).toBeVisible();
   });
 });
 
@@ -514,7 +452,7 @@ test.describe('Plan Page - Stats Widget', () => {
     const visible = await statsWidget.isVisible({ timeout: 5000 }).catch(() => false);
 
     // Stats may be hidden if no data — just check it's in DOM
-    const attached = await statsWidget.isAttached().catch(() => false);
+    const attached = await statsWidget.count().then((c) => c > 0).catch(() => false);
     expect(visible || attached).toBeTruthy();
   });
 
