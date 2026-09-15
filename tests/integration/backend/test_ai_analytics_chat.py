@@ -11,12 +11,15 @@ grounded answer). Pins:
 3. Scope extraction failure -> honest 422.
 """
 import json
+from contextlib import asynccontextmanager
 from datetime import date, timedelta
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.api.v1.endpoints import ai as ai_endpoint
 
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
@@ -248,3 +251,70 @@ async def test_history_returns_logged_exchange(
     assert entry["scope"]["expense_total"] == 1200
     assert entry["scope"]["period_start"] == start.isoformat()
     assert entry["created_at"]
+
+
+async def test_failed_exchange_is_logged(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """A scope-extraction failure is persisted with status parse_error.
+
+    Production writes the failure row through get_session_context (the
+    request transaction rolls back on the raised error); here that factory
+    is redirected into the test session so the row stays visible inside
+    the test transaction.
+    """
+    await enable_text(db_session, test_user.id)
+    mock_chat_sequence(monkeypatch, ["cannot help with that"], [])
+
+    @asynccontextmanager
+    async def fake_session_context():
+        yield db_session
+
+    monkeypatch.setattr(ai_endpoint, "get_session_context", fake_session_context)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat", json={"question": "как дела?"}
+    )
+    assert response.status_code == 422
+
+    history = await authenticated_client.get(
+        "/api/v1/ai/analytics-chat/history"
+    )
+    assert history.status_code == 200
+    items = history.json()["items"]
+    assert len(items) == 1
+    entry = items[0]
+    assert entry["question"] == "как дела?"
+    assert entry["status"] == "parse_error"
+    assert entry["answer"] is None
+    assert entry["scope"] is None
+    assert entry["created_at"]
+
+
+async def test_log_write_failure_never_masks_chat_error(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """A broken log store must not turn a 422 into a 500 — the failure
+    logging is best-effort by contract."""
+    await enable_text(db_session, test_user.id)
+    mock_chat_sequence(monkeypatch, ["cannot help with that"], [])
+
+    @asynccontextmanager
+    async def broken_session_context():
+        raise RuntimeError("log store down")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(ai_endpoint, "get_session_context", broken_session_context)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat", json={"question": "как дела?"}
+    )
+    assert response.status_code == 422
