@@ -146,7 +146,7 @@ class MedicineReminderService:
 
         web_push_sent = False
         if "web_push" in channels and getattr(user, "enable_push_notifications", True):
-            web_push_sent = await self._send_web_push(
+            web_push_sent = await self.send_web_push(
                 session, user.id, title=f"💊 {medicine.name}", body=message)
             reminder.web_push_sent = web_push_sent
 
@@ -180,7 +180,7 @@ class MedicineReminderService:
             logger.error("[MED_REMINDER] Telegram send failed to %s: %s", telegram_id, e)
             return False
 
-    async def _send_web_push(
+    async def send_web_push(
         self, session: AsyncSession, user_id: int, title: str, body: str,
         *, tag: str = "medicine-reminder", data_type: str = "medicine_reminder",
     ) -> bool:

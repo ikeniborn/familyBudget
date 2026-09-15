@@ -40,20 +40,6 @@ async def list_medicines(
         total=total, limit=limit, offset=offset)
 
 
-@router.get("/search", response_model=MedicineListResponse, summary="Search medicines")
-async def search_medicines(
-    q: str = Query(..., min_length=1),
-    session: AsyncSession = Depends(get_session),
-    current_user: User = Depends(get_current_user),
-    limit: int = Query(20, ge=1, le=100),
-) -> MedicineListResponse:
-    rows, total = await medicine_service.list_medicines(
-        session, active_only=True, limit=limit, offset=0, search=q)
-    return MedicineListResponse(
-        medicines=[MedicineResponse.model_validate(r) for r in rows],
-        total=total, limit=limit, offset=0)
-
-
 @router.get("/{medicine_id}", response_model=MedicineResponse)
 async def get_medicine(
     medicine_id: int,

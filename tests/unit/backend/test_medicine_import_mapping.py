@@ -3,7 +3,7 @@ import base64
 
 from backend.app.services.medicine_import_service import (
     auto_map, STOCK_FIELDS, COURSE_FIELDS, parse_intake_times,
-    _parse_rows, _len_errors, _STOCK_MAXLEN,
+    parse_rows, _len_errors, _STOCK_MAXLEN,
 )
 
 
@@ -37,14 +37,14 @@ def test_parse_intake_times():
 
 def test_parse_rows_with_header():
     content = _b64("Название,Кол-во\nНурофен,20\n")
-    rows = _parse_rows(content, ",", "utf-8", {"Название": "name", "Кол-во": "quantity"}, True)
+    rows = parse_rows(content, ",", "utf-8", {"Название": "name", "Кол-во": "quantity"}, True)
     assert rows == [{"name": "Нурофен", "quantity": "20"}]
 
 
 def test_parse_rows_headerless_uses_positional_columns():
     # has_header=False → cells keyed Column_1.. to mirror csv_detector.detected_columns
     content = _b64("Нурофен,20\n")
-    rows = _parse_rows(content, ",", "utf-8", {"Column_1": "name", "Column_2": "quantity"}, False)
+    rows = parse_rows(content, ",", "utf-8", {"Column_1": "name", "Column_2": "quantity"}, False)
     assert rows == [{"name": "Нурофен", "quantity": "20"}]
 
 

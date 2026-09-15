@@ -5,6 +5,9 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.api.v1.endpoints.budget_ws import (
+    broadcast_medicine_changed, broadcast_medicine_course_changed,
+)
 from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
@@ -57,15 +60,20 @@ async def stock_analyze(req: MedicineAnalyzeRequest, current_user: User = Depend
 
 @stock_import_router.post("/preview", response_model=MedicinePreviewResponse)
 async def stock_preview(req: MedicinePreviewRequest, current_user: User = Depends(get_current_user)):
-    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
+    rows = svc.parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
     return MedicinePreviewResponse(**svc.preview_stock(rows))
 
 
 @stock_import_router.post("/execute", response_model=MedicineImportResponse)
 async def stock_execute(req: MedicineImportRequest, current_user: User = Depends(get_current_user),
                         session: AsyncSession = Depends(get_session)):
-    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
-    return MedicineImportResponse(**await svc.execute_stock(session, rows, current_user.id))
+    rows = svc.parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
+    result = await svc.execute_stock(session, rows, current_user.id)
+    if result.get("imported_count"):
+        # Other clients refresh their stock views (catalog may have gained medicines too).
+        await broadcast_medicine_changed("stock", {"imported": result["imported_count"]})
+        await broadcast_medicine_changed("catalog", {"imported": result["imported_count"]})
+    return MedicineImportResponse(**result)
 
 
 @stock_gs_router.post("/fetch", response_model=GoogleSheetsFetchResponse)
@@ -82,15 +90,18 @@ async def course_analyze(req: MedicineAnalyzeRequest, current_user: User = Depen
 @course_import_router.post("/preview", response_model=MedicinePreviewResponse)
 async def course_preview(req: MedicinePreviewRequest, current_user: User = Depends(get_current_user),
                          session: AsyncSession = Depends(get_session)):
-    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
+    rows = svc.parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
     return MedicinePreviewResponse(**await svc.preview_courses(session, rows))
 
 
 @course_import_router.post("/execute", response_model=MedicineImportResponse)
 async def course_execute(req: MedicineImportRequest, current_user: User = Depends(get_current_user),
                          session: AsyncSession = Depends(get_session)):
-    rows = svc._parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
-    return MedicineImportResponse(**await svc.execute_courses(session, rows, current_user.id))
+    rows = svc.parse_rows(req.file_content, req.delimiter, req.encoding, req.column_mapping, req.has_header)
+    result = await svc.execute_courses(session, rows, current_user.id)
+    if result.get("imported_count"):
+        await broadcast_medicine_course_changed({"imported": result["imported_count"]})
+    return MedicineImportResponse(**result)
 
 
 @course_gs_router.post("/fetch", response_model=GoogleSheetsFetchResponse)
