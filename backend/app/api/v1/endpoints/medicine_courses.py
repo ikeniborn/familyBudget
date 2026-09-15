@@ -103,6 +103,10 @@ async def update_course(
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
         if "schedule_config" in payload:
             payload["schedule_config"] = normalized
+    merged_end = payload.get("end_date", c.end_date)
+    if merged_end is not None and merged_end < c.start_date:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY,
+                            "end_date must not be before start_date")
     schedule_changed = bool(payload.keys() & {
         "intake_times", "schedule_type", "schedule_config", "end_date"})
     c = await medicine_course_service.update_course(session, c, payload)
@@ -189,6 +193,8 @@ async def list_intakes(
     patient_id: int | None = Query(None),
     course_id: int | None = Query(None),
     on_date: str | None = Query(None, alias="date", description="'today' or YYYY-MM-DD"),
+    limit: int = Query(200, ge=1, le=1000),
+    offset: int = Query(0, ge=0),
 ) -> IntakeListResponse:
     from backend.app.utils.timezone import now_local
     target: date | None = None
@@ -202,13 +208,14 @@ async def list_intakes(
                                 "Invalid date format; use YYYY-MM-DD or 'today'")
     # Lazy-backfill (spec «Генерация intake_log»): if the nightly maintenance job has not run
     # (scheduler idle longer than the horizon), regenerate the horizon when the dashboard opens.
-    # generate_all is idempotent (pre-filter + ON CONFLICT), so this is cheap on the common path.
+    # TTL-debounced: iterating every active course on each dashboard open is wasted work.
     if on_date in (None, "today"):
-        await medicine_intake_service.generate_all(session)
-    rows = await medicine_intake_service.list_intakes(
-        session, on_date=target, patient_id=patient_id, course_id=course_id)
+        await medicine_intake_service.maybe_generate_all(session)
+    rows, total = await medicine_intake_service.list_intakes(
+        session, on_date=target, patient_id=patient_id, course_id=course_id,
+        limit=limit, offset=offset)
     items = [IntakeListItem(**r) for r in rows]
-    return IntakeListResponse(intakes=items, total=len(items))
+    return IntakeListResponse(intakes=items, total=total, limit=limit, offset=offset)
 
 
 @intakes_router.post("/{intake_id}/take", response_model=IntakeResponse)

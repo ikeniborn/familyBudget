@@ -1,5 +1,6 @@
 """Intake service: generate intake_log + reminders, list, take/skip (status only this phase)."""
 import logging
+import time
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import text
@@ -29,7 +30,8 @@ def _now():
 
 
 async def generate_for_course(session: AsyncSession, course: MedicineCourse,
-                              window_start: date, window_end: date) -> int:
+                              window_start: date, window_end: date,
+                              *, commit: bool = True) -> int:
     """Insert intake_log rows for [window_start, window_end] + fan-out reminders.
 
     Idempotent: UNIQUE(course_id, scheduled_at) skips existing logs via SAVEPOINT rollback;
@@ -58,12 +60,16 @@ async def generate_for_course(session: AsyncSession, course: MedicineCourse,
         created += 1
         if patient:
             await reminder_svc.create_reminders_for_intake(session, log, course, patient)
-    await session.commit()
+    if commit:
+        await session.commit()
     return created
 
 
 async def generate_all(session: AsyncSession, *, horizon_days: int = GENERATION_HORIZON_DAYS) -> int:
-    """Generate intake_log `horizon_days` ahead for every active, non-deleted course."""
+    """Generate intake_log `horizon_days` ahead for every active, non-deleted course.
+
+    One commit for the whole batch (per-course SAVEPOINTs still isolate duplicates).
+    """
     today = _now().date()
     window_end = today + timedelta(days=horizon_days)
     courses = (await session.execute(
@@ -73,8 +79,29 @@ async def generate_all(session: AsyncSession, *, horizon_days: int = GENERATION_
     )).scalars().all()
     total = 0
     for course in courses:
-        total += await generate_for_course(session, course, today, window_end)
+        total += await generate_for_course(session, course, today, window_end, commit=False)
+    await session.commit()
     return total
+
+
+_last_backfill_at: float | None = None
+
+
+async def maybe_generate_all(session: AsyncSession, *, min_interval_seconds: int = 600) -> bool:
+    """TTL-debounced lazy backfill for the dashboard request path.
+
+    generate_all is idempotent but iterates every active course; running it on every
+    dashboard open is wasted work. Per-process debounce is enough — the nightly
+    maintenance job remains the authoritative generator.
+    Returns True when the backfill actually ran.
+    """
+    global _last_backfill_at
+    now = time.monotonic()
+    if _last_backfill_at is not None and now - _last_backfill_at < min_interval_seconds:
+        return False
+    _last_backfill_at = now
+    await generate_all(session)
+    return True
 
 
 async def delete_future_scheduled(session: AsyncSession, course_id: int) -> int:
@@ -104,8 +131,12 @@ async def mark_overdue_late(session: AsyncSession) -> int:
 
 
 async def list_intakes(session: AsyncSession, *, on_date: date | None, patient_id: int | None,
-                       course_id: int | None = None):
-    """Return intake rows joined to medicine + member names for dashboard / course-journal rendering."""
+                       course_id: int | None = None, limit: int = 200, offset: int = 0):
+    """Return (rows, total): intake rows joined to medicine + member names, paginated.
+
+    A long-running course accumulates months of journal rows — never return them all
+    in one payload.
+    """
     clauses = ["1=1"]
     params: dict = {}
     if on_date is not None:
@@ -119,6 +150,8 @@ async def list_intakes(session: AsyncSession, *, on_date: date | None, patient_i
         clauses.append("l.course_id = :cid")
         params["cid"] = course_id
     where = " AND ".join(clauses)
+    total = (await session.execute(text(
+        f"SELECT COUNT(*) FROM t_f_medicine_intake_log l WHERE {where}"), params)).scalar_one()
     rows = await session.execute(text(f"""
         SELECT l.id, l.course_id, l.patient_id, l.scheduled_at, l.taken_at, l.status,
                l.dose_taken, l.stock_id, l.comment, l.marked_by, l.version,
@@ -130,8 +163,9 @@ async def list_intakes(session: AsyncSession, *, on_date: date | None, patient_i
         JOIN t_d_family_member fm ON fm.id = l.patient_id
         WHERE {where}
         ORDER BY l.scheduled_at ASC
-    """), params)
-    return [dict(r._mapping) for r in rows]
+        LIMIT :limit OFFSET :offset
+    """), {**params, "limit": limit, "offset": offset})
+    return [dict(r._mapping) for r in rows], total
 
 
 async def get_intake(session: AsyncSession, intake_id: int) -> MedicineIntakeLog | None:

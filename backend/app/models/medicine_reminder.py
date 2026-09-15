@@ -7,6 +7,7 @@ for one dose. Mirrors ScheduledReminder but targets medicine intakes instead of 
 from datetime import datetime
 
 from sqlalchemy import UniqueConstraint
+from backend.app.utils.timezone import naive_now
 from sqlmodel import Field, SQLModel
 
 
@@ -106,13 +107,13 @@ class MedicineReminder(SQLModel, table=True):
     )
 
     created_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=naive_now,
         nullable=False,
         description="When reminder was created"
     )
 
     updated_at: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=naive_now,
         nullable=False,
         description="When reminder was last modified"
     )
@@ -126,20 +127,20 @@ class MedicineReminder(SQLModel, table=True):
     def mark_sent(self) -> None:
         """Mark reminder as successfully sent."""
         self.status = "sent"
-        self.sent_at = datetime.utcnow()
-        self.updated_at = datetime.utcnow()
+        self.sent_at = naive_now()
+        self.updated_at = naive_now()
 
     def mark_failed(self, error_message: str) -> None:
         """Mark reminder as failed after max retries."""
         self.status = "failed"
         self.error_message = error_message[:1000] if error_message else None
-        self.updated_at = datetime.utcnow()
+        self.updated_at = naive_now()
 
     def increment_retry(self, error_message: str) -> None:
         """Increment retry count after a failed attempt."""
         self.retry_count += 1
         self.error_message = error_message[:1000] if error_message else None
-        self.updated_at = datetime.utcnow()
+        self.updated_at = naive_now()
 
         if not self.can_retry():
             self.mark_failed(error_message)

@@ -207,13 +207,55 @@ async def test_patch_clears_nullable_stock_fields(authenticated_client):
         "medicine_id": mid, "quantity_remaining": "5", "quantity_initial": "5",
         "unit": "шт", "expiry_date": "2027-01-01", "location": "Кухня"})
     assert r.status_code == 201, r.text
-    sid = r.json()["id"]
+    sid, version = r.json()["id"], r.json()["version"]
 
     r = await authenticated_client.patch(f"/api/v1/medicine-stock/{sid}",
-                                         json={"location": None})
+                                         json={"location": None, "version": version})
     assert r.status_code == 200, r.text
     assert r.json()["location"] is None
     assert r.json()["quantity_remaining"] == "5.000"  # untouched
+
+
+@pytest.mark.asyncio
+async def test_course_end_date_before_start_rejected(authenticated_client):
+    """Slice M5: end_date >= start_date invariant, on create and on merged PATCH."""
+    mid, pid = await _seed_medicine_and_member(authenticated_client, with_stock=False)
+    r = await authenticated_client.post("/api/v1/medicine-courses", json={
+        "medicine_id": mid, "patient_id": pid, "dose_amount": "1", "dose_unit": "шт",
+        "intake_times": ["08:00"], "start_date": "2026-06-15", "schedule_type": "daily",
+        "end_date": "2026-06-01"})
+    assert r.status_code == 422, f"{r.status_code} {r.text}"
+
+    r = await authenticated_client.post("/api/v1/medicine-courses", json={
+        "medicine_id": mid, "patient_id": pid, "dose_amount": "1", "dose_unit": "шт",
+        "intake_times": ["08:00"], "start_date": "2026-06-15", "schedule_type": "daily"})
+    assert r.status_code == 201, r.text
+    cid = r.json()["id"]
+    r = await authenticated_client.patch(f"/api/v1/medicine-courses/{cid}",
+                                         json={"end_date": "2026-06-01"})
+    assert r.status_code == 422, f"{r.status_code} {r.text}"
+
+
+@pytest.mark.asyncio
+async def test_intakes_pagination(authenticated_client):
+    """Slice M5: GET /medicine-intakes pages the course journal (limit/offset/total)."""
+    mid, pid = await _seed_medicine_and_member(authenticated_client, with_stock=False)
+    r = await authenticated_client.post("/api/v1/medicine-courses", json={
+        "medicine_id": mid, "patient_id": pid, "dose_amount": "1", "dose_unit": "шт",
+        "intake_times": ["08:00", "20:00"], "start_date": "2026-06-15", "schedule_type": "daily"})
+    assert r.status_code == 201, r.text
+    cid = r.json()["id"]
+
+    r = await authenticated_client.get(f"/api/v1/medicine-intakes?course_id={cid}&limit=3")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert len(body["intakes"]) == 3
+    assert body["total"] > 3  # months of backdated doses exist
+    first_page_ids = [i["id"] for i in body["intakes"]]
+
+    r = await authenticated_client.get(f"/api/v1/medicine-intakes?course_id={cid}&limit=3&offset=3")
+    assert r.status_code == 200, r.text
+    assert all(i["id"] not in first_page_ids for i in r.json()["intakes"])
 
 
 @pytest.mark.asyncio

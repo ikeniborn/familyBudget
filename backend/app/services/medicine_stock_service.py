@@ -51,7 +51,14 @@ async def create_stock(session: AsyncSession, data: dict, user_id: int) -> Medic
 NULLABLE_STOCK_FIELDS = {"purchase_date", "purchase_price", "location"}
 
 
-async def update_stock(session: AsyncSession, stock: MedicineStock, data: dict, user_id: int) -> MedicineStock:
+class StockVersionConflict(Exception):
+    """Raised when a stock update carries a stale version (→ HTTP 409)."""
+
+
+async def update_stock(session: AsyncSession, stock: MedicineStock, data: dict, user_id: int,
+                       *, expected_version: int) -> MedicineStock:
+    if stock.version != expected_version:
+        raise StockVersionConflict()
     for k, v in data.items():
         if v is None and k not in NULLABLE_STOCK_FIELDS:
             continue

@@ -1,6 +1,7 @@
 """Medicine catalog model (Dimension, SCD Type 1; history in t_d_medicine_history)."""
 from datetime import datetime
 
+from backend.app.utils.timezone import naive_now
 from sqlmodel import Field, SQLModel
 
 
@@ -21,5 +22,5 @@ class Medicine(SQLModel, table=True):
     notes: str | None = Field(default=None, description="Free text")
     is_active: bool = Field(default=True, nullable=False, index=True, description="Soft-archive flag")
     creator_id: int = Field(foreign_key="t_d_user.id", index=True, nullable=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=naive_now, nullable=False)
+    updated_at: datetime = Field(default_factory=naive_now, nullable=False)

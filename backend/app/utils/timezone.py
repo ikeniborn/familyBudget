@@ -119,6 +119,16 @@ def now_local(user_tz: str | None = None) -> datetime:
     return from_utc(now_utc(), user_tz)
 
 
+def naive_now(user_tz: str | None = None) -> datetime:
+    """Naive SYSTEM_TIMEZONE wall-clock timestamp.
+
+    The medicine module stores created_at/updated_at as naive wall-clock values;
+    this is the single clock for its models and services (SCD2 history columns
+    deliberately stay UTC — see docs on t_d_medicine_history).
+    """
+    return now_local(user_tz).replace(tzinfo=None)
+
+
 def is_valid_timezone(tz_name: str) -> bool:
     """
     Check if timezone name is valid IANA timezone.

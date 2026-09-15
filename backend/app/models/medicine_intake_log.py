@@ -3,6 +3,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from sqlalchemy import UniqueConstraint
+from backend.app.utils.timezone import naive_now
 from sqlmodel import Field, SQLModel
 
 
@@ -29,5 +30,5 @@ class MedicineIntakeLog(SQLModel, table=True):
     marked_by: int | None = Field(default=None, foreign_key="t_d_user.id",
                                   description="Who marked it (parent for a child)")
     version: int = Field(default=1, nullable=False, description="Optimistic locking for concurrent marks")
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=naive_now, nullable=False)
+    updated_at: datetime = Field(default_factory=naive_now, nullable=False)

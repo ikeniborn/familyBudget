@@ -81,6 +81,8 @@ class MedicineCourseCreate(BaseModel):
     @model_validator(mode="after")
     def schedule_config_valid(self) -> "MedicineCourseCreate":
         self.schedule_config = validate_schedule_config(self.schedule_type, self.schedule_config)
+        if self.end_date is not None and self.end_date < self.start_date:
+            raise ValueError("end_date must not be before start_date")
         return self
 
 
