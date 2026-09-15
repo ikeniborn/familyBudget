@@ -121,10 +121,13 @@ test.describe('Form Submission - Transaction Creation', () => {
     // Modal should remain open (validation failed)
     await expect(modalDialog).toBeVisible();
 
-    // Check for HTML5 validation (browser native)
-    const dateInput = page.locator('#modal_fact-tab-transaction input[name="fact_date"]');
-    const isDateInvalid = await dateInput.evaluate((el: HTMLInputElement) => !el.validity.valid);
-    expect(isDateInvalid).toBe(true);
+    // Check for HTML5 validation (browser native). The date is auto-filled
+    // with today, so assert the form as a whole is invalid (empty required
+    // selects/inputs), not any single field.
+    const formInvalid = await page.locator('#form_modal_fact').evaluate(
+      (el: HTMLFormElement) => !el.checkValidity()
+    );
+    expect(formInvalid).toBe(true);
   });
 
   test('should submit transaction on mobile viewport', async ({ page }) => {

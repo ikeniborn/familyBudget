@@ -42,10 +42,10 @@ test.describe('CSV Import - Navigation and UI', () => {
   test('should navigate to import page', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Navigate to Import page
-    const importLink = page.locator('a[href="/import"], a:has-text("Импорт")').first();
-    await importLink.click();
-    await page.waitForLoadState('domcontentloaded');
+    // The import link lives in the «Прочее» dropdown — open it first
+    await page.locator('summary:has-text("Прочее")').click();
+    await page.locator('a[href="/import"]:visible').first().click();
+    await page.waitForURL('**/import', { timeout: 10000 });
 
     // Verify import page loaded
     expect(page.url()).toContain('/import');
@@ -69,7 +69,7 @@ test.describe('CSV Import - Navigation and UI', () => {
     await expect(heading).toBeVisible();
 
     // Look for file input
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.locator('#csv-file');
     await expect(fileInput).toBeAttached(); // Might be hidden by custom upload UI
   });
 
@@ -111,7 +111,7 @@ test.describe('CSV Import - File Upload', () => {
 2024-01-17,Coffee Shop,-5.50,Food`;
 
     // Find file input
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.locator('#csv-file');
 
     // Upload test file
     // NOTE: This requires creating actual test file or using setInputFiles with buffer
@@ -286,7 +286,7 @@ test.describe('CSV Import - Error Handling', () => {
     await page.setViewportSize(VIEWPORTS.desktop);
 
     // Try to upload non-CSV file (e.g., .txt or .json)
-    const fileInput = page.locator('input[type="file"]');
+    const fileInput = page.locator('#csv-file');
 
     // This would require creating test file
     // Verify file input has accept attribute
