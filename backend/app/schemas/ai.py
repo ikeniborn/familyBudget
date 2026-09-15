@@ -86,6 +86,10 @@ class TransactionDraft(BaseModel):
     description: str | None = None
     financial_center_id: int | None = None
     financial_center_name: str | None = None
+    # Optional cost center (МЗ): null when the phrase names none — the model
+    # must not guess one; the user may pick it manually.
+    cost_center_id: int | None = None
+    cost_center_name: str | None = None
     record_type: Literal["fact", "plan"] = "fact"
     confidence: Literal["high", "low"]
     warnings: list[str] = []
