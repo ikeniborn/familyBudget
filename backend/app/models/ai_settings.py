@@ -24,10 +24,9 @@ class AISettings(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     enabled: bool = Field(default=False)
-    endpoint_url: str = Field(
-        default="https://homelab.ikeniborn.ru/v1", max_length=500
-    )
-    # Full-rights provider token; never returned to clients in full (masked).
+    endpoint_url: str = Field(default="", max_length=500)
+    # Full-rights provider token; stored encrypted ("enc:" prefix, token_crypto),
+    # never returned to clients in full (masked).
     api_token: str | None = Field(default=None, max_length=1000)
     model_text: str | None = Field(default=None, max_length=255)
     model_image: str | None = Field(default=None, max_length=255)

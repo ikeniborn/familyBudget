@@ -85,14 +85,14 @@ async def test_row_html_fact_branch_matches_client(
 async def test_row_html_plan_branch_structure(
     authenticated_client: AsyncClient, sample_fact: BudgetFact
 ):
-    """Plan branch has 14-column structure matching TypeScript renderFactsTable."""
+    """Plan branch has 13-column structure matching TypeScript renderFactsTable."""
     resp = await authenticated_client.get(
         f"/api/v1/facts/{sample_fact.id}/row-html?record_type=plan"
     )
     assert resp.status_code == 200
     html = resp.text
     desktop, _, _ = html.partition("|||")
-    assert desktop.count("<td") == 14
+    assert desktop.count("<td") == 13
     assert "badge-ghost" not in desktop
     assert 'text-base-content/50 text-xs' in desktop
     assert 'text-base-content/60' in desktop

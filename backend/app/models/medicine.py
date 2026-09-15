@@ -1,8 +1,9 @@
 """Medicine catalog model (Dimension, SCD Type 1; history in t_d_medicine_history)."""
 from datetime import datetime
 
-from backend.app.utils.timezone import naive_now
 from sqlmodel import Field, SQLModel
+
+from backend.app.utils.timezone import naive_now
 
 
 class Medicine(SQLModel, table=True):

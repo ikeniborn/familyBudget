@@ -62,17 +62,24 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
-    # Use begin() instead of connect() to create a transactional context
-    # This ensures that changes are committed when the context exits
-    with connectable.begin() as connection:
+    with connectable.connect() as connection:
+        # Session-level settings must survive per-migration COMMITs, so they are
+        # plain SET (not SET LOCAL) committed before migrations start.
+        lock_timeout = os.getenv("MIGRATION_LOCK_TIMEOUT", "10s")
+        connection.execute(text(f"SET lock_timeout = '{lock_timeout}'"))
+
         # Set ADMIN_TELEGRAM_ID for baseline migration bootstrap
         admin_telegram_id = os.getenv("ADMIN_TELEGRAM_ID")
         if admin_telegram_id:
-            connection.execute(text(f"SET LOCAL app.admin_telegram_id = '{admin_telegram_id}'"))
+            connection.execute(text(f"SET app.admin_telegram_id = '{admin_telegram_id}'"))
+        connection.commit()
 
+        # transaction_per_migration releases locks (e.g. ACCESS EXCLUSIVE taken by
+        # partition DDL) after each revision instead of holding them to the final COMMIT.
         context.configure(
             connection=connection,
-            target_metadata=target_metadata
+            target_metadata=target_metadata,
+            transaction_per_migration=True,
         )
 
         with context.begin_transaction():

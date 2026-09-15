@@ -1,8 +1,9 @@
 """Family member model — including children without an account."""
 from datetime import date, datetime
 
-from backend.app.utils.timezone import naive_now
 from sqlmodel import Field, SQLModel
+
+from backend.app.utils.timezone import naive_now
 
 
 class FamilyMember(SQLModel, table=True):

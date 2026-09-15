@@ -244,7 +244,7 @@ async def _commit_or_fail(session: AsyncSession, imported: int, skipped: int, er
     (no rows persisted) instead of letting an exception become a 500."""
     try:
         await session.commit()
-    except Exception as e:  # noqa: BLE001
+    except Exception:  # noqa: BLE001
         await session.rollback()
         logger.exception("medicine import commit failed")
         return {"imported_count": 0, "skipped_count": skipped, "error_count": total,

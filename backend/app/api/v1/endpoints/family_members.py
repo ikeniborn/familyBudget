@@ -9,7 +9,10 @@ from backend.app.core.dependencies import get_current_user, get_session
 from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 from backend.app.schemas.family_member import (
-    FamilyMemberCreate, FamilyMemberListResponse, FamilyMemberResponse, FamilyMemberUpdate,
+    FamilyMemberCreate,
+    FamilyMemberListResponse,
+    FamilyMemberResponse,
+    FamilyMemberUpdate,
 )
 from backend.app.services import family_member_service
 

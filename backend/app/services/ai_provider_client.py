@@ -18,6 +18,8 @@ from typing import Any
 
 import httpx
 
+from backend.app.core.token_crypto import decrypt_token
+
 logger = logging.getLogger(__name__)
 
 CONNECT_TIMEOUT = 5.0
@@ -50,6 +52,8 @@ class AIProviderClient:
         self.endpoint_url = endpoint_url.rstrip("/")
         self._transport = transport  # test seam (httpx.MockTransport)
         self._headers: dict[str, str] = {}
+        # Stored tokens are encrypted at rest; decrypt at this single egress point.
+        api_token = decrypt_token(api_token)
         if api_token:
             self._headers["Authorization"] = f"Bearer {api_token}"
 

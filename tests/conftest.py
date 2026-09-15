@@ -49,6 +49,34 @@ settings = get_settings()
 # asyncio_default_fixture_loop_scope=session in pytest.ini.
 
 
+@pytest.fixture(scope="session", autouse=True)
+def ensure_budget_fact_partitions():
+    """Create t_f_budget_fact partitions for the dates test fixtures insert.
+
+    The partition-window migration (b7f4a2c9d1e3) leaves a fresh database
+    with only a now..+6mo runway; fixtures inserting 2025/2026 facts then
+    fail with "no partition found". Sync engine: DDL must run outside the
+    per-test rollback transaction and the per-test event loop.
+    """
+    from datetime import date, timedelta
+
+    from sqlalchemy import create_engine, text
+
+    url = settings.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
+    engine = create_engine(url, poolclass=NullPool)
+    try:
+        with engine.begin() as conn:
+            month = date(2025, 1, 1)
+            end = date.today() + timedelta(days=150)
+            while month <= end:
+                conn.execute(
+                    text("SELECT ensure_budget_fact_partition(:d)"), {"d": month}
+                )
+                month = (month.replace(day=28) + timedelta(days=7)).replace(day=1)
+    finally:
+        engine.dispose()
+
+
 @pytest.fixture(scope="function")
 async def engine():
     """
