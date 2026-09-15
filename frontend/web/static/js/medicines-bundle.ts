@@ -1,10 +1,12 @@
 // Medicines bundle entry — wires the manager onto window for onclick handlers + WS.
 import {
-  loadCatalog, createMedicineFromForm, medicineArchive,
+  loadCatalog, catalogSearch, createMedicineFromForm, medicineArchive,
   loadPatients, createPatientFromForm, openPatientEdit, savePatientEdit, patientArchive,
-  loadStock, loadMedicineOptions, createStockFromForm, stockDelete, handleMedicineEvent,
-  loadDashboard, intakeTake, intakeSkip,
-  loadCourses, coursePause, openCourseForm, createCourseFromForm, openQuickPatient, saveQuickPatient,
+  loadStock, loadMedicineOptions, createStockFromForm, stockDelete, openStockEdit, saveStockEdit,
+  handleMedicineEvent,
+  loadDashboard, initDashboard, dashboardFilterChanged, intakeTake, intakeSkip, intakeSnooze,
+  loadCourses, coursePause, courseResume, courseComplete, openCourseForm, openCourseEdit,
+  createCourseFromForm, openQuickPatient, saveQuickPatient,
   loadCourseDetail, handleMedicineEventV2,
 } from './medicines/medicinesManager';
 import {
@@ -13,11 +15,12 @@ import {
 } from './medicines/medicineImportWizard';
 
 const windowExports = {
-  loadCatalog, createMedicineFromForm, medicineArchive,
+  loadCatalog, catalogSearch, createMedicineFromForm, medicineArchive,
   loadPatients, createPatientFromForm, openPatientEdit, savePatientEdit, patientArchive,
-  loadStock, loadMedicineOptions, createStockFromForm, stockDelete,
-  loadDashboard, intakeTake, intakeSkip,
-  loadCourses, coursePause, openCourseForm, createCourseFromForm, openQuickPatient, saveQuickPatient,
+  loadStock, loadMedicineOptions, createStockFromForm, stockDelete, openStockEdit, saveStockEdit,
+  loadDashboard, dashboardFilterChanged, intakeTake, intakeSkip, intakeSnooze,
+  loadCourses, coursePause, courseResume, courseComplete, openCourseForm, openCourseEdit,
+  createCourseFromForm, openQuickPatient, saveQuickPatient,
   openStockImport: () => openImportWizard('stock'),
   openCoursesImport: () => openImportWizard('courses'),
   medicineImportGoogleSheets, medicineImportAnalyze, medicineImportPreview, medicineImportExecute,
@@ -30,7 +33,7 @@ try {
       if (document.getElementById('medicines-catalog-body')) loadCatalog();
       if (document.getElementById('medicines-patients-body')) loadPatients();
       if (document.getElementById('medicines-stock-body')) loadStock();
-      if (document.getElementById('medicines-today-body')) loadDashboard();
+      if (document.getElementById('medicines-today-body')) initDashboard();
       if (document.getElementById('medicines-courses-body')) loadCourses();
       if (document.querySelector('meta[name="course-id"]')) loadCourseDetail();
     });

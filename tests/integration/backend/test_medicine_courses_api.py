@@ -172,6 +172,51 @@ async def test_edit_regenerates_and_resume_restores(authenticated_client):
 
 
 @pytest.mark.asyncio
+async def test_patch_clears_nullable_course_fields(authenticated_client):
+    """Slice M3: an explicit null in PATCH clears a nullable field (end_date, comment)."""
+    mid, pid = await _seed_medicine_and_member(authenticated_client, with_stock=False)
+    r = await authenticated_client.post("/api/v1/medicine-courses", json={
+        "medicine_id": mid, "patient_id": pid, "dose_amount": "1", "dose_unit": "шт",
+        "intake_times": ["08:00"], "start_date": "2026-06-15", "schedule_type": "daily",
+        "end_date": "2026-12-31", "comment": "старый комментарий"})
+    assert r.status_code == 201, r.text
+    cid = r.json()["id"]
+    assert r.json()["end_date"] == "2026-12-31"
+
+    r = await authenticated_client.patch(f"/api/v1/medicine-courses/{cid}",
+                                         json={"end_date": None, "comment": None})
+    assert r.status_code == 200, r.text
+    assert r.json()["end_date"] is None
+    assert r.json()["comment"] is None
+
+    # Omitted fields stay untouched; explicit null on a non-nullable field is ignored.
+    r = await authenticated_client.patch(f"/api/v1/medicine-courses/{cid}",
+                                         json={"dose_unit": None, "comment": "новый"})
+    assert r.status_code == 200, r.text
+    assert r.json()["dose_unit"] == "шт"
+    assert r.json()["comment"] == "новый"
+
+
+@pytest.mark.asyncio
+async def test_patch_clears_nullable_stock_fields(authenticated_client):
+    """Slice M3: an explicit null in stock PATCH clears location/purchase fields."""
+    r = await authenticated_client.post("/api/v1/medicines", json={"name": "Скл", "form": "tablet"})
+    assert r.status_code == 201, r.text
+    mid = r.json()["id"]
+    r = await authenticated_client.post("/api/v1/medicine-stock", json={
+        "medicine_id": mid, "quantity_remaining": "5", "quantity_initial": "5",
+        "unit": "шт", "expiry_date": "2027-01-01", "location": "Кухня"})
+    assert r.status_code == 201, r.text
+    sid = r.json()["id"]
+
+    r = await authenticated_client.patch(f"/api/v1/medicine-stock/{sid}",
+                                         json={"location": None})
+    assert r.status_code == 200, r.text
+    assert r.json()["location"] is None
+    assert r.json()["quantity_remaining"] == "5.000"  # untouched
+
+
+@pytest.mark.asyncio
 async def test_generation_idempotent(authenticated_client, db_session):
     """Re-running generation over an overlapping window adds no duplicate rows (UNIQUE + pre-filter)."""
     from datetime import timedelta

@@ -46,10 +46,16 @@ async def create_stock(session: AsyncSession, data: dict, user_id: int) -> Medic
     return stock
 
 
+# Columns an explicit null in PATCH may clear; null on any other field is ignored
+# (data already carries only the fields the request actually sent — exclude_unset).
+NULLABLE_STOCK_FIELDS = {"purchase_date", "purchase_price", "location"}
+
+
 async def update_stock(session: AsyncSession, stock: MedicineStock, data: dict, user_id: int) -> MedicineStock:
     for k, v in data.items():
-        if v is not None:
-            setattr(stock, k, v)
+        if v is None and k not in NULLABLE_STOCK_FIELDS:
+            continue
+        setattr(stock, k, v)
     stock.version += 1
     stock.last_modified_by = user_id
     stock.updated_at = _now()

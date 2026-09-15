@@ -1,5 +1,5 @@
 """Medicine bot handlers: open Web App, quick /taken, inline med: callbacks."""
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, WebAppInfo
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from bot.handlers.start import get_webapp_url
@@ -20,12 +20,14 @@ async def medicine_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Требуется авторизация.\n\nИспользуйте /start для входа."
         )
         return
-    # get_webapp_url() returns e.g. https://DOMAIN/webapp/index.html
-    # The medicines SPA is reached by replacing index.html with the medicines page.
-    base = get_webapp_url().rsplit("/", 1)[0]  # strip /index.html → https://DOMAIN/webapp
-    url = f"{base}/index.html#/medicines"
+    # The medicines UI lives in the main web PWA (/medicines), not in the Telegram
+    # webapp pages — the old "#/medicines" hash route never existed there. A plain URL
+    # button opens the browser where the PWA session (cookie auth) already lives; a
+    # web_app button would open an unauthenticated in-Telegram webview.
+    # get_webapp_url() returns e.g. https://DOMAIN/webapp/index.html → take the origin.
+    origin = get_webapp_url().split("/webapp/", 1)[0]
     kb = InlineKeyboardMarkup([[
-        InlineKeyboardButton("Открыть аптечку", web_app=WebAppInfo(url=url))
+        InlineKeyboardButton("Открыть аптечку", url=f"{origin}/medicines")
     ]])
     await update.message.reply_text("Открыть управление лекарствами:", reply_markup=kb)
 

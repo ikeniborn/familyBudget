@@ -20,10 +20,23 @@ function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
 }
 
+// Confirm via the shared ConfirmDialog bundle when present (it falls back to
+// native confirm() itself when its markup is missing).
+async function confirmAction(message: string): Promise<boolean> {
+  const dlg = (window as unknown as { showConfirmDialog?: (m: string) => Promise<boolean> }).showConfirmDialog;
+  return dlg ? dlg(message) : Promise.resolve(window.confirm(message));
+}
+
 // ---------- Catalog ----------
-export async function loadCatalog(): Promise<void> {
-  const data = await api<{ medicines: Medicine[] }>('/api/v1/medicines?active_only=true&limit=500');
+export async function loadCatalog(q?: string): Promise<void> {
+  const search = q ? `&q=${encodeURIComponent(q)}` : '';
+  const data = await api<{ medicines: Medicine[] }>(`/api/v1/medicines?active_only=true&limit=500${search}`);
   renderCatalog(data.medicines);
+}
+
+export async function catalogSearch(): Promise<void> {
+  const q = (document.getElementById('med-search') as HTMLInputElement | null)?.value.trim();
+  await loadCatalog(q || undefined);
 }
 
 function renderCatalog(meds: Medicine[]): void {
@@ -51,6 +64,7 @@ export async function createMedicineFromForm(): Promise<void> {
 }
 
 export async function medicineArchive(id: number): Promise<void> {
+  if (!(await confirmAction('Архивировать лекарство?'))) return;
   try {
     await api(`/api/v1/medicines/${id}`, { method: 'DELETE' });
     showToast('Архивировано', 'success');
@@ -151,10 +165,14 @@ export async function loadMedicineOptions(): Promise<void> {
   }
 }
 
+const stockCache = new Map<number, Stock>();
+
 export async function loadStock(expiringDays?: number): Promise<void> {
   if (medicineNames.size === 0) await loadMedicineOptions();
   const q = expiringDays != null ? `?expiring_in_days=${expiringDays}&limit=500` : '?limit=500';
   const data = await api<{ stock: Stock[] }>(`/api/v1/medicine-stock${q}`);
+  stockCache.clear();
+  for (const s of data.stock) stockCache.set(s.id, s);
   renderStock(data.stock);
 }
 
@@ -173,9 +191,38 @@ function renderStock(rows: Stock[]): void {
       <td>${s.expiry_date} ${badge}</td>
       <td>${escapeHtml(s.location ?? '')}</td>
       <td class="text-right">
+        <button class="btn btn-ghost btn-xs" onclick="window.openStockEdit(${s.id})" title="Изменить">✏</button>
         <button class="btn btn-ghost btn-xs" onclick="window.stockDelete(${s.id})">Удалить</button>
       </td></tr>`;
   }).join('') || `<tr><td colspan="5" class="text-center opacity-60">Пусто</td></tr>`;
+}
+
+export function openStockEdit(id: number): void {
+  const s = stockCache.get(id);
+  if (!s) return;
+  (document.getElementById('stock-edit-id') as HTMLInputElement).value = String(id);
+  (document.getElementById('stock-edit-qty') as HTMLInputElement).value = s.quantity_remaining;
+  (document.getElementById('stock-edit-expiry') as HTMLInputElement).value = s.expiry_date;
+  (document.getElementById('stock-edit-location') as HTMLInputElement).value = s.location ?? '';
+  (document.getElementById('stock-edit-dialog') as HTMLDialogElement | null)?.showModal();
+}
+
+export async function saveStockEdit(): Promise<void> {
+  const id = Number((document.getElementById('stock-edit-id') as HTMLInputElement)?.value);
+  const qty = (document.getElementById('stock-edit-qty') as HTMLInputElement)?.value.trim();
+  const expiry = (document.getElementById('stock-edit-expiry') as HTMLInputElement)?.value;
+  const location = (document.getElementById('stock-edit-location') as HTMLInputElement)?.value.trim();
+  if (!qty || Number(qty) < 0) { showToast('Укажите остаток', 'warning'); return; }
+  if (!expiry) { showToast('Укажите срок годности', 'warning'); return; }
+  try {
+    await api(`/api/v1/medicine-stock/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ quantity_remaining: qty, expiry_date: expiry, location: location || null }),
+    });
+    (document.getElementById('stock-edit-dialog') as HTMLDialogElement | null)?.close();
+    showToast('Сохранено', 'success');
+    await loadStock();
+  } catch (e) { showToast(String((e as Error).message), 'error'); }
 }
 
 export async function createStockFromForm(): Promise<void> {
@@ -202,6 +249,7 @@ export async function createStockFromForm(): Promise<void> {
 }
 
 export async function stockDelete(id: number): Promise<void> {
+  if (!(await confirmAction('Удалить партию из аптечки?'))) return;
   await api(`/api/v1/medicine-stock/${id}`, { method: 'DELETE' });
   showToast('Удалено', 'success');
   await loadStock();
@@ -227,28 +275,67 @@ export async function loadDashboard(patientId?: number): Promise<void> {
   renderDashboard(data.intakes);
 }
 
+// Populate the patient filter once, then load with the current selection.
+export async function initDashboard(): Promise<void> {
+  const sel = document.getElementById('dashboard-patient-filter') as HTMLSelectElement | null;
+  if (sel && sel.options.length <= 1) {
+    const data = await api<{ family_members: Patient[] }>('/api/v1/family-members');
+    sel.innerHTML = '<option value="">Все члены семьи</option>' +
+      data.family_members.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+  }
+  await dashboardFilterChanged();
+}
+
+export async function dashboardFilterChanged(): Promise<void> {
+  const v = (document.getElementById('dashboard-patient-filter') as HTMLSelectElement | null)?.value;
+  await loadDashboard(v ? Number(v) : undefined);
+}
+
+function renderIntakeCard(i: IntakeItem): string {
+  const time = i.scheduled_at.slice(11, 16);
+  const done = i.status === 'taken' || i.status === 'skipped';
+  return `<div class="card bg-base-100 shadow-sm ${done ? 'opacity-60' : ''}" data-id="${i.id}">
+    <div class="card-body p-3 flex-row items-center justify-between gap-2">
+      <div>
+        <div class="font-semibold">${escapeHtml(i.medicine_name)}</div>
+        <div class="text-sm opacity-70">⏰ ${time} · ${i.dose_amount} ${escapeHtml(i.dose_unit)}</div>
+        <div class="text-xs ${i.status === 'late' ? 'text-error' : 'opacity-50'}">${i.status}</div>
+      </div>
+      <div class="flex gap-1">
+        <button class="btn btn-success btn-xs" ${done ? 'disabled' : ''}
+          onclick="window.intakeTake(${i.id}, ${i.version})">✅</button>
+        <button class="btn btn-ghost btn-xs" ${done ? 'disabled' : ''}
+          onclick="window.intakeSkip(${i.id}, ${i.version})">⏭</button>
+        <button class="btn btn-ghost btn-xs" ${done ? 'disabled' : ''} title="Отложить"
+          onclick="window.intakeSnooze(${i.id})">🕐</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+// Group today's doses by family member (spec: dashboard is per-member, not flat).
 function renderDashboard(items: IntakeItem[]): void {
   const root = document.getElementById('medicines-today-body');
   if (!root) return;
-  root.innerHTML = items.map(i => {
-    const time = i.scheduled_at.slice(11, 16);
-    const done = i.status === 'taken' || i.status === 'skipped';
-    return `<div class="card bg-base-100 shadow-sm ${done ? 'opacity-60' : ''}" data-id="${i.id}">
-      <div class="card-body p-3 flex-row items-center justify-between gap-2">
-        <div>
-          <div class="font-semibold">${escapeHtml(i.medicine_name)}</div>
-          <div class="text-sm opacity-70">👤 ${escapeHtml(i.patient_name)} · ⏰ ${time} · ${i.dose_amount} ${escapeHtml(i.dose_unit)}</div>
-          <div class="text-xs ${i.status === 'late' ? 'text-error' : 'opacity-50'}">${i.status}</div>
-        </div>
-        <div class="flex gap-1">
-          <button class="btn btn-success btn-xs" ${done ? 'disabled' : ''}
-            onclick="window.intakeTake(${i.id}, ${i.version})">✅</button>
-          <button class="btn btn-ghost btn-xs" ${done ? 'disabled' : ''}
-            onclick="window.intakeSkip(${i.id}, ${i.version})">⏭</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('') || `<div class="text-center opacity-60 py-8">На сегодня ничего нет</div>`;
+  const byPatient = new Map<string, IntakeItem[]>();
+  for (const i of items) {
+    const list = byPatient.get(i.patient_name) ?? [];
+    list.push(i);
+    byPatient.set(i.patient_name, list);
+  }
+  root.innerHTML = [...byPatient.entries()].map(([name, list]) =>
+    `<div class="space-y-2">
+      <h2 class="font-semibold opacity-70 pt-2">👤 ${escapeHtml(name)}</h2>
+      ${list.map(renderIntakeCard).join('')}
+    </div>`
+  ).join('') || `<div class="text-center opacity-60 py-8">На сегодня ничего нет</div>`;
+}
+
+export async function intakeSnooze(id: number): Promise<void> {
+  try {
+    await api(`/api/v1/medicine-intakes/${id}/snooze`, { method: 'POST' });
+    showToast('Напоминание отложено', 'info');
+  } catch (e) { showToast(String((e as Error).message), 'error'); }
 }
 
 // Reload whichever intake view is mounted (dashboard and/or course journal).
@@ -285,34 +372,74 @@ export async function intakeSkip(id: number, version: number): Promise<void> {
 // ---------- Courses ----------
 interface Course {
   id: number; medicine_id: number; patient_id: number; dose_amount: string; dose_unit: string;
-  intake_times: string[]; schedule_type: string; is_active: boolean;
+  intake_times: string[]; schedule_type: string; schedule_config: { n?: number; days?: string[] } | null;
+  is_active: boolean; end_date: string | null; with_food: string | null; reminders_enabled: boolean;
   estimate: { remaining: string; intakes_left: number; days_left: number | null; in_stock: boolean } | null;
 }
 
+const courseCache = new Map<number, Course>();
+const memberNames = new Map<number, string>();
+
+async function loadNameMaps(): Promise<void> {
+  const [meds, members] = await Promise.all([
+    medicineNames.size ? Promise.resolve(null) : api<{ medicines: Medicine[] }>('/api/v1/medicines?limit=1000'),
+    memberNames.size ? Promise.resolve(null) : api<{ family_members: Patient[] }>('/api/v1/family-members'),
+  ]);
+  if (meds) for (const m of meds.medicines) medicineNames.set(m.id, m.name);
+  if (members) for (const p of members.family_members) memberNames.set(p.id, p.name);
+}
+
 export async function loadCourses(): Promise<void> {
-  const data = await api<{ courses: Course[] }>('/api/v1/medicine-courses?active_only=true&limit=500');
+  const showPaused = (document.getElementById('course-show-paused') as HTMLInputElement | null)?.checked;
+  await loadNameMaps();
+  const data = await api<{ courses: Course[] }>(
+    `/api/v1/medicine-courses?active_only=${showPaused ? 'false' : 'true'}&limit=500`);
   const root = document.getElementById('medicines-courses-body');
   if (!root) return;
+  courseCache.clear();
+  for (const c of data.courses) courseCache.set(c.id, c);
   root.innerHTML = data.courses.map(c => {
     const est = c.estimate;
     const estText = est
       ? (est.in_stock ? `хватит на ${est.intakes_left} приёмов${est.days_left != null ? ` (~${est.days_left} дн.)` : ''}`
                       : '<span class="text-warning">нет в аптечке</span>')
       : '';
+    const pausedBadge = c.is_active ? '' : ' <span class="badge badge-warning badge-sm">пауза</span>';
+    const toggleBtn = c.is_active
+      ? `<button class="btn btn-ghost btn-xs" onclick="window.coursePause(${c.id})">Пауза</button>`
+      : `<button class="btn btn-ghost btn-xs" onclick="window.courseResume(${c.id})">Возобновить</button>`;
     return `<tr data-id="${c.id}">
+      <td>${escapeHtml(medicineNames.get(c.medicine_id) ?? `#${c.medicine_id}`)}${pausedBadge}</td>
+      <td>${escapeHtml(memberNames.get(c.patient_id) ?? `#${c.patient_id}`)}</td>
       <td>${c.intake_times.join(', ')}</td>
       <td>${c.dose_amount} ${escapeHtml(c.dose_unit)}</td>
       <td>${estText}</td>
-      <td class="text-right">
+      <td class="text-right whitespace-nowrap">
         <a class="btn btn-ghost btn-xs" href="/medicines/courses/${c.id}">Открыть</a>
-        <button class="btn btn-ghost btn-xs" onclick="window.coursePause(${c.id})">Пауза</button>
+        <button class="btn btn-ghost btn-xs" onclick="window.openCourseEdit(${c.id})" title="Изменить">✏</button>
+        ${toggleBtn}
+        <button class="btn btn-ghost btn-xs" onclick="window.courseComplete(${c.id})">Завершить</button>
       </td></tr>`;
-  }).join('') || `<tr><td colspan="4" class="text-center opacity-60">Нет активных курсов</td></tr>`;
+  }).join('') || `<tr><td colspan="6" class="text-center opacity-60">Нет курсов</td></tr>`;
 }
 
 export async function coursePause(id: number): Promise<void> {
+  if (!(await confirmAction('Приостановить курс? Напоминания будут отменены.'))) return;
   await api(`/api/v1/medicine-courses/${id}/pause`, { method: 'POST' });
   showToast('Курс приостановлен', 'info');
+  await loadCourses();
+}
+
+export async function courseResume(id: number): Promise<void> {
+  await api(`/api/v1/medicine-courses/${id}/resume`, { method: 'POST' });
+  showToast('Курс возобновлён', 'success');
+  await loadCourses();
+}
+
+export async function courseComplete(id: number): Promise<void> {
+  if (!(await confirmAction('Завершить курс? Он исчезнет из списка, журнал сохранится.'))) return;
+  await api(`/api/v1/medicine-courses/${id}/complete`, { method: 'POST' });
+  showToast('Курс завершён', 'success');
   await loadCourses();
 }
 
@@ -323,7 +450,7 @@ interface MemberOpt { id: number; name: string; }
 
 let _inStock = new Set<number>();
 
-export async function openCourseForm(): Promise<void> {
+async function populateCourseForm(): Promise<void> {
   const [meds, stock, members] = await Promise.all([
     api<{ medicines: MedicineOpt[] }>('/api/v1/medicines?limit=1000'),
     api<{ stock: StockRow[] }>('/api/v1/medicine-stock?limit=1000'),
@@ -344,6 +471,52 @@ export async function openCourseForm(): Promise<void> {
   updateStockHint();
   const schedSel = document.getElementById('course-schedule') as HTMLSelectElement | null;
   if (schedSel) schedSel.onchange = updateScheduleConfigVisibility;
+  updateScheduleConfigVisibility();
+}
+
+function setVal(id: string, value: string): void {
+  const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null;
+  if (el) el.value = value;
+}
+
+export async function openCourseForm(): Promise<void> {
+  await populateCourseForm();
+  setVal('course-edit-id', '');
+  const title = document.getElementById('course-form-title');
+  if (title) title.textContent = 'Новый курс';
+  for (const sel of ['course-medicine', 'course-patient'])
+    (document.getElementById(sel) as HTMLSelectElement | null)?.removeAttribute('disabled');
+  setVal('course-end', '');
+  setVal('course-food', '');
+  const rem = document.getElementById('course-reminders') as HTMLInputElement | null;
+  if (rem) rem.checked = true;
+  (document.getElementById('course-form-dialog') as HTMLDialogElement | null)?.showModal();
+}
+
+export async function openCourseEdit(id: number): Promise<void> {
+  const c = courseCache.get(id);
+  if (!c) return;
+  await populateCourseForm();
+  setVal('course-edit-id', String(id));
+  const title = document.getElementById('course-form-title');
+  if (title) title.textContent = 'Изменить курс';
+  setVal('course-medicine', String(c.medicine_id));
+  setVal('course-patient', String(c.patient_id));
+  // medicine/patient are not part of MedicineCourseUpdate — freeze them in edit mode
+  for (const sel of ['course-medicine', 'course-patient'])
+    (document.getElementById(sel) as HTMLSelectElement | null)?.setAttribute('disabled', '');
+  setVal('course-dose', c.dose_amount);
+  setVal('course-unit', c.dose_unit);
+  setVal('course-times', c.intake_times.join(', '));
+  setVal('course-schedule', c.schedule_type);
+  setVal('course-schedule-n', String(c.schedule_config?.n ?? 2));
+  document.querySelectorAll<HTMLInputElement>('.course-day').forEach(el => {
+    el.checked = (c.schedule_config?.days ?? []).includes(el.value);
+  });
+  setVal('course-end', c.end_date ?? '');
+  setVal('course-food', c.with_food ?? '');
+  const rem = document.getElementById('course-reminders') as HTMLInputElement | null;
+  if (rem) rem.checked = c.reminders_enabled;
   updateScheduleConfigVisibility();
   (document.getElementById('course-form-dialog') as HTMLDialogElement | null)?.showModal();
 }
@@ -416,22 +589,36 @@ export async function createCourseFromForm(): Promise<void> {
     (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null)?.value ?? '';
   const times = val('course-times').split(',').map(t => t.trim()).filter(Boolean);
   try {
+    const editId = val('course-edit-id');
     const scheduleType = val('course-schedule') || 'daily';
-    await api('/api/v1/medicine-courses', {
-      method: 'POST',
-      body: JSON.stringify({
-        medicine_id: Number(val('course-medicine')),
-        patient_id: Number(val('course-patient')),
-        dose_amount: val('course-dose'),
-        dose_unit: val('course-unit'),
-        intake_times: times,
-        start_date: val('course-start'),
-        schedule_type: scheduleType,
-        schedule_config: buildScheduleConfig(scheduleType),
-      }),
-    });
+    const reminders = (document.getElementById('course-reminders') as HTMLInputElement | null)?.checked ?? true;
+    const common = {
+      dose_amount: val('course-dose'),
+      dose_unit: val('course-unit'),
+      intake_times: times,
+      schedule_type: scheduleType,
+      schedule_config: buildScheduleConfig(scheduleType),
+      end_date: val('course-end') || null,
+      with_food: val('course-food') || null,
+      reminders_enabled: reminders,
+    };
+    if (editId) {
+      await api(`/api/v1/medicine-courses/${editId}`, {
+        method: 'PATCH', body: JSON.stringify(common),
+      });
+    } else {
+      await api('/api/v1/medicine-courses', {
+        method: 'POST',
+        body: JSON.stringify({
+          ...common,
+          medicine_id: Number(val('course-medicine')),
+          patient_id: Number(val('course-patient')),
+          start_date: val('course-start'),
+        }),
+      });
+    }
     (document.getElementById('course-form-dialog') as HTMLDialogElement | null)?.close();
-    showToast('Курс создан', 'success');
+    showToast(editId ? 'Курс обновлён' : 'Курс создан', 'success');
     await loadCourses();
   } catch (e) {
     showToast(String((e as Error).message), 'error');
