@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Результат: ai-analytics-chat-tool-intents</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --fg:#2b2b3a; --muted:#6b6b80;
+  --accent:#5c6bc0; --accent-2:#3949ab; --border:#d6d8e6; --line:#9aa0b4; --zebra:#eef0f8;
+  --ok:#43a047; --ok-2:#2e7d32; --warn:#fb8c00; --warn-2:#ef6c00; --danger:#e53935; --danger-2:#c62828;
+  --shadow:rgba(40,40,80,.18);
+}
+body:has(#theme-toggle:checked){
+  --bg:#181825; --surface:#262637; --fg:#cdd6f4; --muted:#a6adc8;
+  --accent:#89b4fa; --accent-2:#5e95f0; --border:#3a3b52; --line:#6c7086; --zebra:#21222f;
+  --ok:#a6e3a1; --ok-2:#74c46e; --warn:#f9e2af; --warn-2:#f5c95b; --danger:#f38ba8; --danger-2:#e8638a;
+  --shadow:rgba(0,0,0,.45);
+}
+body{
+  margin:0 auto; padding:1.5rem 2rem 4rem; max-width:1080px;
+  font:16px/1.55 system-ui, sans-serif;
+  background:
+    radial-gradient(1200px 500px at 100% -10%, color-mix(in srgb,var(--accent) 10%, transparent), transparent),
+    var(--bg);
+  color:var(--fg);
+  transition:background .3s, color .3s;
+}
+.theme-btn{
+  position:sticky; top:.5rem; float:right;
+  cursor:pointer; user-select:none;
+  padding:.25rem .6rem; border:1px solid var(--border); border-radius:6px;
+  background:var(--surface);
+}
+h1{color:var(--accent-2); font-size:1.5rem; margin-bottom:.25rem}
+body:has(#theme-toggle:checked) h1{color:var(--accent)}
+h2{color:var(--accent); border-bottom:2px solid var(--border); padding-bottom:.3rem; margin-top:2.2rem}
+.lead{color:var(--muted); margin-top:0}
+table{border-collapse:collapse; width:100%; margin:1rem 0; background:var(--surface);
+  border:1px solid var(--border); border-radius:8px; overflow:hidden; font-size:.92rem}
+th,td{padding:.5rem .7rem; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb,var(--accent) 12%, var(--surface)); color:var(--fg)}
+tbody tr:nth-child(even){background:var(--zebra)}
+tbody tr:last-child td{border-bottom:none}
+code{background:color-mix(in srgb,var(--accent) 10%, var(--surface)); padding:.1rem .35rem;
+  border-radius:4px; font-size:.85em}
+.badge{display:inline-block; padding:.1rem .55rem; border-radius:999px; font-size:.78rem; font-weight:600}
+.badge.ok{background:color-mix(in srgb,var(--ok) 18%, var(--surface)); color:var(--ok-2); border:1px solid var(--ok)}
+.badge.info{background:color-mix(in srgb,var(--accent) 14%, var(--surface)); color:var(--accent-2); border:1px solid var(--accent)}
+body:has(#theme-toggle:checked) .badge.info{color:var(--accent)}
+.note{border-left:4px solid var(--accent); background:color-mix(in srgb,var(--accent) 10%, var(--surface));
+  padding:.6rem .9rem; border-radius:0 8px 8px 0; margin:1rem 0}
+.verdict{font-size:1.15rem; font-weight:700; color:var(--ok-2)}
+body:has(#theme-toggle:checked) .verdict{color:var(--ok)}
+figure{margin:1.2rem 0; background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; padding:1rem; box-shadow:0 2px 8px var(--shadow)}
+figcaption{color:var(--muted); font-size:.85rem; margin-top:.5rem; text-align:center}
+svg{width:100%; height:auto; display:block}
+svg text{font:13px system-ui, sans-serif; fill:var(--fg)}
+svg .small{font-size:11px; fill:var(--muted)}
+svg .node{fill:color-mix(in srgb,var(--accent) 12%, var(--surface)); stroke:var(--accent); stroke-width:1.4}
+svg .store{fill:color-mix(in srgb,var(--ok) 14%, var(--surface)); stroke:var(--ok); stroke-width:1.4}
+svg .ext{fill:color-mix(in srgb,var(--warn) 14%, var(--surface)); stroke:var(--warn); stroke-width:1.4}
+svg .edge{stroke:var(--line); stroke-width:1.6; fill:none; marker-end:url(#arr)}
+</style>
+</head>
+<body>
+<input type="checkbox" id="theme-toggle" hidden>
+<label for="theme-toggle" class="theme-btn" title="Переключить тему">🌙 / ☀️</label>
+<main class="report">
+
+<h1>Результат внедрения: <code>ai-analytics-chat-tool-intents</code></h1>
+<p class="lead">Слайс 2 (P2): инструментные интенты AI-чата аналитики — сравнение периодов, помесячная динамика, план-vs-факт поверх backend-агрегатов. Дата: 2026-09-15.</p>
+
+<h2>1. Резюме внедрения</h2>
+<table>
+<tbody>
+<tr><th>Топик</th><td><code>ai-analytics-chat-tool-intents</code></td></tr>
+<tr><th>Intent</th><td><code>docs/superpowers/intents/2026-09-15-ai-analytics-chat-tool-intents-intent.md</code> (approved, /check-chain intent: OK)</td></tr>
+<tr><th>Spec / Plan</th><td>n/a — chain-execute из intent</td></tr>
+<tr><th>База диффа</th><td><code>HEAD</code> (коммит intent-дока на ветке)</td></tr>
+<tr><th>Ветка</th><td><code>dev/ai-analytics-chat-tool-intents</code> (стек поверх <code>dev/ai-analytics-chat-history</code>, PR #733)</td></tr>
+<tr><th>Версия</th><td>0.8.28 → <code>0.8.29</code></td></tr>
+</tbody>
+</table>
+
+<h2>2. Выполненные изменения</h2>
+<table>
+<thead><tr><th>Файл</th><th>Тип</th><th>Что делает изменение</th></tr></thead>
+<tbody>
+<tr><td><code>backend/app/services/ai_analytics_service.py</code></td><td><span class="badge ok">изменён</span></td><td>Поле <code>intent</code> в scope-промпте и JSON-схеме (+ period2 для сравнений); новые агрегаты <code>_trend_monthly</code>, <code>_plan_vs_fact</code>, хелперы <code>_month_start/_month_end/_change</code>; ветвление интентов в <code>answer_question</code> с fallback на totals; фильтр income/expense в <code>_aggregate</code> (категории сходятся с итогами); правила формы ответа per-intent в answer-промпте</td></tr>
+<tr><td><code>backend/app/api/v1/endpoints/ai.py</code></td><td><span class="badge ok">изменён</span></td><td>Scope-лог устойчив к отсутствию ключей (<code>.get</code>) и записывает <code>intent</code></td></tr>
+<tr><td><code>tests/integration/backend/test_ai_analytics_chat.py</code></td><td><span class="badge ok">изменён</span></td><td>4 новых теста: compare_periods, trend_monthly, plan_vs_fact (снап к месяцам, execution 60%), fallback неизвестного интента; план-строка в фикстуре</td></tr>
+<tr><td><code>README.md</code>, <code>VERSION</code></td><td><span class="badge ok">изменены</span></td><td>Описание четырёх типов вопросов; версия 0.8.29</td></tr>
+</tbody>
+</table>
+
+<h2>3. Результаты</h2>
+<p><span class="verdict">Вердикт: OK</span> — покрытие Desired Outcomes 7/7, MISSING/PARTIAL нет, избыточных изменений нет.</p>
+<table>
+<thead><tr><th>Desired Outcome</th><th>Статус</th><th>Свидетельство</th></tr></thead>
+<tbody>
+<tr><td>Scope-модель классифицирует вопрос в intent (+period2)</td><td><span class="badge ok">DONE</span></td><td>промпт/JSON-схема; тесты интентов</td></tr>
+<tr><td>Сравнение периодов: два агрегата + дельты</td><td><span class="badge ok">DONE</span></td><td><code>test_compare_periods_intent</code>: payload несёт 1200 и 5000 + change</td></tr>
+<tr><td>Динамика по месяцам</td><td><span class="badge ok">DONE</span></td><td><code>test_trend_monthly_intent</code>: months c обоими месяцами</td></tr>
+<tr><td>План-vs-факт со снапом к месяцам и fact_through</td><td><span class="badge ok">DONE</span></td><td><code>test_plan_vs_fact_intent</code>: execution_pct 60, period_end = конец месяца</td></tr>
+<tr><td>Неизвестный intent → totals</td><td><span class="badge ok">DONE</span></td><td><code>test_unknown_intent_falls_back_to_totals</code></td></tr>
+<tr><td>Лог с intent, без KeyError</td><td><span class="badge ok">DONE</span></td><td><code>ai.py</code> scope через <code>.get</code></td></tr>
+<tr><td>Категории сходятся с итогами (income/expense-фильтр)</td><td><span class="badge ok">DONE</span></td><td>фильтр в <code>_aggregate</code>/<code>_trend_monthly</code></td></tr>
+</tbody>
+</table>
+<table>
+<thead><tr><th>Проверка</th><th>Итог</th></tr></thead>
+<tbody>
+<tr><td><code>pytest test_ai_analytics_chat.py</code></td><td><span class="badge ok">11 passed</span></td></tr>
+<tr><td>Регрессия AI-модуля (7 файлов)</td><td><span class="badge ok">42 passed</span></td></tr>
+<tr><td>GWT-сценарий <code>route-analytics-question-to-aggregate-intent</code> (strict)</td><td><span class="badge ok">принят</span></td></tr>
+</tbody>
+</table>
+
+<h2>4. Влияние на систему</h2>
+<table>
+<thead><tr><th>Область</th><th>Изменение</th><th>Риски / примечания</th></tr></thead>
+<tbody>
+<tr><td>Выразительность чата</td><td>4 типа вопросов вместо одного: итоги, сравнение, динамика, исполнение плана</td><td>Точность выбора интента зависит от модели; fallback в totals безопасен</td></tr>
+<tr><td>Сходимость цифр</td><td>debit/credit-статьи исключены из агрегатов чата (как в /trends)</td><td>Поведенческое изменение: вопросы о переводах/пополнениях больше не показывают эти категории в чате — осознанный трейдофф, задокументирован</td></tr>
+<tr><td>План-vs-факт</td><td>Период снапится к полным месяцам, payload несёт fact_through</td><td>Ловушка «полный план против частичного факта» закрыта на уровне данных и промпта</td></tr>
+<tr><td>Нагрузка</td><td>compare/plan_vs_fact — 2 последовательных SQL-запроса вместо 1</td><td>Дёшево при лимите 10/мин; gather на одной AsyncSession намеренно не используется</td></tr>
+<tr><td>Контракты</td><td><code>AnalyticsChatResponse</code> не изменён; фронтенд не тронут</td><td>Бейдж для сравнения показывает первый период, для плана — факт</td></tr>
+</tbody>
+</table>
+
+<h2>5. Схемы</h2>
+<figure>
+<svg viewBox="0 0 1040 300" role="img" aria-label="Маршрутизация вопроса по интентам">
+<defs>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0 0 L10 5 L0 10 z" fill="var(--line)"/>
+</marker>
+</defs>
+<rect class="ext" x="10" y="110" width="190" height="60" rx="8"/>
+<text x="105" y="133" text-anchor="middle">LLM: scope + intent</text>
+<text x="105" y="151" text-anchor="middle" class="small">json_object · период(ы) · категории</text>
+
+<rect class="node" x="260" y="110" width="170" height="60" rx="8"/>
+<text x="345" y="133" text-anchor="middle">Санитизация</text>
+<text x="345" y="151" text-anchor="middle" class="small">whitelist id · guard 1100 дней</text>
+
+<rect class="store" x="510" y="10" width="200" height="50" rx="8"/>
+<text x="610" y="30" text-anchor="middle">totals (default)</text>
+<text x="610" y="48" text-anchor="middle" class="small">итоги + топ-15</text>
+
+<rect class="store" x="510" y="80" width="200" height="50" rx="8"/>
+<text x="610" y="100" text-anchor="middle">compare_periods</text>
+<text x="610" y="118" text-anchor="middle" class="small">2 агрегата + change</text>
+
+<rect class="store" x="510" y="150" width="200" height="50" rx="8"/>
+<text x="610" y="170" text-anchor="middle">trend_monthly</text>
+<text x="610" y="188" text-anchor="middle" class="small">date_trunc по месяцам</text>
+
+<rect class="store" x="510" y="220" width="200" height="50" rx="8"/>
+<text x="610" y="240" text-anchor="middle">plan_vs_fact</text>
+<text x="610" y="258" text-anchor="middle" class="small">снап к месяцам · execution_pct</text>
+
+<rect class="ext" x="790" y="110" width="200" height="60" rx="8"/>
+<text x="890" y="133" text-anchor="middle">LLM: ответ</text>
+<text x="890" y="151" text-anchor="middle" class="small">строго по payload + intent-правила</text>
+
+<path class="edge" d="M200 140 H260"/>
+<path class="edge" d="M430 125 C 460 90, 475 50, 510 38"/>
+<path class="edge" d="M430 135 C 460 125, 475 110, 510 105"/>
+<path class="edge" d="M430 150 C 460 160, 475 170, 510 173"/>
+<path class="edge" d="M430 160 C 460 195, 475 235, 510 243"/>
+<path class="edge" d="M710 38 C 750 55, 760 95, 790 118"/>
+<path class="edge" d="M710 105 C 745 110, 755 118, 790 128"/>
+<path class="edge" d="M710 175 C 745 165, 755 155, 790 148"/>
+<path class="edge" d="M710 245 C 750 225, 760 190, 790 162"/>
+</svg>
+<figcaption>Интент выбирает модель, агрегат считает backend (SQL, только income/expense), ответ формулируется строго по payload. Неизвестный intent → totals.</figcaption>
+</figure>
+
+</main>
+</body>
+</html>

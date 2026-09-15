@@ -259,8 +259,9 @@ async def analytics_chat(
             user_id=current_user.id,
             question=data.question,
             scope={
-                key: result[key]
+                key: result.get(key)
                 for key in (
+                    "intent",
                     "period_start",
                     "period_end",
                     "record_type",

@@ -64,8 +64,14 @@ async def seeded_facts(db_session: AsyncSession, test_user: User) -> dict:
         financial_center_id=fc.id, fact_date=today - timedelta(days=90),
         amount=5000, record_type="fact",
     )
+    month_plan = BudgetFact(
+        user_id=test_user.id, article_id=article.id,
+        financial_center_id=fc.id, fact_date=today,
+        amount=2000, record_type="plan",
+    )
     db_session.add(inside)
     db_session.add(outside)
+    db_session.add(month_plan)
     await db_session.commit()
     yield {"article": article, "fc": fc}
     llm_parse_service.invalidate_candidates_cache()
@@ -251,6 +257,163 @@ async def test_history_returns_logged_exchange(
     assert entry["scope"]["expense_total"] == 1200
     assert entry["scope"]["period_start"] == start.isoformat()
     assert entry["created_at"]
+
+
+async def test_compare_periods_intent(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """Comparison questions ground the answer in two backend aggregates."""
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    prev_anchor = today - timedelta(days=90)
+    prev_start = prev_anchor.replace(day=1)
+    prev_end = (prev_start + timedelta(days=45)).replace(day=1) - timedelta(days=1)
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "compare_periods",
+            "period_start": today.replace(day=1).isoformat(),
+            "period_end": today.isoformat(),
+            "period2_start": prev_start.isoformat(),
+            "period2_end": prev_end.isoformat(),
+            "article_ids": None,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Сравнение готово."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Потратили больше, чем три месяца назад?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # Badge carries the asked (current) period totals.
+    assert data["expense_total"] == 1200
+    assert data["period_start"] == today.replace(day=1).isoformat()
+
+    payload = seen[1]
+    assert '"intent": "compare_periods"' in payload
+    assert '"expense_total": 1200' in payload
+    assert '"expense_total": 5000' in payload
+    assert '"change"' in payload
+
+
+async def test_trend_monthly_intent(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """Trend questions ground the answer in a per-month series."""
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    range_start = (today - timedelta(days=90)).replace(day=1)
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "trend_monthly",
+            "period_start": range_start.isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": None,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Динамика готова."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Как менялись расходы по месяцам?"},
+    )
+    assert response.status_code == 200
+    # Badge totals cover the whole asked range.
+    assert response.json()["expense_total"] == 6200
+
+    payload = seen[1]
+    assert '"intent": "trend_monthly"' in payload
+    assert '"months"' in payload
+    assert f'"{today.strftime("%Y-%m")}"' in payload
+    assert f'"{(today - timedelta(days=90)).strftime("%Y-%m")}"' in payload
+    assert '"expense": 5000' in payload
+    assert '"expense": 1200' in payload
+
+
+async def test_plan_vs_fact_intent(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """Plan questions ground the answer in month-snapped plan and fact
+    aggregates with per-category execution."""
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    month_start = today.replace(day=1)
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "plan_vs_fact",
+            "period_start": month_start.isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": None,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Исполнение плана готово."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Уложились ли в план по продуктам?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # Badge: fact totals; the period is snapped to full calendar months.
+    assert data["expense_total"] == 1200
+    next_month = (month_start + timedelta(days=45)).replace(day=1)
+    assert data["period_end"] == (next_month - timedelta(days=1)).isoformat()
+
+    payload = seen[1]
+    assert '"intent": "plan_vs_fact"' in payload
+    assert '"plan"' in payload and '"fact"' in payload
+    assert '"expense_total": 2000' in payload
+    assert '"expense_total": 1200' in payload
+    assert '"execution_pct": 60' in payload
+    assert '"fact_through"' in payload
+
+
+async def test_unknown_intent_falls_back_to_totals(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "drop_table",
+            "period_start": today.replace(day=1).isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": None,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Итоги готовы."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat", json={"question": "Сколько потратили?"}
+    )
+    assert response.status_code == 200
+    assert response.json()["expense_total"] == 1200
+    assert '"intent": "totals"' in seen[1]
 
 
 async def test_failed_exchange_is_logged(

@@ -1,4 +1,8 @@
 ---
+result_check:
+  verdict: OK
+  intent_hash: 963e17497ad9616e
+  last_run: 2026-09-15
 review:
   intent_hash: 963e17497ad9616e
   last_run: 2026-09-15
