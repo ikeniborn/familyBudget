@@ -12,6 +12,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { waitForVisibleFab, openTransferTab } from '../helpers/fab';
 
 // Viewport sizes
 const VIEWPORTS = {
@@ -24,7 +25,7 @@ test.describe('Transfers - Create Transfer', () => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
-    await page.waitForSelector('#fab-btn', { state: 'visible', timeout: 10000 });
+    await waitForVisibleFab(page);
 
     const acceptAllButton = page.locator('button:has-text("Принять все")');
     const isVisible = await acceptAllButton.isVisible({ timeout: 3000 }).catch(() => false);
@@ -37,32 +38,7 @@ test.describe('Transfers - Create Transfer', () => {
   test('should open transfer modal on desktop', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Open FAB menu
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
-    await page.waitForTimeout(500);
-
-    // Check for direct modal or Speed Dial
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    const speedDialVisible = await speedDialMenu.isVisible({ timeout: 1000 }).catch(() => false);
-
-    if (speedDialVisible) {
-      // Click "Перевод" button in Speed Dial
-      const transferButton = speedDialMenu.locator('button[title*="перевод" i], button:has-text("Перевод")').first();
-      await transferButton.click();
-    } else {
-      // Look for Transfer tab in modal
-      const modal = page.locator('dialog[open]').first();
-      const modalVisible = await modal.isVisible({ timeout: 2000 }).catch(() => false);
-
-      if (modalVisible) {
-        const transferTab = modal.locator('button:has-text("Перевод"), [data-tab="transfer"]');
-        const tabVisible = await transferTab.isVisible().catch(() => false);
-        if (tabVisible) {
-          await transferTab.click();
-        }
-      }
-    }
+    await openTransferTab(page);
 
     // Modal with transfer form should be visible
     const modal = page.locator('dialog[open], .modal[class*="modal-open"]').first();
@@ -71,7 +47,7 @@ test.describe('Transfers - Create Transfer', () => {
     // Verify transfer form fields exist
     const sourceSelect = modal.locator('select[name*="source" i], select[name*="from" i]').first();
     const destSelect = modal.locator('select[name*="dest" i], select[name*="to" i]').first();
-    const amountInput = modal.locator('input[name="amount"]').first();
+    const amountInput = modal.locator('[id$="-tab-transfer"] input[name="amount"]').first();
 
     await expect(sourceSelect).toBeVisible();
     await expect(destSelect).toBeVisible();
@@ -85,17 +61,7 @@ test.describe('Transfers - Create Transfer', () => {
     await page.goto('/');
 
     // Open transfer modal
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
-    await page.waitForTimeout(500);
-
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    const speedDialVisible = await speedDialMenu.isVisible({ timeout: 1000 }).catch(() => false);
-
-    if (speedDialVisible) {
-      const transferButton = speedDialMenu.locator('button[title*="перевод" i]').first();
-      await transferButton.click();
-    }
+    await openTransferTab(page);
 
     const modal = page.locator('dialog[open]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
@@ -128,7 +94,7 @@ test.describe('Transfers - Create Transfer', () => {
     }
 
     // Enter amount
-    const amountInput = modal.locator('input[name="amount"]');
+    const amountInput = modal.locator('[id$="-tab-transfer"] input[name="amount"]');
     await amountInput.fill('1000');
 
     // Optional: description
@@ -139,7 +105,7 @@ test.describe('Transfers - Create Transfer', () => {
     }
 
     // Save
-    const saveButton = modal.locator('button[type="submit"], button.btn-primary').first();
+    const saveButton = modal.locator('.modal-action button.btn-primary').first();
     await saveButton.click();
 
     // Wait for modal to close or success message
@@ -159,17 +125,7 @@ test.describe('Transfers - Create Transfer', () => {
     await page.goto('/');
 
     // Open transfer modal
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
-    await page.waitForTimeout(500);
-
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    const speedDialVisible = await speedDialMenu.isVisible({ timeout: 1000 }).catch(() => false);
-
-    if (speedDialVisible) {
-      const transferButton = speedDialMenu.locator('button[title*="перевод" i]').first();
-      await transferButton.click();
-    }
+    await openTransferTab(page);
 
     const modal = page.locator('dialog[open]').first();
     await expect(modal).toBeVisible({ timeout: 5000 });
@@ -185,11 +141,11 @@ test.describe('Transfers - Create Transfer', () => {
     }
 
     // Fill amount
-    const amountInput = modal.locator('input[name="amount"]');
+    const amountInput = modal.locator('[id$="-tab-transfer"] input[name="amount"]');
     await amountInput.fill('500');
 
     // Try to submit
-    const saveButton = modal.locator('button[type="submit"], button.btn-primary').first();
+    const saveButton = modal.locator('.modal-action button.btn-primary').first();
     await saveButton.click();
 
     // Modal should remain open or show error message

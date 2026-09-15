@@ -13,6 +13,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { waitForVisibleFab } from '../helpers/fab';
 
 // Test URLs
 // BASE_URL uses baseURL from playwright.config.ts (https://fbd.ikeniborn.ru for E2E tests)
@@ -37,8 +38,8 @@ test.describe('Mobile Navigation - Responsive Design', () => {
     // Wait for page load - use domcontentloaded instead of networkidle to avoid timeout
     await page.waitForLoadState('domcontentloaded');
 
-    // Wait for critical resources
-    await page.waitForSelector('#fab-btn', { state: 'visible', timeout: 10000 });
+    // Wait for critical resources (whichever FAB matches the default viewport)
+    await waitForVisibleFab(page);
   });
 
   test('should display mobile nav bar when viewport < 1024px', async ({ page }) => {
@@ -75,9 +76,12 @@ test.describe('Mobile Navigation - Responsive Design', () => {
     });
     expect(isMobileHidden).toBe(true);
 
-    // Verify desktop FAB visible
-    const desktopFab = page.locator('#fab-wrapper');
+    // Verify desktop FAB visible, mobile FAB hidden
+    const desktopFab = page.locator('#desktop-fab-btn');
     await expect(desktopFab).toBeVisible();
+
+    const mobileFab = page.locator('#fab-btn');
+    await expect(mobileFab).toBeHidden();
   });
 
   test('should transition layout at 1024px breakpoint', async ({ page }) => {
@@ -98,7 +102,7 @@ test.describe('Mobile Navigation - Responsive Design', () => {
     expect(innerWidth).toBe(1024);
 
     // Verify desktop layout active
-    const desktopFab = page.locator('#fab-wrapper');
+    const desktopFab = page.locator('#desktop-fab-btn');
     await expect(desktopFab).toBeVisible();
 
     // Verify mobile nav hidden

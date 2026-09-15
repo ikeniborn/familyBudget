@@ -12,6 +12,7 @@
  */
 
 import { test, expect, Page } from '@playwright/test';
+import { openPlanModal as openPlanModalViaFab, waitForVisibleFab } from '../helpers/fab';
 
 const VIEWPORTS = {
   mobile: { width: 375, height: 667 },
@@ -31,62 +32,23 @@ async function navigateToPlanPage(page: Page): Promise<void> {
 }
 
 /**
- * Open the plan modal via FAB. Falls back to direct openAddPlanModal() if SpeedDial is absent.
+ * Open the plan modal via whichever FAB matches the current viewport.
  * Returns the visible modal locator, or null if it could not be opened.
  */
 async function openPlanModal(page: Page) {
-  const fabButton = page.locator('#fab-btn');
-  const fabVisible = await fabButton.isVisible({ timeout: 5000 }).catch(() => false);
-
-  if (fabVisible) {
-    await fabButton.click();
-    await page.waitForTimeout(400);
-
-    const speedDial = page.locator('#fab-speed-dial-menu, .fab-speed-dial, [class*="speed-dial"]').first();
-    const speedDialVisible = await speedDial.isVisible({ timeout: 1500 }).catch(() => false);
-    if (speedDialVisible) {
-      const planBtn = speedDial
-        .locator('button:has-text("план"), button[title*="план"], button[onclick*="openAddPlanModal"]')
-        .first();
-      if (await planBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-        await planBtn.click();
-      }
-    }
+  try {
+    await openPlanModalViaFab(page);
+  } catch {
+    return null;
   }
 
-  await page.waitForTimeout(400);
-  const modal = page
-    .locator('dialog[id*="modal_plan"][open], dialog[id*="modal_add_plan"][open]')
-    .first();
-
-  if (await modal.isVisible({ timeout: 3000 }).catch(() => false)) {
-    return modal;
-  }
-
-  // Fallback: trigger the global helper directly (covers desktop without SpeedDial)
-  const triggered = await page.evaluate(() => {
-    const fn = (window as any).openAddPlanModal;
-    if (typeof fn === 'function') {
-      fn();
-      return true;
-    }
-    return false;
-  });
-
-  if (triggered) {
-    await page.waitForTimeout(400);
-    if (await modal.isVisible({ timeout: 3000 }).catch(() => false)) {
-      return modal;
-    }
-  }
-
-  return null;
+  return page.locator('dialog[open]').first();
 }
 
 test.describe('Recurring Plans - Modal Recurring Mode', () => {
   test.beforeEach(async ({ page }) => {
     await navigateToPlanPage(page);
-    await page.waitForSelector('#fab-btn', { state: 'attached', timeout: 10000 });
+    await waitForVisibleFab(page);
   });
 
   test('should reveal frequency/duration fields when recurring mode selected (desktop)', async ({ page }) => {
@@ -169,7 +131,7 @@ test.describe('Recurring Plans - Page Sections & Navigation', () => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
 
-    const planLink = page.locator('a[href="/plan"]').first();
+    const planLink = page.locator('a[href="/plan"]:visible').first();
     if (!(await planLink.isVisible({ timeout: 3000 }).catch(() => false))) {
       const menuButton = page.locator('button[aria-label*="menu" i], button:has-text("☰")').first();
       if (await menuButton.isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -177,8 +139,8 @@ test.describe('Recurring Plans - Page Sections & Navigation', () => {
       }
     }
 
-    await page.locator('a[href="/plan"]').first().click();
-    await page.waitForLoadState('domcontentloaded');
+    await page.locator('a[href="/plan"]:visible').first().click();
+    await page.waitForURL('**/plan', { timeout: 10000 });
     expect(page.url()).toContain('/plan');
   });
 });

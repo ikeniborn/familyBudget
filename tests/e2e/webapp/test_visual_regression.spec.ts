@@ -23,7 +23,41 @@ const VIEWPORTS = {
   desktop: { width: 1920, height: 1080 }, // Desktop
 };
 
+type Page = import('@playwright/test').Page;
+
+/**
+ * Wait for the FAB that matches the current viewport: the mobile #fab-btn
+ * below 1024px, the desktop #desktop-fab-btn at 1024px and above. Call this
+ * only after setViewportSize — the other button stays hidden by CSS.
+ */
+async function waitForVisibleFab(page: Page): Promise<void> {
+  await expect(page.locator('#fab-btn:visible, #desktop-fab-btn:visible').first())
+    .toBeVisible({ timeout: 10000 });
+}
+
+/**
+ * Open the fact (transaction) modal through whichever FAB is visible:
+ * desktop FAB opens a menu with an "Добавить факт" item, the mobile FAB
+ * either opens the speed dial (on /) or triggers the page-context action.
+ */
+async function openFactModal(page: Page): Promise<void> {
+  const desktopFab = page.locator('#desktop-fab-btn');
+  if (await desktopFab.isVisible().catch(() => false)) {
+    await desktopFab.click();
+    await page.locator('#desktop-fab-wrapper button[aria-label="Добавить фактическую транзакцию"]')
+      .click({ timeout: 5000 });
+  } else {
+    await page.locator('#fab-btn').click();
+    const speedDial = page.locator('#fab-speed-dial-menu');
+    if (await speedDial.isVisible({ timeout: 1500 }).catch(() => false)) {
+      await speedDial.locator('button[aria-label="Добавить фактическую транзакцию"]').click();
+    }
+  }
+  await expect(page.locator('dialog[open]').first()).toBeVisible({ timeout: 5000 });
+}
+
 test.describe('Visual Regression - Dashboard', () => {
+  test.skip(!!process.env.CI, 'Visual baselines are local — *.png is gitignored, CI has no baselines');
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
@@ -35,34 +69,37 @@ test.describe('Visual Regression - Dashboard', () => {
       await acceptAllButton.click();
       await page.waitForSelector('#cookie-consent-banner', { state: 'hidden', timeout: 5000 });
     }
-
-    // Wait for dashboard to fully load
-    await page.waitForSelector('#fab-btn', { state: 'visible', timeout: 10000 });
   });
 
   test('should match dashboard screenshot on desktop', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
+    await waitForVisibleFab(page);
 
-    // Wait for dynamic content (charts, stats) to load
-    await page.waitForTimeout(2000);
+    // Wait for lazy HTMX fragments to settle
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
 
-    // Take full page screenshot
+    // Full page screenshot; user data sections are masked — their content
+    // changes as other tests create transactions
     await expect(page).toHaveScreenshot('dashboard-desktop.png', {
       fullPage: true,
       maxDiffPixels: 100, // Allow minor rendering differences
+      mask: [page.locator('#quick-stats'), page.locator('#account-balances'), page.locator('#recent-transactions'), page.locator('.navbar-end')],
     });
   });
 
   test('should match dashboard screenshot on mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
+    await waitForVisibleFab(page);
 
-    // Wait for responsive layout adjustments
-    await page.waitForTimeout(1500);
+    // Wait for lazy HTMX fragments to settle
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
 
-    // Take full page screenshot
     await expect(page).toHaveScreenshot('dashboard-mobile.png', {
       fullPage: true,
       maxDiffPixels: 100,
+      mask: [page.locator('#quick-stats'), page.locator('#account-balances'), page.locator('#recent-transactions'), page.locator('.navbar-end')],
     });
   });
 
@@ -84,6 +121,7 @@ test.describe('Visual Regression - Dashboard', () => {
 });
 
 test.describe('Visual Regression - Transaction Modal', () => {
+  test.skip(!!process.env.CI, 'Visual baselines are local — *.png is gitignored, CI has no baselines');
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
@@ -94,59 +132,31 @@ test.describe('Visual Regression - Transaction Modal', () => {
       await acceptAllButton.click();
       await page.waitForSelector('#cookie-consent-banner', { state: 'hidden', timeout: 5000 });
     }
-
-    await page.waitForSelector('#fab-btn', { state: 'visible', timeout: 10000 });
   });
 
   test('should match empty transaction modal on desktop', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
+    await waitForVisibleFab(page);
 
-    // Open transaction modal
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
-    await page.waitForTimeout(500);
-
-    // Check for Speed Dial (mobile) vs direct modal (desktop)
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    const speedDialVisible = await speedDialMenu.isVisible({ timeout: 1000 }).catch(() => false);
-
-    if (speedDialVisible) {
-      // Click "Добавить транзакцию" in Speed Dial
-      const transactionButton = speedDialMenu.locator('button[title*="транзакц" i], button:has-text("Транзакция")').first();
-      await transactionButton.click();
-    }
-
-    // Modal should be visible
+    await openFactModal(page);
     const modal = page.locator('dialog[open]').first();
-    await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Wait for modal animation
     await page.waitForTimeout(500);
 
-    // Screenshot of empty modal
+    // Screenshot of empty modal; date inputs are prefilled with today
     await expect(modal).toHaveScreenshot('transaction-modal-empty-desktop.png', {
       maxDiffPixels: 100,
+      mask: [modal.locator('input[type="date"], input[id*="date" i], input[name*="date" i]')],
     });
   });
 
   test('should match transaction modal with tabs', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.desktop);
+    await waitForVisibleFab(page);
 
-    // Open modal
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
-    await page.waitForTimeout(500);
-
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    const speedDialVisible = await speedDialMenu.isVisible({ timeout: 1000 }).catch(() => false);
-
-    if (speedDialVisible) {
-      const transactionButton = speedDialMenu.locator('button[title*="транзакц" i]').first();
-      await transactionButton.click();
-    }
-
+    await openFactModal(page);
     const modal = page.locator('dialog[open]').first();
-    await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Check for tab navigation (Расход/Доход/Перевод)
     const tabs = modal.locator('button[role="tab"], .tabs button');
@@ -175,21 +185,10 @@ test.describe('Visual Regression - Transaction Modal', () => {
 
   test('should match transaction modal on mobile', async ({ page }) => {
     await page.setViewportSize(VIEWPORTS.mobile);
+    await waitForVisibleFab(page);
 
-    // Open modal via FAB
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
-    await page.waitForTimeout(500);
-
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    // Click transaction button in Speed Dial
-    const transactionButton = speedDialMenu.locator('button[title*="транзакц" i]').first();
-    await transactionButton.click();
-
+    await openFactModal(page);
     const modal = page.locator('dialog[open]').first();
-    await expect(modal).toBeVisible({ timeout: 5000 });
 
     // Wait for mobile layout adjustments
     await page.waitForTimeout(500);
@@ -202,6 +201,7 @@ test.describe('Visual Regression - Transaction Modal', () => {
 });
 
 test.describe('Visual Regression - Lists Page', () => {
+  test.skip(!!process.env.CI, 'Visual baselines are local — *.png is gitignored, CI has no baselines');
   test.beforeEach(async ({ page }) => {
     await page.goto('/lists');
     await page.waitForLoadState('domcontentloaded');
@@ -218,12 +218,15 @@ test.describe('Visual Regression - Lists Page', () => {
     await page.setViewportSize(VIEWPORTS.desktop);
 
     // Wait for page content to load
-    await page.waitForTimeout(2000);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
 
-    // Full page screenshot
+    // Full page screenshot; list content is masked — other tests create and
+    // delete shopping lists
     await expect(page).toHaveScreenshot('lists-page-desktop.png', {
       fullPage: true,
       maxDiffPixels: 100,
+      mask: [page.locator('#lists-content'), page.locator('.navbar-end')],
     });
   });
 
@@ -231,12 +234,13 @@ test.describe('Visual Regression - Lists Page', () => {
     await page.setViewportSize(VIEWPORTS.mobile);
 
     // Wait for mobile layout
-    await page.waitForTimeout(1500);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(500);
 
-    // Full page screenshot
     await expect(page).toHaveScreenshot('lists-page-mobile.png', {
       fullPage: true,
       maxDiffPixels: 100,
+      mask: [page.locator('#lists-content'), page.locator('.navbar-end')],
     });
   });
 
@@ -275,6 +279,7 @@ test.describe('Visual Regression - Lists Page', () => {
 });
 
 test.describe('Visual Regression - Mobile Navigation', () => {
+  test.skip(!!process.env.CI, 'Visual baselines are local — *.png is gitignored, CI has no baselines');
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     await page.waitForLoadState('domcontentloaded');
@@ -343,7 +348,7 @@ test.describe('Visual Regression - Mobile Navigation', () => {
       });
 
       // Test header on Plans page
-      await page.goto('/plans');
+      await page.goto('/plan');
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
 
@@ -362,11 +367,16 @@ test.describe('Visual Regression - Mobile Navigation', () => {
     const fabButton = page.locator('#fab-btn');
     await expect(fabButton).toBeVisible({ timeout: 5000 });
 
+    // The round button's transparent corners show the page behind it —
+    // allow corner noise from that background
     await expect(fabButton).toHaveScreenshot('fab-closed.png', {
-      maxDiffPixels: 30,
+      maxDiffPixels: 200,
     });
 
-    // FAB button opened state (Speed Dial)
+    // FAB button opened state (Speed Dial). Let async content settle first:
+    // the AI menu item appears after /api/v1/ai/status resolves, and the page
+    // data behind the translucent menu changes as other tests write records.
+    await page.waitForLoadState('networkidle');
     await fabButton.click();
     await page.waitForTimeout(500);
 
@@ -377,7 +387,8 @@ test.describe('Visual Regression - Mobile Navigation', () => {
       // Screenshot of full Speed Dial menu
       const fabContainer = page.locator('#fab-btn, #fab-speed-dial-menu');
       await expect(fabContainer.first()).toHaveScreenshot('fab-speed-dial-open.png', {
-        maxDiffPixels: 50,
+        maxDiffPixels: 200,
+        mask: [page.locator('#recent-transactions-card'), page.locator('#account-balances')],
       });
     }
   });

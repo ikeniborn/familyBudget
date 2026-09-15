@@ -11,6 +11,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { openFactModal } from '../helpers/fab';
 
 // Test URLs
 // BASE_URL uses baseURL from playwright.config.ts (https://fbd.ikeniborn.ru for E2E tests)
@@ -40,17 +41,8 @@ test.describe('Modal - Responsive Behavior', () => {
     // Set mobile viewport
     await page.setViewportSize(VIEWPORTS.mobile);
 
-    // Click FAB button to open Speed Dial menu
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
-
-    // Wait for Speed Dial menu to appear
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    // Click "Добавить факт" option
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
+    // Open the transaction modal via whichever FAB is visible
+    await openFactModal(page);
 
     // Wait for modal dialog to open (modal_fact IS the dialog element)
     const modalDialog = page.locator('#modal_fact[open]');
@@ -72,11 +64,9 @@ test.describe('Modal - Responsive Behavior', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Click FAB button to open modal (opens directly without Speed Dial on production)
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
+    // Open the transaction modal via whichever FAB is visible
+    await openFactModal(page);
 
-    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
@@ -96,11 +86,9 @@ test.describe('Modal - Responsive Behavior', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Click FAB button to open modal (opens directly without Speed Dial on production)
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
+    // Open the transaction modal via whichever FAB is visible
+    await openFactModal(page);
 
-    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
@@ -121,17 +109,8 @@ test.describe('Modal - Responsive Behavior', () => {
     // Set mobile viewport
     await page.setViewportSize(VIEWPORTS.mobile);
 
-    // Click FAB button to open Speed Dial menu
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
-
-    // Wait for Speed Dial menu to appear
-    const speedDialMenu = page.locator('#fab-speed-dial-menu');
-    await expect(speedDialMenu).toBeVisible({ timeout: 3000 });
-
-    // Click "Добавить факт" option
-    const addFactButton = speedDialMenu.locator('button[title="Добавить факт"]');
-    await addFactButton.click();
+    // Open the transaction modal via whichever FAB is visible
+    await openFactModal(page);
 
     // Wait for modal to open
     const modalDialog = page.locator('#modal_fact[open]');
@@ -153,11 +132,9 @@ test.describe('Modal - Responsive Behavior', () => {
     // Set desktop viewport
     await page.setViewportSize(VIEWPORTS.desktop);
 
-    // Click FAB button to open modal (opens directly without Speed Dial on production)
-    const fabButton = page.locator('#fab-btn');
-    await fabButton.click();
+    // Open the transaction modal via whichever FAB is visible
+    await openFactModal(page);
 
-    // Modal opens directly (no Speed Dial menu on production)
     const modalDialog = page.locator('#modal_fact[open]');
     await expect(modalDialog).toBeVisible({ timeout: 5000 });
 
