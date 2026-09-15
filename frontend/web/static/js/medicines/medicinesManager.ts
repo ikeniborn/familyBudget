@@ -443,7 +443,7 @@ interface Course {
 const courseCache = new Map<number, Course>();
 const memberNames = new Map<number, string>();
 
-function estimateText(est: Course['estimate']): string {
+export function estimateText(est: Course['estimate']): string {
   if (!est) return '';
   return est.in_stock
     ? `хватит на ${est.intakes_left} приёмов${est.days_left != null ? ` (~${est.days_left} дн.)` : ''}`
@@ -596,7 +596,7 @@ function updateScheduleConfigVisibility(): void {
 
 // Build schedule_config for the selected type; null for daily.
 // Throws a user-facing message when the config is missing/invalid (server rejects it too).
-function buildScheduleConfig(type: string): { n: number } | { days: string[] } | null {
+export function buildScheduleConfig(type: string): { n: number } | { days: string[] } | null {
   if (type === 'every_n_days') {
     const n = Number((document.getElementById('course-schedule-n') as HTMLInputElement | null)?.value);
     if (!Number.isInteger(n) || n < 1) throw new Error('Укажите интервал в днях (N ≥ 1)');

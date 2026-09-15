@@ -217,6 +217,31 @@ async def test_patch_clears_nullable_stock_fields(authenticated_client):
 
 
 @pytest.mark.asyncio
+async def test_delete_course_soft_deletes_and_cancels_reminders(authenticated_client, db_session):
+    """DELETE delegates to complete: soft-delete + pending reminders cancelled."""
+    from sqlalchemy import text
+
+    mid, pid = await _seed_medicine_and_member(authenticated_client, with_stock=False)
+    r = await authenticated_client.post("/api/v1/medicine-courses", json={
+        "medicine_id": mid, "patient_id": pid, "dose_amount": "1", "dose_unit": "шт",
+        "intake_times": ["08:00"], "start_date": "2026-06-15", "schedule_type": "daily",
+        "reminders_enabled": True, "notification_channels": ["telegram"]})
+    assert r.status_code == 201, r.text
+    cid = r.json()["id"]
+
+    r = await authenticated_client.delete(f"/api/v1/medicine-courses/{cid}")
+    assert r.status_code == 200, r.text
+    assert r.json()["deleted_at"] is not None
+
+    pending = (await db_session.execute(text("""
+        SELECT COUNT(*) FROM t_medicine_reminder r
+        JOIN t_f_medicine_intake_log l ON l.id = r.intake_log_id
+        WHERE l.course_id = :cid AND r.status = 'pending'
+    """), {"cid": cid})).scalar_one()
+    assert pending == 0
+
+
+@pytest.mark.asyncio
 async def test_course_end_date_before_start_rejected(authenticated_client):
     """Slice M5: end_date >= start_date invariant, on create and on merged PATCH."""
     mid, pid = await _seed_medicine_and_member(authenticated_client, with_stock=False)
