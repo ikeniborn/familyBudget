@@ -114,12 +114,6 @@ const builds = [
     globalName: 'ConfirmDialogBundle'
   },
   {
-    name: 'choicesCategoryTree',
-    input: 'frontend/shared/static/js/choicesCategoryTree.js',
-    output: 'frontend/shared/static/js/choicesCategoryTree.min.js',
-    globalName: 'ChoicesCategoryTree'
-  },
-  {
     name: 'choicesProductGroupTree',
     input: 'frontend/shared/static/js/choicesProductGroupTree.js',
     output: 'frontend/shared/static/js/choicesProductGroupTree.min.js',
