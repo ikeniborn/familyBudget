@@ -1,12 +1,14 @@
 /**
- * AI analytics chat (ai-analytics-chat).
+ * AI analytics chat (ai-analytics-chat, ai-analytics-chat-history).
  *
  * Standalone IIFE bundle for analytics.html. Reveals the chat card when
  * GET /api/v1/ai/status reports the text slot; a question (typed or
  * dictated) goes to POST /api/v1/ai/analytics-chat, which computes the
  * aggregates server-side and returns a grounded answer. Each question is
- * independent (no server-side conversation state); the log lives only on
- * the page.
+ * independent (no conversation state). Exchanges are persisted server-side
+ * (t_f_ai_chat_log): the last ones replay into the chat on load, and the
+ * «История» panel lists the recent ones from
+ * GET /api/v1/ai/analytics-chat/history.
  */
 
 /* global MediaRecorder */
@@ -22,6 +24,7 @@ interface ChatResponse {
 
 const STATUS_URL = '/api/v1/ai/status';
 const CHAT_URL = '/api/v1/ai/analytics-chat';
+const HISTORY_URL = '/api/v1/ai/analytics-chat/history';
 const TRANSCRIBE_URL = '/api/v1/ai/transcribe';
 const MAX_RECORDING_MS = 60_000;
 
@@ -58,14 +61,29 @@ function setStatus(message: string, isError = false): void {
 
 // ==================== Lightweight markdown + history ====================
 
-const HISTORY_KEY = 'aiAnalyticsChatHistory';
-const HISTORY_LIMIT = 5;
+// How many past exchanges replay into the chat on page load, and how many
+// the «История» panel lists.
+const REPLAY_LIMIT = 5;
+const HISTORY_PANEL_LIMIT = 20;
 
-interface HistoryEntry {
-    q: string;
-    a: string;
-    meta: string;
+interface HistoryScope {
+    period_start?: string;
+    period_end?: string;
+    record_type?: string;
+    expense_total?: number;
+    income_total?: number;
 }
+
+interface HistoryItem {
+    id: number;
+    question: string;
+    answer: string | null;
+    status: 'ok' | 'parse_error' | 'provider_error';
+    scope: HistoryScope | null;
+    created_at: string;
+}
+
+let historyPanelLoaded = false;
 
 function escapeHtml(text: string): string {
     return text
@@ -104,27 +122,43 @@ function renderMarkdownLite(text: string): string {
     return html.join('');
 }
 
-function loadHistory(): HistoryEntry[] {
+async function fetchHistory(limit: number): Promise<HistoryItem[]> {
     try {
-        const raw = window.localStorage.getItem(HISTORY_KEY);
-        const parsed: unknown = raw ? JSON.parse(raw) : [];
-        return Array.isArray(parsed)
-            ? (parsed as HistoryEntry[]).filter(
-                  (e) => e && typeof e.q === 'string' && typeof e.a === 'string'
-              )
-            : [];
+        const response = await fetch(`${HISTORY_URL}?limit=${limit}`);
+        if (!response.ok) {
+            return [];
+        }
+        const data = (await response.json()) as { items?: HistoryItem[] };
+        return Array.isArray(data.items) ? data.items : [];
     } catch {
         return [];
     }
 }
 
-function saveToHistory(entry: HistoryEntry): void {
-    try {
-        const history = [...loadHistory(), entry].slice(-HISTORY_LIMIT);
-        window.localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-    } catch {
-        // Storage full/blocked — the chat still works without history.
+function metaFromScope(scope: HistoryScope | null): string {
+    if (!scope?.period_start || !scope.period_end) {
+        return '';
     }
+    return [
+        `период ${isoToDisplay(scope.period_start)}–${isoToDisplay(scope.period_end)}`,
+        scope.record_type === 'plan' ? 'план' : 'факт',
+        `расход ${formatRub(scope.expense_total ?? 0)}`,
+        (scope.income_total ?? 0) > 0 ? `доход ${formatRub(scope.income_total ?? 0)}` : '',
+    ]
+        .filter(Boolean)
+        .join(' · ');
+}
+
+/** created_at is naive UTC from the backend — mark it so Date parses it
+ *  as UTC and the display lands in the viewer's local time. */
+function timestampToDisplay(createdAt: string): string {
+    const iso = /Z|[+-]\d\d:\d\d$/.test(createdAt) ? createdAt : `${createdAt}Z`;
+    const parsed = new Date(iso);
+    if (Number.isNaN(parsed.getTime())) {
+        return createdAt;
+    }
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    return `${pad(parsed.getDate())}.${pad(parsed.getMonth() + 1)}.${parsed.getFullYear()} ${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
 }
 
 function isoToDisplay(iso: string): string {
@@ -200,7 +234,8 @@ async function ask(): Promise<void> {
             .filter(Boolean)
             .join(' · ');
         appendBubble('answer', data.answer, meta);
-        saveToHistory({ q: question, a: data.answer, meta });
+        // The exchange is persisted server-side; refetch the panel next open.
+        historyPanelLoaded = false;
         setStatus('');
     } catch {
         appendBubble('answer', '⚠ Сеть недоступна — попробуйте позже');
@@ -209,6 +244,79 @@ async function ask(): Promise<void> {
         if (button) {
             button.disabled = false;
         }
+    }
+}
+
+// ==================== History panel ====================
+
+function renderHistoryPanel(items: HistoryItem[]): void {
+    const panel = el<HTMLElement>('ai-chat-history');
+    if (!panel) {
+        return;
+    }
+    panel.replaceChildren();
+    if (items.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'text-xs text-base-content/60';
+        empty.textContent = 'История пуста — задайте первый вопрос.';
+        panel.appendChild(empty);
+        return;
+    }
+    for (const item of items) {
+        const entry = document.createElement('div');
+        entry.className = 'rounded-lg bg-base-200 p-2 text-sm space-y-1';
+
+        const header = document.createElement('div');
+        header.className = 'text-xs text-base-content/60';
+        header.textContent = timestampToDisplay(item.created_at);
+        entry.appendChild(header);
+
+        const question = document.createElement('div');
+        question.className = 'font-medium';
+        question.style.whiteSpace = 'pre-wrap';
+        question.textContent = item.question;
+        entry.appendChild(question);
+
+        const answer = document.createElement('div');
+        if (item.status === 'ok' && item.answer) {
+            // Escaped first inside renderMarkdownLite — safe to assign.
+            answer.innerHTML = renderMarkdownLite(item.answer);
+            const meta = metaFromScope(item.scope);
+            if (meta) {
+                const metaEl = document.createElement('div');
+                metaEl.className = 'text-xs text-base-content/60 mt-1';
+                metaEl.textContent = meta;
+                answer.appendChild(metaEl);
+            }
+        } else {
+            answer.className = 'text-base-content/60';
+            answer.textContent =
+                item.status === 'provider_error'
+                    ? '⚠ AI-провайдер был недоступен'
+                    : '⚠ Вопрос не был понят';
+        }
+        entry.appendChild(answer);
+        panel.appendChild(entry);
+    }
+}
+
+async function toggleHistoryPanel(): Promise<void> {
+    const panel = el<HTMLElement>('ai-chat-history');
+    if (!panel) {
+        return;
+    }
+    if (!panel.classList.contains('hidden')) {
+        panel.classList.add('hidden');
+        return;
+    }
+    panel.classList.remove('hidden');
+    if (!historyPanelLoaded) {
+        const loading = document.createElement('div');
+        loading.className = 'text-xs text-base-content/60';
+        loading.textContent = 'Загружаю историю…';
+        panel.replaceChildren(loading);
+        renderHistoryPanel(await fetchHistory(HISTORY_PANEL_LIMIT));
+        historyPanelLoaded = true;
     }
 }
 
@@ -298,10 +406,15 @@ async function revealIfAvailable(): Promise<void> {
         const status = (await response.json()) as { text: boolean; voice: boolean };
         if (status.text) {
             el<HTMLElement>('ai-chat-card')?.classList.remove('hidden');
-            // Replay the last saved exchanges so the page keeps its history.
-            for (const entry of loadHistory()) {
-                appendBubble('question', entry.q);
-                appendBubble('answer', entry.a, entry.meta);
+            // Replay the last server-persisted exchanges (newest-first API
+            // order reversed to chronological).
+            const items = await fetchHistory(REPLAY_LIMIT);
+            for (const item of items.reverse()) {
+                if (item.status !== 'ok' || !item.answer) {
+                    continue;
+                }
+                appendBubble('question', item.question);
+                appendBubble('answer', item.answer, metaFromScope(item.scope));
             }
         }
         if (status.text && status.voice) {
@@ -317,6 +430,10 @@ function init(): void {
         const target = event.target as HTMLElement | null;
         if (target?.closest('#ai-chat-send')) {
             void ask();
+            return;
+        }
+        if (target?.closest('#ai-chat-history-toggle')) {
+            void toggleHistoryPanel();
             return;
         }
         const voiceButton = target?.closest<HTMLButtonElement>('#ai-chat-voice');

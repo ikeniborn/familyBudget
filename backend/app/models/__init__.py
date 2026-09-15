@@ -52,6 +52,7 @@ Usage:
     )
 """
 
+from backend.app.models.ai_chat_log import AIChatLog
 from backend.app.models.ai_settings import AISettings
 from backend.app.models.article import Article, ArticleUsageStats
 from backend.app.models.article_financial_center import ArticleFinancialCenter
@@ -91,6 +92,7 @@ from backend.app.models.user import User
 from backend.app.models.user_consent import UserConsent
 
 __all__ = [
+    "AIChatLog",
     "AISettings",
     "User",
     "Article",

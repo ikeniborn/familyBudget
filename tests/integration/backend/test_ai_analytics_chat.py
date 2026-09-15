@@ -11,12 +11,15 @@ grounded answer). Pins:
 3. Scope extraction failure -> honest 422.
 """
 import json
+from contextlib import asynccontextmanager
 from datetime import date, timedelta
 
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from backend.app.api.v1.endpoints import ai as ai_endpoint
 
 from backend.app.models.article import Article
 from backend.app.models.fact import BudgetFact
@@ -39,6 +42,7 @@ async def seeded_facts(db_session: AsyncSession, test_user: User) -> dict:
     article = Article(
         user_id=test_user.id, parent_id=None, name="Продукты",
         type="expense", is_active=True,
+        description="еда и супермаркеты",
     )
     db_session.add(fc)
     db_session.add(article)
@@ -60,8 +64,14 @@ async def seeded_facts(db_session: AsyncSession, test_user: User) -> dict:
         financial_center_id=fc.id, fact_date=today - timedelta(days=90),
         amount=5000, record_type="fact",
     )
+    month_plan = BudgetFact(
+        user_id=test_user.id, article_id=article.id,
+        financial_center_id=fc.id, fact_date=today,
+        amount=2000, record_type="plan",
+    )
     db_session.add(inside)
     db_session.add(outside)
+    db_session.add(month_plan)
     await db_session.commit()
     yield {"article": article, "fc": fc}
     llm_parse_service.invalidate_candidates_cache()
@@ -82,6 +92,16 @@ def mock_chat_sequence(monkeypatch, answers: list[str], seen: list[str]) -> None
 
     async def fake_chat(self, model, messages, response_format=None, max_tokens=1024, temperature=0.1):
         seen.append(messages[-1]["content"])
+        return answers.pop(0)
+
+    monkeypatch.setattr(AIProviderClient, "chat_completions", fake_chat)
+
+
+def mock_chat_capture(monkeypatch, answers: list[str], calls: list[dict]) -> None:
+    """Return the queued answers in order; record full call arguments."""
+
+    async def fake_chat(self, model, messages, response_format=None, max_tokens=1024, temperature=0.1):
+        calls.append({"messages": messages, "response_format": response_format})
         return answers.pop(0)
 
     monkeypatch.setattr(AIProviderClient, "chat_completions", fake_chat)
@@ -146,6 +166,316 @@ async def test_scope_garbage_returns_422(
     await enable_text(db_session, test_user.id)
     seen: list[str] = []
     mock_chat_sequence(monkeypatch, ["cannot help with that"], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat", json={"question": "как дела?"}
+    )
+    assert response.status_code == 422
+
+
+async def test_scope_prompt_grounding(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """The scope call carries category descriptions and requests JSON mode;
+    the answer call instructs the model about truncation and empty data."""
+    await enable_text(db_session, test_user.id)
+    article = seeded_facts["article"]
+    today = date.today()
+    calls: list[dict] = []
+    scope = json.dumps(
+        {
+            "period_start": today.replace(day=1).isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": [article.id],
+            "record_type": "fact",
+        }
+    )
+    mock_chat_capture(monkeypatch, [scope, "Ответ."], calls)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Сколько ушло на продукты?"},
+    )
+    assert response.status_code == 200
+    assert len(calls) == 2
+
+    scope_system = calls[0]["messages"][0]["content"]
+    # The family's own category description reaches the scope prompt.
+    assert "еда и супермаркеты" in scope_system
+    assert calls[0]["response_format"] == {"type": "json_object"}
+
+    answer_system = calls[1]["messages"][0]["content"]
+    assert "categories_truncated" in answer_system
+    assert "данных нет" in answer_system
+
+
+async def test_history_returns_logged_exchange(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """A successful exchange is persisted and readable via the history
+    endpoint (newest first, only the current user's rows)."""
+    await enable_text(db_session, test_user.id)
+    article = seeded_facts["article"]
+    today = date.today()
+    start = today.replace(day=1)
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "period_start": start.isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": [article.id],
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(
+        monkeypatch, [scope, "За месяц на продукты 1 200 ₽."], seen
+    )
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Какие затраты по продуктам?"},
+    )
+    assert response.status_code == 200
+
+    history = await authenticated_client.get(
+        "/api/v1/ai/analytics-chat/history"
+    )
+    assert history.status_code == 200
+    items = history.json()["items"]
+    assert len(items) == 1
+    entry = items[0]
+    assert entry["question"] == "Какие затраты по продуктам?"
+    assert entry["answer"] == "За месяц на продукты 1 200 ₽."
+    assert entry["status"] == "ok"
+    assert entry["scope"]["expense_total"] == 1200
+    assert entry["scope"]["period_start"] == start.isoformat()
+    assert entry["created_at"]
+
+
+async def test_compare_periods_intent(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """Comparison questions ground the answer in two backend aggregates."""
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    prev_anchor = today - timedelta(days=90)
+    prev_start = prev_anchor.replace(day=1)
+    prev_end = (prev_start + timedelta(days=45)).replace(day=1) - timedelta(days=1)
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "compare_periods",
+            "period_start": today.replace(day=1).isoformat(),
+            "period_end": today.isoformat(),
+            "period2_start": prev_start.isoformat(),
+            "period2_end": prev_end.isoformat(),
+            "article_ids": None,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Сравнение готово."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Потратили больше, чем три месяца назад?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # Badge carries the asked (current) period totals.
+    assert data["expense_total"] == 1200
+    assert data["period_start"] == today.replace(day=1).isoformat()
+
+    payload = seen[1]
+    assert '"intent": "compare_periods"' in payload
+    assert '"expense_total": 1200' in payload
+    assert '"expense_total": 5000' in payload
+    assert '"change"' in payload
+
+
+async def test_trend_monthly_intent(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """Trend questions ground the answer in a per-month series."""
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    range_start = (today - timedelta(days=90)).replace(day=1)
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "trend_monthly",
+            "period_start": range_start.isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": None,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Динамика готова."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Как менялись расходы по месяцам?"},
+    )
+    assert response.status_code == 200
+    # Badge totals cover the whole asked range.
+    assert response.json()["expense_total"] == 6200
+
+    payload = seen[1]
+    assert '"intent": "trend_monthly"' in payload
+    assert '"months"' in payload
+    assert f'"{today.strftime("%Y-%m")}"' in payload
+    assert f'"{(today - timedelta(days=90)).strftime("%Y-%m")}"' in payload
+    assert '"expense": 5000' in payload
+    assert '"expense": 1200' in payload
+
+
+async def test_plan_vs_fact_intent(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """Plan questions ground the answer in month-snapped plan and fact
+    aggregates with per-category execution."""
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    month_start = today.replace(day=1)
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "plan_vs_fact",
+            "period_start": month_start.isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": None,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Исполнение плана готово."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Уложились ли в план по продуктам?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # Badge: fact totals; the period is snapped to full calendar months.
+    assert data["expense_total"] == 1200
+    next_month = (month_start + timedelta(days=45)).replace(day=1)
+    assert data["period_end"] == (next_month - timedelta(days=1)).isoformat()
+
+    payload = seen[1]
+    assert '"intent": "plan_vs_fact"' in payload
+    assert '"plan"' in payload and '"fact"' in payload
+    assert '"expense_total": 2000' in payload
+    assert '"expense_total": 1200' in payload
+    assert '"execution_pct": 60' in payload
+    assert '"fact_through"' in payload
+
+
+async def test_unknown_intent_falls_back_to_totals(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "drop_table",
+            "period_start": today.replace(day=1).isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": None,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Итоги готовы."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat", json={"question": "Сколько потратили?"}
+    )
+    assert response.status_code == 200
+    assert response.json()["expense_total"] == 1200
+    assert '"intent": "totals"' in seen[1]
+
+
+async def test_failed_exchange_is_logged(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """A scope-extraction failure is persisted with status parse_error.
+
+    Production writes the failure row through get_session_context (the
+    request transaction rolls back on the raised error); here that factory
+    is redirected into the test session so the row stays visible inside
+    the test transaction.
+    """
+    await enable_text(db_session, test_user.id)
+    mock_chat_sequence(monkeypatch, ["cannot help with that"], [])
+
+    @asynccontextmanager
+    async def fake_session_context():
+        yield db_session
+
+    monkeypatch.setattr(ai_endpoint, "get_session_context", fake_session_context)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat", json={"question": "как дела?"}
+    )
+    assert response.status_code == 422
+
+    history = await authenticated_client.get(
+        "/api/v1/ai/analytics-chat/history"
+    )
+    assert history.status_code == 200
+    items = history.json()["items"]
+    assert len(items) == 1
+    entry = items[0]
+    assert entry["question"] == "как дела?"
+    assert entry["status"] == "parse_error"
+    assert entry["answer"] is None
+    assert entry["scope"] is None
+    assert entry["created_at"]
+
+
+async def test_log_write_failure_never_masks_chat_error(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """A broken log store must not turn a 422 into a 500 — the failure
+    logging is best-effort by contract."""
+    await enable_text(db_session, test_user.id)
+    mock_chat_sequence(monkeypatch, ["cannot help with that"], [])
+
+    @asynccontextmanager
+    async def broken_session_context():
+        raise RuntimeError("log store down")
+        yield  # pragma: no cover
+
+    monkeypatch.setattr(ai_endpoint, "get_session_context", broken_session_context)
 
     response = await authenticated_client.post(
         "/api/v1/ai/analytics-chat", json={"question": "как дела?"}

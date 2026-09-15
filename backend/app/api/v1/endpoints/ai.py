@@ -1,16 +1,19 @@
 """
-AI module endpoints: admin settings, provider model discovery, health check.
+AI module endpoints.
 
-All routes are admin-only in phase 1. User-facing AI endpoints
-(parse-transaction, transcribe, parse-receipt, categorize-import) arrive in
-later phases and will reuse the same settings + provider client.
+Admin-only: settings, provider model discovery, health check. User-facing
+(JWT, rate-limited): status, parse-transaction, parse-batch, parse-list,
+analytics-chat (+ its history), transcribe, categorize-import,
+parse-receipt. All share the same settings + provider client.
 """
 import io
+import logging
 import struct
 import time
 import wave
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Query, Request, UploadFile
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -19,7 +22,9 @@ from backend.app.core.exceptions import (
     ServiceUnavailableException,
     UnprocessableEntityException,
 )
+from backend.app.db.session import get_session_context
 from backend.app.middleware.rate_limiter import limiter
+from backend.app.models.ai_chat_log import AIChatLog
 from backend.app.models.import_staging import ImportStaging
 from backend.app.schemas.ai import (
     AIHealthCheckResponse,
@@ -28,6 +33,7 @@ from backend.app.schemas.ai import (
     AISettingsResponse,
     AISettingsUpdate,
     AIStatusResponse,
+    AnalyticsChatHistoryResponse,
     AnalyticsChatRequest,
     AnalyticsChatResponse,
     BatchDraft,
@@ -53,6 +59,8 @@ from backend.app.services import (
 from backend.app.services.ai_provider_client import AIProviderClient, AIProviderError
 from backend.app.services.llm_parse_service import AIParseError
 from backend.app.services.speech_service import SpeechError
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/ai", tags=["AI"])
 
@@ -187,6 +195,29 @@ async def parse_transaction(
         raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
 
 
+async def _log_chat_failure(
+    user_id: int, question: str, status: str, started: float
+) -> None:
+    """Persist a failed exchange outside the request transaction.
+
+    The raised chat error rolls the request session back, so the log row
+    needs its own session. Best-effort: a logging failure must never mask
+    the chat error itself.
+    """
+    try:
+        async with get_session_context() as log_session:
+            log_session.add(
+                AIChatLog(
+                    user_id=user_id,
+                    question=question,
+                    status=status,
+                    latency_ms=int((time.monotonic() - started) * 1000),
+                )
+            )
+    except Exception:
+        logger.warning("AI chat log write failed (status=%s)", status)
+
+
 @router.post(
     "/analytics-chat",
     response_model=AnalyticsChatResponse,
@@ -205,17 +236,66 @@ async def analytics_chat(
         raise ServiceUnavailableException(
             "AI-функции выключены или текстовая модель не настроена"
         )
+    started = time.monotonic()
     try:
         result = await ai_analytics_service.answer_question(
             session, settings, data.question
         )
     except AIParseError:
+        await _log_chat_failure(
+            current_user.id, data.question, "parse_error", started
+        )
         raise UnprocessableEntityException(
             "Не понял вопрос — уточните период или категорию"
         )
     except AIProviderError as exc:
+        await _log_chat_failure(
+            current_user.id, data.question, "provider_error", started
+        )
         raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
+
+    session.add(
+        AIChatLog(
+            user_id=current_user.id,
+            question=data.question,
+            scope={
+                key: result.get(key)
+                for key in (
+                    "intent",
+                    "period_start",
+                    "period_end",
+                    "record_type",
+                    "expense_total",
+                    "income_total",
+                )
+            },
+            answer=result["answer"],
+            status="ok",
+            latency_ms=int((time.monotonic() - started) * 1000),
+        )
+    )
+    await session.flush()
     return AnalyticsChatResponse(**result)
+
+
+@router.get(
+    "/analytics-chat/history",
+    response_model=AnalyticsChatHistoryResponse,
+)
+async def analytics_chat_history(
+    current_user: CurrentUser,
+    session: AsyncSession = Depends(get_session),
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+) -> AnalyticsChatHistoryResponse:
+    """The current user's recent analytics-chat exchanges, newest first."""
+    stmt = (
+        select(AIChatLog)
+        .where(AIChatLog.user_id == current_user.id)
+        .order_by(AIChatLog.created_at.desc(), AIChatLog.id.desc())
+        .limit(limit)
+    )
+    items = (await session.execute(stmt)).scalars().all()
+    return AnalyticsChatHistoryResponse(items=items)
 
 
 @router.post(

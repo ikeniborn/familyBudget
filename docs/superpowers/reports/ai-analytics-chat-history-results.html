@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Результат: ai-analytics-chat-history</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --fg:#2b2b3a; --muted:#6b6b80;
+  --accent:#5c6bc0; --accent-2:#3949ab; --border:#d6d8e6; --line:#9aa0b4; --zebra:#eef0f8;
+  --ok:#43a047; --ok-2:#2e7d32; --warn:#fb8c00; --warn-2:#ef6c00; --danger:#e53935; --danger-2:#c62828;
+  --shadow:rgba(40,40,80,.18);
+}
+body:has(#theme-toggle:checked){
+  --bg:#181825; --surface:#262637; --fg:#cdd6f4; --muted:#a6adc8;
+  --accent:#89b4fa; --accent-2:#5e95f0; --border:#3a3b52; --line:#6c7086; --zebra:#21222f;
+  --ok:#a6e3a1; --ok-2:#74c46e; --warn:#f9e2af; --warn-2:#f5c95b; --danger:#f38ba8; --danger-2:#e8638a;
+  --shadow:rgba(0,0,0,.45);
+}
+body{
+  margin:0 auto; padding:1.5rem 2rem 4rem; max-width:1080px;
+  font:16px/1.55 system-ui, sans-serif;
+  background:
+    radial-gradient(1200px 500px at 100% -10%, color-mix(in srgb,var(--accent) 10%, transparent), transparent),
+    var(--bg);
+  color:var(--fg);
+  transition:background .3s, color .3s;
+}
+.theme-btn{
+  position:sticky; top:.5rem; float:right;
+  cursor:pointer; user-select:none;
+  padding:.25rem .6rem; border:1px solid var(--border); border-radius:6px;
+  background:var(--surface);
+}
+h1{color:var(--accent-2); font-size:1.5rem; margin-bottom:.25rem}
+body:has(#theme-toggle:checked) h1{color:var(--accent)}
+h2{color:var(--accent); border-bottom:2px solid var(--border); padding-bottom:.3rem; margin-top:2.2rem}
+.lead{color:var(--muted); margin-top:0}
+table{border-collapse:collapse; width:100%; margin:1rem 0; background:var(--surface);
+  border:1px solid var(--border); border-radius:8px; overflow:hidden; font-size:.92rem}
+th,td{padding:.5rem .7rem; border-bottom:1px solid var(--border); text-align:left; vertical-align:top}
+th{background:color-mix(in srgb,var(--accent) 12%, var(--surface)); color:var(--fg)}
+tbody tr:nth-child(even){background:var(--zebra)}
+tbody tr:last-child td{border-bottom:none}
+code{background:color-mix(in srgb,var(--accent) 10%, var(--surface)); padding:.1rem .35rem;
+  border-radius:4px; font-size:.85em}
+.badge{display:inline-block; padding:.1rem .55rem; border-radius:999px; font-size:.78rem; font-weight:600}
+.badge.ok{background:color-mix(in srgb,var(--ok) 18%, var(--surface)); color:var(--ok-2); border:1px solid var(--ok)}
+.badge.warn{background:color-mix(in srgb,var(--warn) 18%, var(--surface)); color:var(--warn-2); border:1px solid var(--warn)}
+.badge.info{background:color-mix(in srgb,var(--accent) 14%, var(--surface)); color:var(--accent-2); border:1px solid var(--accent)}
+body:has(#theme-toggle:checked) .badge.info{color:var(--accent)}
+.note{border-left:4px solid var(--accent); background:color-mix(in srgb,var(--accent) 10%, var(--surface));
+  padding:.6rem .9rem; border-radius:0 8px 8px 0; margin:1rem 0}
+.verdict{font-size:1.15rem; font-weight:700; color:var(--ok-2)}
+body:has(#theme-toggle:checked) .verdict{color:var(--ok)}
+figure{margin:1.2rem 0; background:var(--surface); border:1px solid var(--border);
+  border-radius:10px; padding:1rem; box-shadow:0 2px 8px var(--shadow)}
+figcaption{color:var(--muted); font-size:.85rem; margin-top:.5rem; text-align:center}
+svg{width:100%; height:auto; display:block}
+svg text{font:13px system-ui, sans-serif; fill:var(--fg)}
+svg .small{font-size:11px; fill:var(--muted)}
+svg .node{fill:color-mix(in srgb,var(--accent) 12%, var(--surface)); stroke:var(--accent); stroke-width:1.4; rx:8}
+svg .store{fill:color-mix(in srgb,var(--ok) 14%, var(--surface)); stroke:var(--ok); stroke-width:1.4}
+svg .ext{fill:color-mix(in srgb,var(--warn) 14%, var(--surface)); stroke:var(--warn); stroke-width:1.4}
+svg .edge{stroke:var(--line); stroke-width:1.6; fill:none; marker-end:url(#arr)}
+details{margin:.6rem 0}
+summary{cursor:pointer; color:var(--accent)}
+</style>
+</head>
+<body>
+<input type="checkbox" id="theme-toggle" hidden>
+<label for="theme-toggle" class="theme-btn" title="Переключить тему">🌙 / ☀️</label>
+<main class="report">
+
+<h1>Результат внедрения: <code>ai-analytics-chat-history</code></h1>
+<p class="lead">Слайс 1 анализа ai-analytics-query-grounding: P1-усиление grounding AI-чата аналитики + серверная история запросов. Дата: 2026-09-15.</p>
+
+<h2>1. Резюме внедрения</h2>
+<table>
+<tbody>
+<tr><th>Топик</th><td><code>ai-analytics-chat-history</code></td></tr>
+<tr><th>Intent</th><td><code>docs/superpowers/intents/2026-09-15-ai-analytics-chat-history-intent.md</code> (Status: approved, /check-chain intent: OK)</td></tr>
+<tr><th>Spec / Plan</th><td>n/a — маршрут chain-execute, реализация напрямую из intent</td></tr>
+<tr><th>База диффа</th><td><code>HEAD</code> (87086e06 — коммит intent-дока)</td></tr>
+<tr><th>Ветка</th><td><code>dev/ai-analytics-chat-history</code> → PR в <code>test</code></td></tr>
+<tr><th>Версия</th><td>0.8.27 → <code>0.8.28</code></td></tr>
+</tbody>
+</table>
+
+<h2>2. Выполненные изменения</h2>
+<table>
+<thead><tr><th>Файл</th><th>Тип</th><th>±</th><th>Что делает изменение</th></tr></thead>
+<tbody>
+<tr><td><code>backend/app/models/ai_chat_log.py</code></td><td><span class="badge info">добавлен</span></td><td>+34</td><td>Модель <code>AIChatLog</code> (таблица <code>t_f_ai_chat_log</code>): вопрос, scope (JSON), ответ, статус, latency, created_at</td></tr>
+<tr><td><code>backend/db/migrations/versions/20260915_b8d2f4a6c7e1_add_ai_chat_log_table.py</code></td><td><span class="badge info">добавлен</span></td><td>+59</td><td>Аддитивная миграция: создание таблицы + индексы по user_id и created_at</td></tr>
+<tr><td><code>backend/app/api/v1/endpoints/ai.py</code></td><td><span class="badge ok">изменён</span></td><td>+89/−9</td><td>Логирование обменов (успех — в сессии запроса; ошибки — best-effort в отдельной сессии), новый <code>GET /analytics-chat/history</code>, актуализирован docstring модуля</td></tr>
+<tr><td><code>backend/app/services/ai_analytics_service.py</code></td><td><span class="badge ok">изменён</span></td><td>+22/−7</td><td>P1: описания категорий и частотность в scope-промпте (<code>format_candidate_lines</code>), <code>response_format: json_object</code>, правила про truncation и пустые данные в answer-промпте</td></tr>
+<tr><td><code>backend/app/schemas/ai.py</code></td><td><span class="badge ok">изменён</span></td><td>+20</td><td>Схемы <code>AnalyticsChatHistoryItem</code> / <code>AnalyticsChatHistoryResponse</code></td></tr>
+<tr><td><code>backend/app/models/__init__.py</code></td><td><span class="badge ok">изменён</span></td><td>+2</td><td>Регистрация модели <code>AIChatLog</code></td></tr>
+<tr><td><code>frontend/web/static/js/aiAnalyticsChat/index.ts</code></td><td><span class="badge ok">изменён</span></td><td>+173/−42</td><td>Серверная история вместо localStorage: реплей последних 5 обменов, панель «🕘 История» (20 записей, ленивое чтение), таймстампы в локальном времени</td></tr>
+<tr><td><code>frontend/web/templates/analytics.html</code></td><td><span class="badge ok">изменён</span></td><td>+9/−1</td><td>Кнопка «🕘 История» и панель истории в карточке чата</td></tr>
+<tr><td><code>tests/integration/backend/test_ai_analytics_chat.py</code></td><td><span class="badge ok">изменён</span></td><td>+97</td><td>Новые тесты: grounding-промпты (описания, json_object, truncation-правила) и endpoint истории; описание категории в фикстуре</td></tr>
+<tr><td><code>README.md</code>, <code>VERSION</code></td><td><span class="badge ok">изменены</span></td><td>+2/−2</td><td>Фича описана в README; версия 0.8.28</td></tr>
+</tbody>
+</table>
+
+<h2>3. Результаты</h2>
+<p><span class="verdict">Вердикт: OK</span> — покрытие Desired Outcomes 6/6, шагов MISSING/PARTIAL нет, избыточных изменений нет (README/VERSION — требования Constraints).</p>
+<table>
+<thead><tr><th>Desired Outcome (intent)</th><th>Статус</th><th>Свидетельство</th></tr></thead>
+<tbody>
+<tr><td>Scope-промпт несёт описания категорий и частотность</td><td><span class="badge ok">DONE</span></td><td><code>ai_analytics_service.py</code> → <code>format_candidate_lines</code>; тест <code>test_scope_prompt_grounding</code></td></tr>
+<tr><td>Scope-вызов запрашивает <code>response_format: json_object</code></td><td><span class="badge ok">DONE</span></td><td>вызов <code>chat_completions(..., response_format=...)</code>; тот же тест</td></tr>
+<tr><td>Answer-промпт: правила про truncation и пустой период</td><td><span class="badge ok">DONE</span></td><td><code>_ANSWER_SYSTEM_PROMPT</code>; assert на <code>categories_truncated</code> и «данных нет»</td></tr>
+<tr><td>Каждый обмен сохраняется в <code>t_f_ai_chat_log</code></td><td><span class="badge ok">DONE</span></td><td>модель + миграция + запись в endpoint; тест <code>test_history_returns_logged_exchange</code></td></tr>
+<tr><td><code>GET /api/v1/ai/analytics-chat/history</code> отдаёт обмены</td><td><span class="badge ok">DONE</span></td><td>endpoint <code>analytics_chat_history</code>; тот же тест</td></tr>
+<tr><td>Видимая серверная история на странице аналитики</td><td><span class="badge ok">DONE</span></td><td><code>analytics.html</code> + <code>aiAnalyticsChat/index.ts</code>; localStorage-реплей удалён</td></tr>
+</tbody>
+</table>
+<table>
+<thead><tr><th>Проверка</th><th>Команда</th><th>Итог</th></tr></thead>
+<tbody>
+<tr><td>Бэкенд-тесты фичи</td><td><code>pytest tests/integration/backend/test_ai_analytics_chat.py</code></td><td><span class="badge ok">5 passed</span></td></tr>
+<tr><td>Регрессия AI-модуля</td><td><code>pytest tests/integration/backend/test_ai_*.py</code></td><td><span class="badge ok">29 passed</span></td></tr>
+<tr><td>Миграция</td><td><code>alembic upgrade head</code> (тестовая БД)</td><td><span class="badge ok">applied</span></td></tr>
+<tr><td>TypeScript</td><td><code>npm run type-check</code></td><td><span class="badge ok">clean</span></td></tr>
+<tr><td>ESLint (изменённый бандл)</td><td><code>npx eslint .../aiAnalyticsChat/index.ts</code></td><td><span class="badge ok">clean</span></td></tr>
+<tr><td>Сборка бандлов</td><td><code>npm run bundle</code></td><td><span class="badge ok">built</span></td></tr>
+<tr><td>GWT-сценарий (strict)</td><td><code>persist-analytics-chat-history</code> + <code>wiki_spec_resolve</code></td><td><span class="badge warn">1 binding unresolved — снапшот кода-графа старый</span></td></tr>
+</tbody>
+</table>
+<div class="note">Свежий symbol <code>analytics_chat_history</code> не резолвится в опубликованном снапшоте кода-графа (снапшот собран до изменения; локальный iwiki-сервер в сессии недоступен). Это maintenance-факт, не дефект: резолв обновится при следующей публикации графа.</div>
+
+<h2>4. Влияние на систему</h2>
+<table>
+<thead><tr><th>Область</th><th>Изменение поведения</th><th>Риски / примечания</th></tr></thead>
+<tbody>
+<tr><td>Качество ответов AI-чата</td><td>Модель видит семантику категорий (описания семьи) и обязана честно сообщать про усечение топ-15 и пустые периоды</td><td>Улучшение зависит от заполненности описаний категорий</td></tr>
+<tr><td>Надёжность scope-JSON</td><td>JSON-режим провайдера вместо только эвристик <code>_extract_json</code></td><td>Если провайдер не поддержит <code>response_format</code> — вернётся ошибка провайдера (честная 503); эвристики сохранены</td></tr>
+<tr><td>БД</td><td>Новая аддитивная таблица <code>t_f_ai_chat_log</code>; существующие таблицы не тронуты</td><td>Ретеншн-политика не задана (proposal-first в intent); рост ~1 строка на вопрос при лимите 10/мин</td></tr>
+<tr><td>Приватность истории</td><td>История отдаётся только её автору (<code>user_id</code> текущего пользователя)</td><td>Решение по умолчанию; смена на семейную видимость — отдельное согласование</td></tr>
+<tr><td>Логи ошибок чата</td><td>422/503 фиксируются best-effort в отдельной сессии</td><td>Сбой записи лога никогда не маскирует ошибку чата (swallow + warning)</td></tr>
+<tr><td>Фронтенд</td><td>История переживает смену устройства/браузера; localStorage-механизм удалён</td><td>Старый ключ <code>aiAnalyticsChatHistory</code> в браузерах остаётся неиспользуемым мусором</td></tr>
+</tbody>
+</table>
+
+<h2>5. Схемы</h2>
+<figure>
+<svg viewBox="0 0 1040 330" role="img" aria-label="Пайплайн AI-чата аналитики с логированием и историей">
+<defs>
+<marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+<path d="M0 0 L10 5 L0 10 z" fill="var(--line)"/>
+</marker>
+</defs>
+<!-- row 1: chat pipeline -->
+<rect class="node" x="10" y="30" width="150" height="60" rx="8"/>
+<text x="85" y="55" text-anchor="middle">Страница</text>
+<text x="85" y="73" text-anchor="middle">аналитики (чат)</text>
+
+<rect class="node" x="220" y="30" width="180" height="60" rx="8"/>
+<text x="310" y="50" text-anchor="middle">POST /ai/analytics-chat</text>
+<text x="310" y="68" text-anchor="middle" class="small">JWT, 10/мин</text>
+
+<rect class="ext" x="460" y="10" width="200" height="50" rx="8"/>
+<text x="560" y="30" text-anchor="middle">LLM: извлечение scope</text>
+<text x="560" y="48" text-anchor="middle" class="small">описания категорий + json_object</text>
+
+<rect class="store" x="460" y="80" width="200" height="50" rx="8"/>
+<text x="560" y="100" text-anchor="middle">Backend-агрегат SQL</text>
+<text x="560" y="118" text-anchor="middle" class="small">t_f_budget_fact, топ-15</text>
+
+<rect class="ext" x="720" y="45" width="200" height="50" rx="8"/>
+<text x="820" y="65" text-anchor="middle">LLM: формулировка</text>
+<text x="820" y="83" text-anchor="middle" class="small">truncation / «данных нет»</text>
+
+<path class="edge" d="M160 60 H220"/>
+<path class="edge" d="M400 50 C 425 40, 435 38, 460 35"/>
+<path class="edge" d="M400 75 C 425 90, 435 98, 460 103"/>
+<path class="edge" d="M660 100 C 690 95, 695 80, 720 73"/>
+<path class="edge" d="M720 60 C 570 -10, 380 5, 315 30" stroke-dasharray="5 4"/>
+<text x="520" y="0" class="small" text-anchor="middle" dy="10">ответ + период/итоги → пользователю</text>
+
+<!-- row 2: logging + history -->
+<rect class="store" x="220" y="190" width="180" height="60" rx="8"/>
+<text x="310" y="213" text-anchor="middle">t_f_ai_chat_log</text>
+<text x="310" y="231" text-anchor="middle" class="small">вопрос · scope · ответ · статус</text>
+
+<rect class="node" x="460" y="190" width="220" height="60" rx="8"/>
+<text x="570" y="213" text-anchor="middle">GET /analytics-chat/history</text>
+<text x="570" y="231" text-anchor="middle" class="small">только свои записи, новые первыми</text>
+
+<rect class="node" x="740" y="190" width="180" height="60" rx="8"/>
+<text x="830" y="213" text-anchor="middle">Панель «🕘 История»</text>
+<text x="830" y="231" text-anchor="middle" class="small">+ реплей 5 обменов</text>
+
+<path class="edge" d="M310 90 V190"/>
+<text x="318" y="145" class="small">запись обмена (ошибки — best-effort)</text>
+<path class="edge" d="M400 220 H460"/>
+<path class="edge" d="M680 220 H740"/>
+<path class="edge" d="M830 190 C 830 140, 400 120, 120 92" stroke-dasharray="5 4"/>
+<text x="480" y="152" class="small">показ истории на странице</text>
+</svg>
+<figcaption>Пайплайн ответа (3 шага, LLM не трогает БД) и новый контур истории: запись каждого обмена → чтение автором → панель на странице.</figcaption>
+</figure>
+
+<details>
+<summary>Слайсы, отложенные до согласования (P2–P5)</summary>
+<table>
+<tbody>
+<tr><td>P2</td><td>Интенты-«инструменты» поверх готовых агрегатов analytics.py (сравнение периодов, тренды, план-vs-факт)</td></tr>
+<tr><td>P3</td><td>Контекст диалога (последние обмены в scope-промпт)</td></tr>
+<tr><td>P4</td><td>Словарь синонимов/алиасов категорий</td></tr>
+<tr><td>P5</td><td>Расширенные тесты санитизации scope, клиентский таймаут/отмена</td></tr>
+</tbody>
+</table>
+</details>
+
+</main>
+</body>
+</html>

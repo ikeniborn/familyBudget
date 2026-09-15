@@ -45,7 +45,14 @@
              reports the text slot (revealed by the aiAnalyticsChat bundle) -->
         <div id="ai-chat-card" class="card bg-base-100 shadow-md hidden">
             <div class="card-body p-4">
-                <h2 class="font-semibold text-sm">💬 Спросить ИИ о данных</h2>
+                <div class="flex items-center justify-between">
+                    <h2 class="font-semibold text-sm">💬 Спросить ИИ о данных</h2>
+                    <button type="button" id="ai-chat-history-toggle" class="btn btn-xs btn-ghost"
+                            aria-controls="ai-chat-history">🕘 История</button>
+                </div>
+                <!-- Server-backed query history (ai-analytics-chat-history);
+                     lazily loaded from GET /api/v1/ai/analytics-chat/history -->
+                <div id="ai-chat-history" class="space-y-2 max-h-80 overflow-y-auto border border-base-300 rounded-lg p-2 hidden"></div>
                 <div id="ai-chat-log" class="space-y-2 max-h-80 overflow-y-auto hidden"></div>
                 <div class="flex gap-2 mt-1">
                     <input type="text" id="ai-chat-input" maxlength="500"
