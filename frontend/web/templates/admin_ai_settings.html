@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">🤖 Настройки AI</h1>
+        <p class="text-sm sm:text-base text-base-content/70">Провайдер (OpenAI-совместимый), модели для текста, изображений и голоса</p>
+    </div>
+
+    <div class="card bg-base-100 shadow-lg">
+        <div class="card-body space-y-4">
+
+            <!-- Enable switch -->
+            <label class="label cursor-pointer justify-start gap-3">
+                <input type="checkbox" id="ai-enabled" class="toggle toggle-success" />
+                <span class="label-text font-semibold">AI-функции включены</span>
+            </label>
+
+            <!-- Endpoint -->
+            <div class="form-control">
+                <label class="label" for="ai-endpoint"><span class="label-text">Endpoint (OpenAI-совместимый, с /v1)</span></label>
+                <input type="url" id="ai-endpoint" class="input input-bordered w-full" placeholder="https://api.openai.com/v1" />
+            </div>
+
+            <!-- Token -->
+            <div class="form-control">
+                <label class="label" for="ai-token"><span class="label-text">API-токен</span></label>
+                <div class="flex flex-col sm:flex-row gap-2">
+                    <input type="password" id="ai-token" class="input input-bordered w-full" autocomplete="off" />
+                    <button id="ai-clear-token" class="btn btn-outline btn-error btn-sm sm:btn-md">Удалить токен</button>
+                </div>
+                <label class="label"><span class="label-text-alt text-base-content/60">Токен хранится на сервере и никогда не показывается целиком</span></label>
+            </div>
+
+            <!-- Model slots -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="form-control">
+                    <label class="label" for="ai-model-text"><span class="label-text">📝 Модель: текст</span></label>
+                    <select id="ai-model-text" class="select select-bordered w-full">
+                        <option value="">— не выбрана —</option>
+                    </select>
+                    <div class="mt-2 flex items-center gap-2">
+                        <span id="ai-health-text" class="badge badge-ghost">—</span>
+                        <span id="ai-health-text-detail" class="text-xs text-base-content/60"></span>
+                    </div>
+                </div>
+                <div class="form-control">
+                    <label class="label" for="ai-model-image"><span class="label-text">📷 Модель: изображения</span></label>
+                    <select id="ai-model-image" class="select select-bordered w-full">
+                        <option value="">— не выбрана —</option>
+                    </select>
+                    <div class="mt-2 flex items-center gap-2">
+                        <span id="ai-health-image" class="badge badge-ghost">—</span>
+                        <span id="ai-health-image-detail" class="text-xs text-base-content/60"></span>
+                    </div>
+                </div>
+                <div class="form-control">
+                    <label class="label" for="ai-model-voice"><span class="label-text">🎤 Модель: голос (STT)</span></label>
+                    <select id="ai-model-voice" class="select select-bordered w-full">
+                        <option value="">— не выбрана —</option>
+                    </select>
+                    <div class="mt-2 flex items-center gap-2">
+                        <span id="ai-health-voice" class="badge badge-ghost">—</span>
+                        <span id="ai-health-voice-detail" class="text-xs text-base-content/60"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Confidence threshold -->
+            <div class="form-control max-w-xs">
+                <label class="label" for="ai-threshold"><span class="label-text">Порог уверенности («проверь категорию» ниже порога)</span></label>
+                <input type="number" id="ai-threshold" class="input input-bordered w-full" min="0" max="1" step="0.05" />
+            </div>
+
+            <!-- Actions -->
+            <div class="flex flex-col sm:flex-row gap-2 pt-2">
+                <button id="ai-save" class="btn btn-primary">💾 Сохранить</button>
+                <button id="ai-load-models" class="btn btn-outline">🔄 Загрузить модели</button>
+                <button id="ai-health-check" class="btn btn-outline btn-info">🩺 Проверить доступность</button>
+            </div>
+
+            <p id="ai-settings-status" class="text-sm text-base-content/70"></p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/aiSettings.min.js?v=PLACEHOLDER"></script>
+{% endblock %}

@@ -363,3 +363,6 @@ docs/sphinx/_build/.doctrees/
 .claude/worktrees
 .playwright-mcp
 .superpowers
+
+# iwiki embedding index (regenerable, large) — keep docs + log, ignore blob
+docs/wiki/.iwiki/index.jsonl

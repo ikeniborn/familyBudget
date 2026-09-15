@@ -109,6 +109,20 @@ async def _clean_database_before_session() -> None:
     try:
         async with engine.begin() as conn:
             await conn.execute(text(_CLEANUP_SQL))
+            # Fixtures insert BudgetFact rows directly (bypassing the API
+            # layer that auto-creates partitions), so pre-create partitions
+            # for the whole date range tests may use.
+            await conn.execute(text("""
+                DO $$
+                DECLARE
+                    d DATE := DATE '2023-01-01';
+                BEGIN
+                    WHILE d <= (date_trunc('month', now()) + INTERVAL '6 months')::DATE LOOP
+                        PERFORM ensure_budget_fact_partition(d);
+                        d := (d + INTERVAL '1 month')::DATE;
+                    END LOOP;
+                END$$;
+            """))
     finally:
         await engine.dispose()
 

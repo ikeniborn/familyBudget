@@ -3,6 +3,8 @@
 {% block extra_head %}
 <!-- ECharts library -->
 <script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER"></script>
+<!-- AI analytics chat (ai-analytics-chat) -->
+<script src="/static/js/aiAnalyticsChat.min.js?v=PLACEHOLDER" defer></script>
 <!-- BudgetShared bundle already included in base.html -->
 <link rel="stylesheet" href="/static/css/calendar-widget.min.css?v=PLACEHOLDER">
 
@@ -38,6 +40,32 @@
             <span>Пожалуйста, <a href="/api/v1/auth/telegram-login" class="link link-hover font-semibold">войдите</a> для просмотра аналитики.</span>
         </div>
     {% else %}
+        <!-- AI analytics chat (ai-analytics-chat): ask questions about the
+             data in natural language; hidden until GET /api/v1/ai/status
+             reports the text slot (revealed by the aiAnalyticsChat bundle) -->
+        <div id="ai-chat-card" class="card bg-base-100 shadow-md hidden">
+            <div class="card-body p-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-semibold text-sm">💬 Спросить ИИ о данных</h2>
+                    <button type="button" id="ai-chat-history-toggle" class="btn btn-xs btn-ghost"
+                            aria-controls="ai-chat-history">🕘 История</button>
+                </div>
+                <!-- Server-backed query history (ai-analytics-chat-history);
+                     lazily loaded from GET /api/v1/ai/analytics-chat/history -->
+                <div id="ai-chat-history" class="space-y-2 max-h-80 overflow-y-auto border border-base-300 rounded-lg p-2 hidden"></div>
+                <div id="ai-chat-log" class="space-y-2 max-h-80 overflow-y-auto hidden"></div>
+                <div class="flex gap-2 mt-1">
+                    <input type="text" id="ai-chat-input" maxlength="500"
+                           class="input input-bordered input-sm flex-1 h-12"
+                           placeholder="Какие затраты по продуктам за текущий месяц?"
+                           autocomplete="off">
+                    <button type="button" id="ai-chat-voice" class="btn btn-sm btn-outline btn-info h-12 hidden">🎤</button>
+                    <button type="button" id="ai-chat-send" class="btn btn-sm btn-primary h-12">✨ <span class="hidden sm:inline">Спросить</span></button>
+                </div>
+                <div id="ai-chat-status" class="text-xs mt-1 text-base-content/70"></div>
+            </div>
+        </div>
+
         <!-- Period Filter (Unified for ALL charts) -->
         <div class="card bg-base-100 shadow-md" role="group" aria-label="Фильтр периода для всех графиков">
             <div class="card-body p-4">
@@ -277,7 +305,7 @@ let categoryChoices = null;  // Choices.js instance
 // Backend now handles all period logic directly, so we pass period as-is
 
 // Initialize charts on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // Initialize CalendarWidget for custom date range (with custom trigger)
     new BudgetShared.CalendarWidget({
         mode: 'range',
@@ -291,8 +319,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Initialize CFO filter
-    loadCFOList();
+    // Initialize CFO filter and wait for the saved account (currentCFOId) to be
+    // restored from localStorage before the initial chart loads, otherwise the
+    // first data fetches run without cfo_id and ignore the saved filter
+    await loadCFOList();
 
     // Initialize category filter
     initCategoryFilter();

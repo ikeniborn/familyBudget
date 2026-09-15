@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="space-y-4">
+  <div class="flex items-center justify-between flex-wrap gap-2">
+    <h1 class="text-xl font-bold">Курсы приёма</h1>
+    <label class="label cursor-pointer gap-2 p-0">
+      <input id="course-show-paused" type="checkbox" class="checkbox checkbox-sm" onchange="window.loadCourses()">
+      <span class="label-text">показывать приостановленные</span>
+    </label>
+    <button class="btn btn-primary btn-sm" onclick="window.openCourseForm()">+ Новый курс</button>
+    <button class="btn btn-sm" onclick="window.openCoursesImport()">Импорт</button>
+  </div>
+  <div class="overflow-x-auto">
+    <table class="table table-sm">
+      <thead><tr><th>Лекарство</th><th>Пациент</th><th>Время</th><th>Доза</th><th>Остаток</th><th></th></tr></thead>
+      <tbody id="medicines-courses-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<dialog id="course-form-dialog" class="modal">
+  <div class="modal-box space-y-3">
+    <h3 class="font-bold text-lg" id="course-form-title">Новый курс</h3>
+    <input id="course-edit-id" type="hidden" value="">
+    <label class="form-control">
+      <span class="label-text">Лекарство</span>
+      <select id="course-medicine" class="select select-bordered select-sm"></select>
+    </label>
+    <div id="course-stock-hint" class="text-sm"></div>
+    <label class="form-control">
+      <span class="label-text">Член семьи</span>
+      <div class="flex gap-2">
+        <select id="course-patient" class="select select-bordered select-sm flex-1"></select>
+        <button type="button" class="btn btn-sm" onclick="window.openQuickPatient()" title="Добавить пациента">➕</button>
+      </div>
+    </label>
+    <div class="grid grid-cols-2 gap-2">
+      <label class="form-control">
+        <span class="label-text">Доза</span>
+        <input id="course-dose" type="number" step="0.001" class="input input-bordered input-sm" value="1">
+      </label>
+      <label class="form-control">
+        <span class="label-text">Ед.</span>
+        <input id="course-unit" class="input input-bordered input-sm" value="шт">
+      </label>
+    </div>
+    <label class="form-control">
+      <span class="label-text">Время приёма (через запятую)</span>
+      <input id="course-times" class="input input-bordered input-sm" placeholder="08:00, 20:00">
+    </label>
+    <div class="grid grid-cols-2 gap-2">
+      <label class="form-control">
+        <span class="label-text">Начало</span>
+        <input id="course-start" type="date" class="input input-bordered input-sm">
+      </label>
+      <label class="form-control">
+        <span class="label-text">Расписание</span>
+        <select id="course-schedule" class="select select-bordered select-sm">
+          <option value="daily">Ежедневно</option>
+          <option value="every_n_days">Каждые N дней</option>
+          <option value="weekdays">По дням недели</option>
+        </select>
+      </label>
+    </div>
+    <label class="form-control hidden" id="course-schedule-n-wrap">
+      <span class="label-text">Интервал (N дней)</span>
+      <input id="course-schedule-n" type="number" min="1" value="2" class="input input-bordered input-sm">
+    </label>
+    <div class="grid grid-cols-2 gap-2">
+      <label class="form-control">
+        <span class="label-text">Окончание (пусто = бессрочно)</span>
+        <input id="course-end" type="date" class="input input-bordered input-sm">
+      </label>
+      <label class="form-control">
+        <span class="label-text">Приём и еда</span>
+        <select id="course-food" class="select select-bordered select-sm">
+          <option value="">—</option>
+          <option value="before">до еды</option>
+          <option value="with">во время еды</option>
+          <option value="after">после еды</option>
+          <option value="any">не важно</option>
+        </select>
+      </label>
+    </div>
+    <label class="label cursor-pointer gap-2 p-0">
+      <input id="course-reminders" type="checkbox" class="checkbox checkbox-sm" checked>
+      <span class="label-text">Напоминания</span>
+    </label>
+    <div class="form-control hidden" id="course-schedule-days-wrap">
+      <span class="label-text">Дни недели</span>
+      <div class="flex flex-wrap gap-2 pt-1">
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="mon"><span class="label-text">Пн</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="tue"><span class="label-text">Вт</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="wed"><span class="label-text">Ср</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="thu"><span class="label-text">Чт</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="fri"><span class="label-text">Пт</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="sat"><span class="label-text">Сб</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="sun"><span class="label-text">Вс</span></label>
+      </div>
+    </div>
+    <div class="modal-action">
+      <form method="dialog"><button class="btn btn-ghost btn-sm">Отмена</button></form>
+      <button class="btn btn-primary btn-sm" onclick="window.createCourseFromForm()">Сохранить</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<dialog id="quick-patient-dialog" class="modal">
+  <div class="modal-box space-y-3">
+    <h3 class="font-bold text-lg">Новый пациент</h3>
+    <label class="form-control">
+      <span class="label-text">Имя</span>
+      <input id="quick-patient-name" class="input input-bordered input-sm" />
+    </label>
+    <label class="form-control">
+      <span class="label-text">Дата рождения</span>
+      <input id="quick-patient-birth" type="date" class="input input-bordered input-sm" />
+    </label>
+    <label class="form-control">
+      <span class="label-text">Заметки</span>
+      <input id="quick-patient-notes" class="input input-bordered input-sm" />
+    </label>
+    <div class="modal-action">
+      <form method="dialog"><button class="btn btn-ghost btn-sm">Отмена</button></form>
+      <button class="btn btn-primary btn-sm" onclick="window.saveQuickPatient()">Сохранить</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/medicines.min.js?v=PLACEHOLDER"></script>
+{% endblock %}

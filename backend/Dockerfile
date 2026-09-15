@@ -19,6 +19,7 @@ RUN echo "apt refresh: ${BUILD_DATE}" && \
     libpq-dev \
     libpq5 \
     curl \
+    libexpat1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Regenerate distroless-format dpkg metadata for packages whose .so files we
@@ -30,7 +31,8 @@ RUN mkdir -p /opt/dpkg-status && \
                libldap-2.5-0 liblber-2.5-0 libsasl2-2 \
                libgnutls30 libcom-err2 libkeyutils1 \
                libp11-kit0 libidn2-0 libunistring2 libtasn1-6 \
-               libnettle8 libhogweed6 libgmp10 libffi8 libpq5; do \
+               libnettle8 libhogweed6 libgmp10 libffi8 libpq5 \
+               libexpat1; do \
         dpkg-query -W -f='Package: ${Package}\nStatus: ${Status}\nPriority: ${Priority}\nSection: ${Section}\nInstalled-Size: ${Installed-Size}\nMaintainer: ${Maintainer}\nArchitecture: ${Architecture}\nMulti-Arch: ${Multi-Arch}\nSource: ${Source}\nVersion: ${Version}\nDepends: ${Depends}\nDescription: ${Description}\n' "$pkg" > "/opt/dpkg-status/$pkg" 2>/dev/null || true ; \
     done
 
@@ -46,6 +48,22 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --upgrade pip setuptools wheel && \
     pip install -r requirements.txt && \
     pip install --upgrade 'jaraco.context>=6.1.0' 'wheel>=0.46.2'
+
+# Drop pip from the venv that ships to the runtime image.
+#
+# pip bundles its own dependencies under pip/_vendor and records their versions
+# in pip/_vendor/vendor.txt, which Trivy reads as installed packages. pip 26.2.1
+# pins msgpack==1.1.2 and setuptools==70.3.0 there, so the image reports
+# GHSA-6v7p-g79w-8964 and CVE-2025-47273 no matter what requirements.txt says —
+# those numbers are pip's internals, not what we installed.
+#
+# The runtime is distroless and installs nothing, and neither backend/ nor bot/
+# imports pip, setuptools or pkg_resources, so removing pip costs nothing.
+# setuptools itself stays: 84.0.0 is clean and some libraries still import
+# pkg_resources lazily.
+RUN rm -rf /opt/venv/lib/python3.11/site-packages/pip \
+           /opt/venv/lib/python3.11/site-packages/pip-*.dist-info \
+           /opt/venv/bin/pip /opt/venv/bin/pip3 /opt/venv/bin/pip3.11
 
 # Stage 2: Frontend builder
 FROM node:18-alpine as frontend-builder
@@ -134,6 +152,10 @@ COPY --from=python-builder /lib/x86_64-linux-gnu/libnettle.so.8* /lib/x86_64-lin
 COPY --from=python-builder /lib/x86_64-linux-gnu/libhogweed.so.6* /lib/x86_64-linux-gnu/
 COPY --from=python-builder /lib/x86_64-linux-gnu/libgmp.so.10* /lib/x86_64-linux-gnu/
 COPY --from=python-builder /lib/x86_64-linux-gnu/libffi.so.8* /lib/x86_64-linux-gnu/
+# XML parser: distroless ships expat deb12u2. The slim base carries no expat at
+# all, so the builder installs libexpat1 explicitly and gets deb12u3, which
+# fixes CVE-2026-56408 (integer overflow in copyString).
+COPY --from=python-builder /lib/x86_64-linux-gnu/libexpat.so.1* /lib/x86_64-linux-gnu/
 # SSL/TLS libraries (already in distroless, but copy for consistency)
 COPY --from=python-builder /lib/x86_64-linux-gnu/libssl.so.3* /lib/x86_64-linux-gnu/
 COPY --from=python-builder /lib/x86_64-linux-gnu/libcrypto.so.3* /lib/x86_64-linux-gnu/

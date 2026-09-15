@@ -14,6 +14,7 @@
  */
 
 import { test, expect } from '@playwright/test';
+import { openPlanModal } from '../helpers/fab';
 
 async function navigateToPlanPage(page: import('@playwright/test').Page): Promise<void> {
   await page.goto('/plan');
@@ -30,15 +31,8 @@ test.describe('BUG-001: plan_month fallback', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await navigateToPlanPage(page);
 
-    // Open FAB speed dial
-    const fab = page.locator('[data-testid="fab-main-button"], #fab-main-button, .fab-main').first();
-    await fab.click();
-
-    // Click «Добавить плановую транзакцию»
-    const planFab = page.locator('[aria-label="Добавить плановую транзакцию"]');
-    await planFab.click();
-
-    // Wait for modal_plan to open & skeleton to hide
+    // Open the plan modal via the viewport-aware FAB helper
+    await openPlanModal(page);
     await page.waitForSelector('#modal_plan[open]', { timeout: 5000 });
     await page.waitForSelector('#modal_plan-tab-transaction .period-btn', { timeout: 5000 });
 
@@ -61,11 +55,6 @@ test.describe('BUG-001: plan_month fallback', () => {
     });
     await page.waitForTimeout(200);
     await page.evaluate(() => {
-      const art = document.querySelector<HTMLSelectElement>(
-        '#modal_plan-tab-transaction select[name="article_id"]'
-      );
-      if (art && art.options.length > 1) art.selectedIndex = 1;
-      art?.dispatchEvent(new Event('change', { bubbles: true }));
       const amt = document.querySelector<HTMLInputElement>(
         '#modal_plan-tab-transaction input[name="amount"]'
       );
@@ -77,12 +66,27 @@ test.describe('BUG-001: plan_month fallback', () => {
         amt.dispatchEvent(new Event('input', { bubbles: true }));
       }
     });
+    await page.waitForTimeout(300);
+    // The category select is wrapped (and disabled) by ChoicesCategoryTree, so
+    // FormData never reads it. This test targets the period fallback, not the
+    // Choices UX — re-enable the native select and set a value directly.
+    await page.evaluate(() => {
+      const art = document.querySelector<HTMLSelectElement>(
+        '#modal_plan-tab-transaction select[name="article_id"]'
+      );
+      if (art && art.options.length > 1) {
+        art.disabled = false;
+        art.value = art.options[1].value;
+      }
+    });
 
     // Click Save
     await page.click('#modal_plan button[onclick*="savePlanModal"]');
 
     // Expect success toast, NOT the missing-field warning
-    const success = page.locator('text=/План сохранён/');
+    // Toast text differs by page context: the /plan page says «План успешно
+    // создан!», the dashboard modal says «План сохранён»
+    const success = page.locator('text=/План (успешно создан|сохранён)/');
     const badWarn = page.locator('text=/Заполните все обязательные поля/');
 
     await expect(success).toBeVisible({ timeout: 5000 });

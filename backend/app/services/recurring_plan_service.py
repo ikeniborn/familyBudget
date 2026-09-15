@@ -23,6 +23,7 @@ from backend.app.schemas.recurring_plan import (
     RecurringPlanCreate,
     RecurringPlanUpdate,
 )
+from backend.app.services.partition_service import ensure_partitions_for_dates
 from backend.app.utils.timezone import now_local, now_utc
 
 logger = get_logger(__name__)
@@ -735,6 +736,9 @@ class RecurringPlanService:
                     f"[RECURRING] Plan {plan.id}: Fact already exists for {current_date}, skipping"
                 )
             else:
+                # Ensure the monthly partition exists before creating the fact
+                await ensure_partitions_for_dates(session, [current_date])
+
                 # Create fact
                 fact = BudgetFact(
                     user_id=plan.user_id,

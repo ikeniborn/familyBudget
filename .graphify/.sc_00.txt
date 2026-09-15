@@ -1,6 +1,0 @@
-/home/ikeniborn/Documents/Project/familyBudget/README.md
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/operations/backup-operations.md
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/operations/ci-cd-setup.md
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/operations/redis-alternatives-comparison.md
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/operations/security-advisories.md
-/home/ikeniborn/Documents/Project/familyBudget/docs/architecture/operations/testing-phases-summary.md

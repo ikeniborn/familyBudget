@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Отчёт: ai-assisted-transaction-input</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#273449;--text:#e2e8f0;--muted:#94a3b8;
+  --accent:#38bdf8;--ok:#4ade80;--warn:#fbbf24;--err:#f87171;--border:#334155;
+}
+html[data-theme="light"]{
+  --bg:#f8fafc;--surface:#ffffff;--surface2:#f1f5f9;--text:#0f172a;--muted:#64748b;
+  --accent:#0284c7;--ok:#16a34a;--warn:#d97706;--err:#dc2626;--border:#e2e8f0;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:24px;background:var(--bg);color:var(--text);
+  font:15px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;max-width:1100px;margin-inline:auto}
+h1{font-size:1.5rem;margin:.2em 0}
+h2{font-size:1.15rem;margin:1.6em 0 .5em;border-bottom:1px solid var(--border);padding-bottom:.3em}
+table{border-collapse:collapse;width:100%;font-size:.85rem;background:var(--surface);border-radius:8px;overflow:hidden}
+th,td{padding:6px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{background:var(--surface2);font-weight:600}
+tr:last-child td{border-bottom:none}
+code{background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:.85em}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:.75rem;font-weight:600}
+.b-ok{background:color-mix(in srgb,var(--ok) 20%,transparent);color:var(--ok)}
+.b-warn{background:color-mix(in srgb,var(--warn) 20%,transparent);color:var(--warn)}
+.b-add{background:color-mix(in srgb,var(--ok) 15%,transparent);color:var(--ok)}
+.b-mod{background:color-mix(in srgb,var(--accent) 15%,transparent);color:var(--accent)}
+.note{background:var(--surface);border-left:4px solid var(--accent);padding:10px 14px;border-radius:0 8px 8px 0;margin:12px 0;font-size:.9rem}
+.note.warn{border-left-color:var(--warn)}
+.toggle{position:fixed;top:14px;right:14px;background:var(--surface);border:1px solid var(--border);
+  color:var(--text);border-radius:20px;padding:6px 14px;cursor:pointer;font-size:.85rem}
+.lead{color:var(--muted);margin:.2em 0 1em}
+.diagram{display:flex;flex-direction:column;gap:10px;background:var(--surface);padding:18px;border-radius:10px;margin:14px 0}
+.tier{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
+.node{flex:1 1 140px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:.8rem;min-width:130px}
+.node b{display:block;font-size:.85rem;color:var(--accent)}
+.node.new{border-color:var(--ok)}
+.node.new b{color:var(--ok)}
+.arrowrow{text-align:center;color:var(--muted);font-size:.9rem;line-height:1}
+details{background:var(--surface);border-radius:8px;padding:8px 14px;margin:8px 0}
+summary{cursor:pointer;font-weight:600}
+</style>
+</head>
+<body>
+<button class="toggle" onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='light'?'dark':'light'">◐ Тема</button>
+
+<h1>Внедрение AI-модуля: ai-assisted-transaction-input</h1>
+<p class="lead">Отчёт сверки результата с intent (/check-chain result, маршрут execute) · 2026-09-13</p>
+
+<h2>1. Резюме внедрения</h2>
+<table>
+<tr><th>Топик</th><td><code>ai-assisted-transaction-input</code>, ветка <code>dev/ai-assisted-transaction-input</code></td></tr>
+<tr><th>Intent</th><td><code>docs/superpowers/intents/2026-09-13-ai-assisted-transaction-input-intent.md</code> (approved, /check-chain intent — OK)</td></tr>
+<tr><th>Spec / Plan</th><td>n/a (маршрут execute); HLD: <code>tmp/ai-assisted-transaction-input/hld.md</code></td></tr>
+<tr><th>База диффа</th><td><code>origin/test...HEAD</code> — 34 файла, +3574 строк, 6 коммитов</td></tr>
+<tr><th>Вердикт</th><td><span class="badge b-ok">OK</span> — все 6 Desired Outcomes покрыты кодом и тестами; проверка на dev-стенде (fbd) — после деплоя</td></tr>
+</table>
+
+<h2>2. Выполненные изменения</h2>
+<details open><summary>Backend (14 файлов)</summary>
+<table>
+<tr><th>Файл</th><th>Тип</th><th>Что делает</th></tr>
+<tr><td><code>backend/app/models/ai_settings.py</code></td><td><span class="badge b-add">added</span></td><td>Однострочная таблица настроек AI (endpoint, токен, 3 слота моделей, порог, kill-switch)</td></tr>
+<tr><td><code>backend/db/migrations/versions/20260913_e5a1c7f3b9d2_*.py</code></td><td><span class="badge b-add">added</span></td><td>Alembic-миграция <code>t_d_ai_settings</code></td></tr>
+<tr><td><code>backend/app/schemas/ai.py</code></td><td><span class="badge b-add">added</span></td><td>Схемы: настройки (токен маскируется), TransactionDraft, ReceiptDraft, suggestions, status, health</td></tr>
+<tr><td><code>backend/app/services/ai_provider_client.py</code></td><td><span class="badge b-add">added</span></td><td>OpenAI-совместимый httpx-клиент: models / chat / WAV-транскрибация; retry 503 ×2</td></tr>
+<tr><td><code>backend/app/services/ai_settings_service.py</code></td><td><span class="badge b-add">added</span></td><td>Доступ к настройкам с кэшем 60 с; маскирование токена</td></tr>
+<tr><td><code>backend/app/services/llm_parse_service.py</code></td><td><span class="badge b-add">added</span></td><td>Текст → черновик факта; батч-категоризация; валидация ответов LLM против реальных справочников</td></tr>
+<tr><td><code>backend/app/services/speech_service.py</code></td><td><span class="badge b-add">added</span></td><td>webm/ogg/mp4 → WAV 16 кГц (статический ffmpeg из imageio-ffmpeg); аудио не сохраняется</td></tr>
+<tr><td><code>backend/app/services/vision_receipt_service.py</code></td><td><span class="badge b-add">added</span></td><td>Фото чека → VLM → валидированные позиции с категориями</td></tr>
+<tr><td><code>backend/app/api/v1/endpoints/ai.py</code></td><td><span class="badge b-add">added</span></td><td>9 маршрутов /api/v1/ai: settings, models, health-check, status, parse-transaction, transcribe, categorize-import, parse-receipt</td></tr>
+<tr><td><code>endpoints/__init__.py · v1/router.py · models/__init__.py</code></td><td><span class="badge b-mod">modified</span></td><td>Регистрация роутера и модели</td></tr>
+<tr><td><code>backend/app/api/web/router.py</code></td><td><span class="badge b-mod">modified</span></td><td>Страница <code>/admin/ai-settings</code> (admin-only)</td></tr>
+<tr><td><code>backend/requirements.txt</code></td><td><span class="badge b-mod">modified</span></td><td>+ imageio-ffmpeg==0.6.0 (distroless-совместимый ffmpeg)</td></tr>
+</table>
+</details>
+<details open><summary>Frontend (12 файлов)</summary>
+<table>
+<tr><th>Файл</th><th>Тип</th><th>Что делает</th></tr>
+<tr><td><code>js/aiSettings/index.ts</code> + <code>admin_ai_settings.html</code></td><td><span class="badge b-add">added</span></td><td>Страница настроек: форма, выбор моделей из живого списка, кнопка «Проверить» по слотам</td></tr>
+<tr><td><code>js/aiQuickAdd/index.ts</code></td><td><span class="badge b-add">added</span></td><td>Быстрый ввод в модалке факта: текст ✨, голос 🎤 (MediaRecorder), чек 📷; заполнение формы черновиком</td></tr>
+<tr><td><code>js/aiImportAssist/index.ts</code></td><td><span class="badge b-add">added</span></td><td>Кнопка «🤖 Подобрать категории» на импорте; применяет уверенные, помечает сомнительные</td></tr>
+<tr><td><code>components/modal_ai_receipt.html</code></td><td><span class="badge b-add">added</span></td><td>Модалка чека: редактируемая таблица позиций, пакетное создание</td></tr>
+<tr><td><code>fact_transaction_tab.html · facts/plan/index.html · admin_import.html · user_dropdown_menu.html · build-all.js</code></td><td><span class="badge b-mod">modified</span></td><td>Точки входа: блок quick-add, подключение бандлов, пункт меню</td></tr>
+</table>
+</details>
+<details><summary>Тесты (6 файлов, 43 теста)</summary>
+<table>
+<tr><th>Файл</th><th>Покрывает</th></tr>
+<tr><td><code>test_ai_settings.py</code> (10)</td><td>Настройки: дефолты, маскирование/очистка токена, admin-only, health-check</td></tr>
+<tr><td><code>test_ai_provider_client.py</code> (6)</td><td>Клиент: контракт провайдера, retry 503, ошибки без ретрая (MockTransport)</td></tr>
+<tr><td><code>test_ai_parse.py</code> (8)</td><td>Парсинг: happy path, честное «не понял», мусор, будущая дата, порог уверенности, /status</td></tr>
+<tr><td><code>test_ai_transcribe.py</code> (5)</td><td>STT: WAV passthrough, реальный ffmpeg ogg/opus round-trip, пустое/битое аудио</td></tr>
+<tr><td><code>test_ai_categorize.py</code> (2)</td><td>Импорт: read-only, валидация id, high/low</td></tr>
+<tr><td><code>test_ai_receipt.py</code> (4)</td><td>Чек: валидация позиций, not_a_receipt, mime</td></tr>
+</table>
+</details>
+
+<h2>3. Результаты (сверка с Desired Outcomes)</h2>
+<table>
+<tr><th>Outcome из intent</th><th>Статус</th><th>Свидетельство в диффе</th></tr>
+<tr><td>Текст «кофе 350» → черновик → подтверждение → факт</td><td><span class="badge b-ok">DONE</span></td><td>parse-transaction + quick-add UI; test_ai_parse happy path</td></tr>
+<tr><td>🎤 голос по-русски → заполнение формы → подтверждение</td><td><span class="badge b-ok">DONE</span></td><td>transcribe + ffmpeg + MediaRecorder; ogg/opus round-trip тест. Chrome/Safari на 375/768/1280 — проверить на fbd</td></tr>
+<tr><td>Фото чека → редактируемая таблица → подтверждение → факты</td><td><span class="badge b-ok">DONE</span></td><td>parse-receipt + modal_ai_receipt; создание через штатный POST /facts</td></tr>
+<tr><td>Импорт: предложенные статьи, исправимые до применения</td><td><span class="badge b-ok">DONE</span></td><td>categorize-import (read-only) + кнопка на staging; низкая уверенность не применяется</td></tr>
+<tr><td>Админ-страница: endpoint, токен, 3 слота, «тест»</td><td><span class="badge b-ok">DONE</span></td><td>/admin/ai-settings + health-check с зашитыми примерами</td></tr>
+<tr><td>Честное «не понял» + флаг «проверь категорию»</td><td><span class="badge b-ok">DONE</span></td><td>422 на мусор (тест); confidence_threshold → low + warning</td></tr>
+</table>
+<p>Избыточных изменений нет: каждый файл диффа привязан к одному из Outcomes или к их регистрации/документации. GWT-сценарии (strict): 4 сценария на specification/ai-settings, все биндинги resolved по свежему графу.</p>
+<div class="note warn"><b>Done when из intent ещё не закрыт:</b> наблюдаемая проверка пяти сценариев на dev-стенде fbd.ikeniborn.ru (375/768/1280 px) возможна только после деплоя. Задача остаётся в completion-pending.</div>
+
+<h2>4. Влияние на систему</h2>
+<table>
+<tr><th>Область</th><th>Влияние</th><th>Риски / follow-up</th></tr>
+<tr><td>Существующий ввод фактов</td><td>Не изменён — AI-путь строго аддитивен, блок скрыт при выключенном AI</td><td>—</td></tr>
+<tr><td>Импорт CSV</td><td>Не изменён; категоризация — отдельная кнопка, отказ провайдера не блокирует импорт</td><td>—</td></tr>
+<tr><td>Backend-образ</td><td>+ imageio-ffmpeg (~30 МБ wheel со статическим ffmpeg)</td><td>Проверить Trivy-гейт при сборке CI</td></tr>
+<tr><td>БД</td><td>+ 1 таблица (t_d_ai_settings), миграция аддитивная</td><td>—</td></tr>
+<tr><td>Секреты</td><td>frameworkEdgeToken в БД, маскируется в UI</td><td>Принятый риск (intent); позже — скоуп-токен во framework</td></tr>
+<tr><td>Качество RU-парсинга</td><td>Зависит от выбранной модели</td><td>Правило эскалации: мусор &gt;50% тестовых фраз → стоп; предпочесть qwen3.5 cloud</td></tr>
+<tr><td>PWA-бандлы</td><td>3 новых ленивых бандла (1.9–3 КБ gzip)</td><td>Метрика «не растёт заметно» соблюдена</td></tr>
+</table>
+
+<h2>5. Схема: поток данных AI-модуля</h2>
+<div class="diagram">
+  <div class="tier">
+    <div class="node new"><b>Quick-add ✨🎤📷</b>модалка факта (dashboard/facts/plan)</div>
+    <div class="node new"><b>Импорт 🤖</b>staging-страница</div>
+    <div class="node new"><b>/admin/ai-settings</b>админ: модели, токен, тест</div>
+  </div>
+  <div class="arrowrow">▼ fetch, cookie-JWT ▼</div>
+  <div class="tier">
+    <div class="node new"><b>/api/v1/ai/*</b>parse · transcribe · receipt · categorize · status · settings · health</div>
+  </div>
+  <div class="arrowrow">▼ сервисы ▼</div>
+  <div class="tier">
+    <div class="node new"><b>llm_parse_service</b>кандидаты категорий (closure table) + валидация JSON</div>
+    <div class="node new"><b>speech_service</b>ffmpeg → WAV 16k</div>
+    <div class="node new"><b>vision_receipt_service</b>VLM → позиции чека</div>
+    <div class="node new"><b>ai_settings_service</b>t_d_ai_settings, кэш 60 с</div>
+  </div>
+  <div class="arrowrow">▼ ai_provider_client (Bearer, retry 503×2) ▼</div>
+  <div class="tier">
+    <div class="node"><b>framework GPU API</b>https://homelab.ikeniborn.ru/v1 — chat · models · audio/transcriptions</div>
+    <div class="node"><b>Существующие пути</b>POST /facts · PATCH /staging — создание только после подтверждения</div>
+  </div>
+</div>
+
+<p class="lead">Файл сгенерирован автоматически (/check-chain result). Тесты: 43 AI-теста зелёные; полный integration-набор — только pre-existing падения (подтверждено на чистом дереве).</p>
+</body>
+</html>

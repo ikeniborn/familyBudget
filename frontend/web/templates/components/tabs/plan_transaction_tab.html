@@ -1,4 +1,19 @@
 <!-- Plan Transaction Tab Content -->
+<!-- AI quick-add: hidden until GET /api/v1/ai/status reports text=true.
+     No receipt button here — receipts create facts, not plans. -->
+<div class="form-control ai-quickadd hidden mb-1">
+    <label class="label py-1">
+        <span class="label-text">🤖 Быстрый ввод</span>
+    </label>
+    <input type="text" class="input input-bordered input-sm w-full ai-quickadd-input"
+           placeholder="интернет 900 за октябрь" maxlength="500" autocomplete="off" />
+    <div class="flex gap-2 mt-2">
+        <button type="button" class="btn btn-sm btn-outline btn-info flex-1 gap-1 ai-voice-btn hidden">🎤 <span class="hidden sm:inline">Голос</span></button>
+        <button type="button" class="btn btn-sm btn-primary flex-1 gap-1 ai-quickadd-btn">✨ <span class="hidden sm:inline">Разобрать</span></button>
+    </div>
+    <div class="ai-quickadd-result text-xs mt-1 text-base-content/70"></div>
+</div>
+
 <!-- Период (месяц) -->
 <div class="form-control">
     <label class="label py-1">

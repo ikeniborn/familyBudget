@@ -85,6 +85,29 @@ async def admin_users(
     )
 
 
+@web_router.get("/admin/ai-settings", response_class=HTMLResponse)
+async def admin_ai_settings(
+    request: Request,
+    current_admin: CurrentAdmin
+):
+    """
+    AI module settings page (admin only).
+
+    Configures the OpenAI-compatible provider endpoint, token, and the
+    model per slot (text / image / voice), with a per-slot health check.
+    """
+    from backend.app.main import templates
+
+    return templates.TemplateResponse(
+        "admin_ai_settings.html",
+        {
+            "request": request,
+            "user": current_admin,
+            "page_title": "Настройки AI"
+        }
+    )
+
+
 @web_router.get("/admin/articles", response_class=HTMLResponse)
 async def admin_articles(
     request: Request,
@@ -486,6 +509,66 @@ async def shopping_list_detail_page(
             "page_title": "Списки покупок",
             "initial_list_id": list_id,
         }
+    )
+
+
+@web_router.get("/medicines/catalog", response_class=HTMLResponse)
+async def medicines_catalog_page(request: Request, current_user: CurrentUser):
+    """Medicine catalog page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_catalog.html",
+        {"request": request, "user": current_user, "page_title": "Справочник лекарств"},
+    )
+
+
+@web_router.get("/medicines/stock", response_class=HTMLResponse)
+async def medicines_stock_page(request: Request, current_user: CurrentUser):
+    """Medicine stock (аптечка) page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_stock.html",
+        {"request": request, "user": current_user, "page_title": "Аптечка"},
+    )
+
+
+@web_router.get("/medicines/patients", response_class=HTMLResponse)
+async def medicines_patients_page(request: Request, current_user: CurrentUser):
+    """Medicine patients (family members) management page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_patients.html",
+        {"request": request, "user": current_user, "page_title": "Пациенты"},
+    )
+
+
+@web_router.get("/medicines", response_class=HTMLResponse)
+async def medicines_dashboard_page(request: Request, current_user: CurrentUser):
+    """Medicine dashboard — today's intakes."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_dashboard.html",
+        {"request": request, "user": current_user, "page_title": "Приём лекарств"},
+    )
+
+
+@web_router.get("/medicines/courses", response_class=HTMLResponse)
+async def medicines_courses_page(request: Request, current_user: CurrentUser):
+    """Medicine courses list page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_courses.html",
+        {"request": request, "user": current_user, "page_title": "Курсы приёма"},
+    )
+
+
+@web_router.get("/medicines/courses/{course_id:int}", response_class=HTMLResponse)
+async def medicines_course_detail_page(request: Request, course_id: int, current_user: CurrentUser):
+    """Medicine course detail page."""
+    from backend.app.main import templates
+    return templates.TemplateResponse(
+        "medicines_course_detail.html",
+        {"request": request, "user": current_user, "page_title": "Курс лечения", "course_id": course_id},
     )
 
 

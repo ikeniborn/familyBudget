@@ -27,7 +27,28 @@ class BudgetFact(SQLModel, table=True):
     Pattern: Fact table (partitioned by month at DB level)
 
     Note: Table is partitioned by fact_date (monthly) at the database level
-    for improved query performance and data management.
+    for improved query performance and data management. Partitions are
+    created on demand within a bounded window (2020-01-01 .. current month
+    + 6 months) — see services/partition_service.py.
+
+    Index architecture (revision d4e8f1a6c2b9, driven by prod usage stats):
+    every index is replicated on each monthly partition, so the set is kept
+    minimal. Partitioned parent indexes:
+        - t_f_budget_fact_pkey (id, fact_date)
+        - idx_budget_fact_date (fact_date DESC)
+        - idx_budget_fact_fc_date (financial_center_id, fact_date DESC)
+        - idx_budget_fact_record_type (record_type)
+        - idx_budget_fact_user_date_amount_covering
+          (user_id, fact_date DESC) INCLUDE (amount, article_id)
+        - idx_budget_fact_user_record_type_date
+          (user_id, record_type, fact_date DESC)
+        - idx_budget_fact_article_id (article_id)
+        - idx_budget_fact_cc_id (cost_center_id)
+        - ix_budget_fact_transfer_id (transfer_id)
+        - ix_t_f_budget_fact_recurring_plan_id (recurring_plan_id)
+        - idx_budget_fact_description_trgm (GIN, ILIKE search)
+    Single-column indexes whose column leads a kept composite (user_id,
+    financial_center_id) were dropped as redundant.
 
     Examples:
         # Expense transaction
@@ -62,7 +83,8 @@ class BudgetFact(SQLModel, table=True):
     user_id: int = Field(
         nullable=False,
         foreign_key="t_d_user.id",
-        index=True,
+        # No single-column index: user_id leads composite indexes
+        # (see index architecture in the class docstring)
         description="User who created this transaction"
     )
 

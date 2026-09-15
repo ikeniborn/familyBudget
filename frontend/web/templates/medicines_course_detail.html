@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+
+{% block extra_head %}
+<meta name="course-id" content="{{ course_id }}">
+{% endblock %}
+
+{% block content %}
+<div class="space-y-4">
+  <a href="/medicines/courses" class="btn btn-ghost btn-sm">← Курсы</a>
+  <div id="medicines-course-card" class="card bg-base-100 shadow-sm"><div class="card-body">Загрузка…</div></div>
+  <h2 class="text-lg font-semibold">Журнал</h2>
+  <div id="medicines-course-journal" class="space-y-2"></div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/medicines.min.js?v=PLACEHOLDER"></script>
+{% endblock %}

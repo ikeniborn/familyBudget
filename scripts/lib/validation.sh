@@ -98,12 +98,12 @@ Workflow:
   4. Builds Docker images (only changed layers)
   5. Starts services (profile auto-detected from .env DEPLOYMENT_PROFILE)
   6. Runs database migrations (always - migrations are idempotent)
-  7. Sets up SSL certificates (if configured)
+  7. Uses Traefik ACME for HTTPS when DEPLOYMENT_PROFILE=full
 
 Deployment Profile:
   Auto-detected from /opt/budget/.env (DEPLOYMENT_PROFILE=basic|full)
   - basic: PostgreSQL + Backend only
-  - full:  All services (PostgreSQL + Backend + Bot + Nginx + Certbot)
+  - full:  All services (PostgreSQL + Backend + Bot + Traefik)
 
 Prerequisites:
   - Docker and Docker Compose installed (run install.sh)

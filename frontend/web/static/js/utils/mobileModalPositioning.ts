@@ -69,6 +69,20 @@ export function setupMobileModalPositioning(instance: any, modalId: string): voi
         if (shouldShiftModal(instance.element)) {
             modalBox.style.marginTop    = '0';
             modalBox.style.marginBottom = 'auto';
+            // The select may sit below the fold inside the scrollable
+            // .modal-box (the form grew with the AI quick-add block): scroll
+            // its field into view so the opened dropdown is actually visible.
+            // Delay lets the shift + dropdown render settle first.
+            window.setTimeout(() => {
+                const field =
+                    instance.element.closest('.form-control') ??
+                    instance.element.closest('div') ??
+                    instance.element;
+                (field as HTMLElement).scrollIntoView({
+                    block: 'start',
+                    behavior: 'smooth',
+                });
+            }, 60);
         }
     });
 

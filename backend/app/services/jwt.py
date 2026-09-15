@@ -8,8 +8,11 @@ Access Tokens:
     - Uses HS256 (HMAC SHA-256) algorithm
     - Secret key from environment configuration
     - 7-day token lifetime (configurable)
-    - Includes exp (expiration) and iat (issued at) claims
+    - Includes exp (expiration), iat (issued at) and token_type='access' claims
     - Stored in httpOnly cookie
+    - Decoding rejects any token declaring another type, so a refresh token
+      cannot authenticate a request. A missing token_type is still accepted,
+      keeping tokens issued before the claim existed valid until they expire.
 
 Refresh Tokens:
     - Uses HS256 (HMAC SHA-256) algorithm
@@ -40,6 +43,34 @@ ALGORITHM = "HS256"
 SECRET_KEY = settings.JWT_SECRET
 ACCESS_TOKEN_EXPIRE_DAYS = settings.JWT_EXPIRE_DAYS
 REFRESH_TOKEN_EXPIRE_DAYS = 30  # Refresh tokens live longer
+
+# Token type claim values. A refresh token carries a user_id claim, so without
+# this discriminator it decodes as a valid access token — see _is_access_claims.
+ACCESS_TOKEN_TYPE = "access"
+REFRESH_TOKEN_TYPE = "refresh"
+
+
+def _is_access_claims(payload: dict) -> bool:
+    """
+    Check whether decoded claims belong to an access token.
+
+    A missing token_type is accepted on purpose: access tokens issued before the
+    claim existed stay valid for up to ACCESS_TOKEN_EXPIRE_DAYS, so introducing
+    the check signs nobody out. Any explicit non-access value is rejected, which
+    is what stops a refresh token authenticating a request.
+
+    Tighten this to require the claim once the last pre-change access token has
+    expired; the removal is tracked as a wiki task, not as a TODO here.
+
+    Args:
+        payload: Decoded JWT claims
+
+    Returns:
+        bool: True if the claims may be treated as an access token
+    """
+    token_type = payload.get("token_type")
+
+    return token_type is None or token_type == ACCESS_TOKEN_TYPE
 
 
 def create_access_token(user_id: int, telegram_id: int) -> str:
@@ -74,6 +105,7 @@ def create_access_token(user_id: int, telegram_id: int) -> str:
     claims = {
         "user_id": user_id,  # Legacy (for backward compatibility)
         "telegram_id": telegram_id,  # Business key (stable across SCD Type 2 versions)
+        "token_type": ACCESS_TOKEN_TYPE,  # Distinguishes this from a refresh token
         "exp": expire,
         "iat": datetime.utcnow(),
     }
@@ -178,6 +210,10 @@ def decode_access_token(token: str) -> int | None:
         # Decode JWT and verify signature
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
+        # Reject tokens of another type (a refresh token also carries user_id)
+        if not _is_access_claims(payload):
+            return None
+
         # Prefer telegram_id (SCD Type 2 safe), fallback to user_id (legacy)
         telegram_id: int | None = payload.get("telegram_id")
         if telegram_id is not None:
@@ -223,6 +259,10 @@ def decode_access_token_full(token: str) -> tuple[int | None, int | None]:
     try:
         # Decode JWT and verify signature
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+
+        # Reject tokens of another type (a refresh token also carries user_id)
+        if not _is_access_claims(payload):
+            return None, None
 
         # Extract both claims
         user_id: int | None = payload.get("user_id")
@@ -274,7 +314,7 @@ def create_refresh_token(user_id: int) -> tuple[str, datetime]:
     # Prepare claims (include token_type to differentiate from access tokens)
     claims = {
         "user_id": user_id,
-        "token_type": "refresh",
+        "token_type": REFRESH_TOKEN_TYPE,
         "exp": expire,
         "iat": datetime.utcnow(),
     }
@@ -323,7 +363,7 @@ def decode_refresh_token(token: str) -> int | None:
 
         # Validate token_type (must be 'refresh')
         token_type = payload.get("token_type")
-        if token_type != "refresh":
+        if token_type != REFRESH_TOKEN_TYPE:
             return None
 
         # Extract user_id claim

@@ -87,6 +87,46 @@ class APIClient:
             logger.error(f"GET {endpoint} error: {str(e)}")
             raise
 
+    async def post(
+        self,
+        endpoint: str,
+        token: Optional[str] = None,
+        json: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Universal POST request method.
+
+        Args:
+            endpoint: API endpoint path
+            token: JWT access token (optional)
+            json: Request body as dict (optional)
+
+        Returns:
+            Dict containing response data
+
+        Raises:
+            httpx.HTTPStatusError: If request fails
+        """
+        try:
+            kwargs: Dict[str, Any] = {}
+            if json is not None:
+                kwargs["json"] = json
+            if token:
+                kwargs["headers"] = {"Authorization": f"Bearer {token}"}
+
+            response = await self.client.post(endpoint, **kwargs)
+            response.raise_for_status()
+
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            logger.error(f"POST {endpoint} failed: {e.response.status_code} - {e.response.text}")
+            raise
+
+        except Exception as e:
+            logger.error(f"POST {endpoint} error: {str(e)}")
+            raise
+
     async def authenticate_telegram_user(self, telegram_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Authenticate user via Telegram OAuth.

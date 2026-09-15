@@ -22,7 +22,7 @@ configure_firewall_for_ssl() {
     local port_443_status="not configured"
 
     if sudo ufw status 2>/dev/null | grep -q "80/tcp.*ALLOW"; then
-        port_80_status="⚠ OPEN (should be closed)"
+        port_80_status="✓ OPEN"
     fi
 
     if sudo ufw status 2>/dev/null | grep -q "443/tcp.*ALLOW"; then
@@ -34,14 +34,12 @@ configure_firewall_for_ssl() {
     echo "  Port 443 (HTTPS): $port_443_status"
     echo ""
 
-    # SECURITY: Port 80 should NOT be open permanently
-    # It opens ONLY temporarily during certbot renewal (managed by ssl_certificate_manager.sh)
-    if sudo ufw status 2>/dev/null | grep -q "80/tcp.*ALLOW"; then
-        warning "Port 80 is currently OPEN - closing for security"
-        sudo ufw delete allow 80/tcp 2>/dev/null || true
-        success "✓ Port 80 closed (will open temporarily for certbot when needed)"
+    # Traefik needs port 80 for HTTP-01 challenges and HTTP-to-HTTPS redirects.
+    if ! sudo ufw status 2>/dev/null | grep -q "80/tcp.*ALLOW"; then
+        sudo ufw allow 80/tcp comment 'Traefik HTTP-01 for Family Budget' >> "$LOG_FILE" 2>&1 || true
+        success "✓ Port 80 (HTTP) opened for Traefik HTTP-01"
     else
-        info "✓ Port 80 is closed (correct - certbot will open temporarily)"
+        info "✓ Port 80 (HTTP) already OPEN for Traefik HTTP-01"
     fi
 
     # Open port 443 (HTTPS) - this should be ALWAYS open
@@ -56,7 +54,7 @@ configure_firewall_for_ssl() {
     success "Firewall configured for SSL"
     info "Security policy:"
     echo "  ✓ Port 443 (HTTPS): OPEN permanently"
-    echo "  ✓ Port 80 (HTTP): CLOSED (opens only for certbot renewal)"
+    echo "  ✓ Port 80 (HTTP): OPEN for Traefik HTTP-01 and redirect"
 }
 
 # Validate UFW configuration (added for SEC-004, SEC-005 audit compliance)
@@ -111,11 +109,11 @@ validate_ufw_rules() {
         warning "    Run: sudo ufw allow 443/tcp"
     fi
 
-    # Port 80 is optional (for ACME challenge)
+    # Port 80 is required for Traefik HTTP-01 challenge and HTTP redirect
     if echo "$ufw_numbered" | grep -q "80.*ALLOW IN"; then
-        info "  ℹ HTTP port 80: ALLOWED (for Let's Encrypt)"
+        success "  ✓ HTTP port 80: ALLOWED (Traefik HTTP-01)"
     else
-        info "  ℹ HTTP port 80: CLOSED (will open temporarily for certbot)"
+        warning "  ⚠ HTTP port 80: CLOSED (Traefik HTTP-01 will fail)"
     fi
 
     # Check PostgreSQL external access
@@ -142,9 +140,9 @@ validate_ufw_rules() {
     # Check that ports 8000 and 5432 are NOT publicly accessible (if exposed, should be blocked by UFW)
     info "Checking security (ports should be protected by UFW)..."
     if echo "$ufw_numbered" | grep -q "8000.*ALLOW IN"; then
-        warning "  ⚠ Backend port 8000 is ALLOWED in UFW (should use Nginx reverse proxy instead)"
+        warning "  ⚠ Backend port 8000 is ALLOWED in UFW (should use Traefik reverse proxy instead)"
     else
-        success "  ✓ Backend port 8000: Protected by UFW (access via Nginx only)"
+        success "  ✓ Backend port 8000: Protected by UFW (access via Traefik only)"
     fi
 
     echo ""
@@ -177,10 +175,10 @@ configure_docker_firewall() {
     sudo iptables -I DOCKER-USER -i docker0 -j ACCEPT
     success "✓ Allowed internal Docker network traffic"
 
-    # Rule 3: Block backend port 8000 from external access (must use Nginx reverse proxy)
+    # Rule 3: Block backend port 8000 from external access (must use Traefik reverse proxy)
     # Note: Internal traffic (docker0/br-+) already ACCEPTED above, so no -i filter needed
     sudo iptables -A DOCKER-USER -p tcp --dport 8000 -j DROP
-    success "✓ Blocked external access to backend port 8000 (use Nginx)"
+    success "✓ Blocked external access to backend port 8000 (use Traefik)"
 
     # Rule 4: PostgreSQL external access control
     if [[ "${POSTGRES_EXTERNAL_ACCESS:-false}" == "true" ]]; then

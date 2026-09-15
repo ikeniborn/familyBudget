@@ -76,6 +76,18 @@
 
     <!-- Desktop Speed Dial FAB (≥ 1024px) -->
     <div class="desktop-fab-wrapper fab-common-wrapper closed" id="desktop-fab-wrapper">
+        <!-- AI bulk entry: standalone FAB shown above the main "+" button while
+             the speed dial is closed. Hidden until /api/v1/ai/status reports
+             text=true (revealed by the aiBulkEntry bundle) and while the speed
+             dial is open (CSS .desktop-fab-wrapper.open rule). -->
+        <button
+            onclick="window.openAIBulkModal()"
+            class="ai-fab-standalone ai-bulk-fab-item btn btn-circle btn-secondary shadow-lg fab-common-action-btn hidden"
+            aria-label="Добавить записи с помощью ИИ"
+            title="Добавить с ИИ">
+            ✨
+        </button>
+
         <!-- Speed Dial Menu Items (shown above FAB button) -->
         <div class="fab-menu-item fab-common-menu-item">
             <span class="badge badge-neutral mr-2 fab-common-badge hidden lg:inline">Добавить факт</span>
@@ -162,6 +174,18 @@
                 </button>
             </div>
         </div>
+
+        <!-- AI bulk entry: standalone FAB shown above the main "+" button while
+             the speed dial is closed. Hidden until /api/v1/ai/status reports
+             text=true (revealed by the aiBulkEntry bundle) and while the speed
+             dial is open (CSS .fab-wrapper.open rule). -->
+        <button
+            onclick="window.openAIBulkModal()"
+            class="ai-fab-standalone ai-bulk-fab-item btn btn-circle btn-secondary shadow-lg fab-common-action-btn hidden"
+            aria-label="Добавить записи с помощью ИИ"
+            title="Добавить с ИИ">
+            ✨
+        </button>
 
         <!-- Основная FAB кнопка -->
         <button

@@ -561,6 +561,11 @@
     <!-- Fixed Bottom FAB Toolbar (authenticated users only, except admin logs) -->
     {% if user and not request.path.startswith('/admin/logs') %}
         {% include 'components/fab_toolbar.html' %}
+
+        {# AI bulk entry: modal + bundle for the «Добавить с ИИ» FAB action #}
+        {% from "components/modal_ai_bulk.html" import modal_ai_bulk %}
+        {{ modal_ai_bulk() }}
+        <script src="/static/js/aiBulkEntry.min.js?v=PLACEHOLDER"></script>
     {% endif %}
 
     <!-- FAB Buttons (outside main container for proper fixed positioning) -->

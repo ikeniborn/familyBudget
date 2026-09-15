@@ -334,6 +334,11 @@ class WriteBehindService:
             fact_date = fact_date_raw
 
         if item.operation == WriteOperation.CREATE:
+            from backend.app.services.partition_service import ensure_partitions_for_dates
+
+            # Ensure the monthly partition exists before creating the fact
+            await ensure_partitions_for_dates(session, [fact_date])
+
             # Create new fact with pre-generated ID
             fact = BudgetFact(
                 id=item.data.get("pre_generated_id"),  # Use pre-generated ID

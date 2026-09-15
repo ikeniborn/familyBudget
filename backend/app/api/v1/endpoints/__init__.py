@@ -19,8 +19,11 @@ This package contains all API endpoint routers organized by domain:
 - shopping_list_items: ShoppingListItems CRUD endpoints with batch ops (Shopping Lists Feature)
 - shopping_csv_import: Shopping Lists CSV import endpoints (Shopping Lists Feature)
 - import_templates: Import templates CRUD endpoints (Shopping Lists Feature)
+- medicines: Medicine catalog + stock CRUD endpoints (Medicine Tracking Feature)
+- family_members: Family member CRUD endpoints (Medicine Tracking Feature)
 """
 
+from backend.app.api.v1.endpoints.ai import router as ai_router
 from backend.app.api.v1.endpoints.articles import router as articles_router
 from backend.app.api.v1.endpoints.auth import router as auth_router
 from backend.app.api.v1.endpoints.budget_ws import router as budget_ws_router
@@ -29,12 +32,29 @@ from backend.app.api.v1.endpoints.consent import router as consent_router
 from backend.app.api.v1.endpoints.cost_centers import router as cost_centers_router
 from backend.app.api.v1.endpoints.facts import router as facts_router
 from backend.app.api.v1.endpoints.facts_partials import router as facts_partials_router
+from backend.app.api.v1.endpoints.family_members import router as family_members_router
 from backend.app.api.v1.endpoints.financial_centers import (
     router as financial_centers_router,
 )
 from backend.app.api.v1.endpoints.google_sheets_import import router as google_sheets_import_router
 from backend.app.api.v1.endpoints.import_endpoints import router as import_router
 from backend.app.api.v1.endpoints.import_templates import router as import_templates_router
+from backend.app.api.v1.endpoints.medicine_courses import intakes_router as medicine_intakes_router
+from backend.app.api.v1.endpoints.medicine_courses import router as medicine_courses_router
+from backend.app.api.v1.endpoints.medicine_import import (
+    course_gs_router as medicine_course_gs_router,
+)
+from backend.app.api.v1.endpoints.medicine_import import (
+    course_import_router as medicine_course_import_router,
+)
+from backend.app.api.v1.endpoints.medicine_import import (
+    stock_gs_router as medicine_stock_gs_router,
+)
+from backend.app.api.v1.endpoints.medicine_import import (
+    stock_import_router as medicine_stock_import_router,
+)
+from backend.app.api.v1.endpoints.medicines import router as medicines_router
+from backend.app.api.v1.endpoints.medicines import stock_router as medicine_stock_router
 from backend.app.api.v1.endpoints.notifications import (
     router as notifications_router,
 )
@@ -59,7 +79,19 @@ from backend.app.api.v1.endpoints.webauthn import router as webauthn_router
 
 __all__ = [
     "auth_router",
+    "ai_router",
     "articles_router",
+    "family_members_router",
+    "medicine_courses_router",
+    "medicine_intakes_router",
+    "medicines_router",
+    "medicine_stock_router",
+    "medicine_courses_router",
+    "medicine_intakes_router",
+    "medicine_stock_import_router",
+    "medicine_stock_gs_router",
+    "medicine_course_import_router",
+    "medicine_course_gs_router",
     "budget_ws_router",
     "cache_metrics_router",
     "consent_router",

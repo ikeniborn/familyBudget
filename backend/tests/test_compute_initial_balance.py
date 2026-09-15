@@ -3,7 +3,6 @@ from datetime import date
 from decimal import Decimal
 
 import pytest
-from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.api.v1.analytics import _compute_initial_balance
 from backend.app.models.article import Article

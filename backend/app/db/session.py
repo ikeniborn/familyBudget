@@ -22,6 +22,11 @@ engine = create_async_engine(
     future=True,
     pool_size=5,
     max_overflow=10,
+    # Recycle connections so long-lived PG backends do not accumulate
+    # unbounded relcache/catcache memory (~90MB per idle backend observed
+    # on prod with eternal pooled connections).
+    pool_recycle=1800,
+    pool_pre_ping=True,
 )
 
 # Create async session factory

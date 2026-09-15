@@ -26,6 +26,7 @@ from backend.app.schemas.import_multibank_schema import (
     StagingRecordResponse,
     StagingUpdateRequest,
 )
+from backend.app.services.partition_service import ensure_partitions_for_dates
 
 logger = logging.getLogger(__name__)
 
@@ -595,6 +596,9 @@ async def execute_import(
             final_description = f"{base_description}. {record.user_comment}" if base_description else record.user_comment
         else:
             final_description = base_description or None
+
+        # Ensure the monthly partition exists before creating the fact
+        await ensure_partitions_for_dates(session, [record.fact_date])
 
         # Create BudgetFact
         fact = BudgetFact(

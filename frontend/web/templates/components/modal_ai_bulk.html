@@ -1,0 +1,51 @@
+{% macro modal_ai_bulk() %}
+<!-- AI bulk entry modal (ai-bulk-entry): «Добавить с ИИ» in the FAB menus.
+     Text / voice / receipt photo -> a list of fact/plan drafts, each row
+     fully editable (type, date, amount, category, account, description).
+     Records are created via the normal POST /api/v1/facts only after user
+     confirmation. Driven by the aiBulkEntry bundle. -->
+<dialog id="modal_ai_bulk" class="modal">
+    <div class="modal-box w-full max-w-4xl p-4">
+        <h3 class="font-bold text-lg mb-2">✨ Добавить с ИИ</h3>
+
+        <div id="ai-bulk-input-step">
+            <textarea id="ai-bulk-text" class="textarea textarea-bordered w-full" rows="4"
+                      maxlength="3000"
+                      placeholder="кофе 350 вчера, продукты в пятёрочке 1200, в следующем месяце заплатить за интернет 900"></textarea>
+            <p class="text-xs text-base-content/60 mt-1">Опишите одну или несколько операций — ИИ разберёт их в список фактов и планов. Можно надиктовать или приложить фото чека.</p>
+            <input type="file" id="ai-bulk-photo" accept="image/jpeg,image/png,image/webp" class="hidden" />
+            <div class="flex gap-2 mt-2">
+                <button type="button" id="ai-bulk-voice" class="btn btn-sm btn-outline btn-info flex-1 gap-1 hidden">🎤 <span class="hidden sm:inline">Голос</span></button>
+                <button type="button" id="ai-bulk-photo-btn" class="btn btn-sm btn-outline flex-1 gap-1 hidden">📷 <span class="hidden sm:inline">Чек</span></button>
+                <button type="button" id="ai-bulk-parse" class="btn btn-sm btn-primary flex-1 gap-1">✨ <span class="hidden sm:inline">Разобрать</span></button>
+            </div>
+            <div id="ai-bulk-input-status" class="text-xs mt-1 text-base-content/70"></div>
+            <div class="modal-action mt-3">
+                <form method="dialog"><button class="btn btn-sm btn-ghost">Отмена</button></form>
+            </div>
+        </div>
+
+        <div id="ai-bulk-result-step" class="hidden">
+            <!-- Accordion rows: collapsed line shows the gist, expanding
+                 reveals the editable fields (no horizontal scroll on any
+                 breakpoint) -->
+            <div id="ai-bulk-list" class="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
+                <!-- rows rendered by aiBulkEntry bundle -->
+            </div>
+
+            <div class="mt-2">
+                <span id="ai-bulk-status" class="text-xs text-base-content/70"></span>
+            </div>
+
+            <!-- Mobile: the three buttons overflow a 375px modal in one row —
+                 primary goes full-width on its own line, the rest wrap under it -->
+            <div class="modal-action flex flex-wrap gap-2 justify-end">
+                <button type="button" id="ai-bulk-create" class="btn btn-primary w-full sm:w-auto order-1 sm:order-none">Создать записи</button>
+                <button type="button" id="ai-bulk-back" class="btn btn-ghost btn-sm sm:btn-md flex-1 sm:flex-none order-2 sm:order-none">← Изменить текст</button>
+                <form method="dialog" class="order-3 sm:order-none flex-1 sm:flex-none"><button class="btn btn-ghost btn-sm sm:btn-md w-full">Закрыть</button></form>
+            </div>
+        </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+{% endmacro %}

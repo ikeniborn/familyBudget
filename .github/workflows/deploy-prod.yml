@@ -9,13 +9,6 @@ name: Deploy to Production
 
 on:
   workflow_dispatch:
-    inputs:
-      profile:
-        description: 'Deployment profile'
-        required: false
-        type: choice
-        options: [full, basic]
-        default: full
 
 concurrency:
   group: deploy-prod
@@ -67,15 +60,18 @@ jobs:
             done
 
             echo "🐳 Deploying with existing registry images..."
+            # --profile was removed from deploy.sh (profile auto-detected from .env);
+            # mirror sync forces full recreate with --remove-orphans, which is what
+            # retires the nginx container when Traefik takes over 80/443.
             cd /opt/budget
-            ./deploy.sh --use-registry --sync-mode update --cleanup-mode smart --profile ${{ inputs.profile || 'full' }}
+            ./deploy.sh --use-registry --sync-mode mirror --cleanup-mode smart --repo-dir /home/ikeniborn/familyBudget
 
             echo "⏳ Waiting for services to stabilize..."
             sleep 15
 
             echo "🏥 Health checks..."
             curl -sf http://localhost:8000/health || { echo "❌ Backend health check failed"; exit 1; }
-            curl -sf -o /dev/null http://localhost:80 || { echo "❌ Nginx health check failed"; exit 1; }
+            curl -sf -o /dev/null http://localhost:80 || { echo "❌ Proxy (Traefik) health check failed"; exit 1; }
 
             echo "✅ Deploy complete!"
             docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Image}}'

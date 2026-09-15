@@ -46,6 +46,7 @@ from backend.app.schemas.fact import (
 )
 from backend.app.services.cache_service import CacheKey, CacheTTL, cache_service
 from backend.app.services.id_generator import get_next_fact_id
+from backend.app.services.partition_service import ensure_partitions_for_dates
 from backend.app.services.write_behind_service import write_behind_service
 
 # WebSocket broadcast functions (lazy import to avoid circular dependencies)
@@ -353,6 +354,9 @@ async def create_fact(
     fact_dict = fact_data.model_dump()
     fact_dict['amount'] = abs(fact_dict['amount'])
 
+    # Ensure the monthly partition exists before creating the fact
+    await ensure_partitions_for_dates(session, [fact_dict["fact_date"]])
+
     fact = BudgetFact(
         **fact_dict,
         user_id=get_user_id_for_create(current_user),
@@ -628,31 +632,6 @@ async def list_facts(
         limit=limit,
         offset=offset,
     )
-
-
-@router.get(
-    "/new",
-    responses=get_common_responses(),
-)
-async def new_fact_info() -> dict:
-    """
-    Info endpoint for creating new facts.
-
-    **Note:** To create a new fact, use POST /facts endpoint.
-
-    **Returns:**
-    - 200 OK: Instructions for creating facts
-    """
-    return {
-        "message": "To create a new fact, send POST request to /api/v1/facts",
-        "example": {
-            "article_id": 1,
-            "amount": 100.50,
-            "fact_date": "2025-10-18",
-            "description": "Optional description"
-        },
-        "documentation": "/docs#/Facts/create_fact_facts_post"
-    }
 
 
 @router.get("/recent", response_model=list[FactResponse])
@@ -1557,6 +1536,10 @@ async def update_fact(
     # Convert amount to absolute value if amount is being updated
     if "amount" in update_data:
         update_data["amount"] = abs(update_data["amount"])
+
+    # Moving a fact to another month requires that partition to exist
+    if "fact_date" in update_data:
+        await ensure_partitions_for_dates(session, [update_data["fact_date"]])
 
     for key, value in update_data.items():
         setattr(fact, key, value)

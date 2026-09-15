@@ -59,6 +59,54 @@ const builds = [
     output: 'frontend/shared/static/js/calendar-widget.min.js',
     globalName: 'CalendarWidget'
   },
+  // === AI Settings admin page (ai-assisted-transaction-input, phase 1) ===
+  {
+    name: 'aiSettings',
+    input: 'frontend/web/static/js/aiSettings/index.ts',
+    output: 'frontend/web/static/js/aiSettings.min.js',
+    globalName: 'AISettingsApp'
+  },
+
+  // === AI quick-add in the fact modal (ai-assisted-transaction-input, phase 2) ===
+  {
+    name: 'aiQuickAdd',
+    input: 'frontend/web/static/js/aiQuickAdd/index.ts',
+    output: 'frontend/web/static/js/aiQuickAdd.min.js',
+    globalName: 'AIQuickAddApp'
+  },
+
+  // === AI import categorization (ai-assisted-transaction-input, phase 4) ===
+  {
+    name: 'aiImportAssist',
+    input: 'frontend/web/static/js/aiImportAssist/index.ts',
+    output: 'frontend/web/static/js/aiImportAssist.min.js',
+    globalName: 'AIImportAssistApp'
+  },
+
+  // === AI shopping list parsing (ai-assist-plan-lists) ===
+  {
+    name: 'aiListAssist',
+    input: 'frontend/web/static/js/aiListAssist/index.ts',
+    output: 'frontend/web/static/js/aiListAssist.min.js',
+    globalName: 'AIListAssistApp'
+  },
+
+  // === AI bulk entry: facts + plans from text/voice/photo (ai-bulk-entry) ===
+  {
+    name: 'aiBulkEntry',
+    input: 'frontend/web/static/js/aiBulkEntry/index.ts',
+    output: 'frontend/web/static/js/aiBulkEntry.min.js',
+    globalName: 'AIBulkEntryApp'
+  },
+
+  // === AI analytics chat: questions over budget aggregates (ai-analytics-chat) ===
+  {
+    name: 'aiAnalyticsChat',
+    input: 'frontend/web/static/js/aiAnalyticsChat/index.ts',
+    output: 'frontend/web/static/js/aiAnalyticsChat.min.js',
+    globalName: 'AIAnalyticsChatApp'
+  },
+
   {
     name: 'confirm-dialog',
     input: 'frontend/web/static/js/confirm-dialog-bundle.ts',
@@ -204,6 +252,12 @@ const builds = [
     input: 'frontend/web/static/js/plan/index.ts',
     output: 'frontend/web/static/js/dist/plan.bundle.js',
     globalName: 'PlanApp'
+  },
+  {
+    name: 'medicines',
+    input: 'frontend/web/static/js/medicines-bundle.ts',
+    output: 'frontend/web/static/js/medicines.min.js',
+    globalName: 'MedicinesApp'
   },
   {
     name: 'facts',

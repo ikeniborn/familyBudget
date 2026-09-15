@@ -13,6 +13,7 @@ from backend.app.models.budget_fact_history import BudgetFactHistory
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.schemas.transfer import TransferCreate, TransferResponse
+from backend.app.services.partition_service import ensure_partitions_for_dates
 
 logger = logging.getLogger(__name__)
 
@@ -182,6 +183,9 @@ async def create_transfer(
     base_description = transfer.description or "Внутренний перевод"
     expense_description = f"Перевод в {to_cfo.name} - {base_description}"
     income_description = f"Получено из {from_cfo.name} - {base_description}"
+
+    # Ensure the monthly partition exists before creating both facts
+    await ensure_partitions_for_dates(session, [transfer.transfer_date])
 
     # 5. Create expense fact (списание)
     expense_fact = BudgetFact(

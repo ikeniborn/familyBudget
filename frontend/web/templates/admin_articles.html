@@ -89,6 +89,15 @@
                     <!-- Will be populated dynamically -->
                 </select>
             </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">🧠 Описание (семантика для ИИ)</span>
+                </label>
+                <textarea id="create-description" name="description" maxlength="1000" rows="2"
+                          class="textarea textarea-bordered"
+                          placeholder="Синонимы и примеры: кофе, кафе, рестораны, доставка еды…"></textarea>
+                <label class="label"><span class="label-text-alt text-base-content/60">Используется AI-парсером для подбора категории</span></label>
+            </div>
             <div class="form-control" id="create-fc-container" data-fc-enabled="true">
                 <label class="label">
                     <span class="label-text">🏦 Счета</span>
@@ -155,6 +164,15 @@
                     <option value="">-- Корневой уровень --</option>
                     <!-- Will be populated dynamically -->
                 </select>
+            </div>
+            <div class="form-control">
+                <label class="label">
+                    <span class="label-text">🧠 Описание (семантика для ИИ)</span>
+                </label>
+                <textarea id="edit-description" name="description" maxlength="1000" rows="2"
+                          class="textarea textarea-bordered"
+                          placeholder="Синонимы и примеры: кофе, кафе, рестораны, доставка еды…"></textarea>
+                <label class="label"><span class="label-text-alt text-base-content/60">Используется AI-парсером для подбора категории</span></label>
             </div>
             <div class="form-control">
                 <label class="label cursor-pointer">
@@ -821,6 +839,7 @@ async function createArticle(event) {
         name: formData.get('name'),
         type: formData.get('type'),
         parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
+        description: (formData.get('description') || '').trim() || null,
         financial_center_ids: financialCenterIds.length > 0 ? financialCenterIds : null
     };
 
@@ -883,6 +902,7 @@ async function showEditModal(articleId) {
     document.getElementById('edit-id').value = article.id;
     document.getElementById('edit-name').value = article.name;
     document.getElementById('edit-type').value = article.type;
+    document.getElementById('edit-description').value = article.description || '';
     populateParentSelect('edit-parent', article.type, article.id);
     document.getElementById('edit-parent').value = article.parent_id || '';
     document.getElementById('edit-is-active').checked = article.is_active !== false;
@@ -997,6 +1017,7 @@ async function updateArticle(event) {
         name: formData.get('name'),
         type: formData.get('type'),
         parent_id: formData.get('parent_id') ? parseInt(formData.get('parent_id')) : null,
+        description: (formData.get('description') || '').trim() || null,
         is_active: document.getElementById('edit-is-active').checked,
         financial_center_ids: financialCenterIds
     };

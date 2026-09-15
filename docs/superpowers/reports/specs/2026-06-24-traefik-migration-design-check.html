@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Проверка спецификации — Миграция nginx → Traefik + готовность метрик Prometheus</title>
+<style>
+  :root[data-theme="dark"]{
+    --bg:#0d1117; --panel:#161b22; --panel-2:#1c2330; --border:#30363d;
+    --fg:#e6edf3; --fg-dim:#9da7b3; --accent:#58a6ff; --accent-2:#3fb950;
+    --warn:#d29922; --crit:#f85149; --info:#8b949e; --ok:#3fb950;
+    --node:#1f6feb22; --node-border:#388bfd; --ext:#6e768133; --ext-border:#6e7681;
+    --edge:#7d8590; --shadow:rgba(0,0,0,.5);
+  }
+  :root[data-theme="light"]{
+    --bg:#f6f8fa; --panel:#ffffff; --panel-2:#eef1f5; --border:#d0d7de;
+    --fg:#1f2328; --fg-dim:#57606a; --accent:#0969da; --accent-2:#1a7f37;
+    --warn:#9a6700; --crit:#cf222e; --info:#57606a; --ok:#1a7f37;
+    --node:#ddf4ff; --node-border:#0969da; --ext:#eaeef2; --ext-border:#afb8c1;
+    --edge:#6e7781; --shadow:rgba(140,149,159,.25);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.55;padding:0 0 4rem}
+  header.top{position:sticky;top:0;z-index:20;background:var(--panel);
+    border-bottom:1px solid var(--border);padding:1rem 1.5rem;display:flex;
+    align-items:center;justify-content:space-between;gap:1rem;box-shadow:0 2px 8px var(--shadow)}
+  header.top h1{font-size:1.05rem;margin:0;font-weight:650;letter-spacing:.2px}
+  main{max-width:1100px;margin:0 auto;padding:1.5rem}
+  section{background:var(--panel);border:1px solid var(--border);border-radius:12px;
+    padding:1.25rem 1.5rem;margin:1.25rem 0;box-shadow:0 1px 4px var(--shadow)}
+  h2{font-size:1.25rem;margin:.2rem 0 1rem;display:flex;align-items:center;gap:.5rem}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:1.7rem;height:1.7rem;
+    background:var(--accent);color:#fff;border-radius:8px;font-size:.85rem;font-weight:700}
+  h3{font-size:1.02rem;margin:1.4rem 0 .6rem;color:var(--fg)}
+  p.lead{color:var(--fg-dim);margin:.2rem 0 1rem}
+  code{background:var(--panel-2);padding:.12em .4em;border-radius:5px;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;font-size:.86em}
+  table{width:100%;border-collapse:collapse;margin:.5rem 0;font-size:.9rem}
+  th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--border);vertical-align:top}
+  th{background:var(--panel-2);font-weight:650;color:var(--fg-dim);font-size:.8rem;
+    text-transform:uppercase;letter-spacing:.04em}
+  tbody tr:hover{background:var(--panel-2)}
+  td.rid{font-weight:700;color:var(--accent);white-space:nowrap}
+  .badge{display:inline-block;padding:.12em .6em;border-radius:999px;font-size:.74rem;
+    font-weight:650;letter-spacing:.02em}
+  .b-ok{background:var(--ok);color:#06210f}
+  .b-warn{background:var(--warn);color:#241a00}
+  .b-crit{background:var(--crit);color:#2b0000}
+  .b-info{background:var(--info);color:#0d1117}
+  .b-fixed{background:var(--accent-2);color:#06210f}
+  .b-pass{background:var(--ok);color:#06210f}
+  .b-scope{background:var(--ext-border);color:var(--bg)}
+  .pillrow{display:flex;flex-wrap:wrap;gap:.5rem;margin:.4rem 0}
+  .stat{display:flex;flex-direction:column;gap:.2rem;background:var(--panel-2);
+    border:1px solid var(--border);border-radius:10px;padding:.7rem 1rem;min-width:120px}
+  .stat .v{font-size:1.5rem;font-weight:750}
+  .stat .l{font-size:.74rem;color:var(--fg-dim);text-transform:uppercase;letter-spacing:.04em}
+  .statgrid{display:flex;flex-wrap:wrap;gap:.8rem;margin:.6rem 0}
+  .verdict{display:inline-flex;align-items:center;gap:.5rem;font-size:1.1rem;font-weight:750;
+    padding:.5rem 1.1rem;border-radius:10px;background:var(--ok);color:#06210f}
+  /* flow diagram */
+  .flow{display:flex;flex-direction:column;gap:.9rem}
+  .frow{display:flex;flex-wrap:wrap;align-items:stretch;gap:.7rem}
+  .fcard{flex:1 1 180px;min-width:160px;background:var(--node);border:1.5px solid var(--node-border);
+    border-radius:10px;padding:.7rem .85rem}
+  .fcard.ext{background:var(--ext);border-color:var(--ext-border);border-style:dashed}
+  .fcard .t{font-weight:700;font-size:.92rem;margin-bottom:.25rem}
+  .fcard .d{font-size:.8rem;color:var(--fg-dim)}
+  .arrow{align-self:center;color:var(--edge);font-size:1.3rem;font-weight:800;padding:0 .1rem}
+  .arrow-down{text-align:center;color:var(--edge);font-size:1.3rem;line-height:1}
+  .note{border-left:3px solid var(--accent);background:var(--panel-2);
+    padding:.6rem .9rem;border-radius:0 8px 8px 0;margin:.8rem 0;font-size:.88rem}
+  .note.warnv{border-color:var(--warn)}
+  figure{margin:.5rem 0}
+  figcaption{font-size:.82rem;color:var(--fg-dim);margin-top:.4rem;text-align:center}
+  .legend{display:flex;flex-wrap:wrap;gap:1rem;font-size:.8rem;color:var(--fg-dim);margin:.5rem 0}
+  .legend span{display:inline-flex;align-items:center;gap:.35rem}
+  .swatch{width:14px;height:14px;border-radius:4px;display:inline-block;border:1.5px solid}
+  .toggle{cursor:pointer;background:var(--panel-2);border:1px solid var(--border);color:var(--fg);
+    border-radius:999px;padding:.4rem .9rem;font-size:.82rem;font-weight:600;display:inline-flex;
+    gap:.4rem;align-items:center}
+  .toggle:hover{border-color:var(--accent)}
+  .chain{display:flex;align-items:center;gap:.6rem;font-size:.9rem;flex-wrap:wrap}
+  .chain .seg{padding:.35rem .8rem;background:var(--panel-2);border:1px solid var(--border);border-radius:8px}
+  .chain .seg.null{color:var(--fg-dim);font-style:italic}
+  .cov td .badge{margin:.1rem}
+  svg{max-width:100%;height:auto;display:block;margin:0 auto}
+  .muted{color:var(--fg-dim);font-size:.84rem}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Проверка спецификации — Миграция nginx → Traefik + готовность метрик Prometheus</h1>
+  <button class="toggle" id="themeBtn" aria-label="Переключить тему">🌙 Тема</button>
+</header>
+<main>
+
+  <section>
+    <div class="statgrid">
+      <div class="stat"><span class="v" style="color:var(--ok)">OK</span><span class="l">Вердикт</span></div>
+      <div class="stat"><span class="v">4/4</span><span class="l">Фазы passed</span></div>
+      <div class="stat"><span class="v" style="color:var(--crit)">0</span><span class="l">CRITICAL open</span></div>
+      <div class="stat"><span class="v" style="color:var(--warn)">0</span><span class="l">WARNING open</span></div>
+      <div class="stat"><span class="v" style="color:var(--info)">0</span><span class="l">INFO open</span></div>
+      <div class="stat"><span class="v">4</span><span class="l">Findings (fixed)</span></div>
+    </div>
+    <p class="muted">Файл спецификации: <code>docs/superpowers/specs/2026-06-24-traefik-migration-design.md</code>
+      &nbsp;·&nbsp; spec_hash <code>2c54e277b1f6c7ea</code> &nbsp;·&nbsp; last_run 2026-06-24</p>
+    <div class="chain">
+      <span class="muted">Цепочка IDD:</span>
+      <span class="seg null">intent — отсутствует</span>
+      <span class="arrow">→</span>
+      <span class="seg">spec ✓ (этот отчёт)</span>
+    </div>
+  </section>
+
+  <!-- ============ БЛОК 1 ============ -->
+  <section>
+    <h2><span class="num">1</span> Резюме спецификации</h2>
+    <p class="lead">Требования по секциям спеки. Каждое требование — отдельной строкой.</p>
+    <table>
+      <thead><tr><th>ID</th><th>Секция</th><th>Требование</th></tr></thead>
+      <tbody>
+        <tr><td class="rid">R1</td><td>Scope</td><td>Заменить сервис <code>nginx</code> на <code>traefik</code> (официальный образ <code>traefik:v3.3</code>) в <code>docker-compose.yml</code>.</td></tr>
+        <tr><td class="rid">R2</td><td>Decisions 1–2</td><td>Native Traefik ACME с <code>httpChallenge</code> на <code>:80</code>; хранилище <code>acme.json</code>; выпуск и renew <strong>без остановки прокси</strong>.</td></tr>
+        <tr><td class="rid">R3</td><td>Decisions 3–4</td><td>Маршруты через <strong>file-provider</strong> (<code>conf.d/*</code>), без <code>docker.sock</code>; <code>DOMAIN</code> подставляется entrypoint-ом через <code>sed</code> по <code>conf.d/*.tmpl</code>.</td></tr>
+        <tr><td class="rid">R4</td><td>Dynamic config</td><td>Перенести все nginx-роуты/заголовки: WebSocket <code>/api/v1/budget/ws</code> 86400s timeout без буфера; <code>/webapp</code> CSP frame-ancestors telegram + CORS; глобальные security-заголовки; gzip→<code>compress</code>; <code>client_max_body_size 20M</code>→<code>buffering</code>; HTTP→HTTPS redirect.</td></tr>
+        <tr><td class="rid">R5</td><td>Metrics readiness</td><td>Включить metrics entryPoint <code>:8082</code> (не публикуется наружу) + членство Traefik в external-сети <code>monitoring</code>. Только готовность; scrape job — отдельно в minipc.</td></tr>
+        <tr><td class="rid">R6</td><td>deploy.sh &amp; CI</td><td>В phased startup <code>nginx</code>→<code>traefik</code>; health-check Traefik вместо <code>nginx -t</code>; убрать standalone-certbot вызовы (<code>setup_ssl_certificates</code>/<code>verify_ssl</code>); сохранить открытыми <code>:80</code>/<code>:443</code>.</td></tr>
+        <tr><td class="rid">R7</td><td>CI</td><td>Убрать сборку образа <code>familybudget-nginx</code>; Traefik — pinned официальный тег, не в <code>IMAGE_VERSIONS.json</code>.</td></tr>
+        <tr><td class="rid">R8</td><td>Decision 6</td><td>Без Traefik dashboard (<code>api.dashboard:false</code>).</td></tr>
+        <tr><td class="rid">R9</td><td>Rollout / Decision 7</td><td>Откат на nginx сохранён — <code>/etc/letsencrypt</code> и certbot не трогаются до подтверждения prod; certbot cron отключается отдельным follow-up.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Success Criteria (Hard constraints — не сломать)</h3>
+    <table>
+      <thead><tr><th>ID</th><th>Критерий приёмки</th></tr></thead>
+      <tbody>
+        <tr><td class="rid">SC1</td><td>HTTPS-доступ к приложению сохранён.</td></tr>
+        <tr><td class="rid">SC2</td><td>Выпуск Let's Encrypt сертификатов работает.</td></tr>
+        <tr><td class="rid">SC3</td><td>Обновление (renew) сертификатов работает.</td></tr>
+        <tr><td class="rid">SC4</td><td>Поток деплоя <code>deploy.sh</code> работает.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ============ БЛОК 2 ============ -->
+  <section>
+    <h2><span class="num">2</span> Схемы решения и зависимостей</h2>
+
+    <h3>Схема решения — компоненты и потоки</h3>
+    <div class="legend">
+      <span><span class="swatch" style="background:var(--node);border-color:var(--node-border)"></span> компонент в scope</span>
+      <span><span class="swatch" style="background:var(--ext);border-color:var(--ext-border);border-style:dashed"></span> вне scope / fallback</span>
+    </div>
+    <div class="flow">
+      <div class="frow">
+        <div class="fcard"><div class="t">Client</div><div class="d">браузер / Telegram WebApp</div></div>
+        <div class="arrow">→</div>
+        <div class="fcard"><div class="t">Traefik · web :80</div><div class="d">redirect → https; ACME httpChallenge <code>/.well-known/acme-challenge</code></div></div>
+        <div class="arrow">→</div>
+        <div class="fcard"><div class="t">Traefik · websecure :443</div><div class="d">TLS-терминация; серт Let's Encrypt</div></div>
+      </div>
+      <div class="arrow-down">↓</div>
+      <div class="frow">
+        <div class="fcard"><div class="t">Traefik file-provider</div><div class="d"><code>conf.d/*</code> рендер по <code>DOMAIN</code>; роуты + middlewares</div></div>
+        <div class="arrow">→</div>
+        <div class="fcard"><div class="t">backend:8000</div><div class="d">сеть <code>familybudget</code></div></div>
+      </div>
+      <div class="frow">
+        <div class="fcard"><div class="t">certResolver letsencrypt</div><div class="d">ACME httpChallenge → <code>acme.json</code> (volume <code>traefik_acme</code>, chmod 600)</div></div>
+        <div class="arrow">→</div>
+        <div class="fcard"><div class="t">Traefik metrics :8082</div><div class="d">сеть <code>monitoring</code> (external); наружу <strong>НЕ</strong> публикуется</div></div>
+      </div>
+      <div class="arrow-down">↓ (будущее, вне репо)</div>
+      <div class="frow">
+        <div class="fcard ext"><div class="t">prometheus-agent</div><div class="d">minipc; скрейпит <code>traefik:8082</code> → remote_write</div></div>
+        <div class="arrow">→</div>
+        <div class="fcard ext"><div class="t">prometheus.ikeniborn.ru</div><div class="d">/api/v1/write → центральный Prometheus</div></div>
+        <div class="arrow">→</div>
+        <div class="fcard ext"><div class="t">Grafana</div><div class="d">grafana.ikeniborn.ru</div></div>
+      </div>
+      <div class="frow">
+        <div class="fcard ext"><div class="t">Fallback (откат)</div><div class="d">nginx-сервис + <code>/etc/letsencrypt</code> + certbot cron сохранены</div></div>
+      </div>
+    </div>
+
+    <h3>Граф зависимостей</h3>
+    <p class="muted">Направление ребра «A → B» = «A зависит от B». Циклов нет (DAG).</p>
+    <figure>
+      <svg viewBox="0 0 760 440" role="img" aria-label="Граф зависимостей требований">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--edge)"/>
+          </marker>
+          <filter id="ds" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-color="var(--shadow)"/>
+          </filter>
+          <style>
+            .nd rect{fill:var(--node);stroke:var(--node-border);stroke-width:1.5px;filter:url(#ds)}
+            .nd.hub rect{fill:var(--accent);stroke:var(--accent)}
+            .nd.ext rect{fill:var(--ext);stroke:var(--ext-border);stroke-dasharray:4 3}
+            .nd text{fill:var(--fg);font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;text-anchor:middle}
+            .nd.hub text{fill:#fff}
+            .nd .sub{font:400 9px -apple-system,sans-serif;fill:var(--fg-dim)}
+            .nd.hub .sub{fill:#e8f0ff}
+            .ed{stroke:var(--edge);stroke-width:1.6px;fill:none;marker-end:url(#ah)}
+          </style>
+        </defs>
+        <!-- edges (draw first) -->
+        <!-- to R1 hub (center ~ 380,220) -->
+        <path class="ed" d="M150,70 L335,200"/>   <!-- R4 -> R1 -->
+        <path class="ed" d="M150,360 L335,242"/>   <!-- R3 -> R1 -->
+        <path class="ed" d="M380,70 L380,188"/>    <!-- R2 -> R1 (vertical) -->
+        <path class="ed" d="M610,70 L425,200"/>    <!-- R5 -> R1 -->
+        <path class="ed" d="M610,360 L425,242"/>   <!-- R8 -> R1 -->
+        <path class="ed" d="M150,220 L332,220"/>   <!-- R6 -> R1 -->
+        <path class="ed" d="M610,220 L428,220"/>   <!-- R7 -> R1 -->
+        <!-- R6 -> R2 -->
+        <path class="ed" d="M120,200 C200,110 300,70 360,58"/>
+        <!-- R9 -> R2 -->
+        <path class="ed" d="M650,395 C520,120 440,70 398,58"/>
+        <!-- R5 -> monitoring -->
+        <path class="ed" d="M650,58 C720,120 720,300 690,388"/>
+
+        <!-- nodes -->
+        <g class="nd hub"><rect x="332" y="190" width="96" height="56" rx="9"/>
+          <text x="380" y="214">R1</text><text class="sub" x="380" y="230">traefik сервис</text></g>
+        <g class="nd"><rect x="332" y="34" width="96" height="48" rx="9"/>
+          <text x="380" y="56">R2</text><text class="sub" x="380" y="71">ACME</text></g>
+        <g class="nd"><rect x="92" y="46" width="110" height="48" rx="9"/>
+          <text x="147" y="68">R4</text><text class="sub" x="147" y="83">роуты/заголовки</text></g>
+        <g class="nd"><rect x="92" y="336" width="110" height="48" rx="9"/>
+          <text x="147" y="358">R3</text><text class="sub" x="147" y="373">file-provider</text></g>
+        <g class="nd"><rect x="92" y="196" width="100" height="48" rx="9"/>
+          <text x="142" y="218">R6</text><text class="sub" x="142" y="233">deploy.sh</text></g>
+        <g class="nd"><rect x="558" y="46" width="100" height="48" rx="9"/>
+          <text x="608" y="68">R5</text><text class="sub" x="608" y="83">metrics :8082</text></g>
+        <g class="nd"><rect x="558" y="196" width="100" height="48" rx="9"/>
+          <text x="608" y="218">R7</text><text class="sub" x="608" y="233">CI</text></g>
+        <g class="nd"><rect x="558" y="336" width="100" height="48" rx="9"/>
+          <text x="608" y="358">R8</text><text class="sub" x="608" y="373">no dashboard</text></g>
+        <g class="nd"><rect x="612" y="372" width="120" height="46" rx="9"/>
+          <text x="672" y="392">R9</text><text class="sub" x="672" y="407">откат</text></g>
+        <g class="nd ext"><rect x="650" y="372" width="100" height="46" rx="9" transform="translate(0,0)"/>
+          <text x="700" y="394">monitoring</text><text class="sub" x="700" y="409">external net</text></g>
+      </svg>
+      <figcaption>Узлы R1–R9 — требования спеки. <code>R1 (traefik сервис)</code> — корневой хаб. <code>monitoring</code> — внешняя сеть. Граф ацикличный.</figcaption>
+    </figure>
+
+    <h3>Карта покрытия — задача → требования</h3>
+    <table class="cov">
+      <thead><tr><th>Задача пользователя</th><th>Покрывающие требования</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Задача 1</strong><br>Миграция nginx→Traefik с Let's Encrypt</td>
+          <td>
+            <span class="badge b-ok">R1</span><span class="badge b-ok">R2</span><span class="badge b-ok">R3</span>
+            <span class="badge b-ok">R4</span><span class="badge b-ok">R6</span><span class="badge b-ok">R7</span>
+            <span class="badge b-ok">R8</span><span class="badge b-ok">R9</span>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Задача 2</strong><br>Метрики Prometheus для Traefik (готовность; scrape позже в minipc)</td>
+          <td><span class="badge b-ok">R5</span></td>
+        </tr>
+        <tr>
+          <td><strong>Задача 3</strong><br>Не сломать доступ / выпуск+renew сертов / деплой</td>
+          <td>
+            <span class="badge b-info">SC1</span><span class="badge b-info">SC2</span>
+            <span class="badge b-info">SC3</span><span class="badge b-info">SC4</span>
+            &nbsp;через <span class="badge b-ok">R2</span><span class="badge b-ok">R4</span>
+            <span class="badge b-ok">R6</span><span class="badge b-ok">R9</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="note">Все 3 задачи покрыты ≥1 требованием; orphan-требований нет; противоречий между требованиями не обнаружено.</div>
+  </section>
+
+  <!-- ============ БЛОК 3 ============ -->
+  <section>
+    <h2><span class="num">3</span> Результаты проверки</h2>
+
+    <h3>Фазы</h3>
+    <table>
+      <thead><tr><th>Фаза</th><th>Статус</th><th>Замечание</th></tr></thead>
+      <tbody>
+        <tr><td><strong>structure</strong></td><td><span class="badge b-pass">passed</span></td><td>нет плейсхолдеров, битых ссылок, дублей заголовков; нумерация корректна</td></tr>
+        <tr><td><strong>coverage</strong></td><td><span class="badge b-pass">passed</span></td><td>все 3 задачи покрыты, нет orphan-требований, нет противоречий</td></tr>
+        <tr><td><strong>clarity</strong></td><td><span class="badge b-pass">passed</span></td><td>после фиксов — все формулировки с критериями</td></tr>
+        <tr><td><strong>consistency</strong></td><td><span class="badge b-pass">passed</span></td><td>первый прогон; секции согласованы между собой</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Findings</h3>
+    <table>
+      <thead><tr><th>ID</th><th>Severity</th><th>Секция</th><th>Описание</th><th>Verdict</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="rid">F-001</td><td><span class="badge b-warn">WARNING</span></td>
+          <td>Risks &amp; mitigations</td>
+          <td>Митигейшн logrotate SIGHUP «confirm» без DoD.<br><span class="muted">Фикс: добавлен DoD — <code>test -f /etc/logrotate.d/docker-containers</code>, при наличии disable.</span></td>
+          <td><span class="badge b-fixed">fixed</span></td>
+        </tr>
+        <tr>
+          <td class="rid">F-002</td><td><span class="badge b-warn">WARNING</span></td>
+          <td>deploy.sh &amp; CI changes</td>
+          <td>Cache-busting «verify during impl» без критерия приёмки.<br><span class="muted">Фикс: добавлен DoD через <code>git diff --stat</code> по <code>frontend/web/templates/</code>.</span></td>
+          <td><span class="badge b-fixed">fixed</span></td>
+        </tr>
+        <tr>
+          <td class="rid">F-003</td><td><span class="badge b-info">INFO</span></td>
+          <td>Dynamic config</td>
+          <td>WebSocket timeout «long» не квантифицирован.<br><span class="muted">Фикс: зафиксировано <code>86400s</code>/24h via <code>serversTransport.forwardingTimeouts</code>.</span></td>
+          <td><span class="badge b-fixed">fixed</span></td>
+        </tr>
+        <tr>
+          <td class="rid">F-004</td><td><span class="badge b-info">INFO</span></td>
+          <td>Static config</td>
+          <td><code>LETSENCRYPT_EMAIL</code> новый-vs-существующий не указан.<br><span class="muted">Фикс: уточнено — переменная уже в <code>.env.example</code>, переиспользуется.</span></td>
+          <td><span class="badge b-fixed">fixed</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Сводка</h3>
+    <div class="statgrid">
+      <div class="stat"><span class="v" style="color:var(--crit)">0</span><span class="l">CRITICAL open</span></div>
+      <div class="stat"><span class="v" style="color:var(--warn)">0</span><span class="l">WARNING open</span></div>
+      <div class="stat"><span class="v" style="color:var(--info)">0</span><span class="l">INFO open</span></div>
+      <div class="stat"><span class="v" style="color:var(--accent-2)">4</span><span class="l">Всего fixed</span></div>
+    </div>
+    <p style="margin-top:1rem"><span class="verdict">✓ Вердикт: OK</span></p>
+    <div class="note"><strong>Chain:</strong> intent → spec. &nbsp; intent = <em>null</em> (intent-doc отсутствует);
+      spec = <code>docs/superpowers/specs/2026-06-24-traefik-migration-design.md</code>.</div>
+  </section>
+
+  <p class="muted" style="text-align:center">Сгенерировано навыком html-report · /check-spec · 2026-06-24</p>
+</main>
+
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('themeBtn');
+  function set(t){root.setAttribute('data-theme',t);btn.textContent=(t==='dark'?'🌙':'☀️')+' Тема';}
+  btn.addEventListener('click',function(){
+    set(root.getAttribute('data-theme')==='dark'?'light':'dark');
+  });
+})();
+</script>
+</body>
+</html>

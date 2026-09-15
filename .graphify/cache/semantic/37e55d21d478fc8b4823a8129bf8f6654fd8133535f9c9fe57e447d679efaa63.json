@@ -1,1 +1,0 @@
-{"nodes": [{"id": "module_facts_endpoint", "label": "backend/app/api/v1/endpoints/facts.py (facts endpoint, get_fact_row_html)", "file_type": "code", "source_file": "backend/app/api/v1/endpoints/facts.py", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}

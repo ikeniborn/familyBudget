@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Отчёт о внедрении — access-token-type-claim</title>
+<style>
+:root{
+  --bg:#f6f7fb; --surface:#ffffff; --fg:#2b2b3a; --muted:#6b6b80;
+  --accent:#5c6bc0; --accent-2:#3949ab; --border:#d6d8e6; --line:#9aa0b4; --zebra:#eef0f8;
+  --ok:#43a047; --ok-2:#2e7d32; --warn:#fb8c00; --warn-2:#ef6c00; --danger:#e53935; --danger-2:#c62828;
+  --shadow:rgba(40,40,80,.18);
+}
+body:has(#theme-toggle:checked){
+  --bg:#181825; --surface:#262637; --fg:#cdd6f4; --muted:#a6adc8;
+  --accent:#89b4fa; --accent-2:#5e95f0; --border:#3a3b52; --line:#6c7086; --zebra:#21222f;
+  --ok:#a6e3a1; --ok-2:#74c46e; --warn:#f9e2af; --warn-2:#f5c95b; --danger:#f38ba8; --danger-2:#e8638a;
+  --shadow:rgba(0,0,0,.45);
+}
+body{
+  margin:0 auto; padding:1.5rem 2rem 4rem; max-width:1080px;
+  font:16px/1.55 system-ui, sans-serif;
+  background:
+    radial-gradient(1200px 500px at 100% -10%, color-mix(in srgb,var(--accent) 10%, transparent), transparent),
+    var(--bg);
+  color:var(--fg);
+  transition:background .3s, color .3s;
+}
+.theme-btn{
+  position:sticky; top:.5rem; float:right; z-index:5;
+  cursor:pointer; user-select:none;
+  padding:.25rem .6rem; border:1px solid var(--border); border-radius:6px;
+  background:var(--surface);
+}
+h1{ font-size:1.6rem; margin:.2rem 0 .3rem; }
+h2{ font-size:1.2rem; margin:2.2rem 0 .4rem; color:var(--accent); border-bottom:1px solid var(--border); padding-bottom:.3rem; }
+h3{ font-size:1rem; margin:1.4rem 0 .3rem; }
+code{ background:color-mix(in srgb, var(--accent) 10%, var(--surface)); padding:.08rem .3rem; border-radius:4px; font-size:.9em; }
+.lead{ font-size:1.08rem; }
+.sub{ color:var(--muted); font-size:.95rem; }
+.note{ border-left:4px solid var(--accent); padding:.55rem 1rem; margin:1rem 0;
+  background:color-mix(in srgb, var(--accent) 8%, var(--surface)); border-radius:0 8px 8px 0;
+  box-shadow:0 1px 8px var(--shadow); }
+.note.warn{ border-left-color:var(--warn); background:color-mix(in srgb, var(--warn) 10%, var(--surface)); }
+details{ background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:.7rem 1rem; margin:.7rem 0; box-shadow:0 1px 8px var(--shadow); }
+details summary{ cursor:pointer; font-weight:600; color:var(--accent); }
+details[open] summary{ margin-bottom:.55rem; }
+ul.tight li{ margin:.28rem 0; }
+.badge{ display:inline-block; font-size:.72rem; padding:.05rem .5rem; border-radius:999px; border:1px solid var(--border); white-space:nowrap; }
+.badge.ok{ color:var(--ok-2); border-color:var(--ok); }
+.badge.warn{ color:var(--warn-2); border-color:var(--warn); }
+.badge.det{ color:var(--ok-2); border-color:var(--ok); }
+.badge.neutral{ color:var(--muted); }
+.rpt-table{ border-collapse:separate; border-spacing:0; width:100%; background:var(--surface);
+  margin:1rem 0; font-size:.92rem; border:1px solid var(--border); border-radius:10px;
+  overflow:hidden; box-shadow:0 2px 12px var(--shadow); }
+.rpt-table th, .rpt-table td{ border-bottom:1px solid var(--border); padding:.5rem .75rem; text-align:left; vertical-align:top; }
+.rpt-table tbody tr:last-child td{ border-bottom:none; }
+.rpt-table thead th{ background:var(--accent); color:var(--bg); }
+.rpt-table tbody tr:nth-child(even){ background:var(--zebra); }
+.rpt-table tbody tr:hover{ background:color-mix(in srgb, var(--accent) 14%, var(--surface)); }
+.rpt-table td code{ white-space:nowrap; }
+.num{ text-align:right; white-space:nowrap; }
+.plus{ color:var(--ok-2); }
+.minus{ color:var(--danger-2); }
+</style>
+</head>
+<body>
+
+<input type="checkbox" id="theme-toggle" hidden>
+<label for="theme-toggle" class="theme-btn" title="Переключить тему">🌙 / ☀️</label>
+
+<main class="report">
+
+<h1>Отчёт о внедрении — access-token-type-claim</h1>
+<p class="lead">Refresh-токен больше не аутентифицирует запрос как access-токен. Действующие сессии при этом не разорваны.</p>
+<p class="sub">Маршрут <code>execute</code> · ветка <code>dev/access-token-type-claim</code> · сверка с <code>origin/test</code> · вердикт <span class="badge ok">OK</span></p>
+
+<h2>1. Резюме внедрения</h2>
+
+<p>Шаг 1 из трёх в дизайне отзыва сессий. <code>create_access_token</code> не помечал тип токена, а декодеры его не проверяли; refresh-токен несёт claim <code>user_id</code>, поэтому декодировался как валидный access. Следствия: перехваченный refresh работал как 30-дневный access, а <code>logout</code> этого не останавливал — access-путь не обращается к базе.</p>
+
+<table class="rpt-table">
+  <thead><tr><th>Артефакт цепочки</th><th>Путь</th><th>Состояние</th></tr></thead>
+  <tbody>
+    <tr><td>Intent</td><td><code>docs/superpowers/intents/2026-09-02-access-token-type-claim-intent.md</code></td><td><span class="badge ok">approved</span></td></tr>
+    <tr><td>Spec</td><td>—</td><td><span class="badge neutral">n/a</span> — маршрут <code>execute</code></td></tr>
+    <tr><td>Plan</td><td>—</td><td><span class="badge neutral">n/a</span> — маршрут <code>execute</code></td></tr>
+    <tr><td>База сверки</td><td><code>origin/test</code></td><td>2 коммита</td></tr>
+  </tbody>
+</table>
+
+<table class="rpt-table">
+  <thead><tr><th>Коммит</th><th>Назначение</th></tr></thead>
+  <tbody>
+    <tr><td><code>c511c95e</code></td><td><code>docs(idd)</code> — intent-документ</td></tr>
+    <tr><td><code>a3548359</code></td><td><code>fix(auth)</code> — отклонение refresh-токена на access-пути + тесты</td></tr>
+  </tbody>
+</table>
+
+<h2>2. Выполненные изменения</h2>
+
+<table class="rpt-table">
+  <thead><tr><th>Файл</th><th>Тип</th><th class="num">Строки</th><th>Что делает изменение</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><code>backend/app/services/jwt.py</code></td>
+      <td>изменён</td>
+      <td class="num"><span class="plus">+43</span> / <span class="minus">−3</span></td>
+      <td><code>create_access_token</code> добавляет claim <code>token_type="access"</code>; оба декодера access-пути отклоняют иной тип через хелпер <code>_is_access_claims</code>; введены константы <code>ACCESS_TOKEN_TYPE</code> и <code>REFRESH_TOKEN_TYPE</code> вместо строковых литералов</td>
+    </tr>
+    <tr>
+      <td><code>tests/unit/backend/test_jwt_token_type.py</code></td>
+      <td>добавлен</td>
+      <td class="num"><span class="plus">+137</span></td>
+      <td>12 тестов в 4 классах: отклонение refresh на access-пути, приём токена без claim, наличие claim у нового токена, неизменность контрактов WS и refresh</td>
+    </tr>
+    <tr>
+      <td><code>docs/superpowers/intents/2026-09-02-access-token-type-claim-intent.md</code></td>
+      <td>добавлен</td>
+      <td class="num"><span class="plus">+137</span></td>
+      <td>IDD-интент: цель, наблюдаемые исходы, метрики здоровья, ограничения, зоны автономии, стоп-правила</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="note"><b>Ключевая асимметрия:</b> <b>отсутствующий</b> <code>token_type</code> принимается, явный <code>"refresh"</code> — отклоняется. Без этого все выданные ранее токены стали бы невалидными и каждый пользователь был бы разлогинен.</div>
+
+<h2>3. Результаты</h2>
+
+<p>Сверка ведётся по наблюдаемым исходам интента, а не по шагам плана — маршрут <code>execute</code> плана не создаёт.</p>
+
+<table class="rpt-table">
+  <thead><tr><th>Наблюдаемый исход</th><th>Статус</th><th>Доказательство в диффе</th></tr></thead>
+  <tbody>
+    <tr>
+      <td>Refresh-токен в куке <code>access_token</code> или в <code>Authorization: Bearer</code> получает отказ вместо доступа</td>
+      <td><span class="badge ok">DONE</span></td>
+      <td><code>decode_access_token_full</code> возвращает <code>(None, None)</code>, <code>decode_access_token</code> — <code>None</code>. Тесты <code>test_decode_access_token_rejects_refresh_token</code>, <code>test_decode_access_token_full_rejects_refresh_token</code>, <code>test_middleware_cannot_derive_a_user_from_a_refresh_token</code></td>
+    </tr>
+    <tr>
+      <td>Сессия, установленная до изменения, переживает деплой — никого не разлогинивает</td>
+      <td><span class="badge ok">DONE</span></td>
+      <td>Токен без claim принимается. Класс <code>TestLegacyAccessTokenStillAccepted</code>, 3 теста, включая случай email-only пользователя без <code>telegram_id</code></td>
+    </tr>
+    <tr>
+      <td>Свежий access-токен несёт <code>token_type: "access"</code></td>
+      <td><span class="badge ok">DONE</span></td>
+      <td><code>test_created_access_token_has_access_token_type</code> декодирует выданный токен и проверяет claim; <code>test_created_access_token_still_decodes</code> подтверждает, что новый формат проходит оба декодера</td>
+    </tr>
+    <tr>
+      <td>После <code>logout</code> сохранённый клиентом refresh-токен не даёт доступа ни по refresh-пути, ни по access-пути</td>
+      <td><span class="badge warn">PARTIAL</span></td>
+      <td>Access-путь закрыт и покрыт тестами. Поведение refresh-пути после <code>logout</code> (отзыв строки в БД) — предсуществующее, изменением не затронуто и новым тестом не покрыто</td>
+    </tr>
+  </tbody>
+</table>
+
+<p class="sub">Исходов со статусом MISSING нет. Избыточных изменений (файлов вне объёма интента) нет. Ограничения интента соблюдены: правки только в <code>services/jwt.py</code> и тестах, без миграций и без правок <code>endpoints/auth.py</code>; шаги 2 и 3 дизайна не затронуты.</p>
+
+<h3>Доказательства прогонами</h3>
+
+<table class="rpt-table">
+  <thead><tr><th>Прогон</th><th>Результат</th><th>Комментарий</th></tr></thead>
+  <tbody>
+    <tr><td>Новые тесты до правки</td><td><span class="badge warn">4 failed / 8 passed</span></td><td>Красный ровно на трёх проверках отклонения refresh и на наличии claim — дефект подтверждён эмпирически до исправления</td></tr>
+    <tr><td>Новые тесты после правки</td><td><span class="badge ok">12 passed</span></td><td><code>tests/unit/backend/test_jwt_token_type.py</code></td></tr>
+    <tr><td>Полный прогон <code>tests/unit</code> + <code>tests/models</code></td><td><span class="badge warn">260 passed · 3 skipped · 6 failed</span></td><td>Шесть падений — в <code>tests/unit/backend/test_user_service.py</code>. Предсуществующие: контрольный прогон на чистом дереве даёт те же шесть</td></tr>
+  </tbody>
+</table>
+
+<details>
+  <summary>Метрики здоровья — проверка каждой</summary>
+  <ul class="tight">
+    <li><b>Бот работает без изменений</b> — <span class="badge ok">подтверждено</span>. Бот кладёт в <code>Authorization: Bearer</code> именно access-токен: <code>SessionManager.get_access_token</code> читает то, что <code>/auth/telegram</code> вернул полем <code>access_token</code>. Стоп-правило «клиент легитимно шлёт refresh как access» не сработало.</li>
+    <li><b>WS-хендшейк цел</b> — <span class="badge ok">подтверждено</span>. <code>create_ws_token</code> выдаёт <code>type="ws"</code> и не кладёт <code>user_id</code>, поэтому access-путь его и раньше не принимал. Тесты <code>test_ws_token_is_not_accepted_as_an_access_token</code>, <code>test_ws_token_still_decodes_on_its_own_path</code>.</li>
+    <li><b>Ротация refresh цела</b> — <span class="badge ok">подтверждено</span>. <code>test_refresh_token_still_decodes_on_its_own_path</code>; <code>decode_refresh_token</code> продолжает принимать свой тип и отклонять access-токен.</li>
+    <li><b>Текущий набор зелёный</b> — <span class="badge ok">подтверждено</span>. <code>tests/unit/test_admin_auth_bypass.py</code> зелёный после применения миграций к тестовой БД.</li>
+  </ul>
+</details>
+
+<h2>4. Влияние на систему</h2>
+
+<table class="rpt-table">
+  <thead><tr><th>Компонент</th><th>Затронут</th><th>Что меняется</th></tr></thead>
+  <tbody>
+    <tr><td><code>backend/app/services/jwt.py</code></td><td><span class="badge warn">изменён</span></td><td>Выпуск и проверка claim <code>token_type</code>; новый приватный хелпер <code>_is_access_claims</code></td></tr>
+    <tr><td><code>backend/app/middleware/jwt_middleware.py</code></td><td><span class="badge neutral">поведение ужесточено</span></td><td>Единственный вызывающий <code>decode_access_token_full</code>. Кода не касались: на refresh-токен теперь не получает <code>user_id</code>, поэтому защищённый путь отвечает 401</td>
+    </tr>
+    <tr><td><code>backend/app/core/auth.py</code></td><td><span class="badge neutral">без изменений</span></td><td>Читает <code>request.state.user_id</code>; проверки <code>is_active</code> и <code>is_admin</code> нетронуты</td></tr>
+    <tr><td><code>bot/utils/api_client.py</code></td><td><span class="badge neutral">без изменений</span></td><td>Все 11 вызовов шлют access-токен; удерживаемые сейчас токены — старого формата и принимаются по правилу толерантности</td></tr>
+    <tr><td>WebSocket-хендшейк</td><td><span class="badge neutral">без изменений</span></td><td><code>type="ws"</code> без <code>user_id</code> — access-путь его не принимал и раньше</td></tr>
+  </tbody>
+</table>
+
+<h3>Изменение поведения</h3>
+<p>Токен, объявляющий <code>token_type</code> отличным от <code>access</code>, больше не аутентифицирует запрос. Токен без claim по-прежнему принимается — в течение одного времени жизни access-токена (<code>JWT_EXPIRE_DAYS</code>, по умолчанию 7 дней).</p>
+
+<h3>Риски и продолжение</h3>
+
+<div class="note warn"><b>Незакрытая часть:</b> послабление для отсутствующего claim обязано быть снято. Задача заведена как <code>reference/tasks/access-token-type-claim-tighten</code> со статусом <code>blocked</code>; условие разблокировки — <code>JWT_EXPIRE_DAYS</code> дней <em>после выката в production</em>, а не после написания кода. Раннее снятие разлогинит всех, кто ещё держит токен старого формата, — ровно то, чего изменение избегало.</div>
+
+<table class="rpt-table">
+  <thead><tr><th>Что осталось</th><th>Где зафиксировано</th></tr></thead>
+  <tbody>
+    <tr><td>Шаг 2 — перевод семи маршрутов восстановления доступа на зависимость <code>CurrentUser</code> и проверка <code>is_active</code> в <code>get_current_user_optional</code></td><td><code>reference/session-revocation-design</code></td></tr>
+    <tr><td>Шаг 3 — отзыв всех сессий при деактивации и проверка <code>is_active</code> в <code>refresh</code></td><td><code>reference/session-revocation-design</code></td></tr>
+    <tr><td>Снятие послабления для токенов без claim</td><td><code>reference/tasks/access-token-type-claim-tighten</code></td></tr>
+  </tbody>
+</table>
+
+<p class="sub">Схемы не приводятся: изменение добавляет один приватный хелпер внутри существующего модуля и не вводит ни нового компонента, ни новой связи между компонентами, ни нового потока данных.</p>
+
+</main>
+</body>
+</html>

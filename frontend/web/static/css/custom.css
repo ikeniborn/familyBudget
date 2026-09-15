@@ -965,6 +965,22 @@ body.modal-open .fab-common-wrapper {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ============= Standalone AI FAB (above the main "+" button) ============= */
+
+/* Mobile wrapper: float the AI button directly above the "+" button */
+.fab-wrapper .ai-fab-standalone {
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    margin-bottom: 0.75rem;
+}
+
+/* Hidden while the speed dial is open — menu items take its place */
+.fab-wrapper.open .ai-fab-standalone,
+.desktop-fab-wrapper.open .ai-fab-standalone {
+    display: none !important;
+}
+
 /* ==================================
    FAB Common Styles - Shared Desktop FAB Components
    Применяется к /, /facts, /plan (НЕ /lists - там отдельная система)
@@ -1229,7 +1245,9 @@ body.modal-open .fab-common-wrapper {
 /* Mobile: 48px FAB */
 @media (max-width: 640px) {
     .desktop-fab-wrapper .fab-button,
-    .fab-wrapper .fab-button {
+    .fab-wrapper .fab-button,
+    .desktop-fab-wrapper .ai-fab-standalone,
+    .fab-wrapper .ai-fab-standalone {
         width: 48px !important;
         height: 48px !important;
         min-width: 48px !important;
@@ -1240,7 +1258,9 @@ body.modal-open .fab-common-wrapper {
 /* Desktop: 56px FAB (default already set above) */
 @media (min-width: 1024px) {
     .desktop-fab-wrapper .fab-button,
-    .fab-wrapper .fab-button {
+    .fab-wrapper .fab-button,
+    .desktop-fab-wrapper .ai-fab-standalone,
+    .fab-wrapper .ai-fab-standalone {
         width: 56px !important;
         height: 56px !important;
         min-width: 56px !important;

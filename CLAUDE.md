@@ -80,11 +80,11 @@ tests/                   # Backend pytest + e2e (frontend Vitest lives in fronte
 ### 3. Architecture-First Workflow
 
 При каждой задаче доработки или правки:
-1. **До начала работы**: использовать doc-индекс в `lat.md/` (api, architecture, auth, bot, database, domain, frontend, realtime) через инструмент `lat`. Прочитать связанные разделы для понимания контекста
+1. **До начала работы**: использовать вики-документацию домена `familybudget` на iwiki MCP-сервере (страницы architecture, api, auth, database, domain, medicine, import, realtime, bot, frontend) через `wiki_search` / `wiki_read_page`. Прочитать связанные разделы для понимания контекста
 2. **После внесения изменений**: перечитать затронутые модули и проверить:
    - Не нарушена ли существующая архитектура
    - Соответствуют ли изменения паттернам проекта (Window exports, Closure Table, SCD и т.д.)
-   - Нужно ли обновить документацию в `lat.md/` при изменении API, моделей или структуры
+   - Нужно ли обновить вики в домене `familybudget` (через `wiki_update_page` / `wiki_insert_section`) при изменении API, моделей или структуры
 
 ## Environments
 

@@ -32,11 +32,11 @@ pull_from_registry() {
             set +a
         fi
 
-        # Registry-first architecture: Pull ALL 5 custom images
-        # PostgreSQL, Redis, Nginx use custom images with embedded configs
+        # Registry-first architecture: pull custom app/data images.
+        # Traefik uses the official pinned image from docker-compose.yml.
         services=("backend" "postgresql" "redis")
         if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-            services+=("bot" "nginx")
+            services+=("bot")
         fi
     fi
 
@@ -189,10 +189,10 @@ validate_registry_images() {
             set +a
         fi
 
-        # Registry-first architecture: Validate ALL 5 custom images
+        # Registry-first architecture: validate custom app/data images.
         services=("backend" "postgresql" "redis")
         if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
-            services+=("bot" "nginx")
+            services+=("bot")
         fi
     fi
 
@@ -286,7 +286,6 @@ generate_env_from_image_versions() {
     # Read versions for each service
     local backend_ver=$(jq -r '.backend.version // "latest"' "$image_versions_file")
     local bot_ver=$(jq -r '.bot.version // "latest"' "$image_versions_file")
-    local nginx_ver=$(jq -r '.nginx.version // "latest"' "$image_versions_file")
     local redis_ver=$(jq -r '.redis.version // "latest"' "$image_versions_file")
     local postgresql_ver=$(jq -r '.postgresql.version // "latest"' "$image_versions_file")
 
@@ -313,7 +312,6 @@ generate_env_from_image_versions() {
         echo "# Updated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
         echo "BACKEND_VERSION=${backend_ver}"
         echo "BOT_VERSION=${bot_ver}"
-        echo "NGINX_VERSION=${nginx_ver}"
         echo "REDIS_VERSION=${redis_ver}"
         echo "POSTGRESQL_VERSION=${postgresql_ver}"
     } >> "$temp_env"
@@ -325,7 +323,6 @@ generate_env_from_image_versions() {
     success "Generated .env with versions:"
     info "  BACKEND_VERSION=${backend_ver}"
     info "  BOT_VERSION=${bot_ver}"
-    info "  NGINX_VERSION=${nginx_ver}"
     info "  REDIS_VERSION=${redis_ver}"
     info "  POSTGRESQL_VERSION=${postgresql_ver}"
     echo ""
@@ -357,11 +354,21 @@ compare_running_vs_pulled_images() {
     source "$env_file"
     set +a
 
-    local services=("backend" "bot" "nginx")
+    local services=("backend" "postgresql" "redis")
+    if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+        services+=("bot")
+    fi
     local recreate_count=0
 
     for service in "${services[@]}"; do
-        local container_name="familybudget-${service}"
+        local container_service="$service"
+        local flag_service="$service"
+        if [[ "$service" == "postgresql" ]]; then
+            container_service="postgres"
+            flag_service="postgres"
+        fi
+
+        local container_name="familybudget-${container_service}"
         local version_var="${service^^}_VERSION"
         local desired_version="${!version_var:-latest}"
         local desired_image="ghcr.io/ikeniborn/familybudget-${service}:${desired_version}"
@@ -369,7 +376,7 @@ compare_running_vs_pulled_images() {
         # Check if container exists
         if ! docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"; then
             info "  → ${service}: Container not found (will be created)"
-            export "NEEDS_${service^^}_RECREATE=true"
+            export "NEEDS_${flag_service^^}_RECREATE=true"
             ((recreate_count++))
             continue
         fi
@@ -377,8 +384,8 @@ compare_running_vs_pulled_images() {
         # Get running container image
         local running_image=$(docker inspect "$container_name" --format '{{.Config.Image}}' 2>/dev/null)
         if [[ -z "$running_image" ]]; then
-            warn "  → ${service}: Failed to get running image (will recreate)"
-            export "NEEDS_${service^^}_RECREATE=true"
+            warning "  → ${service}: Failed to get running image (will recreate)"
+            export "NEEDS_${flag_service^^}_RECREATE=true"
             ((recreate_count++))
             continue
         fi
@@ -391,8 +398,8 @@ compare_running_vs_pulled_images() {
         local desired_image_id=$(docker inspect "$desired_image" --format '{{.Id}}' 2>/dev/null | cut -d':' -f2 | cut -c1-12)
 
         if [[ -z "$running_image_id" ]] || [[ -z "$desired_image_id" ]]; then
-            warn "  → ${service}: Failed to get image IDs (will recreate)"
-            export "NEEDS_${service^^}_RECREATE=true"
+            warning "  → ${service}: Failed to get image IDs (will recreate)"
+            export "NEEDS_${flag_service^^}_RECREATE=true"
             ((recreate_count++))
             continue
         fi
@@ -400,17 +407,48 @@ compare_running_vs_pulled_images() {
         # Decision logic: recreate if images differ OR container unhealthy
         if [[ "$running_image_id" != "$desired_image_id" ]]; then
             info "  → ${service}: Image changed (${running_image_id} → ${desired_image_id})"
-            export "NEEDS_${service^^}_RECREATE=true"
+            export "NEEDS_${flag_service^^}_RECREATE=true"
             ((recreate_count++))
         elif [[ "$health_status" == "unhealthy" ]]; then
-            warn "  → ${service}: Container unhealthy (will recreate)"
-            export "NEEDS_${service^^}_RECREATE=true"
+            warning "  → ${service}: Container unhealthy (will recreate)"
+            export "NEEDS_${flag_service^^}_RECREATE=true"
             ((recreate_count++))
         else
             info "  ✓ ${service}: Up-to-date and healthy (${running_image_id})"
-            export "NEEDS_${service^^}_RECREATE=false"
+            export "NEEDS_${flag_service^^}_RECREATE=false"
         fi
     done
+
+    if [[ "${DEPLOYMENT_PROFILE:-basic}" == "full" ]]; then
+        local traefik_container="familybudget-traefik"
+        local desired_traefik_image="traefik:v3.3"
+
+        if ! docker ps -a --format '{{.Names}}' | grep -q "^${traefik_container}$"; then
+            info "  → traefik: Container not found (will be created)"
+            export NEEDS_TRAEFIK_RECREATE=true
+            ((recreate_count++))
+        else
+            local running_traefik_image
+            running_traefik_image=$(docker inspect "$traefik_container" --format '{{.Config.Image}}' 2>/dev/null || echo "")
+            local traefik_health
+            traefik_health=$(docker inspect "$traefik_container" --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
+
+            if [[ "$running_traefik_image" != "$desired_traefik_image" ]]; then
+                info "  → traefik: Image changed (${running_traefik_image:-unknown} → ${desired_traefik_image})"
+                export NEEDS_TRAEFIK_RECREATE=true
+                ((recreate_count++))
+            elif [[ "$traefik_health" == "unhealthy" ]]; then
+                warning "  → traefik: Container unhealthy (will recreate)"
+                export NEEDS_TRAEFIK_RECREATE=true
+                ((recreate_count++))
+            else
+                info "  ✓ traefik: Official image present and healthy enough (${desired_traefik_image})"
+                if [[ "${NEEDS_TRAEFIK_RECREATE:-false}" != "true" ]]; then
+                    export NEEDS_TRAEFIK_RECREATE=false
+                fi
+            fi
+        fi
+    fi
 
     if [[ $recreate_count -gt 0 ]]; then
         info "Services requiring recreation: $recreate_count"

@@ -39,6 +39,18 @@
         </svg>
     </button>
 
+    <!-- AI list parsing: standalone FAB shown above the main button while the
+         speed dial is closed. Hidden until GET /api/v1/ai/status reports
+         text=true (revealed by the aiListAssist bundle) and while the speed
+         dial is open (CSS .fab-menu.open rule) -->
+    <button id="fab-item-ai-list"
+            onclick="window.openAIListModal()"
+            class="ai-fab-standalone btn btn-secondary btn-circle btn-lg shadow-xl hidden"
+            aria-label="Добавить списком (ИИ)"
+            title="Добавить списком (ИИ)">
+        ✨
+    </button>
+
     <!-- Speed Dial items -->
     <!-- NEW: Добавить товар (первый в Speed Dial) -->
     <div id="fab-item-add-product" class="fab-item flex items-center gap-2">

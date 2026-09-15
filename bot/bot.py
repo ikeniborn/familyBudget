@@ -122,6 +122,15 @@ class BotApplication:
         self.application.add_handler(CommandHandler("balance", balance_handler))
         logger.info("Registered /balance handler")
 
+        from bot.handlers.medicine import medicine_handler, taken_handler, medicine_callback
+
+        self.application.add_handler(CommandHandler("medicines", medicine_handler))
+        logger.info("Registered /medicines handler")
+        self.application.add_handler(CommandHandler("taken", taken_handler))
+        logger.info("Registered /taken handler")
+        self.application.add_handler(CallbackQueryHandler(medicine_callback, pattern="^med:"))
+        logger.info("Registered medicine callback handler")
+
         # Register conversation handlers
         self.application.add_handler(addplan_conversation_handler)
         logger.info("Registered /addplan conversation handler")

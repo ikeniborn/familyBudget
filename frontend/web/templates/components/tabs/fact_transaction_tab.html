@@ -1,4 +1,21 @@
 <!-- Fact Transaction Tab Content -->
+<!-- AI quick-add: hidden until GET /api/v1/ai/status reports text=true -->
+<div class="form-control ai-quickadd hidden mb-1">
+    <label class="label py-1">
+        <span class="label-text">🤖 Быстрый ввод</span>
+    </label>
+    <input type="text" class="input input-bordered input-sm w-full ai-quickadd-input"
+           placeholder="кофе 350" maxlength="500" autocomplete="off" />
+    <!-- Buttons on their own row: the modal is narrow on mobile (375px),
+         so labels are icon-only below the sm breakpoint. Receipt photos
+         live in the bulk AI window, not here. -->
+    <div class="flex gap-2 mt-2">
+        <button type="button" class="btn btn-sm btn-outline btn-info flex-1 gap-1 ai-voice-btn hidden">🎤 <span class="hidden sm:inline">Голос</span></button>
+        <button type="button" class="btn btn-sm btn-primary flex-1 gap-1 ai-quickadd-btn">✨ <span class="hidden sm:inline">Разобрать</span></button>
+    </div>
+    <div class="ai-quickadd-result text-xs mt-1 text-base-content/70"></div>
+</div>
+
 <!-- Дата -->
 <div class="form-control">
     <label class="label py-1">
