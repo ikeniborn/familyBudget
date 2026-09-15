@@ -727,3 +727,17 @@ dialog.modal::backdrop {
     position: relative;
     z-index: 1;
 }
+
+/* ============================================== */
+
+/**
+ * @tailwindcss/forms base sets padding-top/bottom: 0.5rem on the <select> element.
+ * DaisyUI sizes .select via height + line-height and never resets that vertical
+ * padding, so on .select-sm (height 2rem, line-height 2rem) only ~14px remain for
+ * the text and it renders vertically clipped (medicine catalog/stock forms).
+ * DaisyUI selects are designed with zero vertical padding — reset it globally.
+ */
+.select {
+    padding-top: 0;
+    padding-bottom: 0;
+}

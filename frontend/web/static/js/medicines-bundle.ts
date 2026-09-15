@@ -1,6 +1,6 @@
 // Medicines bundle entry — wires the manager onto window for onclick handlers + WS.
 import {
-  loadCatalog, catalogSearch, createMedicineFromForm, medicineArchive,
+  loadCatalog, initCatalog, catalogSearch, createMedicineFromForm, medicineArchive,
   loadPatients, createPatientFromForm, openPatientEdit, savePatientEdit, patientArchive,
   loadStock, loadMedicineOptions, createStockFromForm, stockDelete, openStockEdit, saveStockEdit,
   loadStockAnalytics, handleMedicineEvent,
@@ -31,7 +31,7 @@ try {
   if (typeof window !== 'undefined') {
     Object.assign(window, windowExports);
     document.addEventListener('DOMContentLoaded', () => {
-      if (document.getElementById('medicines-catalog-body')) loadCatalog();
+      if (document.getElementById('medicines-catalog-body')) initCatalog();
       if (document.getElementById('medicines-patients-body')) loadPatients();
       if (document.getElementById('medicines-stock-body')) loadStock();
       if (document.getElementById('stock-analytics')) loadStockAnalytics();

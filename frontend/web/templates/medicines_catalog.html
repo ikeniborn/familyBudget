@@ -14,16 +14,8 @@
   <div class="card bg-base-100 shadow-sm">
     <div class="card-body p-4 grid grid-cols-1 sm:grid-cols-4 gap-2">
       <input id="med-name" class="input input-bordered input-sm" placeholder="Название" />
-      <select id="med-form" class="select select-bordered select-sm">
-        <option value="tablet">таблетка</option>
-        <option value="capsule">капсула</option>
-        <option value="syrup">сироп</option>
-        <option value="drops">капли</option>
-        <option value="ointment">мазь</option>
-        <option value="spray">спрей</option>
-        <option value="injection">инъекция</option>
-        <option value="other">другое</option>
-      </select>
+      {# options come from the FORM_LABELS dictionary in medicinesManager.ts (single source) #}
+      <select id="med-form" class="select select-bordered select-sm"></select>
       <input id="med-dosage" class="input input-bordered input-sm" placeholder="Дозировка" />
       <button class="btn btn-primary btn-sm" onclick="window.createMedicineFromForm()">Добавить</button>
     </div>
