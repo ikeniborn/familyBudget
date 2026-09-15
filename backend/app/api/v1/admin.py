@@ -1447,6 +1447,7 @@ async def get_all_articles(
             parent_id=article.parent_id,
             name=article.name,
             type=article.type,
+            description=article.description,
             code=article.code,
             is_active=article.is_active,
             created_at=article.created_at,
