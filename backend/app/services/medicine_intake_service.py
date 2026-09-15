@@ -77,6 +77,20 @@ async def generate_all(session: AsyncSession, *, horizon_days: int = GENERATION_
     return total
 
 
+async def delete_future_scheduled(session: AsyncSession, course_id: int) -> int:
+    """Drop not-yet-due 'scheduled' doses for a course (schedule changed / course edited).
+
+    Taken/skipped/late rows are history and stay. Reminders on the deleted rows are
+    removed by the ON DELETE CASCADE FK on t_medicine_reminder.
+    """
+    result = await session.execute(text("""
+        DELETE FROM t_f_medicine_intake_log
+        WHERE course_id = :cid AND status = 'scheduled' AND scheduled_at >= :now
+    """), {"cid": course_id, "now": _now()})
+    await session.commit()
+    return result.rowcount or 0
+
+
 async def mark_overdue_late(session: AsyncSession) -> int:
     """scheduled → late when scheduled_at < now - 24h. Returns rows updated."""
     cutoff = _now() - timedelta(hours=24)

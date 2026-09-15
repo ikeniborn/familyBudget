@@ -93,6 +93,85 @@ async def test_pause_and_complete(authenticated_client):
 
 
 @pytest.mark.asyncio
+async def test_create_non_daily_without_config_rejected(authenticated_client):
+    """Slice M1: a weekdays/every_n_days course without schedule_config must be rejected,
+    not silently accepted with zero generated doses."""
+    mid, pid = await _seed_medicine_and_member(authenticated_client, with_stock=False)
+    for schedule_type in ("weekdays", "every_n_days"):
+        r = await authenticated_client.post("/api/v1/medicine-courses", json={
+            "medicine_id": mid, "patient_id": pid, "dose_amount": "1", "dose_unit": "шт",
+            "intake_times": ["08:00"], "start_date": "2026-06-15", "schedule_type": schedule_type})
+        assert r.status_code == 422, f"{schedule_type}: {r.status_code} {r.text}"
+
+
+@pytest.mark.asyncio
+async def test_every_n_days_generates_on_correct_days(authenticated_client):
+    mid, pid = await _seed_medicine_and_member(authenticated_client, with_stock=False)
+    r = await authenticated_client.post("/api/v1/medicine-courses", json={
+        "medicine_id": mid, "patient_id": pid, "dose_amount": "1", "dose_unit": "шт",
+        "intake_times": ["08:00"], "start_date": "2026-06-15",
+        "schedule_type": "every_n_days", "schedule_config": {"n": 2}})
+    assert r.status_code == 201, r.text
+    cid = r.json()["id"]
+    for day, expected in (("2026-06-15", 1), ("2026-06-16", 0), ("2026-06-17", 1)):
+        r = await authenticated_client.get(f"/api/v1/medicine-intakes?date={day}")
+        assert r.status_code == 200, r.text
+        got = [i for i in r.json()["intakes"] if i["course_id"] == cid]
+        assert len(got) == expected, f"{day}: expected {expected}, got {len(got)}"
+
+
+@pytest.mark.asyncio
+async def test_patch_schedule_type_without_config_rejected(authenticated_client):
+    """Merged validation on PATCH: switching a daily course to weekdays needs a config."""
+    mid, pid = await _seed_medicine_and_member(authenticated_client, with_stock=False)
+    r = await authenticated_client.post("/api/v1/medicine-courses", json={
+        "medicine_id": mid, "patient_id": pid, "dose_amount": "1", "dose_unit": "шт",
+        "intake_times": ["08:00"], "start_date": "2026-06-15", "schedule_type": "daily"})
+    assert r.status_code == 201, r.text
+    cid = r.json()["id"]
+    r = await authenticated_client.patch(f"/api/v1/medicine-courses/{cid}",
+                                         json={"schedule_type": "weekdays"})
+    assert r.status_code == 422, f"{r.status_code} {r.text}"
+
+
+@pytest.mark.asyncio
+async def test_edit_regenerates_and_resume_restores(authenticated_client):
+    """Slice M1 flow: editing intake_times drops future scheduled doses; while paused nothing
+    is regenerated; resume reactivates the course and regenerates the horizon."""
+    from datetime import date as _date
+
+    mid, pid = await _seed_medicine_and_member(authenticated_client, with_stock=False)
+    today = _date.today().isoformat()
+    r = await authenticated_client.post("/api/v1/medicine-courses", json={
+        "medicine_id": mid, "patient_id": pid, "dose_amount": "1", "dose_unit": "шт",
+        "intake_times": ["23:59"], "start_date": today, "schedule_type": "daily"})
+    assert r.status_code == 201, r.text
+    cid = r.json()["id"]
+
+    async def journal_times():
+        r = await authenticated_client.get(f"/api/v1/medicine-intakes?course_id={cid}")
+        assert r.status_code == 200, r.text
+        return sorted({i["scheduled_at"][11:16] for i in r.json()["intakes"] if i["status"] == "scheduled"})
+
+    assert await journal_times() == ["23:59"]
+
+    r = await authenticated_client.post(f"/api/v1/medicine-courses/{cid}/pause")
+    assert r.status_code == 200, r.text
+
+    # Edit while paused: future scheduled rows removed, nothing regenerated.
+    r = await authenticated_client.patch(f"/api/v1/medicine-courses/{cid}",
+                                         json={"intake_times": ["23:58"]})
+    assert r.status_code == 200, r.text
+    assert await journal_times() == []
+
+    # Resume: active again and the horizon is regenerated with the new time.
+    r = await authenticated_client.post(f"/api/v1/medicine-courses/{cid}/resume")
+    assert r.status_code == 200, r.text
+    assert r.json()["is_active"] is True
+    assert await journal_times() == ["23:58"]
+
+
+@pytest.mark.asyncio
 async def test_generation_idempotent(authenticated_client, db_session):
     """Re-running generation over an overlapping window adds no duplicate rows (UNIQUE + pre-filter)."""
     from datetime import timedelta

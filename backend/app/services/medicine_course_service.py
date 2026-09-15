@@ -70,6 +70,15 @@ async def pause_course(session: AsyncSession, course: MedicineCourse) -> Medicin
     return course
 
 
+async def resume_course(session: AsyncSession, course: MedicineCourse) -> MedicineCourse:
+    course.is_active = True
+    course.updated_at = _now()
+    session.add(course)
+    await session.commit()
+    await session.refresh(course)
+    return course
+
+
 async def complete_course(session: AsyncSession, course: MedicineCourse) -> MedicineCourse:
     """Mark finished: deactivate + soft-delete (decision: completed courses are soft-deleted)."""
     course.is_active = False

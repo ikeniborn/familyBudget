@@ -58,6 +58,22 @@
         </select>
       </label>
     </div>
+    <label class="form-control hidden" id="course-schedule-n-wrap">
+      <span class="label-text">Интервал (N дней)</span>
+      <input id="course-schedule-n" type="number" min="1" value="2" class="input input-bordered input-sm">
+    </label>
+    <div class="form-control hidden" id="course-schedule-days-wrap">
+      <span class="label-text">Дни недели</span>
+      <div class="flex flex-wrap gap-2 pt-1">
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="mon"><span class="label-text">Пн</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="tue"><span class="label-text">Вт</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="wed"><span class="label-text">Ср</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="thu"><span class="label-text">Чт</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="fri"><span class="label-text">Пт</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="sat"><span class="label-text">Сб</span></label>
+        <label class="label cursor-pointer gap-1 p-0"><input type="checkbox" class="checkbox checkbox-sm course-day" value="sun"><span class="label-text">Вс</span></label>
+      </div>
+    </div>
     <div class="modal-action">
       <form method="dialog"><button class="btn btn-ghost btn-sm">Отмена</button></form>
       <button class="btn btn-primary btn-sm" onclick="window.createCourseFromForm()">Создать</button>

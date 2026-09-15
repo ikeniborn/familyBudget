@@ -342,7 +342,34 @@ export async function openCourseForm(): Promise<void> {
   if (memSel) memSel.innerHTML = members.family_members.map(m =>
     `<option value="${m.id}">${escapeHtml(m.name)}</option>`).join('');
   updateStockHint();
+  const schedSel = document.getElementById('course-schedule') as HTMLSelectElement | null;
+  if (schedSel) schedSel.onchange = updateScheduleConfigVisibility;
+  updateScheduleConfigVisibility();
   (document.getElementById('course-form-dialog') as HTMLDialogElement | null)?.showModal();
+}
+
+// Show the config inputs matching the selected schedule type.
+function updateScheduleConfigVisibility(): void {
+  const type = (document.getElementById('course-schedule') as HTMLSelectElement | null)?.value ?? 'daily';
+  document.getElementById('course-schedule-n-wrap')?.classList.toggle('hidden', type !== 'every_n_days');
+  document.getElementById('course-schedule-days-wrap')?.classList.toggle('hidden', type !== 'weekdays');
+}
+
+// Build schedule_config for the selected type; null for daily.
+// Throws a user-facing message when the config is missing/invalid (server rejects it too).
+function buildScheduleConfig(type: string): { n: number } | { days: string[] } | null {
+  if (type === 'every_n_days') {
+    const n = Number((document.getElementById('course-schedule-n') as HTMLInputElement | null)?.value);
+    if (!Number.isInteger(n) || n < 1) throw new Error('Укажите интервал в днях (N ≥ 1)');
+    return { n };
+  }
+  if (type === 'weekdays') {
+    const days = Array.from(document.querySelectorAll<HTMLInputElement>('.course-day:checked'))
+      .map(el => el.value);
+    if (days.length === 0) throw new Error('Выберите хотя бы один день недели');
+    return { days };
+  }
+  return null;
 }
 
 // Inline "add patient" from the course form: create, then refresh + select in the dropdown.
@@ -389,6 +416,7 @@ export async function createCourseFromForm(): Promise<void> {
     (document.getElementById(id) as HTMLInputElement | HTMLSelectElement | null)?.value ?? '';
   const times = val('course-times').split(',').map(t => t.trim()).filter(Boolean);
   try {
+    const scheduleType = val('course-schedule') || 'daily';
     await api('/api/v1/medicine-courses', {
       method: 'POST',
       body: JSON.stringify({
@@ -398,7 +426,8 @@ export async function createCourseFromForm(): Promise<void> {
         dose_unit: val('course-unit'),
         intake_times: times,
         start_date: val('course-start'),
-        schedule_type: val('course-schedule') || 'daily',
+        schedule_type: scheduleType,
+        schedule_config: buildScheduleConfig(scheduleType),
       }),
     });
     (document.getElementById('course-form-dialog') as HTMLDialogElement | null)?.close();
