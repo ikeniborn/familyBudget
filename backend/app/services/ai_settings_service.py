@@ -4,13 +4,15 @@ AI settings service: single-row configuration access with in-process caching.
 The settings row (id=1) is created lazily with defaults on first read.
 Endpoints own the transaction (get_session); this service never commits.
 
-The provider token is stored as-is in the database (accepted risk recorded in
-the intent) and is only ever exposed masked.
+The provider token is stored Fernet-encrypted ("enc:" prefix, see
+token_crypto) and is only ever exposed masked. Legacy plaintext rows are
+read as-is and re-encrypted on the next save.
 """
 import time
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from backend.app.core.token_crypto import decrypt_token, encrypt_token
 from backend.app.models.ai_settings import AI_SETTINGS_ROW_ID, AISettings
 from backend.app.schemas.ai import AISettingsUpdate
 
@@ -22,6 +24,7 @@ _cache_at: float = 0.0
 
 def mask_token(token: str | None) -> str | None:
     """Return a display-safe form of the token: '***…last4' or None."""
+    token = decrypt_token(token)
     if not token:
         return None
     tail = token[-4:] if len(token) > 4 else ""
@@ -64,8 +67,11 @@ async def update_settings(
     settings = await get_settings(session)
 
     fields = data.model_dump(exclude_unset=True)
-    if "api_token" in fields and fields["api_token"] == "":
-        fields["api_token"] = None
+    if "api_token" in fields:
+        if fields["api_token"] == "":
+            fields["api_token"] = None
+        elif fields["api_token"] is not None:
+            fields["api_token"] = encrypt_token(fields["api_token"])
 
     for field, value in fields.items():
         setattr(settings, field, value)

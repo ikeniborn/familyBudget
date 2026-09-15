@@ -9,6 +9,7 @@ unconfigured slots (no provider network calls involved).
 import pytest
 from httpx import AsyncClient
 
+from backend.app.core import token_crypto
 from backend.app.services import ai_settings_service
 
 
@@ -21,7 +22,8 @@ class TestAISettings:
         assert response.status_code == 200
         data = response.json()
         assert data["enabled"] is False
-        assert data["endpoint_url"].startswith("https://")
+        # No baked-in default endpoint: the admin must configure it explicitly.
+        assert data["endpoint_url"] == ""
         assert data["token_masked"] is None
         assert data["model_text"] is None
 
@@ -81,6 +83,20 @@ class TestAISettings:
         )
         assert response.status_code == 403
 
+    @pytest.mark.destructive
+    async def test_token_stored_encrypted_at_rest(
+        self, authenticated_admin_client: AsyncClient, db_session
+    ):
+        await authenticated_admin_client.put(
+            "/api/v1/ai/settings", json={"api_token": "tok-at-rest-5678"}
+        )
+        settings = await ai_settings_service.get_settings(db_session)
+        assert settings.api_token is not None
+        assert settings.api_token.startswith("enc:")
+        assert "tok-at-rest-5678" not in settings.api_token
+        # Masking still shows the plaintext tail.
+        assert ai_settings_service.mask_token(settings.api_token) == "***5678"
+
 
 @pytest.mark.integration
 class TestAIHealthCheck:
@@ -107,3 +123,17 @@ def test_mask_token_shapes():
     assert ai_settings_service.mask_token("") is None
     assert ai_settings_service.mask_token("ab") == "***"
     assert ai_settings_service.mask_token("frameworkEdgeToken-abcd1234") == "***1234"
+
+
+def test_token_crypto_roundtrip():
+    enc = token_crypto.encrypt_token("tok-secret-42")
+    assert enc.startswith("enc:")
+    assert "tok-secret-42" not in enc
+    assert token_crypto.decrypt_token(enc) == "tok-secret-42"
+
+
+def test_token_crypto_legacy_and_invalid():
+    # Legacy plaintext rows pass through unchanged; garbage decrypts to None.
+    assert token_crypto.decrypt_token(None) is None
+    assert token_crypto.decrypt_token("plain-legacy-token") == "plain-legacy-token"
+    assert token_crypto.decrypt_token("enc:not-a-fernet-token") is None
