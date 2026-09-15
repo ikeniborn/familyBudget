@@ -10,7 +10,7 @@ imageio-ffmpeg==0.6.0  # Static ffmpeg binary for voice->WAV conversion (AI modu
 # Database
 sqlmodel==0.0.22
 asyncpg==0.29.0
-psycopg2-binary==2.9.10  # Required for Alembic migrations (sync driver)
+psycopg2-binary==2.9.13  # Required for Alembic migrations (sync driver)
 alembic==1.14.0
 
 # Redis (Caching & Pub/Sub)
