@@ -108,6 +108,7 @@ tests/                   # Backend pytest + e2e (frontend Vitest lives in fronte
 
 - Only create pull requests to `test` branch from `dev/*` branches
 - **Never use `prod` as source branch** for development, copying, or agent work — `prod` contains only release-ready code; branching from it bypasses test-stage validation and breaks the `dev/* → test → prod` pipeline.
+- **Never delete the `test` branch** — it is long-lived, the pipeline breaks without it. During post-release branch cleanup delete only merged `dev/*` and dependabot branches. If `test` is ever deleted, restore it from the commit the release PR merged into `prod` (`git push origin <sha>:refs/heads/test`).
 
 ## Commands
 
