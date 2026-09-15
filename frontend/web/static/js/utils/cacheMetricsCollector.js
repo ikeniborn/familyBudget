@@ -202,20 +202,11 @@ class CacheMetricsCollector {
      * @returns {Promise<Object>} IndexedDB metrics
      */
     async _getIndexedDBMetrics() {
-        try {
-            return {
-                db_version: 0,
-                pending_count: 0,
-                store_stats: {}
-            };
-        } catch (error) {
-            this.logger.error('Failed to get IndexedDB metrics:', error);
-            return {
-                db_version: 0,
-                pending_count: 0,
-                store_stats: {}
-            };
-        }
+        return {
+            db_version: 0,
+            pending_count: 0,
+            store_stats: {}
+        };
     }
 
     /**
