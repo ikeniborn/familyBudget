@@ -1,5 +1,14 @@
 # Семейная аптечка — проектирование (Вариант D)
 
+> **SUPERSEDED (2026-09-15).** The authoritative design is
+> `docs/superpowers/specs/2026-06-15-medicine-tracking-design.md` (8 closed decisions)
+> and the `medicine` page of the project wiki. This draft is kept for history only.
+> Notably, iteration 4 below prescribes budget integration via `fact_id` +
+> a `t_d_article` entry — **reversed by spec decision #1** (purchase prices stay
+> module-only); and all four "Открытые вопросы" are long closed (no budget link;
+> per-course snooze, default 30 min; guardian + linked patient both notified;
+> intake count soft-limited in UI).
+
 Гибридный модуль учёта лекарств: справочник + склад (аптечка) + курсы приёма + журнал + напоминания.
 Реализуется по аналогии с существующим модулем `shopping_list` (Header+Lines, shared references, SCD).
 

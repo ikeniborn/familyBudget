@@ -1,7 +1,12 @@
 # Intent: Correct stale push-URL docstring in medicine_alert_service
 
 **Date:** 2026-06-17
-**Status:** approved
+**Status:** obsolete
+
+> **OBSOLETE (2026-09-15).** The mismatch this intent targeted no longer exists:
+> both the module docstring (`medicine_alert_service.py:5`) and the payload code
+> (`medicine_reminder_service.send_web_push`) say `data.url="/medicines"` today —
+> later refactors converged on the dashboard URL per spec decision #5. No work remains.
 
 ## Objective
 `backend/app/services/medicine_alert_service.py:5` module docstring states the

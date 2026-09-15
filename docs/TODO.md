@@ -24,7 +24,7 @@ Index of elaboration chains (intent → spec → plan → result) reconstructed 
 | fix-offline-removal-regressions | in-progress | n/a | ✓ | ✓ | – | 2026-06-05 | | Spec+plan; follow-up to remove-dexie-offline |
 | htmx-everywhere-dashboard | in-progress | n/a | ✓ | ✓ | – | 2026-06-05 | | Spec+plan; no result-check |
 | scheduler-advisory-lock-tz | in-progress | ✓ | ✓ | ✓ | – | 2026-06-07 | | Full chain; no result-check |
-| medicine-tracking-phase1-stock | in-progress | n/a | ✓ | ✓ | – | 2026-06-15 | | Shared spec medicine-tracking-design; no result-check on file |
+| medicine-tracking-phase1-stock | done | n/a | ✓ | ✓ | OK | 2026-06-15 | 2026-09-15 | Closed retroactively: shipped in June, exercised in prod, reconciled by the 2026-09 medicine audit + slices M1–M6 (wiki reference/medicine-slice-plan) |
 | medicine-tracking-phase2-courses | done | n/a | ✓ | ✓ | OK | 2026-06-15 | 2026-06-15 | result-check OK |
 | medicine-tracking-phase3-reminders | done | n/a | ✓ | ✓ | OK | 2026-06-15 | 2026-06-15 | result-check OK |
 | medicine-tracking-phase4-deduction | done | n/a | ✓ | ✓ | OK | 2026-06-15 | 2026-06-15 | result-check OK |
@@ -32,6 +32,6 @@ Index of elaboration chains (intent → spec → plan → result) reconstructed 
 | auth-refresh-legacy-endpoint | in-progress | ✓ | – | – | – | 2026-06-17 | | Intent only; spec/plan not started |
 | bot-addplan-missing-handler | in-progress | ✓ | – | – | – | 2026-06-17 | | Intent only; spec/plan not started |
 | bot-weekly-report-stub | in-progress | ✓ | – | – | – | 2026-06-17 | | Intent only; spec/plan not started |
-| medicine-alert-docstring | in-progress | ✓ | – | – | – | 2026-06-17 | | Intent only; spec/plan not started |
+| medicine-alert-docstring | obsolete | ✓ | – | – | – | 2026-06-17 | 2026-09-15 | Intent obsoleted: the docstring/code URL mismatch no longer exists (both /medicines) |
 | ws-plan-broadcast-filter | in-progress | ✓ | – | – | – | 2026-06-17 | | Intent only; spec/plan not started |
 | traefik-migration | done | n/a | ✓ | ✓ | OK | 2026-06-24 | 2026-07-06 | Dev rollout OK; Traefik healthy on fbd.ikeniborn.ru |
