@@ -41,7 +41,7 @@ psutil==6.1.1
 docker==7.1.0  # Docker SDK for collecting container logs
 
 # Background Jobs
-apscheduler==3.11.0
+apscheduler==3.11.3
 
 # Push Notifications (Web Push / VAPID)
 pywebpush==2.0.0
