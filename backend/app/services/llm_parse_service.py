@@ -560,7 +560,12 @@ async def get_product_group_candidates(session: AsyncSession) -> list[dict[str, 
     """Active product groups as {id, path} with the parent chain in the path."""
     rows = (
         await session.execute(
-            select(ProductGroup.id, ProductGroup.name, ProductGroup.parent_id).where(
+            select(
+                ProductGroup.id,
+                ProductGroup.name,
+                ProductGroup.parent_id,
+                ProductGroup.description,
+            ).where(
                 ProductGroup.is_active == True  # noqa: E712
             )
         )
@@ -577,24 +582,46 @@ async def get_product_group_candidates(session: AsyncSession) -> list[dict[str, 
             current = by_id.get(current.parent_id) if current.parent_id else None
         return " > ".join(reversed(parts))
 
-    return [{"id": row.id, "path": build_path(row.id)} for row in rows]
+    return [
+        {
+            "id": row.id,
+            "path": build_path(row.id),
+            "description": (row.description or "").strip(),
+        }
+        for row in rows
+    ]
 
 
 async def get_store_candidates(session: AsyncSession) -> list[dict[str, Any]]:
-    """Active stores as {id, name} for the list-parsing prompt."""
+    """Active stores as {id, name, description} for the list-parsing prompt."""
     rows = (
         await session.execute(
-            select(Store.id, Store.name).where(Store.is_active == True)  # noqa: E712
+            select(Store.id, Store.name, Store.description).where(
+                Store.is_active == True  # noqa: E712
+            )
         )
     ).all()
-    return [{"id": row.id, "name": row.name} for row in rows]
+    return [
+        {
+            "id": row.id,
+            "name": row.name,
+            "description": (row.description or "").strip(),
+        }
+        for row in rows
+    ]
 
 
 def _build_list_prompt(
     groups: list[dict[str, Any]], stores: list[dict[str, Any]]
 ) -> str:
-    group_lines = "\n".join(f"{g['id']}: {g['path']}" for g in groups)
-    store_lines = "\n".join(f"{s['id']}: {s['name']}" for s in stores)
+    group_lines = "\n".join(
+        f"{g['id']}: {g['path']}" + (f" — {g['description']}" if g.get("description") else "")
+        for g in groups
+    )
+    store_lines = "\n".join(
+        f"{s['id']}: {s['name']}" + (f" — {s['description']}" if s.get("description") else "")
+        for s in stores
+    )
     units = ", ".join(LIST_UNITS)
     return (
         "Ты — парсер списка покупок семейного бюджета. Пользователь "
