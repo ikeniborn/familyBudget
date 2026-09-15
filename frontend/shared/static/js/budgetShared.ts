@@ -1715,6 +1715,7 @@ class ChoicesCategoryTree {
     childrenMap!: Map<any, any>;
     _initPromise!: (() => void) | null;
     _clearAllBtn?: HTMLButtonElement;
+    _stickySelection!: { id: number; until: number } | null;
 
     /**
      * Initialize Web Worker for category hierarchy processing.
@@ -1845,6 +1846,12 @@ class ChoicesCategoryTree {
         this.categoryMap = new Map();  // id -> category
         this.childrenMap = new Map();  // parent_id -> [child_ids]
         this._initPromise = null;  // Promise resolver for waitForReady()
+        // Last programmatic selection (setSelectedCategory) with an expiry.
+        // updateFinancialCenter() in mode='create' force-clears the selection
+        // after reloading options; a recent programmatic value survives that
+        // clear so AI/pre-fill selections are not silently erased by the
+        // async reload race (slow networks on mobile PWA hit this hardest).
+        this._stickySelection = null;  // { id, until } | null
 
         this.init();
     }
@@ -2725,9 +2732,19 @@ class ChoicesCategoryTree {
                 // Preserve ONLY in edit mode when category still available
                 const shouldPreserve = this.options.mode === 'edit' && categoryStillAvailable;
 
+                // A recent programmatic selection (AI quick-add / pre-fill)
+                // survives the force-clear when still available.
+                const sticky = this._stickySelection;
+                const stickyValid = sticky &&
+                    Date.now() < sticky.until &&
+                    this.categoryMap.has(sticky.id);
+
                 if (shouldPreserve) {
                     await this.setSelectedCategory(previousSelectionId);
                     if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] Preserved selection: ${previousSelectionId}`);
+                } else if (stickyValid) {
+                    await this.setSelectedCategory(sticky.id);
+                    if (typeof (window as any).debugLog === "function") (window as any).debugLog(`[ChoicesCategoryTree] Restored sticky selection: ${sticky.id}`);
                 } else {
                     // Clear selection
                     this.choices.removeActiveItems();
@@ -2776,6 +2793,9 @@ class ChoicesCategoryTree {
      * Used in create modals to reset selection state.
      */
     clearSelection() {
+        // An explicit clear also drops the sticky programmatic selection.
+        this._stickySelection = null;
+
         // Clear Choices.js active selection
         if (this.choices) {
             this.choices.removeActiveItems();
@@ -2852,6 +2872,9 @@ class ChoicesCategoryTree {
                 const valueToSet = targetChoice.value;
 
                 this.choices.setChoiceByValue(valueToSet);
+                // Remember the programmatic selection so a concurrent
+                // updateFinancialCenter() reload cannot silently erase it.
+                this._stickySelection = { id: categoryId, until: Date.now() + 20000 };
                 return; // Success - exit
             }
 
