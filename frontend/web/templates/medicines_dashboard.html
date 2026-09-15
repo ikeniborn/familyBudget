@@ -2,7 +2,13 @@
 
 {% block content %}
 <div class="space-y-4">
-  <h1 class="text-xl font-bold">Сегодня надо принять</h1>
+  <div class="flex items-center justify-between gap-2">
+    <h1 class="text-xl font-bold">Сегодня надо принять</h1>
+    <select id="dashboard-patient-filter" class="select select-bordered select-sm"
+            onchange="window.dashboardFilterChanged()">
+      <option value="">Все члены семьи</option>
+    </select>
+  </div>
   <div id="medicines-today-body" class="space-y-2"></div>
 </div>
 {% endblock %}

@@ -2,14 +2,18 @@
 
 {% block content %}
 <div class="space-y-4">
-  <div class="flex items-center justify-between">
+  <div class="flex items-center justify-between flex-wrap gap-2">
     <h1 class="text-xl font-bold">Курсы приёма</h1>
+    <label class="label cursor-pointer gap-2 p-0">
+      <input id="course-show-paused" type="checkbox" class="checkbox checkbox-sm" onchange="window.loadCourses()">
+      <span class="label-text">показывать приостановленные</span>
+    </label>
     <button class="btn btn-primary btn-sm" onclick="window.openCourseForm()">+ Новый курс</button>
     <button class="btn btn-sm" onclick="window.openCoursesImport()">Импорт</button>
   </div>
   <div class="overflow-x-auto">
     <table class="table table-sm">
-      <thead><tr><th>Время</th><th>Доза</th><th>Остаток</th><th></th></tr></thead>
+      <thead><tr><th>Лекарство</th><th>Пациент</th><th>Время</th><th>Доза</th><th>Остаток</th><th></th></tr></thead>
       <tbody id="medicines-courses-body"></tbody>
     </table>
   </div>
@@ -17,7 +21,8 @@
 
 <dialog id="course-form-dialog" class="modal">
   <div class="modal-box space-y-3">
-    <h3 class="font-bold text-lg">Новый курс</h3>
+    <h3 class="font-bold text-lg" id="course-form-title">Новый курс</h3>
+    <input id="course-edit-id" type="hidden" value="">
     <label class="form-control">
       <span class="label-text">Лекарство</span>
       <select id="course-medicine" class="select select-bordered select-sm"></select>
@@ -62,6 +67,26 @@
       <span class="label-text">Интервал (N дней)</span>
       <input id="course-schedule-n" type="number" min="1" value="2" class="input input-bordered input-sm">
     </label>
+    <div class="grid grid-cols-2 gap-2">
+      <label class="form-control">
+        <span class="label-text">Окончание (пусто = бессрочно)</span>
+        <input id="course-end" type="date" class="input input-bordered input-sm">
+      </label>
+      <label class="form-control">
+        <span class="label-text">Приём и еда</span>
+        <select id="course-food" class="select select-bordered select-sm">
+          <option value="">—</option>
+          <option value="before">до еды</option>
+          <option value="with">во время еды</option>
+          <option value="after">после еды</option>
+          <option value="any">не важно</option>
+        </select>
+      </label>
+    </div>
+    <label class="label cursor-pointer gap-2 p-0">
+      <input id="course-reminders" type="checkbox" class="checkbox checkbox-sm" checked>
+      <span class="label-text">Напоминания</span>
+    </label>
     <div class="form-control hidden" id="course-schedule-days-wrap">
       <span class="label-text">Дни недели</span>
       <div class="flex flex-wrap gap-2 pt-1">
@@ -76,7 +101,7 @@
     </div>
     <div class="modal-action">
       <form method="dialog"><button class="btn btn-ghost btn-sm">Отмена</button></form>
-      <button class="btn btn-primary btn-sm" onclick="window.createCourseFromForm()">Создать</button>
+      <button class="btn btn-primary btn-sm" onclick="window.createCourseFromForm()">Сохранить</button>
     </div>
   </div>
   <form method="dialog" class="modal-backdrop"><button>close</button></form>

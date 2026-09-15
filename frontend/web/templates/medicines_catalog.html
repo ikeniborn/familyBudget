@@ -2,8 +2,13 @@
 
 {% block content %}
 <div class="space-y-4">
-  <div class="flex items-center justify-between">
+  <div class="flex items-center justify-between gap-2 flex-wrap">
     <h1 class="text-xl font-bold">Справочник лекарств</h1>
+    <div class="join">
+      <input id="med-search" class="input input-bordered input-sm join-item" placeholder="Поиск по названию"
+             onkeydown="if(event.key==='Enter')window.catalogSearch()">
+      <button class="btn btn-sm join-item" onclick="window.catalogSearch()">Найти</button>
+    </div>
   </div>
 
   <div class="card bg-base-100 shadow-sm">
@@ -34,5 +39,6 @@
 {% endblock %}
 
 {% block extra_scripts %}
+<script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
 <script src="/static/js/medicines.min.js?v=PLACEHOLDER"></script>
 {% endblock %}

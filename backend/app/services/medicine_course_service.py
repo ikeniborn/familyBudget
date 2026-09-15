@@ -51,10 +51,16 @@ async def create_course(session: AsyncSession, data: dict, user_id: int) -> Medi
     return course
 
 
+# Columns an explicit null in PATCH may clear; null on any other field is ignored
+# (data already carries only the fields the request actually sent — exclude_unset).
+NULLABLE_COURSE_FIELDS = {"prescribed_by", "with_food", "end_date", "schedule_config", "comment"}
+
+
 async def update_course(session: AsyncSession, course: MedicineCourse, data: dict) -> MedicineCourse:
     for k, v in data.items():
-        if v is not None:
-            setattr(course, k, v)
+        if v is None and k not in NULLABLE_COURSE_FIELDS:
+            continue
+        setattr(course, k, v)
     course.updated_at = _now()
     session.add(course)
     await session.commit()
