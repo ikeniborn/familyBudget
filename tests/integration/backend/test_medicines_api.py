@@ -56,6 +56,29 @@ async def test_stock_update_requires_current_version(authenticated_client):
 
 
 @pytest.mark.asyncio
+async def test_medicine_history_records_update_and_archive(authenticated_client, db_session):
+    """SCD2 history: every mutation appends a snapshot; change_type reflects the transition
+    and exactly one row stays current."""
+    from sqlalchemy import text
+
+    r = await authenticated_client.post("/api/v1/medicines",
+        json={"name": "Историческое", "form": "tablet"})
+    assert r.status_code == 201, r.text
+    mid = r.json()["id"]
+    r = await authenticated_client.patch(f"/api/v1/medicines/{mid}", json={"dosage": "250мг"})
+    assert r.status_code == 200, r.text
+    r = await authenticated_client.delete(f"/api/v1/medicines/{mid}")
+    assert r.status_code == 200, r.text
+
+    rows = (await db_session.execute(text("""
+        SELECT change_type, is_current FROM t_d_medicine_history
+        WHERE medicine_id = :mid ORDER BY history_id
+    """), {"mid": mid})).all()
+    assert [r.change_type for r in rows] == ["CREATE", "UPDATE", "ARCHIVE"]
+    assert [r.is_current for r in rows] == [False, False, True]
+
+
+@pytest.mark.asyncio
 async def test_stock_quantity_and_date_invariants(authenticated_client):
     """Slice M5: quantity_remaining <= quantity_initial; expiry_date >= purchase_date."""
     r = await _seed_stock(authenticated_client, quantity_remaining="11")
