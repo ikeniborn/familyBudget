@@ -53,7 +53,7 @@ jobs:
       trivyignore_changed: ${{ steps.check.outputs.trivyignore_changed }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 2
 
@@ -117,7 +117,7 @@ jobs:
       cache_version: ${{ steps.cache_bust.outputs.cache_version }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -205,7 +205,7 @@ jobs:
       postgresql_built: ${{ steps.changes.outputs.postgresql }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
@@ -684,7 +684,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Sync .trivyignore from branch HEAD
         run: |
@@ -834,7 +834,7 @@ jobs:
       packages: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Query container versions from registry
         id: registry
@@ -1043,7 +1043,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -1132,7 +1132,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # ============================================================================
       # SSH Setup (for backend tests)
