@@ -60,6 +60,33 @@ jobs:
         run: |
           npm install -g @openapitools/openapi-generator-cli openapi-diff
 
+      - name: Raise Postgres lock table for partition migrations
+        run: |
+          # A fresh CI database replays the full migration chain; the
+          # partition migration creates hundreds of tables and indexes in
+          # one transaction and overflows the default lock table
+          # (max_locks_per_transaction=64 -> "out of shared memory").
+          # GitHub service containers accept no command args, so tune the
+          # running instance and restart it.
+          PG=$(docker ps -q --filter "ancestor=postgres:16-alpine" | head -1)
+          if [ -z "$PG" ]; then
+            echo "Postgres service container not found" >&2
+            exit 1
+          fi
+          docker exec "$PG" psql -U familybudget -d familybudget_test \
+            -c "ALTER SYSTEM SET max_locks_per_transaction = 1024;"
+          docker restart "$PG"
+          for i in $(seq 1 30); do
+            if docker exec "$PG" pg_isready -U familybudget >/dev/null 2>&1; then
+              docker exec "$PG" psql -U familybudget -d familybudget_test \
+                -tAc "SHOW max_locks_per_transaction;"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Postgres did not come back after restart" >&2
+          exit 1
+
       - name: Run database migrations
         env:
           POSTGRES_HOST: localhost
