@@ -3,11 +3,38 @@ import re
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 VALID_SCHEDULE = {"daily", "every_n_days", "weekdays"}
 VALID_FOOD = {"before", "with", "after", "any"}
+VALID_WEEKDAYS = {"mon", "tue", "wed", "thu", "fri", "sat", "sun"}
 _TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+
+
+def validate_schedule_config(schedule_type: str, schedule_config: dict | None) -> dict | None:
+    """Validate schedule_config against schedule_type; return the normalized config.
+
+    Non-daily schedules require a config: without one _day_active() silently yields
+    no active days and the course generates zero intakes. Raises ValueError.
+    """
+    if schedule_type == "daily":
+        return schedule_config
+    if schedule_config is None:
+        raise ValueError(f"schedule_config is required for schedule_type={schedule_type!r}")
+    if schedule_type == "every_n_days":
+        n = schedule_config.get("n")
+        if isinstance(n, bool) or not isinstance(n, int) or n < 1:
+            raise ValueError("schedule_config.n must be a positive integer for every_n_days")
+    elif schedule_type == "weekdays":
+        days = schedule_config.get("days")
+        if not isinstance(days, list) or not days:
+            raise ValueError("schedule_config.days must be a non-empty list for weekdays")
+        norm = [str(d).lower() for d in days]
+        bad = sorted(set(norm) - VALID_WEEKDAYS)
+        if bad:
+            raise ValueError(f"schedule_config.days entries {bad} invalid; allowed: {sorted(VALID_WEEKDAYS)}")
+        schedule_config = {**schedule_config, "days": norm}
+    return schedule_config
 
 
 class MedicineCourseCreate(BaseModel):
@@ -50,6 +77,11 @@ class MedicineCourseCreate(BaseModel):
         if v is not None and v not in VALID_FOOD:
             raise ValueError(f"with_food must be one of {sorted(VALID_FOOD)}")
         return v
+
+    @model_validator(mode="after")
+    def schedule_config_valid(self) -> "MedicineCourseCreate":
+        self.schedule_config = validate_schedule_config(self.schedule_type, self.schedule_config)
+        return self
 
 
 class MedicineCourseUpdate(BaseModel):

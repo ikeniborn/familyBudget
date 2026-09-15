@@ -14,7 +14,7 @@ from backend.app.models import User
 from backend.app.schemas.errors import get_common_responses
 from backend.app.schemas.medicine_course import (
     MedicineCourseCreate, MedicineCourseListResponse, MedicineCourseResponse,
-    MedicineCourseUpdate, StockEstimate,
+    MedicineCourseUpdate, StockEstimate, validate_schedule_config,
 )
 from backend.app.schemas.medicine_intake import (
     IntakeListItem, IntakeListResponse, IntakeMarkRequest, IntakeResponse,
@@ -91,7 +91,29 @@ async def update_course(
     c = await medicine_course_service.get_course(session, course_id)
     if not c:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Course {course_id} not found")
-    c = await medicine_course_service.update_course(session, c, data.model_dump(exclude_unset=True))
+    payload = data.model_dump(exclude_unset=True)
+    # Merged validation: the request may change schedule_type and schedule_config
+    # independently; the combination that would be stored must be valid.
+    if payload.keys() & {"schedule_type", "schedule_config"}:
+        merged_type = payload.get("schedule_type") or c.schedule_type
+        merged_config = payload.get("schedule_config", c.schedule_config)
+        try:
+            normalized = validate_schedule_config(merged_type, merged_config)
+        except ValueError as e:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
+        if "schedule_config" in payload:
+            payload["schedule_config"] = normalized
+    schedule_changed = bool(payload.keys() & {
+        "intake_times", "schedule_type", "schedule_config", "end_date"})
+    c = await medicine_course_service.update_course(session, c, payload)
+    if schedule_changed:
+        # Already-materialized future doses follow the old schedule: drop them and,
+        # for an active course, regenerate the horizon under the new one.
+        from backend.app.utils.timezone import now_local
+        await medicine_intake_service.delete_future_scheduled(session, c.id)
+        if c.is_active:
+            await medicine_intake_service.generate_for_course(
+                session, c, now_local().date(), _horizon_end(c.start_date))
     resp = await _with_estimate(session, c)
     await broadcast_medicine_course_changed(resp.model_dump(mode="json"))
     return resp
@@ -107,6 +129,25 @@ async def pause_course(
     if not c:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Course {course_id} not found")
     c = await medicine_course_service.pause_course(session, c)
+    resp = await _with_estimate(session, c)
+    await broadcast_medicine_course_changed(resp.model_dump(mode="json"))
+    return resp
+
+
+@router.post("/{course_id}/resume", response_model=MedicineCourseResponse)
+async def resume_course(
+    course_id: int,
+    session: AsyncSession = Depends(get_session),
+    current_user: User = Depends(get_current_user),
+) -> MedicineCourseResponse:
+    c = await medicine_course_service.get_course(session, course_id)
+    if not c:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Course {course_id} not found")
+    c = await medicine_course_service.resume_course(session, c)
+    # While paused no doses were generated: rebuild the horizon so today's doses appear.
+    from backend.app.utils.timezone import now_local
+    await medicine_intake_service.generate_for_course(
+        session, c, now_local().date(), _horizon_end(c.start_date))
     resp = await _with_estimate(session, c)
     await broadcast_medicine_course_changed(resp.model_dump(mode="json"))
     return resp
