@@ -168,9 +168,10 @@ async def execute_stock(session: AsyncSession, rows: list[dict], user_id: int) -
                 purchase_price=_parse_decimal(row.get("purchase_price")),
                 location=row.get("location") or None))
             imported += 1
-        except Exception as e:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             error += 1
-            errors.append(_err(idx, "general", f"ошибка: {e}"))
+            logger.exception("medicine import: row %s failed", idx)
+            errors.append(_err(idx, "general", "внутренняя ошибка обработки строки"))
     return await _commit_or_fail(session, imported, skipped, error, errors, len(rows))
 
 
@@ -229,9 +230,10 @@ async def execute_courses(session: AsyncSession, rows: list[dict], user_id: int)
                 with_food=row.get("with_food") or None,
                 notification_channels=parse_intake_times(row.get("notification_channels", "")) or ["telegram", "web_push"]))
             imported += 1
-        except Exception as e:  # noqa: BLE001
+        except Exception:  # noqa: BLE001
             error += 1
-            errors.append(_err(idx, "general", f"ошибка: {e}"))
+            logger.exception("medicine import: row %s failed", idx)
+            errors.append(_err(idx, "general", "внутренняя ошибка обработки строки"))
     return await _commit_or_fail(session, imported, skipped, error, errors, len(rows))
 
 
@@ -247,7 +249,7 @@ async def _commit_or_fail(session: AsyncSession, imported: int, skipped: int, er
         logger.exception("medicine import commit failed")
         return {"imported_count": 0, "skipped_count": skipped, "error_count": total,
                 "total_rows": total, "success": False,
-                "errors": errors + [_err(-1, "general", f"ошибка сохранения: {e}")]}
+                "errors": errors + [_err(-1, "general", "ошибка сохранения — см. журнал сервера")]}
     return {"imported_count": imported, "skipped_count": skipped, "error_count": error,
             "total_rows": total, "errors": errors, "success": error == 0}
 def _aggregate_preview(findings: list[tuple[dict, list[dict], list[dict]]]) -> dict:
@@ -298,8 +300,12 @@ async def _find_or_create_medicine(session: AsyncSession, name: str, dosage: str
     if key in cache:
         return cache[key]
     stmt = select(Medicine).where(Medicine.name == name, Medicine.is_active.is_(True))
+    # Identity is (name, dosage): a dosage-less row must not silently reuse a dosed
+    # medicine ('Аспирин' vs 'Аспирин 500мг' are different catalog entries).
     if dosage:
         stmt = stmt.where(Medicine.dosage == dosage)
+    else:
+        stmt = stmt.where(Medicine.dosage.is_(None))
     found = (await session.execute(stmt)).scalars().first()
     if found:
         cache[key] = found.id

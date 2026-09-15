@@ -2,6 +2,7 @@
 from datetime import date, datetime
 from decimal import Decimal
 
+from backend.app.utils.timezone import naive_now
 from sqlmodel import Field, SQLModel
 
 
@@ -24,5 +25,5 @@ class MedicineStock(SQLModel, table=True):
     version: int = Field(default=1, nullable=False, description="Optimistic locking")
     deleted_at: datetime | None = Field(default=None, index=True, description="Soft delete (NULL = active)")
     last_modified_by: int | None = Field(default=None, foreign_key="t_d_user.id")
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=naive_now, nullable=False)
+    updated_at: datetime = Field(default_factory=naive_now, nullable=False)

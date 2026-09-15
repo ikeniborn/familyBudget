@@ -6,7 +6,7 @@ declare const showToast: (msg: string, type?: 'success' | 'error' | 'warning' | 
 interface Medicine { id: number; name: string; form: string; dosage: string | null; is_active: boolean; }
 interface Stock {
   id: number; medicine_id: number; quantity_remaining: string; unit: string;
-  expiry_date: string; location: string | null;
+  expiry_date: string; location: string | null; version: number;
 }
 
 async function api<T>(url: string, opts: RequestInit = {}): Promise<T> {
@@ -238,12 +238,18 @@ export async function saveStockEdit(): Promise<void> {
   try {
     await api(`/api/v1/medicine-stock/${id}`, {
       method: 'PATCH',
-      body: JSON.stringify({ quantity_remaining: qty, expiry_date: expiry, location: location || null }),
+      body: JSON.stringify({
+        quantity_remaining: qty, expiry_date: expiry, location: location || null,
+        version: stockCache.get(id)?.version, // optimistic lock: stale → 409, reload and retry
+      }),
     });
     (document.getElementById('stock-edit-dialog') as HTMLDialogElement | null)?.close();
     showToast('Сохранено', 'success');
     await loadStock();
-  } catch (e) { showToast(String((e as Error).message), 'error'); }
+  } catch (e) {
+    showToast(String((e as Error).message), 'error');
+    await loadStock(); // resync version after a 409
+  }
 }
 
 export async function createStockFromForm(): Promise<void> {
@@ -401,11 +407,13 @@ async function refreshIntakeViews(): Promise<void> {
 
 export async function intakeTake(id: number, version: number): Promise<void> {
   try {
-    const res = await api<{ stock_id: number | null }>(
+    const res = await api<{ stock_id: number | null; dose_taken: string | null }>(
       `/api/v1/medicine-intakes/${id}/take`, { method: 'POST', body: JSON.stringify({ version }) });
-    // stock_id === null ⇒ out of stock: server auto-added the medicine to «Аптечка — докупить»
-    showToast(res.stock_id == null ? 'Принято. Лекарство закончилось — добавлено в список покупок' : 'Принято',
-              res.stock_id == null ? 'warning' : 'success');
+    // Out of stock ⇔ deduction ran (dose_taken set) but found no package (stock_id null);
+    // a null stock_id alone also happens when the course was soft-deleted — no restock then.
+    const outOfStock = res.stock_id == null && res.dose_taken != null;
+    showToast(outOfStock ? 'Принято. Лекарство закончилось — добавлено в список покупок' : 'Принято',
+              outOfStock ? 'warning' : 'success');
     await refreshIntakeViews();
   } catch (e) {
     showToast(String((e as Error).message), 'error');

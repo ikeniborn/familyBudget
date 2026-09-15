@@ -3,6 +3,7 @@ from datetime import date, datetime
 from decimal import Decimal
 
 from sqlalchemy import JSON
+from backend.app.utils.timezone import naive_now
 from sqlmodel import Column, Field, SQLModel
 
 
@@ -41,5 +42,5 @@ class MedicineCourse(SQLModel, table=True):
     comment: str | None = Field(default=None)
     deleted_at: datetime | None = Field(default=None, index=True, description="Soft delete (completed course)")
     creator_id: int = Field(foreign_key="t_d_user.id", index=True, nullable=False)
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=naive_now, nullable=False)
+    updated_at: datetime = Field(default_factory=naive_now, nullable=False)

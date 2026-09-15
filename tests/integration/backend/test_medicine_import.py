@@ -9,6 +9,30 @@ def _b64(csv_text: str) -> str:
 
 
 @pytest.mark.asyncio
+async def test_import_dosageless_row_does_not_reuse_dosed_medicine(authenticated_client):
+    """Slice M5: a row without dosage must not silently reuse a medicine that has one —
+    identity is (name, dosage), so 'Аспирин' and 'Аспирин 500мг' are different medicines."""
+    r = await authenticated_client.post("/api/v1/medicines",
+        json={"name": "АспиринИмп", "form": "tablet", "dosage": "500мг"})
+    assert r.status_code == 201, r.text
+
+    csv_text = "Название,Кол-во,Ед,Срок годности\nАспиринИмп,5,шт,2027-01-01\n"
+    content = _b64(csv_text)
+    r = await authenticated_client.post("/api/v1/medicine-stock/import/analyze",
+        json={"file_content": content})
+    assert r.status_code == 200, r.text
+    mapping = {k: v for k, v in r.json()["auto_mapping"].items() if v}
+    body = {"file_content": content, "delimiter": r.json()["delimiter"],
+            "encoding": r.json()["encoding"], "has_header": True, "column_mapping": mapping}
+    r = await authenticated_client.post("/api/v1/medicine-stock/import/execute", json=body)
+    assert r.status_code == 200 and r.json()["imported_count"] == 1, r.text
+
+    r = await authenticated_client.get("/api/v1/medicines?q=АспиринИмп")
+    meds = r.json()["medicines"]
+    assert len(meds) == 2, f"expected a second (dosage-less) medicine, got: {[(m['name'], m['dosage']) for m in meds]}"
+
+
+@pytest.mark.asyncio
 async def test_stock_import_full_flow(authenticated_client):
     csv_text = "Название,Кол-во,Ед,Срок годности,Цена\nНурофен,20,шт,2027-01-01,150.00\n"
     content = _b64(csv_text)

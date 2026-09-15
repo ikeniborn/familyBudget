@@ -14,6 +14,7 @@ from backend.app.schemas.medicine import (
 from backend.app.schemas.medicine_stock import (
     MedicineAnalyticsResponse, MedicineSpendByMedicine, MedicineStockCreate,
     MedicineStockListResponse, MedicineStockResponse, MedicineStockUpdate,
+    validate_stock_invariants,
 )
 from backend.app.services import medicine_analytics_service, medicine_service, medicine_stock_service
 
@@ -149,8 +150,23 @@ async def update_stock(
     s = await medicine_stock_service.get_stock(session, stock_id)
     if not s:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Stock {stock_id} not found")
-    s = await medicine_stock_service.update_stock(
-        session, s, data.model_dump(exclude_unset=True), current_user.id)
+    payload = data.model_dump(exclude_unset=True)
+    expected_version = payload.pop("version")
+    # Merged cross-field invariants: the combination that would be stored must hold.
+    try:
+        validate_stock_invariants(
+            payload.get("quantity_remaining", s.quantity_remaining),
+            payload.get("quantity_initial", s.quantity_initial),
+            payload.get("expiry_date", s.expiry_date),
+            payload.get("purchase_date", s.purchase_date))
+    except ValueError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e))
+    try:
+        s = await medicine_stock_service.update_stock(
+            session, s, payload, current_user.id, expected_version=expected_version)
+    except medicine_stock_service.StockVersionConflict:
+        raise HTTPException(status.HTTP_409_CONFLICT,
+                            "Stock was modified by someone else; reload and retry")
     resp = MedicineStockResponse.model_validate(s)
     await broadcast_medicine_changed("stock", resp.model_dump(mode="json"))
     return resp

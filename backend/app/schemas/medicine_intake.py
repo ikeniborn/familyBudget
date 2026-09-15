@@ -41,3 +41,5 @@ class IntakeListItem(IntakeResponse):
 class IntakeListResponse(BaseModel):
     intakes: list[IntakeListItem]
     total: int
+    limit: int
+    offset: int

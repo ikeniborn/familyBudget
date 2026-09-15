@@ -28,6 +28,43 @@ async def test_medicine_crud_and_history(authenticated_client):
     assert r.json()["total"] >= 1
 
 
+async def _seed_stock(client, **overrides):
+    r = await client.post("/api/v1/medicines", json={"name": "ЛокТест", "form": "tablet"})
+    assert r.status_code == 201, r.text
+    payload = {"medicine_id": r.json()["id"], "quantity_remaining": "10",
+               "quantity_initial": "10", "unit": "шт", "expiry_date": "2027-06-01",
+               **overrides}
+    return await client.post("/api/v1/medicine-stock", json=payload)
+
+
+@pytest.mark.asyncio
+async def test_stock_update_requires_current_version(authenticated_client):
+    """Slice M5: stock PATCH carries version; a stale one is rejected with 409."""
+    r = await _seed_stock(authenticated_client)
+    assert r.status_code == 201, r.text
+    sid, version = r.json()["id"], r.json()["version"]
+
+    r = await authenticated_client.patch(f"/api/v1/medicine-stock/{sid}",
+        json={"quantity_remaining": "8", "version": version})
+    assert r.status_code == 200, r.text
+    assert r.json()["version"] == version + 1
+
+    # Replay with the old version → conflict, quantity unchanged.
+    r = await authenticated_client.patch(f"/api/v1/medicine-stock/{sid}",
+        json={"quantity_remaining": "1", "version": version})
+    assert r.status_code == 409, f"{r.status_code} {r.text}"
+
+
+@pytest.mark.asyncio
+async def test_stock_quantity_and_date_invariants(authenticated_client):
+    """Slice M5: quantity_remaining <= quantity_initial; expiry_date >= purchase_date."""
+    r = await _seed_stock(authenticated_client, quantity_remaining="11")
+    assert r.status_code == 422, f"{r.status_code} {r.text}"
+
+    r = await _seed_stock(authenticated_client, purchase_date="2027-07-01")  # after expiry
+    assert r.status_code == 422, f"{r.status_code} {r.text}"
+
+
 @pytest.mark.asyncio
 async def test_bad_form_rejected(authenticated_client):
     r = await authenticated_client.post("/api/v1/medicines",

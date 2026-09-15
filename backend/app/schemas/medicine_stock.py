@@ -2,7 +2,17 @@
 from datetime import date, datetime
 from decimal import Decimal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+
+def validate_stock_invariants(quantity_remaining: Decimal | None, quantity_initial: Decimal | None,
+                              expiry_date: date | None, purchase_date: date | None) -> None:
+    """Cross-field stock invariants; raises ValueError. Shared by create and merged PATCH."""
+    if quantity_remaining is not None and quantity_initial is not None \
+            and quantity_remaining > quantity_initial:
+        raise ValueError("quantity_remaining must not exceed quantity_initial")
+    if expiry_date is not None and purchase_date is not None and expiry_date < purchase_date:
+        raise ValueError("expiry_date must not be before purchase_date")
 
 
 class MedicineStockCreate(BaseModel):
@@ -22,8 +32,16 @@ class MedicineStockCreate(BaseModel):
             raise ValueError("unit cannot be empty")
         return v.strip()
 
+    @model_validator(mode="after")
+    def invariants(self) -> "MedicineStockCreate":
+        validate_stock_invariants(self.quantity_remaining, self.quantity_initial,
+                                  self.expiry_date, self.purchase_date)
+        return self
+
 
 class MedicineStockUpdate(BaseModel):
+    version: int = Field(..., ge=1,
+        description="Optimistic lock: the version the client last read; stale → 409")
     quantity_remaining: Decimal | None = Field(default=None, ge=0)
     quantity_initial: Decimal | None = Field(default=None, ge=0)
     unit: str | None = Field(default=None, max_length=50, min_length=1)

@@ -37,8 +37,9 @@ course_gs_router = APIRouter(
 def _analyze(req: MedicineAnalyzeRequest, fields) -> MedicineAnalyzeResponse:
     try:
         det = svc.analyze(req.file_content)
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f"Не удалось разобрать CSV: {e}")
+    except Exception:  # noqa: BLE001
+        logger.exception("medicine import: CSV analyze failed")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Не удалось разобрать CSV")
     return MedicineAnalyzeResponse(
         auto_mapping=svc.auto_map(det["detected_columns"], fields), **det)
 

@@ -1,6 +1,7 @@
 """Family member model — including children without an account."""
 from datetime import date, datetime
 
+from backend.app.utils.timezone import naive_now
 from sqlmodel import Field, SQLModel
 
 
@@ -18,5 +19,5 @@ class FamilyMember(SQLModel, table=True):
     birth_date: date | None = Field(default=None, description="For age-based dosing")
     notes: str | None = Field(default=None, description="Allergies, specifics")
     is_active: bool = Field(default=True, nullable=False, index=True, description="Soft-archive flag (mirrors Medicine)")
-    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
-    updated_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+    created_at: datetime = Field(default_factory=naive_now, nullable=False)
+    updated_at: datetime = Field(default_factory=naive_now, nullable=False)
