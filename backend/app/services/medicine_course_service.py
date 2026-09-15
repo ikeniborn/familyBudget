@@ -7,6 +7,7 @@ from sqlmodel import func, select
 
 from backend.app.models.medicine_course import MedicineCourse
 from backend.app.models.medicine_stock import MedicineStock
+from backend.app.services import medicine_reminder_service
 from backend.app.services.medicine_schedule import estimate_stock
 from backend.app.utils.timezone import now_local
 
@@ -64,6 +65,7 @@ async def update_course(session: AsyncSession, course: MedicineCourse, data: dic
 async def pause_course(session: AsyncSession, course: MedicineCourse) -> MedicineCourse:
     course.is_active = False
     course.updated_at = _now()
+    await medicine_reminder_service.cancel_pending_for_course(session, course.id)
     session.add(course)
     await session.commit()
     await session.refresh(course)
@@ -73,6 +75,8 @@ async def pause_course(session: AsyncSession, course: MedicineCourse) -> Medicin
 async def resume_course(session: AsyncSession, course: MedicineCourse) -> MedicineCourse:
     course.is_active = True
     course.updated_at = _now()
+    # Re-arm reminders cancelled by pause for future doses (past ones stay cancelled).
+    await medicine_reminder_service.reactivate_cancelled_for_course(session, course.id)
     session.add(course)
     await session.commit()
     await session.refresh(course)
@@ -84,6 +88,7 @@ async def complete_course(session: AsyncSession, course: MedicineCourse) -> Medi
     course.is_active = False
     course.deleted_at = _now()
     course.updated_at = _now()
+    await medicine_reminder_service.cancel_pending_for_course(session, course.id)
     session.add(course)
     await session.commit()
     await session.refresh(course)

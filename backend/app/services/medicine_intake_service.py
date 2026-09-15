@@ -158,6 +158,10 @@ async def mark_intake(session: AsyncSession, intake: MedicineIntakeLog, *, statu
     if comment is not None:
         intake.comment = comment
 
+    # The dose is resolved either way — its pending reminders must not fire.
+    from backend.app.services.medicine_reminder_service import cancel_pending_for_intake
+    await cancel_pending_for_intake(session, intake.id)
+
     if status == "taken":
         from backend.app.services.medicine_deduction_service import (
             OUT_OF_STOCK, deduct_for_intake,
