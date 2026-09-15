@@ -28,6 +28,27 @@ async function confirmAction(message: string): Promise<boolean> {
 }
 
 // ---------- Catalog ----------
+// Single source for medicine-form labels: backend stores English enum values
+// (VALID_FORMS), the UI always shows Russian.
+const FORM_LABELS: Record<string, string> = {
+  tablet: 'таблетка', capsule: 'капсула', syrup: 'сироп', drops: 'капли',
+  ointment: 'мазь', spray: 'спрей', injection: 'инъекция', other: 'другое',
+};
+
+export function formLabel(form: string): string {
+  return FORM_LABELS[form] ?? form;
+}
+
+// Populate the add-form select from the dictionary, then load the table.
+export async function initCatalog(): Promise<void> {
+  const sel = document.getElementById('med-form') as HTMLSelectElement | null;
+  if (sel && sel.options.length === 0) {
+    sel.innerHTML = Object.entries(FORM_LABELS)
+      .map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+  }
+  await loadCatalog();
+}
+
 export async function loadCatalog(q?: string): Promise<void> {
   const search = q ? `&q=${encodeURIComponent(q)}` : '';
   const data = await api<{ medicines: Medicine[] }>(`/api/v1/medicines?active_only=true&limit=500${search}`);
@@ -45,7 +66,7 @@ function renderCatalog(meds: Medicine[]): void {
   root.innerHTML = meds.map(m => `
     <tr data-id="${m.id}">
       <td>${escapeHtml(m.name)}</td>
-      <td>${m.form}</td>
+      <td>${escapeHtml(formLabel(m.form))}</td>
       <td>${escapeHtml(m.dosage ?? '')}</td>
       <td class="text-right">
         <button class="btn btn-ghost btn-xs" onclick="window.medicineArchive(${m.id})">Архив</button>
