@@ -86,8 +86,8 @@ def analyze(file_content_b64: str) -> dict:
     }
 
 
-def _parse_rows(file_content_b64: str, delimiter: str, encoding: str,
-                column_mapping: dict[str, str], has_header: bool = True) -> list[dict[str, str]]:
+def parse_rows(file_content_b64: str, delimiter: str, encoding: str,
+               column_mapping: dict[str, str], has_header: bool = True) -> list[dict[str, str]]:
     text = base64.b64decode(file_content_b64).decode(encoding)
     if has_header:
         rows_iter = csv.DictReader(StringIO(text), delimiter=delimiter)
@@ -193,21 +193,14 @@ def _validate_course_row(idx: int, row: dict) -> tuple[list[dict], list[dict]]:
 
 async def preview_courses(session: AsyncSession, rows: list[dict]) -> dict:
     """Dry-run (no writes). Flags rows whose medicine has no active stock — decision #6 (soft link)."""
-    preview_rows, valid, invalid = [], 0, 0
+    findings = []
     for idx, row in enumerate(rows):
         errs, warns = _validate_course_row(idx, row)
         if not errs and row.get("medicine", "").strip() \
                 and not await _has_active_stock(session, row["medicine"].strip()):
             warns.append(_err(idx, "medicine", "нет в аптечке — курс создаётся без остатка"))
-        status = "error" if errs else ("warning" if warns else "valid")
-        if errs:
-            invalid += 1
-        else:
-            valid += 1
-        preview_rows.append({"row_index": idx, "data": row, "validation_status": status,
-                             "errors": errs, "warnings": warns})
-    return {"is_valid": invalid == 0, "valid_rows": valid, "invalid_rows": invalid,
-            "total_rows": len(rows), "preview_rows": preview_rows}
+        findings.append((row, errs, warns))
+    return _aggregate_preview(findings)
 
 
 async def execute_courses(session: AsyncSession, rows: list[dict], user_id: int) -> dict:
@@ -257,10 +250,10 @@ async def _commit_or_fail(session: AsyncSession, imported: int, skipped: int, er
                 "errors": errors + [_err(-1, "general", f"ошибка сохранения: {e}")]}
     return {"imported_count": imported, "skipped_count": skipped, "error_count": error,
             "total_rows": total, "errors": errors, "success": error == 0}
-def _build_preview(rows: list[dict], validate) -> dict:
+def _aggregate_preview(findings: list[tuple[dict, list[dict], list[dict]]]) -> dict:
+    """Fold per-row (row, errors, warnings) findings into the preview response shape."""
     preview_rows, valid, invalid = [], 0, 0
-    for idx, row in enumerate(rows):
-        errs, warns = validate(idx, row)
+    for idx, (row, errs, warns) in enumerate(findings):
         status = "error" if errs else ("warning" if warns else "valid")
         if errs:
             invalid += 1
@@ -269,7 +262,11 @@ def _build_preview(rows: list[dict], validate) -> dict:
         preview_rows.append({"row_index": idx, "data": row, "validation_status": status,
                              "errors": errs, "warnings": warns})
     return {"is_valid": invalid == 0, "valid_rows": valid, "invalid_rows": invalid,
-            "total_rows": len(rows), "preview_rows": preview_rows}
+            "total_rows": len(findings), "preview_rows": preview_rows}
+
+
+def _build_preview(rows: list[dict], validate) -> dict:
+    return _aggregate_preview([(row, *validate(idx, row)) for idx, row in enumerate(rows)])
 
 
 def _parse_date(value: str | None) -> date | None:

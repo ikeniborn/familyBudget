@@ -18,10 +18,10 @@ RUN echo "apt refresh: ${BUILD_DATE}" && \
     libgssapi-krb5-2 libk5crypto3 libkrb5-3 libkrb5support0 libcom-err2 libkeyutils1 \
     && rm -rf /var/lib/apt/lists/*
 
-# Regenerate distroless-format dpkg metadata for krb5 packages we copy into the runtime image.
+# Regenerate distroless-format dpkg metadata for packages we copy into the runtime image.
 # Distroless ships stale status.d files that mismatch upgraded libraries, producing false-positive Trivy reports.
 RUN mkdir -p /opt/dpkg-status && \
-    for pkg in libgssapi-krb5-2 libk5crypto3 libkrb5-3 libkrb5support0 libcom-err2 libkeyutils1; do \
+    for pkg in libgssapi-krb5-2 libk5crypto3 libkrb5-3 libkrb5support0 libcom-err2 libkeyutils1 libexpat1; do \
         dpkg-query -W -f='Package: ${Package}\nStatus: ${Status}\nPriority: ${Priority}\nSection: ${Section}\nInstalled-Size: ${Installed-Size}\nMaintainer: ${Maintainer}\nArchitecture: ${Architecture}\nMulti-Arch: ${Multi-Arch}\nSource: ${Source}\nVersion: ${Version}\nDepends: ${Depends}\nDescription: ${Description}\n' "$pkg" > "/opt/dpkg-status/$pkg" 2>/dev/null || true ; \
     done
 
@@ -56,6 +56,8 @@ COPY --from=builder /usr/lib/x86_64-linux-gnu/libk5crypto.so.3* /usr/lib/x86_64-
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libkrb5support.so.0* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libcom_err.so.2* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libkeyutils.so.1* /usr/lib/x86_64-linux-gnu/
+# Copy upgraded expat (CVE-2026-76957: deb12u2→deb12u3; distroless base ships the stale one)
+COPY --from=builder /usr/lib/x86_64-linux-gnu/libexpat.so.1* /usr/lib/x86_64-linux-gnu/
 # CA certificates (required for TLS verification)
 COPY --from=builder /etc/ssl/certs /etc/ssl/certs
 

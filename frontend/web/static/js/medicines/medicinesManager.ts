@@ -255,11 +255,45 @@ export async function stockDelete(id: number): Promise<void> {
   await loadStock();
 }
 
-// ---------- WebSocket ----------
+// ---------- Purchase analytics (module-only, decision: not wired to the budget) ----------
+interface StockAnalytics {
+  total_spent: string;
+  by_medicine: { medicine_id: number; medicine_name: string; total_spent: string; package_count: number }[];
+}
+
+export async function loadStockAnalytics(): Promise<void> {
+  const root = document.getElementById('stock-analytics');
+  if (!root) return;
+  try {
+    const data = await api<StockAnalytics>('/api/v1/medicine-stock/analytics');
+    const rows = data.by_medicine.map(m =>
+      `<tr><td>${escapeHtml(m.medicine_name)}</td><td>${m.package_count}</td><td class="text-right">${m.total_spent}</td></tr>`
+    ).join('');
+    root.innerHTML = rows
+      ? `<table class="table table-xs">
+          <thead><tr><th>Лекарство</th><th>Партий</th><th class="text-right">Потрачено</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><th colspan="2">Итого</th><th class="text-right">${data.total_spent}</th></tr></tfoot>
+        </table>`
+      : '<div class="opacity-60">Цены покупок не заполнены</div>';
+  } catch {
+    root.innerHTML = '<div class="opacity-60">Не удалось загрузить</div>';
+  }
+}
+
+// ---------- WebSocket (single dispatcher for all medicine events) ----------
 export function handleMedicineEvent(eventType: string): void {
   if (eventType === 'medicine_catalog_changed' && document.getElementById('medicines-catalog-body')) loadCatalog();
-  if (eventType === 'medicine_stock_changed' && document.getElementById('medicines-stock-body')) loadStock();
+  if (eventType === 'medicine_stock_changed') {
+    if (document.getElementById('medicines-stock-body')) loadStock();
+    if (document.getElementById('stock-analytics')) loadStockAnalytics();
+  }
   if (eventType === 'medicine_family_member_changed' && document.getElementById('medicines-patients-body')) loadPatients();
+  if (eventType === 'medicine_intake_marked') {
+    if (document.getElementById('medicines-today-body')) loadDashboard();
+    if (document.getElementById('medicines-course-journal')) loadCourseDetail();
+  }
+  if (eventType === 'medicine_course_changed' && document.getElementById('medicines-courses-body')) loadCourses();
 }
 
 // ---------- Dashboard (today) ----------
@@ -380,6 +414,13 @@ interface Course {
 const courseCache = new Map<number, Course>();
 const memberNames = new Map<number, string>();
 
+function estimateText(est: Course['estimate']): string {
+  if (!est) return '';
+  return est.in_stock
+    ? `хватит на ${est.intakes_left} приёмов${est.days_left != null ? ` (~${est.days_left} дн.)` : ''}`
+    : '<span class="text-warning">нет в аптечке</span>';
+}
+
 async function loadNameMaps(): Promise<void> {
   const [meds, members] = await Promise.all([
     medicineNames.size ? Promise.resolve(null) : api<{ medicines: Medicine[] }>('/api/v1/medicines?limit=1000'),
@@ -399,11 +440,7 @@ export async function loadCourses(): Promise<void> {
   courseCache.clear();
   for (const c of data.courses) courseCache.set(c.id, c);
   root.innerHTML = data.courses.map(c => {
-    const est = c.estimate;
-    const estText = est
-      ? (est.in_stock ? `хватит на ${est.intakes_left} приёмов${est.days_left != null ? ` (~${est.days_left} дн.)` : ''}`
-                      : '<span class="text-warning">нет в аптечке</span>')
-      : '';
+    const estText = estimateText(c.estimate);
     const pausedBadge = c.is_active ? '' : ' <span class="badge badge-warning badge-sm">пауза</span>';
     const toggleBtn = c.is_active
       ? `<button class="btn btn-ghost btn-xs" onclick="window.coursePause(${c.id})">Пауза</button>`
@@ -633,11 +670,7 @@ export async function loadCourseDetail(): Promise<void> {
   const c = await api<Course>(`/api/v1/medicine-courses/${id}`);
   const card = document.getElementById('medicines-course-card');
   if (card) {
-    const est = c.estimate;
-    const estText = est
-      ? (est.in_stock ? `хватит на ${est.intakes_left} приёмов${est.days_left != null ? ` (~${est.days_left} дн.)` : ''}`
-                      : '<span class="text-warning">нет в аптечке</span>')
-      : '';
+    const estText = estimateText(c.estimate);
     card.innerHTML = `<div class="card-body">
       <div class="font-semibold">${c.intake_times.join(', ')} · ${c.dose_amount} ${escapeHtml(c.dose_unit)}</div>
       <div class="text-sm opacity-70">${escapeHtml(c.schedule_type)}</div>
@@ -662,11 +695,3 @@ function renderJournal(root: HTMLElement, items: IntakeItem[]): void {
   }).join('') || '<div class="opacity-60">Журнал пуст</div>';
 }
 
-// extend WS handler
-export function handleMedicineEventV2(eventType: string): void {
-  if (eventType === 'medicine_intake_marked') {
-    if (document.getElementById('medicines-today-body')) loadDashboard();
-    if (document.getElementById('medicines-course-journal')) loadCourseDetail();
-  }
-  if (eventType === 'medicine_course_changed' && document.getElementById('medicines-courses-body')) loadCourses();
-}

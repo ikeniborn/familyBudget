@@ -23,7 +23,8 @@ async def test_medicine_crud_and_history(authenticated_client):
     assert r.status_code == 200
     assert r.json()["name"] == "Нурофен 400мг"
 
-    r = await authenticated_client.get("/api/v1/medicines/search?q=Нурофен")
+    # Search via the list endpoint's q param (the /search alias was removed as dead code).
+    r = await authenticated_client.get("/api/v1/medicines?q=Нурофен")
     assert r.json()["total"] >= 1
 
 
