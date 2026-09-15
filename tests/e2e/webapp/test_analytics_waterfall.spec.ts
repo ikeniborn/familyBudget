@@ -21,6 +21,30 @@ async function navigateToAnalytics(page: import('@playwright/test').Page): Promi
     }
 }
 
+/**
+ * Wait until the waterfall chart has received its data (echarts option carries
+ * a non-empty series) and return the series info. The canvas appears during the
+ * loading state, before setOption — reading getOption() at that point yields
+ * undefined, so canvas visibility alone is not enough.
+ */
+async function getWaterfallSeries(page: import('@playwright/test').Page): Promise<Array<{ name: string; type: string }>> {
+    await page.waitForFunction(() => {
+        const dom = document.getElementById('chart-waterfall');
+        // @ts-expect-error global echarts
+        const inst = window.echarts.getInstanceByDom(dom);
+        const opt = inst && inst.getOption();
+        return !!(opt && Array.isArray(opt.series) && opt.series.length > 0);
+    }, undefined, { timeout: 15000 });
+
+    return page.evaluate(() => {
+        const dom = document.getElementById('chart-waterfall');
+        // @ts-expect-error global echarts
+        const inst = window.echarts.getInstanceByDom(dom);
+        const opt = inst.getOption();
+        return (opt.series || []).map((s: { name: string; type: string }) => ({ name: s.name, type: s.type }));
+    });
+}
+
 test.describe('Analytics Waterfall - transfers series', () => {
     test('legend contains Пополнение and Списание as lines (with_balance mode)', async ({ page }) => {
         await page.setViewportSize(VIEWPORTS.desktop);
@@ -29,13 +53,7 @@ test.describe('Analytics Waterfall - transfers series', () => {
         const chart = page.locator('#chart-waterfall canvas').first();
         await chart.waitFor({ state: 'visible', timeout: 10000 });
 
-        const seriesInfo: Array<{ name: string; type: string }> = await page.evaluate(() => {
-            const dom = document.getElementById('chart-waterfall');
-            // @ts-expect-error global echarts
-            const inst = window.echarts.getInstanceByDom(dom);
-            const opt = inst.getOption();
-            return (opt.series || []).map((s: { name: string; type: string }) => ({ name: s.name, type: s.type }));
-        });
+        const seriesInfo = await getWaterfallSeries(page);
 
         const names = seriesInfo.map(s => s.name);
         expect(names).toContain('Пополнение');
@@ -52,16 +70,12 @@ test.describe('Analytics Waterfall - transfers series', () => {
         await navigateToAnalytics(page);
 
         await page.locator('#chart-waterfall canvas').first().waitFor({ state: 'visible' });
+        // Wait for the initial data before switching modes, so the click acts on a loaded chart
+        await getWaterfallSeries(page);
         await page.locator('#waterfall-mode-without-balance').click();
         await page.waitForTimeout(500);
 
-        const seriesInfo: Array<{ name: string; type: string }> = await page.evaluate(() => {
-            const dom = document.getElementById('chart-waterfall');
-            // @ts-expect-error global echarts
-            const inst = window.echarts.getInstanceByDom(dom);
-            const opt = inst.getOption();
-            return (opt.series || []).map((s: { name: string; type: string }) => ({ name: s.name, type: s.type }));
-        });
+        const seriesInfo = await getWaterfallSeries(page);
 
         const names = seriesInfo.map(s => s.name);
         expect(names).toContain('Пополнение');
