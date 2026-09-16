@@ -15,7 +15,7 @@
 <!-- Choices.js for Transfer Modal -->
 <link rel="stylesheet" href="/static/css/vendor/choices.min.css?v=PLACEHOLDER">
 <link rel="stylesheet" href="/static/css/choices-tailwind.min.css?v=PLACEHOLDER">
-<script src="/static/js/vendor/choices.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/vendor/choices.min.js?v=PLACEHOLDER" defer></script>
 <!-- ECharts library for analytics charts -->
 <script src="/static/js/vendor/echarts.min.js?v=PLACEHOLDER" defer></script>
 <!-- Plan page styles -->
@@ -164,16 +164,16 @@
 
 
 {% block extra_scripts %}
-<script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER"></script>
-<script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER"></script>
-<script src="/static/js/transfers.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/confirm-dialog.min.js?v=PLACEHOLDER" defer></script>
+<script src="/static/js/admin-facts-common.min.js?v=PLACEHOLDER" defer></script>
+<script src="/static/js/transfers.min.js?v=PLACEHOLDER" defer></script>
 <!-- BudgetShared bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) already included in base.html -->
 
 <!-- Dashboard bundle (modal_plan, modal_fact, edit modal with v10.x tab-based architecture) -->
-<script src="/static/js/dashboard.min.js?v=PLACEHOLDER"></script>
-<script src="/static/js/aiQuickAdd.min.js?v=PLACEHOLDER"></script>
+<script src="/static/js/dashboard.min.js?v=PLACEHOLDER" defer></script>
+<script src="/static/js/aiQuickAdd.min.js?v=PLACEHOLDER" defer></script>
 
 <!-- Plan bundle (Phase 1: Helpers + Filters modules) -->
-<script src="/static/js/dist/plan.bundle.js?v=PLACEHOLDER"></script>
+<script src="/static/js/dist/plan.bundle.js?v=PLACEHOLDER" defer></script>
 
 {% endblock %}
