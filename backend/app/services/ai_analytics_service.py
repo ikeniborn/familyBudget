@@ -31,6 +31,8 @@ from backend.app.services.llm_parse_service import (
     _extract_json,
     format_candidate_lines,
     get_article_candidates,
+    get_cost_centers,
+    get_financial_centers,
 )
 
 logger = logging.getLogger(__name__)
@@ -57,16 +59,39 @@ _BUDGET_MARKERS = (
 )
 
 
-def _build_extract_prompt(articles: list[dict[str, Any]], today: date) -> str:
+def _build_extract_prompt(
+    articles: list[dict[str, Any]],
+    centers: list[dict[str, Any]],
+    cost_centers: list[dict[str, Any]],
+    today: date,
+) -> str:
     # format_candidate_lines carries the family's own category descriptions
     # and frequency markers — the semantic layer name matching alone lacks.
     article_lines = format_candidate_lines(articles)
+    center_block = ""
+    if centers:
+        center_lines = "\n".join(
+            f"{c['id']}: {c['name']}"
+            + (f" — {c['description']}" if c.get("description") else "")
+            for c in centers
+        )
+        center_block = f"Счета (id: название — описание):\n{center_lines}\n\n"
+    cost_center_block = ""
+    if cost_centers:
+        cc_lines = "\n".join(
+            f"{c['id']}: {c['name']}"
+            + (f" — {c['description']}" if c.get("description") else "")
+            for c in cost_centers
+        )
+        cost_center_block = f"Места затрат (id: название — описание):\n{cc_lines}\n\n"
     return (
         "Ты — разборщик аналитических вопросов о семейном бюджете. "
         "Определи, за какой период и по каким категориям пользователь "
         "спрашивает.\n"
         f"Сегодня: {today.isoformat()}.\n\n"
         f"Категории (id: путь [тип] — описание):\n{article_lines}\n\n"
+        f"{center_block}"
+        f"{cost_center_block}"
         "Правила:\n"
         "- «текущий месяц» — с 1-го числа по сегодня; «прошлый месяц» — "
         "весь предыдущий календарный месяц; «за год» — с 1 января; период "
@@ -74,6 +99,10 @@ def _build_extract_prompt(articles: list[dict[str, Any]], today: date) -> str:
         "- article_ids: id категорий, о которых спрашивают (включая "
         "подходящие по смыслу: «продукты» — категории про продукты и "
         "супермаркеты). Вопрос обо всём бюджете — null.\n"
+        "- financial_center_id: id счёта, если пользователь спрашивает по "
+        "конкретному счёту («по счёту дом», «на карте»); иначе null.\n"
+        "- cost_center_id: id места затрат, если вопрос по конкретному МЗ "
+        "(проект, поездка); иначе null.\n"
         "- record_type: \"plan\" если спрашивают о планах, иначе \"fact\".\n"
         "- intent: \"totals\" — суммы и топ категорий за один период "
         "(по умолчанию); \"compare_periods\" — сравнение с другим периодом "
@@ -90,6 +119,8 @@ def _build_extract_prompt(articles: list[dict[str, Any]], today: date) -> str:
         '  "period2_start": "<YYYY-MM-DD>" или null (только для compare_periods),\n'
         '  "period2_end": "<YYYY-MM-DD>" или null (только для compare_periods),\n'
         '  "article_ids": [<int>, ...] или null,\n'
+        '  "financial_center_id": <int> или null,\n'
+        '  "cost_center_id": <int> или null,\n'
         '  "record_type": "<fact или plan>"\n'
         "}\n"
         'Если вопрос не про данные бюджета, ответь: {"error": "not_understood"}'
@@ -194,6 +225,8 @@ async def _aggregate(
     period_end: date,
     article_ids: list[int] | None,
     record_type: str,
+    financial_center_id: int | None = None,
+    cost_center_id: int | None = None,
 ) -> dict[str, Any]:
     """Totals + per-article sums for the scope; the only data the LLM sees."""
     query = (
@@ -219,6 +252,10 @@ async def _aggregate(
     )
     if article_ids:
         query = query.where(Article.id.in_(article_ids))
+    if financial_center_id:
+        query = query.where(BudgetFact.financial_center_id == financial_center_id)
+    if cost_center_id:
+        query = query.where(BudgetFact.cost_center_id == cost_center_id)
     rows = (await session.execute(query)).all()
 
     articles = await get_article_candidates(session)
@@ -276,6 +313,8 @@ async def _trend_monthly(
     period_start: date,
     period_end: date,
     article_ids: list[int] | None,
+    financial_center_id: int | None = None,
+    cost_center_id: int | None = None,
 ) -> dict[str, Any]:
     """Per-month income/expense series over the range (facts only)."""
     month = func.date_trunc("month", BudgetFact.fact_date).label("month")
@@ -294,6 +333,10 @@ async def _trend_monthly(
     )
     if article_ids:
         query = query.where(Article.id.in_(article_ids))
+    if financial_center_id:
+        query = query.where(BudgetFact.financial_center_id == financial_center_id)
+    if cost_center_id:
+        query = query.where(BudgetFact.cost_center_id == cost_center_id)
     rows = (await session.execute(query)).all()
 
     months: dict[str, dict[str, float]] = {}
@@ -319,6 +362,8 @@ async def _plan_vs_fact(
     period_end: date,
     article_ids: list[int] | None,
     today: date,
+    financial_center_id: int | None = None,
+    cost_center_id: int | None = None,
 ) -> dict[str, Any]:
     """Plan and fact aggregates over calendar-month-snapped bounds.
 
@@ -328,8 +373,14 @@ async def _plan_vs_fact(
     """
     period_start = _month_start(period_start)
     period_end = _month_end(period_end)
-    fact = await _aggregate(session, period_start, period_end, article_ids, "fact")
-    plan = await _aggregate(session, period_start, period_end, article_ids, "plan")
+    fact = await _aggregate(
+        session, period_start, period_end, article_ids, "fact",
+        financial_center_id, cost_center_id,
+    )
+    plan = await _aggregate(
+        session, period_start, period_end, article_ids, "plan",
+        financial_center_id, cost_center_id,
+    )
 
     plan_by_cat = {c["category"]: c for c in plan["categories"]}
     fact_by_cat = {c["category"]: c for c in fact["categories"]}
@@ -378,6 +429,10 @@ async def answer_question(
     if not articles:
         raise AIParseError("No active articles")
     valid_ids = {a["id"] for a in articles}
+    centers = await get_financial_centers(session)
+    cost_centers = await get_cost_centers(session)
+    valid_center_ids = {c["id"] for c in centers}
+    valid_cost_center_ids = {c["id"] for c in cost_centers}
     today = date.today()
     client = AIProviderClient(settings.endpoint_url, settings.api_token)
 
@@ -385,7 +440,10 @@ async def answer_question(
     scope_content = await client.chat_completions(
         model=settings.model_text or "",
         messages=[
-            {"role": "system", "content": _build_extract_prompt(articles, today)},
+            {
+                "role": "system",
+                "content": _build_extract_prompt(articles, centers, cost_centers, today),
+            },
             {"role": "user", "content": question},
         ],
         response_format={"type": "json_object"},
@@ -448,6 +506,15 @@ async def answer_question(
     if intent not in VALID_INTENTS:
         intent = "totals"
 
+    # Account / cost-center filters: only real ids pass, otherwise the whole
+    # budget is aggregated (an invented id must not silently narrow to nothing).
+    fc_id = _coerce_int(scope.get("financial_center_id"))
+    if fc_id not in valid_center_ids:
+        fc_id = None
+    cc_id = _coerce_int(scope.get("cost_center_id"))
+    if cc_id not in valid_cost_center_ids:
+        cc_id = None
+
     # Step 2: aggregates computed by the backend, never by the model.
     # `badge` feeds the response's resolved period/totals for the UI.
     if intent == "compare_periods":
@@ -460,10 +527,10 @@ async def answer_question(
             period2_start = period2_end - timedelta(days=1100)
         # Sequential on purpose: one AsyncSession is not concurrency-safe.
         current = await _aggregate(
-            session, period_start, period_end, article_ids, record_type
+            session, period_start, period_end, article_ids, record_type, fc_id, cc_id
         )
         previous = await _aggregate(
-            session, period2_start, period2_end, article_ids, record_type
+            session, period2_start, period2_end, article_ids, record_type, fc_id, cc_id
         )
         data = {
             "intent": intent,
@@ -481,7 +548,9 @@ async def answer_question(
     elif intent == "trend_monthly":
         data = {
             "intent": intent,
-            **await _trend_monthly(session, period_start, period_end, article_ids),
+            **await _trend_monthly(
+                session, period_start, period_end, article_ids, fc_id, cc_id
+            ),
         }
         badge = data
         record_type = "fact"
@@ -489,7 +558,7 @@ async def answer_question(
         data = {
             "intent": intent,
             **await _plan_vs_fact(
-                session, period_start, period_end, article_ids, today
+                session, period_start, period_end, article_ids, today, fc_id, cc_id
             ),
         }
         badge = {
@@ -504,7 +573,8 @@ async def answer_question(
             "intent": "totals",
             "record_type": record_type,
             **await _aggregate(
-                session, period_start, period_end, article_ids, record_type
+                session, period_start, period_end, article_ids, record_type,
+                fc_id, cc_id,
             ),
         }
         badge = data

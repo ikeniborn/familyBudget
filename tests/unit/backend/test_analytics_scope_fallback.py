@@ -73,3 +73,28 @@ def test_article_ids_are_never_guessed():
     scope = _rule_based_scope("Динамика по месяцам за год", TODAY)
     assert scope is not None
     assert scope.get("article_ids") is None
+
+
+def test_extract_prompt_lists_centers_and_cost_centers():
+    from backend.app.services.ai_analytics_service import _build_extract_prompt
+
+    articles = [{"id": 1, "path": "Продукты", "type": "expense", "description": "", "usage_count": 0}]
+    centers = [{"id": 5, "name": "Дом", "description": "домашний счёт", "usage_count": 3}]
+    cost_centers = [{"id": 9, "name": "Отпуск", "description": "поездка", "usage_count": 1}]
+    prompt = _build_extract_prompt(articles, centers, cost_centers, TODAY)
+
+    assert "Счета (id:" in prompt
+    assert "5: Дом" in prompt
+    assert "Места затрат (id:" in prompt
+    assert "9: Отпуск" in prompt
+    assert '"financial_center_id"' in prompt
+    assert '"cost_center_id"' in prompt
+
+
+def test_extract_prompt_omits_empty_center_blocks():
+    from backend.app.services.ai_analytics_service import _build_extract_prompt
+
+    articles = [{"id": 1, "path": "Продукты", "type": "expense", "description": "", "usage_count": 0}]
+    prompt = _build_extract_prompt(articles, [], [], TODAY)
+    assert "Счета (id:" not in prompt
+    assert "Места затрат (id:" not in prompt
