@@ -70,10 +70,12 @@ http:
     app-transport:
       forwardingTimeouts:
         dialTimeout: "75s"
-        # Above the AI provider client's 300 s read timeout: the backend
-        # must time out first (honest error), never the proxy (blank 504).
-        responseHeaderTimeout: "360s"
-        idleConnTimeout: "360s"
+        # Above the AI provider client's read timeout: the backend must time
+        # out first (honest error), never the proxy (blank 504). analytics-chat
+        # makes two sequential provider calls (scope + answer) at 600 s each,
+        # so this stays above 2×600 s so the proxy never cuts a slow answer.
+        responseHeaderTimeout: "1260s"
+        idleConnTimeout: "1260s"
 
     websocket-transport:
       forwardingTimeouts:

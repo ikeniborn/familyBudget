@@ -23,11 +23,15 @@ from backend.app.core.token_crypto import decrypt_token
 logger = logging.getLogger(__name__)
 
 CONNECT_TIMEOUT = 5.0
-# Cold start of an unloaded local model can take minutes — the vision model
-# is the heaviest (120 s was hit in the field on receipt photos). Keep this
-# below Traefik's responseHeaderTimeout (360 s) so the client times out
-# first and the user gets our error message, not a proxy 504.
-READ_TIMEOUT = 300.0
+# Cold start of an unloaded local model can take minutes, and the reasoning
+# text model (qwen3 thinking) spends a long time inside <think> on heavy
+# questions — whole-year analytics-chat scope extraction exceeded the former
+# 300 s and fell through to the deterministic fallback. 600 s gives the model
+# room to answer on its own. analytics-chat makes two sequential provider
+# calls (scope + answer), so Traefik's responseHeaderTimeout (1260 s) must
+# stay above 2×READ_TIMEOUT — the backend must time out first (honest error),
+# never the proxy (blank 504).
+READ_TIMEOUT = 600.0
 MAX_RETRIES_503 = 2
 RETRY_BACKOFF_SECONDS = (1.0, 3.0)
 
