@@ -93,16 +93,18 @@ tests/                   # Backend pytest + e2e (frontend Vitest lives in fronte
 | **Production** | https://fb.ikeniborn.ru/ | Live users |
 | **Development** | https://fbd.ikeniborn.ru/ | Feature testing |
 
-- For analysis logs connect to test server via `ssh budget-test`.
+- For analysis logs connect to test server via `ssh ikeniborndev`.
+- For analysis logs connect to prod server via `ssh ikenibornbudget`.
 - Work directory: `/opt/budget`
 - Git directory: `/home/ikeniborn/Documents/Project/familyBudget`
+
 
 ## Versioning & Deploy
 
 - Файл `VERSION` — единственный источник истины для версии
 - Pre-commit hook автоматически синхронизирует `package.json` и `package-lock.json` с `VERSION`
 - CI/CD (`build-and-push.yml`) собирает Docker images и обновляет `IMAGE_VERSIONS.json`
-- Деплой на сервер: `ssh budget-test` → `cd /opt/budget` → `./deploy.sh`
+- Деплой на сервер: `ssh ikeniborndev` → `cd /opt/budget` → `./deploy.sh`
 
 ## Git Workflow
 
