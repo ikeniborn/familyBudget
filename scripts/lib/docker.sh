@@ -909,56 +909,70 @@ cleanup_old_image_versions() {
 
     # Process each service (backend, bot)
     for service in "backend" "bot"; do
-        local image_name="familybudget-${service}"
+        # Registry-mode images carry a registry prefix (ghcr.io/<owner>/familybudget-*),
+        # so resolve the actual repository name(s) instead of assuming a bare
+        # "familybudget-<service>" — the bare name matched nothing and the
+        # cleanup silently no-oped while tags piled up (24 backend tags / 5.9GB
+        # observed on budget-test, 2026-09-16).
+        local repos=$(docker images --format '{{.Repository}}' 2>/dev/null | grep -E "(^|/)familybudget-${service}$" | sort -u)
 
-        # Get all versions of this image, sorted by creation time (newest first)
-        local all_versions=$(docker images --format "{{.Tag}}" "$image_name" 2>/dev/null | grep -v '<none>' | sort -V -r)
-
-        if [[ -z "$all_versions" ]]; then
+        if [[ -z "$repos" ]]; then
             continue
         fi
 
-        local version_count=$(echo "$all_versions" | wc -l)
+        local image_name
+        while IFS= read -r image_name; do
+            [[ -z "$image_name" ]] && continue
 
-        if [[ $version_count -le $keep_versions ]]; then
-            continue
-        fi
+            # Get all versions of this image, sorted by version (newest first)
+            local all_versions=$(docker images --format "{{.Tag}}" "$image_name" 2>/dev/null | grep -v '<none>' | sort -V -r)
 
-        # Get versions to remove (skip first N)
-        local versions_to_remove=$(echo "$all_versions" | tail -n +$((keep_versions + 1)))
+            if [[ -z "$all_versions" ]]; then
+                continue
+            fi
 
-        if [[ -n "$versions_to_remove" ]]; then
-            local remove_count=$(echo "$versions_to_remove" | wc -l)
-            info "Removing $remove_count old versions of $image_name (keeping last $keep_versions)"
+            local version_count=$(echo "$all_versions" | wc -l)
 
-            while IFS= read -r version; do
-                if [[ -n "$version" ]]; then
-                    # Check if this exact image is referenced by our compose service
-                    # Note: We don't use "ancestor" filter as it matches hierarchically
-                    # (all images sharing base layers would match, causing false positives)
-                    local current_image=$(docker inspect "familybudget-${service}" --format '{{.Config.Image}}' 2>/dev/null || echo "")
-                    if [[ "$current_image" == "${image_name}:${version}" ]]; then
-                        warning "  Skipping ${image_name}:${version} (current compose image)"
-                        continue
+            if [[ $version_count -le $keep_versions ]]; then
+                continue
+            fi
+
+            # Get versions to remove (skip first N)
+            local versions_to_remove=$(echo "$all_versions" | tail -n +$((keep_versions + 1)))
+
+            if [[ -n "$versions_to_remove" ]]; then
+                local remove_count=$(echo "$versions_to_remove" | wc -l)
+                info "Removing $remove_count old versions of $image_name (keeping last $keep_versions)"
+
+                while IFS= read -r version; do
+                    if [[ -n "$version" ]]; then
+                        # Check if this exact image is referenced by our compose service
+                        # Note: We don't use "ancestor" filter as it matches hierarchically
+                        # (all images sharing base layers would match, causing false positives)
+                        local current_image=$(docker inspect "familybudget-${service}" --format '{{.Config.Image}}' 2>/dev/null || echo "")
+                        if [[ "$current_image" == "${image_name}:${version}" ]]; then
+                            warning "  Skipping ${image_name}:${version} (current compose image)"
+                            continue
+                        fi
+
+                        # Get size before removal
+                        local img_size=$(docker images --format "{{.Size}}" "${image_name}:${version}" 2>/dev/null | head -1)
+
+                        # Use subshell to isolate errors and prevent script exit on failure
+                        local rmi_output
+                        if rmi_output=$(docker rmi "${image_name}:${version}" 2>&1); then
+                            ((images_cleaned++)) || true
+                            echo "  ✓ Removed ${image_name}:${version} ($img_size)"
+                            # Log the output
+                            [[ -n "$rmi_output" ]] && echo "$rmi_output" >> "$LOG_FILE"
+                        else
+                            warning "  Failed to remove ${image_name}:${version}"
+                            [[ -n "$rmi_output" ]] && echo "$rmi_output" >> "$LOG_FILE"
+                        fi
                     fi
-
-                    # Get size before removal
-                    local img_size=$(docker images --format "{{.Size}}" "${image_name}:${version}" 2>/dev/null | head -1)
-
-                    # Use subshell to isolate errors and prevent script exit on failure
-                    local rmi_output
-                    if rmi_output=$(docker rmi "${image_name}:${version}" 2>&1); then
-                        ((images_cleaned++)) || true
-                        echo "  ✓ Removed ${image_name}:${version} ($img_size)"
-                        # Log the output
-                        [[ -n "$rmi_output" ]] && echo "$rmi_output" >> "$LOG_FILE"
-                    else
-                        warning "  Failed to remove ${image_name}:${version}"
-                        [[ -n "$rmi_output" ]] && echo "$rmi_output" >> "$LOG_FILE"
-                    fi
-                fi
-            done <<< "$versions_to_remove"
-        fi
+                done <<< "$versions_to_remove"
+            fi
+        done <<< "$repos"
     done
 
     if [[ $images_cleaned -gt 0 ]]; then
