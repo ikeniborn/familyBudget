@@ -209,9 +209,17 @@ perform_backup() {
     log_info "Starting PostgreSQL backup..."
     log_info "Target: $BACKUP_PATH"
 
-    # Perform pg_dump via Docker
-    if docker compose -f "${PROJECT_ROOT}/docker-compose.yml" exec -T postgres \
-        pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$BACKUP_PATH"; then
+    # Perform pg_dump via Docker.
+    # A plain `if pipeline` only sees gzip's exit code, so a failed pg_dump
+    # would silently produce an empty "successful" backup — check PIPESTATUS.
+    local pipe_status
+    set +e
+    docker compose -f "${PROJECT_ROOT}/docker-compose.yml" exec -T postgres \
+        pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB" | gzip > "$BACKUP_PATH"
+    pipe_status=("${PIPESTATUS[@]}")
+    set -e
+
+    if [ "${pipe_status[0]}" -eq 0 ] && [ "${pipe_status[1]}" -eq 0 ]; then
 
         # Set file permissions: 644 (readable by all, writable by owner)
         # This allows backend container to read the backup file for health checks
@@ -310,13 +318,20 @@ upload_to_s3() {
     while [ $attempt -le $max_attempts ]; do
         log_info "Upload attempt $attempt/$max_attempts..."
 
-        if python3 "$SCRIPT_DIR/s3_backup.py" upload \
+        # `| tee` masks python's exit code (pipeline returns tee's) —
+        # check PIPESTATUS so a failed upload is not reported as success
+        local upload_status
+        set +e
+        python3 "$SCRIPT_DIR/s3_backup.py" upload \
             "$BACKUP_PATH" \
             "$S3_PATH" \
             --bucket "$S3_BUCKET_NAME" \
             --endpoint-url "$S3_ENDPOINT_URL" \
-            --quiet 2>&1 | tee -a "$LOG_FILE"; then
+            --quiet 2>&1 | tee -a "$LOG_FILE"
+        upload_status=${PIPESTATUS[0]}
+        set -e
 
+        if [ "$upload_status" -eq 0 ]; then
             log_success "Uploaded to S3: s3://${S3_BUCKET_NAME}/${S3_PATH}"
             return 0
         else
@@ -340,14 +355,20 @@ upload_to_s3() {
 cleanup_s3_old_backups() {
     log_info "Cleaning up old S3 backups (retention: $S3_RETENTION_DAYS days)..."
 
-    # Call s3_backup.py cleanup command
-    if python3 "$SCRIPT_DIR/s3_backup.py" cleanup \
+    # Call s3_backup.py cleanup command; check PIPESTATUS — `| tee`
+    # masks python's exit code
+    local cleanup_status
+    set +e
+    python3 "$SCRIPT_DIR/s3_backup.py" cleanup \
         --retention-days "$S3_RETENTION_DAYS" \
         --bucket "$S3_BUCKET_NAME" \
         --endpoint-url "$S3_ENDPOINT_URL" \
         --prefix "$S3_PATH_PREFIX" \
-        --quiet 2>&1 | tee -a "$LOG_FILE"; then
+        --quiet 2>&1 | tee -a "$LOG_FILE"
+    cleanup_status=${PIPESTATUS[0]}
+    set -e
 
+    if [ "$cleanup_status" -eq 0 ]; then
         log_success "S3 cleanup completed"
         return 0
     else
