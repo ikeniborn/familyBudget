@@ -408,6 +408,27 @@ async def pwa_manifest():
         headers={"Cache-Control": "public, max-age=604800"}  # 7 days
     )
 
+
+@app.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
+async def favicon():
+    """Serve the root /favicon.ico browsers request by default.
+
+    The real icon lives at /static/icons/favicon.ico (HTML links to it),
+    but browsers still auto-request /favicon.ico, which had no route and
+    returned a noisy 404. Serve the same file here.
+    """
+    from fastapi.responses import FileResponse
+
+    favicon_path = FrontendPaths.WEB_STATIC / "icons" / "favicon.ico"
+    if not favicon_path.exists():
+        raise HTTPException(status_code=404, detail="Favicon not found")
+
+    return FileResponse(
+        str(favicon_path),
+        media_type="image/vnd.microsoft.icon",
+        headers={"Cache-Control": "public, max-age=604800"}  # 7 days
+    )
+
 # Include routers
 app.include_router(health_router)  # Health endpoints at /health, /ready, /ping
 app.include_router(api_router)  # API endpoints at /api/v1
