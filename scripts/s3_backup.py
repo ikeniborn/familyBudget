@@ -9,7 +9,7 @@
 #
 # Usage:
 #   ./s3_backup.py upload <file> <s3_key> --bucket <name> --endpoint-url <url>
-#   ./s3_backup.py cleanup --retention-days <days> --bucket <name> --endpoint-url <url>
+#   ./s3_backup.py cleanup --retention-days <days> --bucket <name> --endpoint-url <url> [--prefix <path>]
 #
 # Environment Variables Required:
 #   AWS_ACCESS_KEY_ID       S3/Yandex Object Storage access key
@@ -117,9 +117,10 @@ def cleanup_old_backups(args):
         deleted_count = 0
         total_size = 0
 
-        # List all objects in bucket
+        # List objects under the configured prefix
+        prefix = args.prefix.rstrip('/') + '/'
         paginator = s3_client.get_paginator('list_objects_v2')
-        pages = paginator.paginate(Bucket=args.bucket, Prefix='postgresql-backups/')
+        pages = paginator.paginate(Bucket=args.bucket, Prefix=prefix)
 
         for page in pages:
             if 'Contents' not in page:
@@ -184,6 +185,8 @@ def main():
                                 help='Delete backups older than N days')
     cleanup_parser.add_argument('--bucket', required=True, help='S3 bucket name')
     cleanup_parser.add_argument('--endpoint-url', required=True, help='S3 endpoint URL')
+    cleanup_parser.add_argument('--prefix', default='postgresql-backups',
+                                help='Key prefix (path) inside bucket')
     cleanup_parser.add_argument('--quiet', action='store_true', help='Suppress output')
     cleanup_parser.set_defaults(func=cleanup_old_backups)
 

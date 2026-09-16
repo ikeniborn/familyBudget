@@ -25,6 +25,7 @@
 #   S3_SECRET_ACCESS_KEY   S3/Yandex Object Storage secret key
 #   S3_BUCKET_NAME         S3 bucket name
 #   S3_ENDPOINT_URL        S3 endpoint URL (default: https://storage.yandexcloud.net)
+#   S3_PATH_PREFIX         Key prefix (path) inside bucket (default: postgresql-backups)
 #
 # Exit Codes:
 #   0 - Success
@@ -68,7 +69,8 @@ LOG_FILE="${LOG_DIR}/backup_${DATE_YMD}.log"
 
 # S3 settings
 S3_ENDPOINT_URL="${S3_ENDPOINT_URL:-https://storage.yandexcloud.net}"
-S3_PATH="postgresql-backups/$(date +%Y/%m)/${BACKUP_FILENAME}"
+S3_PATH_PREFIX="${S3_PATH_PREFIX:-postgresql-backups}"
+S3_PATH="${S3_PATH_PREFIX%/}/$(date +%Y/%m)/${BACKUP_FILENAME}"
 
 # Options
 FORCE_S3=false
@@ -343,6 +345,7 @@ cleanup_s3_old_backups() {
         --retention-days "$S3_RETENTION_DAYS" \
         --bucket "$S3_BUCKET_NAME" \
         --endpoint-url "$S3_ENDPOINT_URL" \
+        --prefix "$S3_PATH_PREFIX" \
         --quiet 2>&1 | tee -a "$LOG_FILE"; then
 
         log_success "S3 cleanup completed"
@@ -405,6 +408,7 @@ main() {
         debug "S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:+set (${#S3_SECRET_ACCESS_KEY} chars)}"
         debug "S3_BUCKET_NAME: ${S3_BUCKET_NAME:-not set}"
         debug "S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-not set}"
+        debug "S3_PATH_PREFIX: ${S3_PATH_PREFIX:-not set}"
     else
         echo "ERROR: .env file not found at $PROJECT_ROOT/.env"
         echo "Expected location: $PROJECT_ROOT/.env"
@@ -426,6 +430,10 @@ main() {
     LOG_DIR="${LOG_DIR:-${BACKUP_DIR}/logs}"
     BACKUP_PATH="${BACKUP_DIR}/${BACKUP_FILENAME}"
     LOG_FILE="${LOG_DIR}/backup_${DATE_YMD}.log"
+
+    # Recompute S3 path: S3_PATH_PREFIX may come from .env loaded above
+    S3_PATH_PREFIX="${S3_PATH_PREFIX:-postgresql-backups}"
+    S3_PATH="${S3_PATH_PREFIX%/}/$(date +%Y/%m)/${BACKUP_FILENAME}"
 
     # Create directories NOW (after BACKUP_DIR conversion)
     # This ensures correct absolute paths are used
