@@ -306,7 +306,12 @@ async def answer_question(
             {"role": "user", "content": question},
         ],
         response_format={"type": "json_object"},
-        max_tokens=1536,
+        # Reasoning models (qwen3 thinking) spend a large token budget inside
+        # <think> before emitting the JSON scope; 1536 was exhausted mid-think,
+        # leaving an unclosed block that _strip_think reduced to "" -> a 422
+        # "не понял" on every real question (prod, 2026-09-16). 4096 matches the
+        # batch-parse budget that reliably lands JSON on the same model.
+        max_tokens=4096,
     )
     try:
         scope = _extract_json(scope_content)
@@ -419,7 +424,9 @@ async def answer_question(
                 ),
             },
         ],
-        max_tokens=2048,
+        # Same reasoning-model headroom as the scope call: a thinking model can
+        # exhaust a tight budget before the prose answer and return "".
+        max_tokens=4096,
     )
     answer = answer.strip()
     if not answer:
