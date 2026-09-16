@@ -651,6 +651,11 @@ async def test_totals_filters_by_financial_center(
     # Only the "Дом" account fact (777), NOT the default-account fact (1200).
     assert data["expense_total"] == 777
 
+    # The answer payload tells the model the data is already scoped to "Дом",
+    # so it does not claim there is no per-account breakdown.
+    assert '"center_filter"' in seen[1]
+    assert '"account": "Дом"' in seen[1]
+
 
 async def test_invalid_financial_center_falls_back_to_whole_budget(
     authenticated_client: AsyncClient,
