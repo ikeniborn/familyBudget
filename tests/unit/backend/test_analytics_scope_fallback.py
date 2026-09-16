@@ -98,3 +98,13 @@ def test_extract_prompt_omits_empty_center_blocks():
     prompt = _build_extract_prompt(articles, [], [], TODAY)
     assert "Счета (id:" not in prompt
     assert "Места затрат (id:" not in prompt
+
+
+def test_clean_description_flattens_and_caps():
+    from backend.app.services.llm_parse_service import _clean_description
+    # newline that could be misread as a new "id:" candidate line
+    assert _clean_description("Отпуск\n5 кг") == "Отпуск 5 кг"
+    # all whitespace collapses to single spaces
+    assert _clean_description("  a\t b\n\nc  ") == "a b c"
+    assert _clean_description(None) == ""
+    assert len(_clean_description("x" * 500)) == 200
