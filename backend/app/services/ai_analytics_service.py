@@ -42,6 +42,20 @@ BREAKDOWN_LIMIT = 15
 # fall back to "totals" so existing questions keep working.
 VALID_INTENTS = ("totals", "compare_periods", "trend_monthly", "plan_vs_fact")
 
+# Deterministic scope fallback (analytics-chat-reasoning-budget): the qwen3
+# thinking model intermittently returns an empty scope for whole-year /
+# trend questions and hits the provider timeout, which used to surface as a
+# 422. These keyword sets recover period + intent from the question text so
+# the question is still answered; category filtering stays model-only (the
+# fallback never guesses article_ids and answers budget-wide).
+_TREND_MARKERS = ("динамик", "по месяц", "помесяч", "тренд", "как менял", "как измен")
+_COMPARE_MARKERS = ("сравн", "по сравнен", "больше чем", "меньше чем", "разниц", "чем в прошл")
+_PLAN_VS_FACT_MARKERS = ("уложил", "исполнен", "осталось от план", "сколько осталось", "в план", "по план")
+_BUDGET_MARKERS = (
+    "затрат", "расход", "доход", "трат", "потрат", "бюджет", "план",
+    "сколько", "сумм", "категор", "продукт", "накопл", "остаток", "баланс",
+)
+
 
 def _build_extract_prompt(articles: list[dict[str, Any]], today: date) -> str:
     # format_candidate_lines carries the family's own category descriptions
@@ -82,6 +96,70 @@ def _build_extract_prompt(articles: list[dict[str, Any]], today: date) -> str:
     )
 
 
+def _rule_based_scope(question: str, today: date) -> dict[str, Any] | None:
+    """Derive a scope from the question text alone, for when the model returns
+    an empty/invalid one. Returns None when the text carries neither a period
+    marker nor budget vocabulary — the fallback must not answer non-budget
+    questions (those still get an honest 422).
+
+    Only period + intent + record_type are recovered; article_ids stays null
+    (semantic category matching needs the model), so the answer is budget-wide.
+    """
+    q = question.lower()
+
+    has_trend = any(m in q for m in _TREND_MARKERS)
+    has_compare = any(m in q for m in _COMPARE_MARKERS)
+    has_plan_vs_fact = any(m in q for m in _PLAN_VS_FACT_MARKERS)
+    has_budget = any(m in q for m in _BUDGET_MARKERS)
+
+    # Period detection.
+    period_start: date | None = None
+    period_end = today
+    if "последн" in q and ("год" in q or "12 месяц" in q):
+        # Rolling 12 months, e.g. "динамика за последний год".
+        period_start = date(today.year - 1, today.month, today.day)
+    elif "прошл" in q and "месяц" in q:
+        first_this = today.replace(day=1)
+        prev_end = first_this - timedelta(days=1)
+        period_start = prev_end.replace(day=1)
+        period_end = prev_end
+    elif "год" in q:
+        # Calendar year to date, per the model prompt's "за год" rule.
+        period_start = date(today.year, 1, 1)
+    elif "текущий месяц" in q or "этом месяц" in q or "за месяц" in q:
+        period_start = today.replace(day=1)
+
+    has_period = period_start is not None
+
+    # Nothing budget-shaped in the text -> do not fabricate a scope.
+    if not (has_trend or has_compare or has_plan_vs_fact or has_budget or has_period):
+        return None
+
+    if period_start is None:
+        period_start = today.replace(day=1)
+
+    if has_plan_vs_fact:
+        intent = "plan_vs_fact"
+    elif has_trend:
+        intent = "trend_monthly"
+    elif has_compare:
+        intent = "compare_periods"
+    else:
+        intent = "totals"
+
+    record_type = "plan" if (intent == "plan_vs_fact" or "план" in q) else "fact"
+
+    return {
+        "intent": intent,
+        "period_start": period_start.isoformat(),
+        "period_end": period_end.isoformat(),
+        "period2_start": None,
+        "period2_end": None,
+        "article_ids": None,
+        "record_type": record_type,
+    }
+
+
 _ANSWER_SYSTEM_PROMPT = (
     "Ты — финансовый аналитик семейного бюджета. Отвечай на вопрос "
     "пользователя ТОЛЬКО по переданным агрегированным данным: не выдумывай "
@@ -92,6 +170,11 @@ _ANSWER_SYSTEM_PROMPT = (
     "Если categories_truncated: true — перечислены только крупнейшие "
     "категории; обязательно скажи, что показаны топ-категории и что "
     "сумма перечисленного может быть меньше итога. "
+    "Поле record_type показывает природу сумм: \"fact\" — ФАКТИЧЕСКИЕ "
+    "(реально совершённые) операции, \"plan\" — ПЛАНОВЫЕ (запланированные, "
+    "ещё не факт). В ответе ОБЯЗАТЕЛЬНО назови это явно («фактические "
+    "расходы», «плановые расходы») и НИКОГДА не складывай и не смешивай "
+    "плановые суммы с фактическими — это разные величины. "
     "Поле intent описывает форму данных: compare_periods — period1/period2 "
     "и change: назови оба периода и изменение в рублях и процентах; "
     "trend_monthly — ряд months: перечисли месяцы с суммами и отметь "
@@ -315,15 +398,28 @@ async def answer_question(
     )
     try:
         scope = _extract_json(scope_content)
+        if scope.get("error"):
+            raise AIParseError("Model reported not_understood")
     except AIParseError:
-        logger.warning(
-            "AI analytics: non-JSON scope output (len=%d): %.200s",
+        # The reasoning model exhausted its budget inside <think> (empty
+        # reply) or refused: recover a scope from the question text so
+        # whole-year / trend questions still get answered instead of a 422.
+        fallback = _rule_based_scope(question, today)
+        if fallback is None:
+            logger.warning(
+                "AI analytics: non-JSON scope output (len=%d) and no rule-based "
+                "fallback: %.200s",
+                len(scope_content),
+                scope_content,
+            )
+            raise
+        logger.info(
+            "AI analytics: model scope failed (len=%d), using rule-based "
+            "fallback intent=%s",
             len(scope_content),
-            scope_content,
+            fallback["intent"],
         )
-        raise
-    if scope.get("error"):
-        raise AIParseError("Model reported not_understood")
+        scope = fallback
 
     def parse_scope_date(key: str, fallback: date) -> date:
         try:
@@ -371,6 +467,7 @@ async def answer_question(
         )
         data = {
             "intent": intent,
+            "record_type": record_type,
             "period1": current,
             "period2": previous,
             "change": {
@@ -405,6 +502,7 @@ async def answer_question(
     else:
         data = {
             "intent": "totals",
+            "record_type": record_type,
             **await _aggregate(
                 session, period_start, period_end, article_ids, record_type
             ),

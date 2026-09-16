@@ -481,3 +481,120 @@ async def test_log_write_failure_never_masks_chat_error(
         "/api/v1/ai/analytics-chat", json={"question": "как дела?"}
     )
     assert response.status_code == 422
+
+
+async def test_empty_scope_falls_back_for_year_trend(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """When the reasoning model returns an empty scope, a whole-year trend
+    question is still answered via the deterministic fallback (was a 422)."""
+    await enable_text(db_session, test_user.id)
+    seen: list[str] = []
+    # First call (scope) returns "" — the observed prod failure; second call
+    # (answer) returns the prose answer over the backend-computed trend.
+    mock_chat_sequence(monkeypatch, ["", "Динамика по месяцам готова."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Динамика расходов по месяцам за последний год"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["answer"].startswith("Динамика")
+    # Rolling 12 months covers both facts (1200 today + 5000 at -90d).
+    assert data["expense_total"] == 6200
+
+    # The answer call received a trend_monthly aggregate, not a 422.
+    assert len(seen) == 2
+    assert '"intent": "trend_monthly"' in seen[1]
+    assert '"months"' in seen[1]
+
+
+async def test_empty_scope_still_422_for_non_budget_question(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """A non-budget question with an empty model scope must still 422 — the
+    fallback must not fabricate a scope for 'как дела?'."""
+    await enable_text(db_session, test_user.id)
+    seen: list[str] = []
+    mock_chat_sequence(monkeypatch, [""], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat", json={"question": "как дела?"}
+    )
+    assert response.status_code == 422
+
+
+async def test_totals_data_labels_record_type_for_the_model(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """The aggregate handed to the answering model must carry record_type so
+    the answer states whether the sums are actual (fact) or planned — without
+    it users read fact and plan totals as one, appearing double-counted."""
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "totals",
+            "period_start": today.replace(day=1).isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": None,
+            "record_type": "plan",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Плановые расходы за месяц."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Сколько запланировано на этот месяц?"},
+    )
+    assert response.status_code == 200
+    payload = seen[1]
+    assert '"record_type": "plan"' in payload
+    # The plan fact (2000) is aggregated, not the actual ones.
+    assert '"expense_total": 2000' in payload
+
+
+async def test_compare_periods_data_labels_record_type(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """compare_periods data also carries record_type for the answer."""
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "compare_periods",
+            "period_start": today.replace(day=1).isoformat(),
+            "period_end": today.isoformat(),
+            "period2_start": (today - timedelta(days=90)).replace(day=1).isoformat(),
+            "period2_end": today.replace(day=1).isoformat(),
+            "article_ids": None,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Сравнение фактических расходов."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Сравни расходы с прошлым периодом"},
+    )
+    assert response.status_code == 200
+    assert '"record_type": "fact"' in seen[1]
