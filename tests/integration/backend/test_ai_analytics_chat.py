@@ -598,3 +598,93 @@ async def test_compare_periods_data_labels_record_type(
     )
     assert response.status_code == 200
     assert '"record_type": "fact"' in seen[1]
+
+
+async def test_totals_filters_by_financial_center(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """A question scoped to one account aggregates only that account's facts,
+    not the whole budget (the «по счёту дом» prod complaint)."""
+    await enable_text(db_session, test_user.id)
+    article = seeded_facts["article"]
+    default_fc = seeded_facts["fc"]
+    today = date.today()
+
+    # Second account with its own fact in the current month.
+    other_fc = FinancialCenter(user_id=test_user.id, name="Дом", is_active=True)
+    db_session.add(other_fc)
+    await db_session.commit()
+    await db_session.refresh(other_fc)
+    db_session.add(
+        BudgetFact(
+            user_id=test_user.id, article_id=article.id,
+            financial_center_id=other_fc.id, fact_date=today,
+            amount=777, record_type="fact",
+        )
+    )
+    await db_session.commit()
+    llm_parse_service.invalidate_candidates_cache()
+
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "totals",
+            "period_start": today.replace(day=1).isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": None,
+            "financial_center_id": other_fc.id,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Расходы по счёту Дом."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Затраты по счёту Дом за этот месяц?"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    # Only the "Дом" account fact (777), NOT the default-account fact (1200).
+    assert data["expense_total"] == 777
+
+    # The answer payload tells the model the data is already scoped to "Дом",
+    # so it does not claim there is no per-account breakdown.
+    assert '"center_filter"' in seen[1]
+    assert '"account": "Дом"' in seen[1]
+
+
+async def test_invalid_financial_center_falls_back_to_whole_budget(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """A hallucinated account id must not silently narrow to nothing — it is
+    dropped and the whole budget is aggregated."""
+    await enable_text(db_session, test_user.id)
+    today = date.today()
+    seen: list[str] = []
+    scope = json.dumps(
+        {
+            "intent": "totals",
+            "period_start": today.replace(day=1).isoformat(),
+            "period_end": today.isoformat(),
+            "article_ids": None,
+            "financial_center_id": 999999,
+            "record_type": "fact",
+        }
+    )
+    mock_chat_sequence(monkeypatch, [scope, "Расходы за месяц."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Затраты за этот месяц?"},
+    )
+    assert response.status_code == 200
+    # The default-account fact (1200) is aggregated, not zero.
+    assert response.json()["expense_total"] == 1200
