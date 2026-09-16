@@ -481,3 +481,53 @@ async def test_log_write_failure_never_masks_chat_error(
         "/api/v1/ai/analytics-chat", json={"question": "как дела?"}
     )
     assert response.status_code == 422
+
+
+async def test_empty_scope_falls_back_for_year_trend(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """When the reasoning model returns an empty scope, a whole-year trend
+    question is still answered via the deterministic fallback (was a 422)."""
+    await enable_text(db_session, test_user.id)
+    seen: list[str] = []
+    # First call (scope) returns "" — the observed prod failure; second call
+    # (answer) returns the prose answer over the backend-computed trend.
+    mock_chat_sequence(monkeypatch, ["", "Динамика по месяцам готова."], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat",
+        json={"question": "Динамика расходов по месяцам за последний год"},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["answer"].startswith("Динамика")
+    # Rolling 12 months covers both facts (1200 today + 5000 at -90d).
+    assert data["expense_total"] == 6200
+
+    # The answer call received a trend_monthly aggregate, not a 422.
+    assert len(seen) == 2
+    assert '"intent": "trend_monthly"' in seen[1]
+    assert '"months"' in seen[1]
+
+
+async def test_empty_scope_still_422_for_non_budget_question(
+    authenticated_client: AsyncClient,
+    db_session: AsyncSession,
+    test_user: User,
+    seeded_facts,
+    monkeypatch,
+):
+    """A non-budget question with an empty model scope must still 422 — the
+    fallback must not fabricate a scope for 'как дела?'."""
+    await enable_text(db_session, test_user.id)
+    seen: list[str] = []
+    mock_chat_sequence(monkeypatch, [""], seen)
+
+    response = await authenticated_client.post(
+        "/api/v1/ai/analytics-chat", json={"question": "как дела?"}
+    )
+    assert response.status_code == 422
