@@ -28,6 +28,7 @@
 #   S3_SECRET_ACCESS_KEY   S3/Yandex Object Storage secret key
 #   S3_BUCKET_NAME         S3 bucket name
 #   S3_ENDPOINT_URL        S3 endpoint URL (default: https://storage.yandexcloud.net)
+#   S3_PATH_PREFIX         Key prefix (path) inside bucket (default: postgresql-backups)
 #
 # Exit Codes:
 #   0 - Success
@@ -346,8 +347,9 @@ try:
         region_name='us-east-1'
     )
 
+    prefix = '${S3_PATH_PREFIX:-postgresql-backups}'.rstrip('/') + '/'
     paginator = s3_client.get_paginator('list_objects_v2')
-    pages = paginator.paginate(Bucket='$S3_BUCKET_NAME', Prefix='postgresql-backups/')
+    pages = paginator.paginate(Bucket='$S3_BUCKET_NAME', Prefix=prefix)
 
     backups = []
     for page in pages:
@@ -456,8 +458,9 @@ try:
         region_name='us-east-1'
     )
 
+    prefix = '${S3_PATH_PREFIX:-postgresql-backups}'.rstrip('/') + '/'
     paginator = s3_client.get_paginator('list_objects_v2')
-    pages = paginator.paginate(Bucket='$S3_BUCKET_NAME', Prefix='postgresql-backups/')
+    pages = paginator.paginate(Bucket='$S3_BUCKET_NAME', Prefix=prefix)
 
     backups = []
     for page in pages:
