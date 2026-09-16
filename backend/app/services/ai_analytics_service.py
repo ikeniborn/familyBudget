@@ -170,6 +170,11 @@ _ANSWER_SYSTEM_PROMPT = (
     "Если categories_truncated: true — перечислены только крупнейшие "
     "категории; обязательно скажи, что показаны топ-категории и что "
     "сумма перечисленного может быть меньше итога. "
+    "Поле record_type показывает природу сумм: \"fact\" — ФАКТИЧЕСКИЕ "
+    "(реально совершённые) операции, \"plan\" — ПЛАНОВЫЕ (запланированные, "
+    "ещё не факт). В ответе ОБЯЗАТЕЛЬНО назови это явно («фактические "
+    "расходы», «плановые расходы») и НИКОГДА не складывай и не смешивай "
+    "плановые суммы с фактическими — это разные величины. "
     "Поле intent описывает форму данных: compare_periods — period1/period2 "
     "и change: назови оба периода и изменение в рублях и процентах; "
     "trend_monthly — ряд months: перечисли месяцы с суммами и отметь "
@@ -462,6 +467,7 @@ async def answer_question(
         )
         data = {
             "intent": intent,
+            "record_type": record_type,
             "period1": current,
             "period2": previous,
             "change": {
@@ -496,6 +502,7 @@ async def answer_question(
     else:
         data = {
             "intent": "totals",
+            "record_type": record_type,
             **await _aggregate(
                 session, period_start, period_end, article_ids, record_type
             ),
