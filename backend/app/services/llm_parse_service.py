@@ -76,6 +76,19 @@ def _coerce_float(value: Any) -> float | None:
     return None
 
 
+# Candidate descriptions feed one-line-per-entry prompt lists ("id: path —
+# description"). An admin-entered description may contain newlines or be very
+# long, which would break the line structure (a continuation line starting
+# with digits reads as a new "id:" candidate) and inflate token cost. Collapse
+# all whitespace to single spaces and cap the length.
+_DESCRIPTION_PROMPT_LIMIT = 200
+
+
+def _clean_description(value: Any) -> str:
+    """Flatten a description into a single prompt-safe, length-capped line."""
+    return " ".join(str(value or "").split())[:_DESCRIPTION_PROMPT_LIMIT]
+
+
 def invalidate_candidates_cache() -> None:
     global _articles_cache, _articles_cache_at
     _articles_cache = None
@@ -128,7 +141,7 @@ async def get_article_candidates(session: AsyncSession) -> list[dict[str, Any]]:
             "id": row.id,
             "path": build_path(row.id),
             "type": row.type,
-            "description": (row.description or "").strip(),
+            "description": _clean_description(row.description),
             "usage_count": row.usage_count,
         }
         for row in rows
@@ -182,7 +195,7 @@ async def get_financial_centers(session: AsyncSession) -> list[dict[str, Any]]:
         {
             "id": row.id,
             "name": row.name,
-            "description": (row.description or "").strip(),
+            "description": _clean_description(row.description),
             "usage_count": row.usage_count,
         }
         for row in rows
@@ -218,7 +231,7 @@ async def get_cost_centers(session: AsyncSession) -> list[dict[str, Any]]:
         {
             "id": row.id,
             "name": row.name,
-            "description": (row.description or "").strip(),
+            "description": _clean_description(row.description),
             "usage_count": row.usage_count,
         }
         for row in rows
@@ -634,7 +647,7 @@ LIST_UNITS = ("шт", "кг", "г", "л", "мл", "уп", "пач")
 
 
 async def get_product_group_candidates(session: AsyncSession) -> list[dict[str, Any]]:
-    """Active product groups as {id, path} with the parent chain in the path."""
+    """Active product groups as {id, path, description} with the parent chain in the path."""
     rows = (
         await session.execute(
             select(
@@ -663,7 +676,7 @@ async def get_product_group_candidates(session: AsyncSession) -> list[dict[str, 
         {
             "id": row.id,
             "path": build_path(row.id),
-            "description": (row.description or "").strip(),
+            "description": _clean_description(row.description),
         }
         for row in rows
     ]
@@ -682,7 +695,7 @@ async def get_store_candidates(session: AsyncSession) -> list[dict[str, Any]]:
         {
             "id": row.id,
             "name": row.name,
-            "description": (row.description or "").strip(),
+            "description": _clean_description(row.description),
         }
         for row in rows
     ]
