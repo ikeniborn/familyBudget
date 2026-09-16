@@ -206,6 +206,9 @@ _ANSWER_SYSTEM_PROMPT = (
     "ещё не факт). В ответе ОБЯЗАТЕЛЬНО назови это явно («фактические "
     "расходы», «плановые расходы») и НИКОГДА не складывай и не смешивай "
     "плановые суммы с фактическими — это разные величины. "
+    "Если есть поле center_filter — данные УЖЕ отфильтрованы по этому счёту "
+    "(account) и/или месту затрат (cost_center); отвечай уверенно «по счёту "
+    "X …», НЕ говори, что разбивки по счетам нет. "
     "Поле intent описывает форму данных: compare_periods — period1/period2 "
     "и change: назови оба периода и изменение в рублях и процентах; "
     "trend_monthly — ряд months: перечисли месяцы с суммами и отметь "
@@ -578,6 +581,19 @@ async def answer_question(
             ),
         }
         badge = data
+
+    # Tell the model the data is already scoped to an account / cost center,
+    # so it answers «по счёту X: …» confidently instead of complaining the
+    # data has no per-account breakdown (the sums are already filtered).
+    if fc_id is not None or cc_id is not None:
+        center_names = {c["id"]: c["name"] for c in centers}
+        cost_center_names = {c["id"]: c["name"] for c in cost_centers}
+        center_filter: dict[str, str] = {}
+        if fc_id is not None:
+            center_filter["account"] = center_names.get(fc_id, str(fc_id))
+        if cc_id is not None:
+            center_filter["cost_center"] = cost_center_names.get(cc_id, str(cc_id))
+        data["center_filter"] = center_filter
 
     # Step 3: grounded answer.
     answer = await client.chat_completions(
