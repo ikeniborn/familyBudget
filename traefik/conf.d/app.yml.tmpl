@@ -114,4 +114,13 @@ http:
         maxRequestBodyBytes: 20971520
 
     compression:
-      compress: {}
+      # Explicit encoding priority: Traefik 3.3 defaulted to gzip even when the
+      # browser advertised brotli (Accept-Encoding: br, gzip -> gzip). br is
+      # listed first because it compresses our text assets best — measured on
+      # tailwind-daisyui: br 85 KB vs zstd 107 KB vs gzip 112 KB. zstd is NOT
+      # used: with Traefik's default level it lost to br here, and Chrome
+      # advertises both, so a zstd-first list would ship the larger file.
+      compress:
+        encodings:
+          - br
+          - gzip
