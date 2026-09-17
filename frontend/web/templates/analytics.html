@@ -2773,5 +2773,35 @@ function updateCategoryFilter(selectedArticles) {
     height: auto;
     min-height: 400px;
 }
+
+/* Loading spinner shown until ECharts inserts its <canvas>.
+   ECharts is deferred (361 KB), so on a cold first load the container
+   would otherwise sit empty and look broken until the bundle downloads
+   and init() runs. This spinner fills that gap and then hands off to
+   ECharts' own showLoading() the moment a canvas appears.
+   :has() is supported on all current targets; older browsers simply
+   fall back to the previous (empty) behaviour — no regression. */
+.chart-container:not(:has(canvas)) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.chart-container:not(:has(canvas))::after {
+    content: "";
+    width: 2.75rem;
+    height: 2.75rem;
+    border: 3px solid oklch(var(--b3, 0.9 0 0));
+    border-top-color: oklch(var(--p, 0.6 0.2 145));
+    border-radius: 50%;
+    animation: chart-spin 0.8s linear infinite;
+}
+@keyframes chart-spin {
+    to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .chart-container:not(:has(canvas))::after {
+        animation: none;
+    }
+}
 </style>
 {% endblock %}
