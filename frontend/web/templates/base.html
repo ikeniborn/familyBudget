@@ -363,27 +363,27 @@
     <script src="/static/js/utils/logger.min.js?v=PLACEHOLDER"></script>
 
     <!-- Modal Keyboard Adapter (v6.6.0) - Automatic modal positioning for mobile/PWA -->
-    <script src="/static/js/utils/modalKeyboardAdapter.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/utils/modalKeyboardAdapter.min.js?v=PLACEHOLDER" defer></script>
 
     <!-- Delete Button Utils (for JS-generated delete buttons) -->
-    <script src="/static/js/utils/deleteButtonUtils.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/utils/deleteButtonUtils.js?v=PLACEHOLDER" defer></script>
 
     <!-- HTMX -->
-    <script src="/static/js/vendor/htmx.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/vendor/htmx.min.js?v=PLACEHOLDER" defer></script>
 
     <!-- Choices.js JS -->
-    <script src="/static/js/vendor/choices.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/vendor/choices.min.js?v=PLACEHOLDER" defer></script>
 
     <!-- Offline Mode Scripts (базовые - всегда загружаются) -->
     <!-- Network Detection Module v3.0.0 (modular TypeScript, ZERO dependencies) -->
-    <script src="/static/js/network.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/network.min.js?v=PLACEHOLDER" defer></script>
 
     {% if user %}
     <!-- Auth-required scripts (только для авторизованных) -->
-    <script src="/static/js/budget/budgetWSClient.min.js?v=PLACEHOLDER"></script>
-    <script src="/static/js/budget/incrementalUpdates.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/budget/budgetWSClient.min.js?v=PLACEHOLDER" defer></script>
+    <script src="/static/js/budget/incrementalUpdates.min.js?v=PLACEHOLDER" defer></script>
     <!-- Push Notifications (sets window.budgetPushManager; required before push-banner logic) -->
-    <script src="/static/js/notifications/pushManager.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/notifications/pushManager.min.js?v=PLACEHOLDER" defer></script>
     {% endif %}
 
     <!-- ECharts (for analytics pages) -->
@@ -565,7 +565,7 @@
         {# AI bulk entry: modal + bundle for the «Добавить с ИИ» FAB action #}
         {% from "components/modal_ai_bulk.html" import modal_ai_bulk %}
         {{ modal_ai_bulk() }}
-        <script src="/static/js/aiBulkEntry.min.js?v=PLACEHOLDER"></script>
+        <script src="/static/js/aiBulkEntry.min.js?v=PLACEHOLDER" defer></script>
     {% endif %}
 
     <!-- FAB Buttons (outside main container for proper fixed positioning) -->
@@ -598,10 +598,10 @@
 
     {% if user %}
     <!-- BudgetShared Bundle (DateFormatter, CalendarWidget, ChoicesCategoryTree) -->
-    <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER"></script>
+    <script src="/shared/static/js/budgetShared.min.js?v=PLACEHOLDER" defer></script>
 
     <!-- Shared reminder utilities -->
-    <script src="/shared/static/js/reminders.min.js?v=PLACEHOLDER"></script>
+    <script src="/shared/static/js/reminders.min.js?v=PLACEHOLDER" defer></script>
 
     <!-- User data for LogsCollector -->
     <script>
@@ -627,13 +627,17 @@
     </script>
 
     <!-- Logs Collector for Admin Logs Page -->
-    <script src="/static/js/utils/logsCollector.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/utils/logsCollector.min.js?v=PLACEHOLDER" defer></script>
     <script>
-        // Initialize LogsCollector (singleton)
-        if (typeof LogsCollector !== 'undefined') {
-            window.logsCollector = new LogsCollector();
-            window.logsCollector.start();
-        }
+        // Initialize LogsCollector (singleton). logsCollector.min.js is now
+        // deferred, so wait for DOMContentLoaded — deferred scripts finish
+        // before it, guaranteeing LogsCollector is defined.
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof LogsCollector !== 'undefined') {
+                window.logsCollector = new LogsCollector();
+                window.logsCollector.start();
+            }
+        });
     </script>
 
     {% block extra_scripts %}{% endblock %}
@@ -1226,10 +1230,10 @@
     {% endif %}
 
     <!-- Navigation Progress Bar -->
-    <script src="/static/js/navigationProgress.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/navigationProgress.min.js?v=PLACEHOLDER" defer></script>
 
     <!-- Web Workers (Phase 1: Core Infrastructure) -->
-    <script src="/static/js/workers/core/workerWrapper.min.js?v=PLACEHOLDER"></script>
+    <script src="/static/js/workers/core/workerWrapper.min.js?v=PLACEHOLDER" defer></script>
 
     <!-- WebSocket Diagnostics Modal (for debugging) -->
     <dialog id="ws-diagnostics-modal" class="modal">
@@ -1261,6 +1265,6 @@
     </dialog>
 
     <!-- WebAuthn Onboarding -->
-    <script src="{{ url_for('static', path='/js/webauthn-onboarding.min.js') }}?v=PLACEHOLDER"></script>
+    <script src="{{ url_for('static', path='/js/webauthn-onboarding.min.js') }}?v=PLACEHOLDER" defer></script>
 </body>
 </html>
