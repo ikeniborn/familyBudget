@@ -299,7 +299,7 @@ jobs:
 
       - name: Docker meta (backend)
         id: meta-backend
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/familybudget-backend
           tags: |
@@ -313,7 +313,7 @@ jobs:
 
       - name: Docker meta (bot)
         id: meta-bot
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/familybudget-bot
           tags: |
@@ -327,7 +327,7 @@ jobs:
 
       - name: Docker meta (redis)
         id: meta-redis
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/familybudget-redis
           tags: |
@@ -341,7 +341,7 @@ jobs:
 
       - name: Docker meta (postgresql)
         id: meta-postgresql
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository_owner }}/familybudget-postgresql
           tags: |
