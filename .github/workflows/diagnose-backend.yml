@@ -17,7 +17,7 @@ jobs:
 
     steps:
       - name: Container status
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.TEST_SERVER_HOST }}
           username: ${{ secrets.TEST_SERVER_USER }}
@@ -42,7 +42,7 @@ jobs:
 
       - name: Deep runtime checks (full mode only)
         if: ${{ inputs.mode == 'full' }}
-        uses: appleboy/ssh-action@v1.0.3
+        uses: appleboy/ssh-action@v1.2.5
         with:
           host: ${{ secrets.TEST_SERVER_HOST }}
           username: ${{ secrets.TEST_SERVER_USER }}
