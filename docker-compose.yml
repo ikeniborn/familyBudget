@@ -324,10 +324,16 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '${TRAEFIK_CPU_LIMIT:-0.05}'
+          # Traefik terminates TLS and brotli-compresses every response, so it
+          # needs real CPU. The old 0.05 quota (5 ms per 100 ms period) was
+          # throttled 85% of the time on prod: a desktop page load (~30 parallel
+          # requests) pushed TLS handshakes past the 60 s entry point read
+          # timeout ("Error while peeking client hello bytes: i/o timeout") and
+          # the site never loaded. 1.0 leaves headroom on a 2-core host.
+          cpus: '${TRAEFIK_CPU_LIMIT:-1.0}'
           memory: 256M
         reservations:
-          cpus: '${TRAEFIK_CPU_RESERVATION:-0.01}'
+          cpus: '${TRAEFIK_CPU_RESERVATION:-0.1}'
           memory: 64M
 
   # Traefik manages ACME certificates natively.
