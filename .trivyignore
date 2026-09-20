@@ -422,3 +422,14 @@ CVE-2026-78410
 # Risk assessment: LOW (vulnerable stdlib path is not exposed by application functionality)
 # Next review: 2026-10-15 (monthly - check for a published Debian fix)
 CVE-2026-82049
+
+# CVE-2026-8328: Python ftplib ftpcp() FTP connection redirection bypass (HIGH)
+# Status: affected - no fixed package for Debian 12 (bookworm) as of 2026-09-20 (Trivy reports fixed: none)
+# Package: libpython3.11-minimal, libpython3.11-stdlib, python3.11-minimal v3.11.2-6+deb12u6
+# Mitigation:
+#   - No ftplib / ftpcp() usage in backend, bot, tests, or scripts (verified 2026-09-20: only docstrings inside vendored venv)
+#   - The application opens no FTP connections; all outbound traffic is HTTPS (Telegram, AI providers) and Redis/PostgreSQL
+#   - Same package set as CVE-2026-82049 above; the finding also exists in the running 0.8.68 image (scanned on dev 2026-09-20)
+# Risk assessment: NONE (vulnerable stdlib path is never imported by application code)
+# Next review: 2026-10-20 (monthly - check for a published Debian fix)
+CVE-2026-8328
