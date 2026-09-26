@@ -96,6 +96,25 @@ test.describe('Analytics Waterfall - transfers series', () => {
         }
     });
 
+    test('both value axes place zero at the same height', async ({ page }) => {
+        await page.setViewportSize(VIEWPORTS.desktop);
+        await navigateToAnalytics(page);
+
+        await page.locator('#chart-waterfall canvas').first().waitFor({ state: 'visible', timeout: 10000 });
+        await getWaterfallSeries(page);
+
+        const fractions = await page.evaluate(() => {
+            const dom = document.getElementById('chart-waterfall');
+            // @ts-expect-error global echarts
+            const inst = window.echarts.getInstanceByDom(dom);
+            const yAxis = inst.getOption().yAxis as Array<{ min: number; max: number }>;
+            return yAxis.map((axis) => (0 - axis.min) / (axis.max - axis.min));
+        });
+        expect(fractions).toHaveLength(2);
+        expect(Number.isFinite(fractions[0])).toBe(true);
+        expect(Math.abs(fractions[0] - fractions[1])).toBeLessThan(1e-9);
+    });
+
     test('«Переводы» toggle hides and restores the transfer lines', async ({ page }) => {
         await page.setViewportSize(VIEWPORTS.desktop);
         await navigateToAnalytics(page);

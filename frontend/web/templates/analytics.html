@@ -1543,6 +1543,46 @@ function formatWaterfallAxisValue(value) {
     return Math.abs(value) >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
 }
 
+// Round a raw tick step up to 1 / 2 / 5 × 10^n
+function niceAxisStep(raw) {
+    if (!(raw > 0)) {
+        return 0;
+    }
+    const exp = Math.pow(10, Math.floor(Math.log10(raw)));
+    const f = raw / exp;
+    return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * exp;
+}
+
+// Shared zero line for the bar axis (left) and the transfer axis (right):
+// both axes get the same number of ticks above and below zero, each with
+// its own nice step, so zero sits at the same height on both.
+function alignedWaterfallAxes(barValues, lineValues) {
+    const extent = (values) => ({
+        pos: Math.max(0, ...values),
+        neg: Math.max(0, ...values.map(v => -v))
+    });
+    const bar = extent(barValues);
+    const line = extent(lineValues);
+    const totalTicks = 6;
+    const negShare = Math.max(
+        bar.pos + bar.neg > 0 ? bar.neg / (bar.pos + bar.neg) : 0,
+        line.pos + line.neg > 0 ? line.neg / (line.pos + line.neg) : 0
+    );
+    let nNeg = Math.round(totalTicks * negShare);
+    if ((bar.neg > 0 || line.neg > 0) && nNeg === 0) {
+        nNeg = 1;
+    }
+    if ((bar.pos > 0 || line.pos > 0) && nNeg === totalTicks) {
+        nNeg = totalTicks - 1;
+    }
+    const nPos = totalTicks - nNeg;
+    const bounds = ({ pos, neg }) => {
+        const step = niceAxisStep(Math.max(nPos > 0 ? pos / nPos : 0, nNeg > 0 ? neg / nNeg : 0)) || 1;
+        return { min: -nNeg * step, max: nPos * step, interval: step };
+    };
+    return [bounds(bar), bounds(line)];
+}
+
 // Update Waterfall chart with data
 function updateWaterfallChart(data) {
     if (!waterfallChart) {
@@ -1626,6 +1666,14 @@ function updateWaterfallChart(data) {
     if (data.article_name) {
         subtitle += ` - ${data.article_name}`;
     }
+
+    // Transfer line data (right axis); Списание is drawn below zero
+    const transfersInSeries = currentWaterfallMode === 'with_balance' ? [0, ...transfersIn, 0] : transfersIn;
+    const transfersOutSeries = currentWaterfallMode === 'with_balance' ? [0, ...transfersOut.map(x => -x), 0] : transfersOut.map(x => -x);
+    // With the transfer lines shown, both axes share the zero line
+    const alignedAxes = showWaterfallTransfers
+        ? alignedWaterfallAxes(waterfallData.map(d => d.value), [...transfersInSeries, ...transfersOutSeries])
+        : null;
 
     const option = {
         tooltip: {
@@ -1720,8 +1768,8 @@ function updateWaterfallChart(data) {
         yAxis: [
             {
                 type: 'value',
-                scale: true,
                 name: 'Сумма (₽)',
+                ...(alignedAxes ? alignedAxes[0] : { scale: true }),
                 axisLabel: { formatter: formatWaterfallAxisValue }
             },
             {
@@ -1729,6 +1777,7 @@ function updateWaterfallChart(data) {
                 name: 'Переводы (₽)',
                 position: 'right',
                 show: showWaterfallTransfers,
+                ...(alignedAxes ? alignedAxes[1] : {}),
                 splitLine: { show: false },
                 axisLabel: { formatter: formatWaterfallAxisValue }
             }
@@ -1761,7 +1810,7 @@ function updateWaterfallChart(data) {
                 type: 'line',
                 yAxisIndex: 1,
                 smooth: true,
-                data: currentWaterfallMode === 'with_balance' ? [0, ...transfersIn, 0] : transfersIn,
+                data: transfersInSeries,
                 lineStyle: { color: '#60a5fa', width: 2 },
                 itemStyle: { color: '#60a5fa' },
                 symbol: 'circle',
@@ -1772,7 +1821,7 @@ function updateWaterfallChart(data) {
                 type: 'line',
                 yAxisIndex: 1,
                 smooth: true,
-                data: currentWaterfallMode === 'with_balance' ? [0, ...transfersOut.map(x => -x), 0] : transfersOut.map(x => -x),
+                data: transfersOutSeries,
                 lineStyle: { color: '#fbbf24', width: 2 },
                 itemStyle: { color: '#fbbf24' },
                 symbol: 'circle',
