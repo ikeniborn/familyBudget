@@ -433,3 +433,14 @@ CVE-2026-82049
 # Risk assessment: NONE (vulnerable stdlib path is never imported by application code)
 # Next review: 2026-10-20 (monthly - check for a published Debian fix)
 CVE-2026-8328
+
+# CVE-2026-93990: Expat XML injection via malformed UTF-16 input (HIGH)
+# Status: affected - no fixed package for Debian 12 (bookworm) as of 2026-09-26 (Trivy reports fixed: none, published 2026-09-19)
+# Package: libexpat1 v2.5.0-1+deb12u3
+# Mitigation: NOT applicable - the application parses no XML (same controls as CVE-2026-66046 above)
+#   - grep over backend/app and bot on 2026-09-26 finds no xml.*, pyexpat, lxml or minidom import
+#   - expat is present only as a transitive library of the distroless Python runtime
+#   - import uploads stay restricted to .xlsx (openpyxl, size-capped), .csv, .json
+# Risk assessment: NONE (no XML input reaches the parser)
+# Next review: 2026-10-26 (monthly - check for a published Debian fix)
+CVE-2026-93990
