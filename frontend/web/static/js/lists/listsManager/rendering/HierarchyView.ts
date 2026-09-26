@@ -28,12 +28,16 @@ export class HierarchyView {
   private expandedNodes: Set<string> = new Set();
   private container: HTMLElement | null;
   public swipeHandler: SwipeHandler;
+  private noteTip: HTMLElement | null = null;
+  private noteTipItemId: number | null = null;
+  private desktopQuery: { matches: boolean } | null = null;
 
   constructor(listsManager: ListsManagerProxy) {
     this.listsManager = listsManager;
     this.expandedNodes = new Set();
     this.container = document.getElementById('hierarchy-tree');
     this.swipeHandler = new SwipeHandler();
+    this.setupNoteTooltip();
   }
 
   /**
@@ -58,7 +62,8 @@ export class HierarchyView {
     // Build hierarchy structure
     const hierarchy = this.buildHierarchy(items, stores, productGroups);
 
-    // Render tree
+    // Render tree (the tooltip anchor is about to be replaced)
+    this.hideNoteTip();
     this.container.innerHTML = this.renderTree(hierarchy);
 
     debugLog('[HierarchyView] Rendered hierarchy tree');
@@ -304,6 +309,7 @@ export class HierarchyView {
                                 ${this.escapeHtml(item.product_name)}
                             </span>
                             ${item.quantity ? `<span class="hierarchy-item-qty">${this.formatQuantity(item.quantity, item.unit)}${item.unit ? ' ' + item.unit : ''}</span>` : ''}
+                            ${item.notes ? this.renderNoteIcon(item.id) : ''}
                         </div>
 
                         <!-- CRITICAL: Swipe indicator INSIDE content to move with swipe (v7.x+) -->
@@ -362,6 +368,109 @@ export class HierarchyView {
 
     // Attach swipe handlers after rendering (will be called by setupSwipeHandlers())
     return html;
+  }
+
+  /**
+   * Info icon for an item with notes: tap opens the notes tooltip (mobile),
+   * hover over the row does the same on desktop (see setupNoteTooltip).
+   * stopPropagation keeps the tap from toggling the item's completed state.
+   */
+  renderNoteIcon(itemId: number): string {
+    return `<span class="hierarchy-item-note-icon" role="button" tabindex="0" aria-label="Показать описание"
+                onclick="event.stopPropagation(); window.hierarchyView.toggleNoteTip(${itemId}, this)">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4"/>
+                <path d="M12 8h.01"/>
+              </svg>
+            </span>`;
+  }
+
+  /**
+   * Notes tooltip lives on <body> as a fixed element: .hierarchy-item has
+   * overflow: hidden for the swipe gesture, so an absolute child would be clipped.
+   * Desktop (>= 1024px): shown while the pointer is over the row.
+   * Any width: toggled by the info icon, closed by a click elsewhere, scroll or re-render.
+   */
+  private setupNoteTooltip(): void {
+    if (!this.container) return;
+    this.desktopQuery = window.matchMedia('(min-width: 1024px)');
+
+    this.container.addEventListener('mouseover', (e: MouseEvent) => {
+      if (!this.desktopQuery?.matches) return;
+      const row = (e.target as HTMLElement).closest('.hierarchy-item') as HTMLElement | null;
+      if (!row) return;
+      const itemId = Number(row.dataset.itemId);
+      if (itemId === this.noteTipItemId) return;
+      this.hideNoteTip();
+      this.showNoteTip(itemId, row);
+    });
+
+    this.container.addEventListener('mouseout', (e: MouseEvent) => {
+      const row = (e.target as HTMLElement).closest('.hierarchy-item');
+      if (!row) return;
+      const to = e.relatedTarget as Node | null;
+      if (to && row.contains(to)) return;
+      this.hideNoteTip();
+    });
+
+    document.addEventListener('click', (e: MouseEvent) => {
+      if (this.noteTipItemId === null) return;
+      if ((e.target as HTMLElement).closest('.hierarchy-item-note-icon')) return;
+      this.hideNoteTip();
+    });
+
+    window.addEventListener('scroll', () => this.hideNoteTip(), { passive: true, capture: true });
+  }
+
+  private getNoteTipElement(): HTMLElement {
+    if (!this.noteTip) {
+      const el = document.createElement('div');
+      el.className = 'hierarchy-note-tip';
+      el.setAttribute('role', 'tooltip');
+      document.body.appendChild(el);
+      this.noteTip = el;
+    }
+    return this.noteTip;
+  }
+
+  /**
+   * Show the notes of an item in the tooltip, positioned under the anchor
+   * (or above it when there is no room below).
+   */
+  showNoteTip(itemId: number, anchor: HTMLElement): void {
+    const item = this.listsManager.currentItems.find((i) => i.id === itemId);
+    if (!item || !item.notes) return;
+
+    const tip = this.getNoteTipElement();
+    tip.textContent = item.notes;
+    tip.classList.add('visible');
+    this.noteTipItemId = itemId;
+
+    const rect = anchor.getBoundingClientRect();
+    const width = Math.min(320, Math.max(160, rect.width - 16));
+    tip.style.width = `${width}px`;
+    tip.style.left = `${Math.max(8, Math.min(rect.left + 8, window.innerWidth - width - 8))}px`;
+    const below = rect.bottom + 4;
+    const top = below + tip.offsetHeight > window.innerHeight ? rect.top - tip.offsetHeight - 4 : below;
+    tip.style.top = `${Math.max(4, top)}px`;
+  }
+
+  hideNoteTip(): void {
+    if (this.noteTip) this.noteTip.classList.remove('visible');
+    this.noteTipItemId = null;
+  }
+
+  /**
+   * Info icon handler. On desktop hover already shows the tip, so the click only keeps it open.
+   */
+  toggleNoteTip(itemId: number, icon: HTMLElement): void {
+    if (this.noteTipItemId === itemId) {
+      if (!this.desktopQuery?.matches) this.hideNoteTip();
+      return;
+    }
+    const row = icon.closest('.hierarchy-item') as HTMLElement | null;
+    this.showNoteTip(itemId, row ?? icon);
   }
 
   /**
