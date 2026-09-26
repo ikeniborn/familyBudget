@@ -117,23 +117,15 @@
                         </button>
                     </div>
 
-                    <!-- Waterfall Chart Mode Filter -->
+                    <!-- Waterfall toggles: balances (Начало/Итого bars) and transfer lines -->
                     <div class="flex flex-wrap items-center gap-2 mb-2">
-                        <span class="text-sm text-base-content/70">Режим:</span>
-                        <div class="btn-group btn-group-sm">
-                            <button class="btn btn-sm btn-primary" id="waterfall-mode-with-balance"
-                                    onclick="updateWaterfallMode('with_balance')"
-                                    aria-pressed="true"
-                                    aria-label="Показать каскадную диаграмму с учетом остатков">
-                                С учетом остатков
-                            </button>
-                            <button class="btn btn-sm btn-outline" id="waterfall-mode-without-balance"
-                                    onclick="updateWaterfallMode('without_balance')"
-                                    aria-pressed="false"
-                                    aria-label="Показать каскадную диаграмму без остатков">
-                                Без остатков
-                            </button>
-                        </div>
+                        <span class="text-sm text-base-content/70">Показать:</span>
+                        <button class="btn btn-sm btn-primary" id="waterfall-balance-toggle"
+                                onclick="toggleWaterfallBalance()"
+                                aria-pressed="true"
+                                aria-label="Показать или скрыть остатки на начало и конец периода">
+                            💼 Остатки
+                        </button>
                         <!-- Transfers toggle: hides the Пополнение/Списание line series -->
                         <button class="btn btn-sm btn-primary" id="waterfall-transfers-toggle"
                                 onclick="toggleWaterfallTransfers()"
@@ -1419,18 +1411,15 @@ function syncTrendsModeUI() {
     }
 }
 
-// Update waterfall chart mode (with_balance vs without_balance)
-function updateWaterfallMode(mode) {
-    currentWaterfallMode = mode;
-
-    // Save to localStorage
-    localStorage.setItem('budgetWaterfallMode', mode);
-
-    // Update UI
+// «Остатки» toggle: with_balance (Начало/Итого bars) vs without_balance.
+// The /waterfall payload is mode-independent, so re-render from the last one.
+function toggleWaterfallBalance() {
+    currentWaterfallMode = currentWaterfallMode === 'with_balance' ? 'without_balance' : 'with_balance';
+    localStorage.setItem('budgetWaterfallMode', currentWaterfallMode);
     syncWaterfallModeUI();
-
-    // Reload Waterfall chart with new mode
-    if (customRangeActive) {
+    if (lastWaterfallData) {
+        updateWaterfallChart(lastWaterfallData);
+    } else if (customRangeActive) {
         const isoFrom = BudgetShared.DateFormatter.formatForAPI(customDateFrom);
         const isoTo = BudgetShared.DateFormatter.formatForAPI(customDateTo);
         loadWaterfallDataCustom(isoFrom, isoTo, currentWaterfallArticleId);
@@ -1441,19 +1430,14 @@ function updateWaterfallMode(mode) {
 
 // Sync waterfall mode UI with current state
 function syncWaterfallModeUI() {
-    // Update button states
-    document.querySelectorAll('#waterfall-mode-with-balance, #waterfall-mode-without-balance').forEach(btn => {
-        btn.classList.remove('btn-primary');
-        btn.classList.add('btn-outline');
-        btn.setAttribute('aria-pressed', 'false');
-    });
-
-    const activeBtn = document.getElementById(`waterfall-mode-${currentWaterfallMode.replace('_', '-')}`);
-    if (activeBtn) {
-        activeBtn.classList.remove('btn-outline');
-        activeBtn.classList.add('btn-primary');
-        activeBtn.setAttribute('aria-pressed', 'true');
+    const btn = document.getElementById('waterfall-balance-toggle');
+    if (!btn) {
+        return;
     }
+    const withBalance = currentWaterfallMode === 'with_balance';
+    btn.classList.toggle('btn-primary', withBalance);
+    btn.classList.toggle('btn-outline', !withBalance);
+    btn.setAttribute('aria-pressed', String(withBalance));
 }
 
 // Show/hide the transfer line series (Пополнение/Списание) without refetching
