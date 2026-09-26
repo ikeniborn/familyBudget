@@ -1554,33 +1554,30 @@ function niceAxisStep(raw) {
 }
 
 // Shared zero line for the bar axis (left) and the transfer axis (right):
-// both axes get the same number of ticks above and below zero, each with
-// its own nice step, so zero sits at the same height on both.
+// each axis first works out how many ticks it needs above and below zero at
+// its own nice step; both axes then use the larger count on each side, so
+// zero sits at the same height and neither side grows past what one axis needs.
 function alignedWaterfallAxes(barValues, lineValues) {
     const extent = (values) => ({
         pos: Math.max(0, ...values),
         neg: Math.max(0, ...values.map(v => -v))
     });
-    const bar = extent(barValues);
-    const line = extent(lineValues);
-    const totalTicks = 6;
-    const negShare = Math.max(
-        bar.pos + bar.neg > 0 ? bar.neg / (bar.pos + bar.neg) : 0,
-        line.pos + line.neg > 0 ? line.neg / (line.pos + line.neg) : 0
-    );
-    let nNeg = Math.round(totalTicks * negShare);
-    if ((bar.neg > 0 || line.neg > 0) && nNeg === 0) {
-        nNeg = 1;
+    const axes = [extent(barValues), extent(lineValues)];
+    const targetTicks = 6;
+    const ticksFor = (amount, step) => Math.ceil(amount / step - 1e-9);
+    const need = axes.map(({ pos, neg }) => {
+        const step = niceAxisStep((pos + neg) / targetTicks) || 1;
+        return { nPos: ticksFor(pos, step), nNeg: ticksFor(neg, step) };
+    });
+    let nPos = Math.max(...need.map(n => n.nPos));
+    const nNeg = Math.max(...need.map(n => n.nNeg));
+    if (nPos + nNeg === 0) {
+        nPos = 1;
     }
-    if ((bar.pos > 0 || line.pos > 0) && nNeg === totalTicks) {
-        nNeg = totalTicks - 1;
-    }
-    const nPos = totalTicks - nNeg;
-    const bounds = ({ pos, neg }) => {
+    return axes.map(({ pos, neg }) => {
         const step = niceAxisStep(Math.max(nPos > 0 ? pos / nPos : 0, nNeg > 0 ? neg / nNeg : 0)) || 1;
         return { min: -nNeg * step, max: nPos * step, interval: step };
-    };
-    return [bounds(bar), bounds(line)];
+    });
 }
 
 // Update Waterfall chart with data
