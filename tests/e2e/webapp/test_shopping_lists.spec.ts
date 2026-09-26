@@ -552,7 +552,9 @@ test.describe('Shopping Lists - Hierarchy notes tooltip', () => {
       await acceptAllButton.click();
     }
 
-    await page.locator('#hierarchy-view-btn').click();
+    // The view toggle buttons are hidden below 640px (hierarchy is forced there), so switch via the window export
+    await page.waitForFunction(() => typeof (window as any).switchView === 'function', null, { timeout: 10000 });
+    await page.evaluate(() => (window as any).switchView('hierarchy'));
     const expandBtn = page.locator('#hierarchy-toggle-btn');
     await expect(expandBtn).toBeVisible({ timeout: 5000 });
     if ((await expandBtn.getAttribute('data-action')) === 'expand') {
