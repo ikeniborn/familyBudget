@@ -504,3 +504,96 @@ test.describe('Shopping Lists - Deletion', () => {
     expect(response.status).toBe(404);
   });
 });
+
+test.describe('Shopping Lists - Hierarchy notes tooltip', () => {
+  const NOTE_TEXT = `E2E note ${Date.now()} — без лактозы`;
+  let listId: number | null = null;
+  let itemId: number | null = null;
+
+  test.beforeAll(async ({ request }) => {
+    const lists = await request.get('/api/v1/shopping-lists');
+    const stores = await request.get('/api/v1/stores');
+    const groups = await request.get('/api/v1/product-groups');
+    if (!lists.ok() || !stores.ok() || !groups.ok()) return;
+
+    const list = (await lists.json()).shopping_lists?.[0];
+    const store = (await stores.json()).stores?.[0];
+    const group = (await groups.json()).product_groups?.[0];
+    if (!list || !store || !group) return;
+
+    const created = await request.post('/api/v1/shopping-list-items', {
+      data: {
+        shopping_list_id: list.id,
+        store_id: store.id,
+        product_group_id: group.id,
+        product_name: `E2E Tooltip Product ${Date.now()}`,
+        quantity: 1,
+        unit: 'шт',
+        comment: NOTE_TEXT,
+      },
+    });
+    if (!created.ok()) return;
+    listId = list.id;
+    itemId = (await created.json()).id;
+  });
+
+  test.afterAll(async ({ request }) => {
+    if (itemId !== null) {
+      await request.delete(`/api/v1/shopping-list-items/${itemId}`);
+    }
+  });
+
+  async function openHierarchy(page: import('@playwright/test').Page) {
+    await page.goto(`/lists/${listId}`);
+    await page.waitForLoadState('domcontentloaded');
+
+    const acceptAllButton = page.locator('button:has-text("Принять все")');
+    if (await acceptAllButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await acceptAllButton.click();
+    }
+
+    await page.locator('#hierarchy-view-btn').click();
+    const expandBtn = page.locator('#hierarchy-toggle-btn');
+    await expect(expandBtn).toBeVisible({ timeout: 5000 });
+    if ((await expandBtn.getAttribute('data-action')) === 'expand') {
+      await expandBtn.click();
+    }
+    const row = page.locator(`.hierarchy-item[data-item-id="${itemId}"]`);
+    await expect(row).toBeVisible({ timeout: 5000 });
+    return row;
+  }
+
+  test('desktop: hovering the row shows the notes tooltip', async ({ page }) => {
+    test.skip(itemId === null, 'No list/store/product group on the stand to create a test item');
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    const row = await openHierarchy(page);
+    await expect(row.locator('.hierarchy-item-note-icon')).toBeVisible();
+
+    const tip = page.locator('.hierarchy-note-tip');
+    await row.hover();
+    await expect(tip).toBeVisible();
+    await expect(tip).toHaveText(NOTE_TEXT);
+
+    await page.mouse.move(0, 0);
+    await expect(tip).toBeHidden();
+  });
+
+  test('mobile: tapping the icon toggles the notes tooltip without completing the item', async ({ page }) => {
+    test.skip(itemId === null, 'No list/store/product group on the stand to create a test item');
+    await page.setViewportSize({ width: 375, height: 667 });
+
+    const row = await openHierarchy(page);
+    const icon = row.locator('.hierarchy-item-note-icon');
+    await expect(icon).toBeVisible();
+
+    const tip = page.locator('.hierarchy-note-tip');
+    await icon.click();
+    await expect(tip).toBeVisible();
+    await expect(tip).toHaveText(NOTE_TEXT);
+    await expect(row).toHaveAttribute('data-item-completed', 'false');
+
+    await icon.click();
+    await expect(tip).toBeHidden();
+  });
+});
