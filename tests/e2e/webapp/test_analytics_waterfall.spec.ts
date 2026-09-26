@@ -27,7 +27,7 @@ async function navigateToAnalytics(page: import('@playwright/test').Page): Promi
  * loading state, before setOption — reading getOption() at that point yields
  * undefined, so canvas visibility alone is not enough.
  */
-async function getWaterfallSeries(page: import('@playwright/test').Page): Promise<Array<{ name: string; type: string }>> {
+async function getWaterfallSeries(page: import('@playwright/test').Page): Promise<Array<{ name: string; type: string; yAxisIndex?: number }>> {
     await page.waitForFunction(() => {
         const dom = document.getElementById('chart-waterfall');
         // @ts-expect-error global echarts
@@ -41,7 +41,18 @@ async function getWaterfallSeries(page: import('@playwright/test').Page): Promis
         // @ts-expect-error global echarts
         const inst = window.echarts.getInstanceByDom(dom);
         const opt = inst.getOption();
-        return (opt.series || []).map((s: { name: string; type: string }) => ({ name: s.name, type: s.type }));
+        return (opt.series || []).map((s: { name: string; type: string; yAxisIndex?: number }) => ({ name: s.name, type: s.type, yAxisIndex: s.yAxisIndex }));
+    });
+}
+
+/** Positions of the waterfall value axes, in option order (bars first). */
+async function getWaterfallAxisPositions(page: import('@playwright/test').Page): Promise<string[]> {
+    return page.evaluate(() => {
+        const dom = document.getElementById('chart-waterfall');
+        // @ts-expect-error global echarts
+        const inst = window.echarts.getInstanceByDom(dom);
+        const yAxis = inst.getOption().yAxis || [];
+        return yAxis.map((axis: { position?: string }) => axis.position ?? 'left');
     });
 }
 
@@ -62,6 +73,26 @@ test.describe('Analytics Waterfall - transfers series', () => {
         const transfers = seriesInfo.filter(s => s.name === 'Пополнение' || s.name === 'Списание');
         for (const s of transfers) {
             expect(s.type).toBe('line');
+        }
+    });
+
+    test('bars use the left axis and transfer lines the right one', async ({ page }) => {
+        await page.setViewportSize(VIEWPORTS.desktop);
+        await navigateToAnalytics(page);
+
+        await page.locator('#chart-waterfall canvas').first().waitFor({ state: 'visible', timeout: 10000 });
+        const seriesInfo = await getWaterfallSeries(page);
+
+        expect(await getWaterfallAxisPositions(page)).toEqual(['left', 'right']);
+        const bars = seriesInfo.filter(s => s.type === 'bar');
+        expect(bars.length).toBeGreaterThan(0);
+        for (const s of bars) {
+            expect(s.yAxisIndex ?? 0).toBe(0);
+        }
+        const transfers = seriesInfo.filter(s => s.name === 'Пополнение' || s.name === 'Списание');
+        expect(transfers).toHaveLength(2);
+        for (const s of transfers) {
+            expect(s.yAxisIndex).toBe(1);
         }
     });
 

@@ -6,8 +6,9 @@
  * dictated) goes to POST /api/v1/ai/analytics-chat, which computes the
  * aggregates server-side and returns a grounded answer. Each question is
  * independent (no conversation state). Exchanges are persisted server-side
- * (t_f_ai_chat_log): the last ones replay into the chat on load, and the
- * «История» panel lists the recent ones from
+ * (t_f_ai_chat_log): the chat shows one exchange at a time — the last
+ * successful one replays on load and a new question replaces it — while
+ * the «История» panel lists the recent ones from
  * GET /api/v1/ai/analytics-chat/history.
  */
 
@@ -61,8 +62,8 @@ function setStatus(message: string, isError = false): void {
 
 // ==================== Lightweight markdown + history ====================
 
-// How many past exchanges replay into the chat on page load, and how many
-// the «История» panel lists.
+// How many past exchanges are fetched on page load (the newest successful
+// one replays into the chat), and how many the «История» panel lists.
 const REPLAY_LIMIT = 5;
 const HISTORY_PANEL_LIMIT = 20;
 
@@ -170,6 +171,11 @@ function formatRub(value: number): string {
     return `${Math.round(value).toLocaleString('ru-RU')} ₽`;
 }
 
+/** The chat holds a single exchange: drop the previous one before a new question. */
+function clearLog(): void {
+    el<HTMLElement>('ai-chat-log')?.replaceChildren();
+}
+
 function appendBubble(role: 'question' | 'answer', text: string, meta?: string): void {
     const log = el<HTMLElement>('ai-chat-log');
     if (!log) {
@@ -207,6 +213,7 @@ async function ask(): Promise<void> {
     if (button) {
         button.disabled = true;
     }
+    clearLog();
     appendBubble('question', question);
     if (input) {
         input.value = '';
@@ -406,15 +413,13 @@ async function revealIfAvailable(): Promise<void> {
         const status = (await response.json()) as { text: boolean; voice: boolean };
         if (status.text) {
             el<HTMLElement>('ai-chat-card')?.classList.remove('hidden');
-            // Replay the last server-persisted exchanges (newest-first API
-            // order reversed to chronological).
+            // Replay only the newest successful server-persisted exchange
+            // (API order is newest first); older ones stay in the panel.
             const items = await fetchHistory(REPLAY_LIMIT);
-            for (const item of items.reverse()) {
-                if (item.status !== 'ok' || !item.answer) {
-                    continue;
-                }
-                appendBubble('question', item.question);
-                appendBubble('answer', item.answer, metaFromScope(item.scope));
+            const last = items.find((item) => item.status === 'ok' && !!item.answer);
+            if (last && last.answer) {
+                appendBubble('question', last.question);
+                appendBubble('answer', last.answer, metaFromScope(last.scope));
             }
         }
         if (status.text && status.voice) {
