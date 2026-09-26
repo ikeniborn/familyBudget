@@ -134,6 +134,13 @@
                                 Без остатков
                             </button>
                         </div>
+                        <!-- Transfers toggle: hides the Пополнение/Списание line series -->
+                        <button class="btn btn-sm btn-primary" id="waterfall-transfers-toggle"
+                                onclick="toggleWaterfallTransfers()"
+                                aria-pressed="true"
+                                aria-label="Показать или скрыть линии переводов">
+                            ↔ Переводы
+                        </button>
                     </div>
 
                     <div id="chart-waterfall" class="chart-container" role="img" aria-label="Каскадная диаграмма кумулятивного денежного потока с детализацией"></div>
@@ -274,6 +281,10 @@ let currentTrendsMode = localStorage.getItem('budgetTrendsMode') || 'cumulative'
 // Waterfall chart mode filter (with_balance vs without_balance)
 // Load from localStorage or default to 'with_balance'
 let currentWaterfallMode = localStorage.getItem('budgetWaterfallMode') || 'with_balance';
+// Transfer lines on the waterfall (Пополнение/Списание) — shown unless switched off
+let showWaterfallTransfers = localStorage.getItem('budgetWaterfallTransfers') !== 'off';
+// Last /waterfall payload, kept so the transfers toggle re-renders without a refetch
+let lastWaterfallData = null;
 
 // Trends days filter (30, 90, 365, etc.)
 let currentTrendsDays = localStorage.getItem('budgetTrendsDays') || '30';
@@ -331,6 +342,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     syncChartModeUI();
     syncTrendsModeUI();
     syncWaterfallModeUI();
+    syncWaterfallTransfersUI();
 
     // Initial load with default period (month)
     const defaultPeriod = 'month';
@@ -1444,6 +1456,26 @@ function syncWaterfallModeUI() {
     }
 }
 
+// Show/hide the transfer line series (Пополнение/Списание) without refetching
+function toggleWaterfallTransfers() {
+    showWaterfallTransfers = !showWaterfallTransfers;
+    localStorage.setItem('budgetWaterfallTransfers', showWaterfallTransfers ? 'on' : 'off');
+    syncWaterfallTransfersUI();
+    if (lastWaterfallData) {
+        updateWaterfallChart(lastWaterfallData);
+    }
+}
+
+function syncWaterfallTransfersUI() {
+    const btn = document.getElementById('waterfall-transfers-toggle');
+    if (!btn) {
+        return;
+    }
+    btn.classList.toggle('btn-primary', showWaterfallTransfers);
+    btn.classList.toggle('btn-outline', !showWaterfallTransfers);
+    btn.setAttribute('aria-pressed', String(showWaterfallTransfers));
+}
+
 // Note: updatePeriod function is defined earlier in the file
 
 // Initialize Waterfall chart
@@ -1519,6 +1551,7 @@ function updateWaterfallChart(data) {
     }
 
     waterfallChart.hideLoading();
+    lastWaterfallData = data;
 
     // Handle empty data
     if (!data || !data.labels || data.labels.length === 0) {
@@ -1695,6 +1728,7 @@ function updateWaterfallChart(data) {
                 type: 'value',
                 name: 'Переводы (₽)',
                 position: 'right',
+                show: showWaterfallTransfers,
                 splitLine: { show: false },
                 axisLabel: { formatter: formatWaterfallAxisValue }
             }
@@ -1715,7 +1749,13 @@ function updateWaterfallChart(data) {
                         shadowColor: 'rgba(0, 0, 0, 0.5)'
                     }
                 }
-            },
+            }
+        ]
+    };
+
+    // Transfer lines (right axis) — only while the «Переводы» toggle is on
+    if (showWaterfallTransfers) {
+        option.series.push(
             {
                 name: 'Пополнение',
                 type: 'line',
@@ -1738,8 +1778,8 @@ function updateWaterfallChart(data) {
                 symbol: 'circle',
                 symbolSize: 5
             }
-        ]
-    };
+        );
+    }
 
     waterfallChart.setOption(option, true);  // true = notMerge for clean refresh
 
