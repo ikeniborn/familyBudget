@@ -1507,6 +1507,10 @@ async function loadWaterfallData(period = 'year', articleId = null) {
     }
 }
 
+function formatWaterfallAxisValue(value) {
+    return Math.abs(value) >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
+}
+
 // Update Waterfall chart with data
 function updateWaterfallChart(data) {
     if (!waterfallChart) {
@@ -1528,7 +1532,7 @@ function updateWaterfallChart(data) {
     }
 
     // Build proper waterfall data structure (synchronous - async overhead > performance gain)
-    // Mode: with_balance - Начало -> +Income -> -Expense -> Итого (cumulative)
+    // Mode: with_balance - Начало -> (income - expense per period) -> Итого (cumulative incl. transfers)
     // Mode: without_balance - Only periods (no start/end)
     const waterfallData = [];
     const labels = [];
@@ -1544,13 +1548,12 @@ function updateWaterfallChart(data) {
             itemStyle: { color: '#90CAF9' }
         });
 
-        // Add each period's net change
+        // Add each period's income/expense net; transfers live on the line
+        // series only (the cumulative balance still includes them)
         data.labels.forEach((label, index) => {
             const income = data.income[index];
             const expense = data.expense[index];
-            const tIn = transfersIn[index] ?? 0;
-            const tOut = transfersOut[index] ?? 0;
-            const net = income - expense + tIn - tOut;
+            const net = income - expense;
 
             labels.push(label);
             waterfallData.push({
@@ -1572,9 +1575,7 @@ function updateWaterfallChart(data) {
         data.labels.forEach((label, index) => {
             const income = data.income[index];
             const expense = data.expense[index];
-            const tIn = transfersIn[index] ?? 0;
-            const tOut = transfersOut[index] ?? 0;
-            const net = income - expense + tIn - tOut;
+            const net = income - expense;
 
             labels.push(label);
             waterfallData.push({
@@ -1682,16 +1683,22 @@ function updateWaterfallChart(data) {
                 fontSize: 11
             }
         },
-        yAxis: {
-            type: 'value',
-            scale: true,
-            name: 'Сумма (₽)',
-            axisLabel: {
-                formatter: function(value) {
-                    return value >= 1000 ? (value / 1000).toFixed(1) + 'k' : value;
-                }
+        // Two value axes: bars (income/expense) on the left, transfer lines on the right
+        yAxis: [
+            {
+                type: 'value',
+                scale: true,
+                name: 'Сумма (₽)',
+                axisLabel: { formatter: formatWaterfallAxisValue }
+            },
+            {
+                type: 'value',
+                name: 'Переводы (₽)',
+                position: 'right',
+                splitLine: { show: false },
+                axisLabel: { formatter: formatWaterfallAxisValue }
             }
-        },
+        ],
         series: [
             {
                 name: 'Waterfall',
@@ -1712,6 +1719,7 @@ function updateWaterfallChart(data) {
             {
                 name: 'Пополнение',
                 type: 'line',
+                yAxisIndex: 1,
                 smooth: true,
                 data: currentWaterfallMode === 'with_balance' ? [0, ...transfersIn, 0] : transfersIn,
                 lineStyle: { color: '#60a5fa', width: 2 },
@@ -1722,6 +1730,7 @@ function updateWaterfallChart(data) {
             {
                 name: 'Списание',
                 type: 'line',
+                yAxisIndex: 1,
                 smooth: true,
                 data: currentWaterfallMode === 'with_balance' ? [0, ...transfersOut.map(x => -x), 0] : transfersOut.map(x => -x),
                 lineStyle: { color: '#fbbf24', width: 2 },
