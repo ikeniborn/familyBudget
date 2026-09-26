@@ -96,6 +96,34 @@ test.describe('Analytics Waterfall - transfers series', () => {
         }
     });
 
+    test('«Переводы» toggle hides and restores the transfer lines', async ({ page }) => {
+        await page.setViewportSize(VIEWPORTS.desktop);
+        await navigateToAnalytics(page);
+
+        await page.locator('#chart-waterfall canvas').first().waitFor({ state: 'visible', timeout: 10000 });
+        const before = (await getWaterfallSeries(page)).map(s => s.name);
+        expect(before).toContain('Пополнение');
+        expect(before).toContain('Списание');
+
+        const toggle = page.locator('#waterfall-transfers-toggle');
+        await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+        await page.waitForTimeout(300);
+
+        const hidden = (await getWaterfallSeries(page)).map(s => s.name);
+        expect(hidden).not.toContain('Пополнение');
+        expect(hidden).not.toContain('Списание');
+        expect(hidden).toContain('Waterfall');
+
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+        await page.waitForTimeout(300);
+        const restored = (await getWaterfallSeries(page)).map(s => s.name);
+        expect(restored).toContain('Пополнение');
+        expect(restored).toContain('Списание');
+    });
+
     test('without_balance mode shows transfer series as lines', async ({ page }) => {
         await page.setViewportSize(VIEWPORTS.desktop);
         await navigateToAnalytics(page);
