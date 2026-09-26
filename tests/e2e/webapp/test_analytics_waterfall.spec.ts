@@ -143,6 +143,35 @@ test.describe('Analytics Waterfall - transfers series', () => {
         expect(restored).toContain('Списание');
     });
 
+    test('«Остатки» toggle drops and restores the Начало/Итого bars', async ({ page }) => {
+        await page.setViewportSize(VIEWPORTS.desktop);
+        await navigateToAnalytics(page);
+
+        await page.locator('#chart-waterfall canvas').first().waitFor({ state: 'visible', timeout: 10000 });
+        await getWaterfallSeries(page);
+        const labels = () => page.evaluate(() => {
+            const dom = document.getElementById('chart-waterfall');
+            // @ts-expect-error global echarts
+            const inst = window.echarts.getInstanceByDom(dom);
+            return (inst.getOption().xAxis[0].data as string[]);
+        });
+        const toggle = page.locator('#waterfall-balance-toggle');
+        await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+        expect(await labels()).toContain('Начало');
+
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-pressed', 'false');
+        await page.waitForTimeout(300);
+        const without = await labels();
+        expect(without).not.toContain('Начало');
+        expect(without).not.toContain('Итого');
+
+        await toggle.click();
+        await expect(toggle).toHaveAttribute('aria-pressed', 'true');
+        await page.waitForTimeout(300);
+        expect(await labels()).toContain('Итого');
+    });
+
     test('without_balance mode shows transfer series as lines', async ({ page }) => {
         await page.setViewportSize(VIEWPORTS.desktop);
         await navigateToAnalytics(page);
@@ -150,7 +179,7 @@ test.describe('Analytics Waterfall - transfers series', () => {
         await page.locator('#chart-waterfall canvas').first().waitFor({ state: 'visible' });
         // Wait for the initial data before switching modes, so the click acts on a loaded chart
         await getWaterfallSeries(page);
-        await page.locator('#waterfall-mode-without-balance').click();
+        await page.locator('#waterfall-balance-toggle').click();
         await page.waitForTimeout(500);
 
         const seriesInfo = await getWaterfallSeries(page);
