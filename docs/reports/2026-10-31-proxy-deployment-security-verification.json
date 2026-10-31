@@ -1,0 +1,202 @@
+{
+  "application_regressions": {
+    "backend": {
+      "errors": 108,
+      "exit_status": 1,
+      "failed": 9,
+      "finding": "Duplicate fixture telegram ID and excess user counts; root attribution unresolved. No application source changes.",
+      "passed": 365,
+      "skipped": 7
+    },
+    "frontend": {
+      "baseline_confirmed": "20 ArticleSelect constructor-mock failures reproduce on archived origin/test with the same dependencies. Other six failures lack baseline confirmation.",
+      "exit_status": 1,
+      "failed": 26,
+      "passed": 888,
+      "skipped": 98
+    }
+  },
+  "closure_mapping": {
+    "R6": "Loopback Compose, rendered/runtime validation, actual external-negative and local/Docker-positive probes",
+    "R7": "Fresh, legacy upgrade, unchanged repeat, sentinel/volume preservation and health recovery; companion FamilyTraffic evidence"
+  },
+  "durable_lifecycle": "completion-pending",
+  "implementation_head": "a0fb2a2d9a2793b94b134edfeaa806bf3b172cc5",
+  "independent_integration_review": "No remaining blocking findings in changed source after scoped corrections.",
+  "repository": "familyBudget",
+  "result_check": {
+    "plan_hash": "e5d7ff8bb5411f68",
+    "source": "plan",
+    "verdict": "needs_work"
+  },
+  "runtime_evidence": {
+    "backend_port": 18000,
+    "checks": [
+      "fresh-health-loopback-docker-external",
+      "caller-credentials-absent-from-render-and-containers",
+      "legacy-reachable-and-runtime-rejected",
+      "upgrade-preserved-sentinel-volumes-and-unrelated-service",
+      "repeat-deploy-idempotent",
+      "external-flag-rejected-without-mutation",
+      "public-override-rejected-without-mutation",
+      "missing-image-rejected-without-mutation",
+      "failed-health-rejected-and-safe-config-recovered"
+    ],
+    "images": {
+      "familybudget-publication-node:ci": "sha256:a67defd37575a41f5e407505bee392119f325a41cb925e1a9c038d2382fa838c",
+      "fb-publication-redis-base:7-alpine": "sha256:98c6ca8f397f86e469be752c3e7ed5eb8b17f2479840cb69a2e413037038e9f4",
+      "ghcr.io/ikeniborn/familybudget-backend:0.8.15": "sha256:5fa753198df44bdac77cf991d8a20abd7016e7a1fc596f1e530e0410d40b9123",
+      "postgres:16-alpine": "sha256:81bd698b4594e751a3269e4dcd3e03a4a0ec0daf7b72e7aa1abd43cce9887542",
+      "python:3.12-alpine": "sha256:8614a50e05881ad79bcf2d4f82028b65a463c03d2d666d255a4332e3d2a0c0ba"
+    },
+    "preserved_sentinel": "publication-upgrade",
+    "project": "fb-publication-0dd5192c4377",
+    "repeat_container_ids": {
+      "backend": "bd0a703080397759bb398725413aacaee1148b94d8d5c840f294a88daa4529a5",
+      "postgres": "46a199a5e2819a619c7436f5b12f30cc8af3268cf54d3143f04b6067ecbf9486",
+      "redis": "3541164404a49d156fa00acdbda07f72b1dc464c4cca21398ee733c5f2fe8c6f"
+    },
+    "unrelated_container_id": "fb0ae598a56148ac4bd1d01d01ee34e5d571fb7311d600eaa2d8d869428c8ef6",
+    "volume_identity": [
+      [
+        "fb-publication-0dd5192c4377_backend_scratch_0",
+        "2026-10-31T18:57:22Z"
+      ],
+      [
+        "fb-publication-0dd5192c4377_backend_scratch_1",
+        "2026-10-31T18:57:22Z"
+      ],
+      [
+        "fb-publication-0dd5192c4377_postgres_backups",
+        "2026-10-31T18:57:16Z"
+      ],
+      [
+        "fb-publication-0dd5192c4377_postgres_data",
+        "2026-10-31T18:57:16Z"
+      ],
+      [
+        "fb-publication-0dd5192c4377_redis_data",
+        "2026-10-31T18:57:16Z"
+      ]
+    ]
+  },
+  "scope": "Approved installation and deployment security changes; no host rollout of the new mechanism.",
+  "security_verification": {
+    "acceptance": {
+      "backend_port": 18000,
+      "checks": [
+        "fresh-health-loopback-docker-external",
+        "caller-credentials-absent-from-render-and-containers",
+        "legacy-reachable-and-runtime-rejected",
+        "upgrade-preserved-sentinel-volumes-and-unrelated-service",
+        "repeat-deploy-idempotent",
+        "external-flag-rejected-without-mutation",
+        "public-override-rejected-without-mutation",
+        "missing-image-rejected-without-mutation",
+        "failed-health-rejected-and-safe-config-recovered"
+      ],
+      "images": {
+        "familybudget-publication-node:ci": "sha256:a67defd37575a41f5e407505bee392119f325a41cb925e1a9c038d2382fa838c",
+        "fb-publication-redis-base:7-alpine": "sha256:98c6ca8f397f86e469be752c3e7ed5eb8b17f2479840cb69a2e413037038e9f4",
+        "ghcr.io/ikeniborn/familybudget-backend:0.8.15": "sha256:5fa753198df44bdac77cf991d8a20abd7016e7a1fc596f1e530e0410d40b9123",
+        "postgres:16-alpine": "sha256:81bd698b4594e751a3269e4dcd3e03a4a0ec0daf7b72e7aa1abd43cce9887542",
+        "python:3.12-alpine": "sha256:8614a50e05881ad79bcf2d4f82028b65a463c03d2d666d255a4332e3d2a0c0ba"
+      },
+      "preserved_sentinel": "publication-upgrade",
+      "project": "fb-publication-0dd5192c4377",
+      "repeat_container_ids": {
+        "backend": "bd0a703080397759bb398725413aacaee1148b94d8d5c840f294a88daa4529a5",
+        "postgres": "46a199a5e2819a619c7436f5b12f30cc8af3268cf54d3143f04b6067ecbf9486",
+        "redis": "3541164404a49d156fa00acdbda07f72b1dc464c4cca21398ee733c5f2fe8c6f"
+      },
+      "unrelated_container_id": "fb0ae598a56148ac4bd1d01d01ee34e5d571fb7311d600eaa2d8d869428c8ef6",
+      "volume_identity": [
+        [
+          "fb-publication-0dd5192c4377_backend_scratch_0",
+          "2026-10-31T18:57:22Z"
+        ],
+        [
+          "fb-publication-0dd5192c4377_backend_scratch_1",
+          "2026-10-31T18:57:22Z"
+        ],
+        [
+          "fb-publication-0dd5192c4377_postgres_backups",
+          "2026-10-31T18:57:16Z"
+        ],
+        [
+          "fb-publication-0dd5192c4377_postgres_data",
+          "2026-10-31T18:57:16Z"
+        ],
+        [
+          "fb-publication-0dd5192c4377_redis_data",
+          "2026-10-31T18:57:16Z"
+        ]
+      ]
+    },
+    "acceptance_evidence_source_head": "b1c879fb0d437c8737eee6f240faff5f65dbba28",
+    "acceptance_reuse_reason": "The final fix only rejects network_mode before mutation. Existing positive lifecycle uses service networks and is unchanged; parent authorized reuse with focused actual override rejection evidence.",
+    "actual_network_override_rejection": {
+      "declared_host_ip": "127.0.0.1",
+      "diagnostic": "backend: network_mode overrides are unsupported; require Docker service networks",
+      "mutation_commands": [],
+      "preflight_exit": 1,
+      "protected_service": "backend",
+      "render_exit": 0,
+      "rendered_network_mode": "host",
+      "trace": [
+        "compose -f /home/ikeniborn/Documents/Project/familyBudget-dev-proxy-deployment-security/docker-compose.yml -f /tmp/fb-network-override-dyaua5p7/host-network.override.yml config --format json"
+      ]
+    },
+    "checks": [
+      {
+        "command": "python3 -m unittest discover -s tests/deployment -v",
+        "count": 33,
+        "exit": 0
+      },
+      {
+        "command": "bash -n setup.sh deploy.sh install.sh scripts/lib/firewall.sh scripts/lib/config.sh scripts/lib/utils.sh tests/deployment/run_publication_lab.sh",
+        "exit": 0
+      },
+      {
+        "command": "python3 -m py_compile scripts/validate_service_bindings.py tests/deployment/publication_lab.py tests/deployment/test_publication_lab.py",
+        "exit": 0
+      },
+      {
+        "command": "PyYAML safe_load .github/workflows/pr-checks.yml",
+        "exit": 0
+      },
+      {
+        "command": "FB_LAB_BACKEND_IMAGE=ghcr.io/ikeniborn/familybudget-backend:0.8.15 FB_LAB_POSTGRES_IMAGE=postgres:16-alpine FB_LAB_REDIS_IMAGE=fb-publication-redis-base:7-alpine bash tests/deployment/run_publication_lab.sh",
+        "exit": 0,
+        "seconds": 124.166
+      },
+      {
+        "command": "python3 /tmp/fb-check-network-override.py",
+        "exit": 0,
+        "scope": "Actual selected Compose host-network override retains loopback declarations and is rejected before startup"
+      }
+    ],
+    "source_environment_fingerprint": "c6c3e4bcf8f8d1e498d1be7cfff1b36389cd0026aa74dd394adab61f0b8013ed",
+    "source_sha256": {
+      ".github/workflows/pr-checks.yml": "3d4e6f00a07daf4d05e30146254076fce8e6950e0eaa590bf03b4fdac2b3bfef",
+      "deploy.sh": "b5350d8f6749f7e76734c16fb1e935c2b5a535009858e5c6592c2dfb61d27bbf",
+      "docker-compose.yml": "abdb6779ffa15cc2c0aa4250dd5ef9ab68db45c627b7e247aa8df0508328fba0",
+      "docs/security-service-publication.md": "6833c731073d4bd3a4a1fad0b20553fbfd03a678436afac3ca31bc9d16b49a3f",
+      "scripts/lib/firewall.sh": "ca86342137a01922cd0c0b6f2af40801ffd4d558f784cb325c3fa6e13ef37ef5",
+      "scripts/lib/utils.sh": "4fd7624522eae7ab005e9e6cd609b23af89c19bdd5230d19388cb6d74e4f436c",
+      "scripts/validate_service_bindings.py": "2740d8bb37e2d666f3785980b6335d7a624b7b7f3841ccedc50f366daf059254",
+      "setup.sh": "28b0fbb3b7d834af0300e469d4a3332369e4a1686ada670c5819d52dd6c7db9f",
+      "tests/deployment/fixtures/compose-publications.json": "94a1700fc3e55d1ebc065bbf62dd837998b65cdfdf3db60c18b08c5ca060dc6b",
+      "tests/deployment/fixtures/runtime-publications.json": "20d359e5b7744951f319a0fc6c7e6d8be367634d0e28fd1e89496401ef920fbc",
+      "tests/deployment/publication-node.Dockerfile": "5b14976524258993f02147cedbcf067ecac1fe52cfac1cf9419ff6e784536961",
+      "tests/deployment/publication_lab.py": "4ae4650d8264c198b02ca65b6dcfc72d69fa7651b36e4a1271909a7c8e8ac482",
+      "tests/deployment/run_publication_lab.sh": "36c422e59e1612d63d6635bdeaedfaaa5c53323eab8f8011c7447607a6109270",
+      "tests/deployment/test_publication_lab.py": "dc1979071c5dc4a858c87838c2300f75685c44e0bbd7120cef07377ffe740730",
+      "tests/deployment/test_publication_workflow.py": "ffa9c4c2fa90685233f92c4718bcdd0443c66bed700fe90f76b857fb09c7a0db",
+      "tests/deployment/test_service_bindings.py": "b88374f56e812a6cccee3d8cdbd297d6e698d27b6912bea9cb699de3428f266d"
+    }
+  },
+  "shared_application_regression_status": "failed",
+  "topic": "proxy-deployment-security",
+  "wiki_delivery": "unavailable"
+}
