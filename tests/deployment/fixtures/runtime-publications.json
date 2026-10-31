@@ -1,0 +1,53 @@
+[
+  {
+    "Config": {
+      "Labels": {
+        "com.docker.compose.service": "postgres"
+      }
+    },
+    "NetworkSettings": {
+      "Ports": {
+        "5432/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "5432"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Config": {
+      "Labels": {
+        "com.docker.compose.service": "redis"
+      }
+    },
+    "NetworkSettings": {
+      "Ports": {
+        "6379/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "6379"
+          }
+        ]
+      }
+    }
+  },
+  {
+    "Config": {
+      "Labels": {
+        "com.docker.compose.service": "backend"
+      }
+    },
+    "NetworkSettings": {
+      "Ports": {
+        "8000/tcp": [
+          {
+            "HostIp": "127.0.0.1",
+            "HostPort": "18000"
+          }
+        ]
+      }
+    }
+  }
+]
