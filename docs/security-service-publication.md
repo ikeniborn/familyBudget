@@ -86,3 +86,55 @@ bash -n setup.sh deploy.sh install.sh scripts/lib/firewall.sh scripts/lib/config
 The recorded runtime JSON fixture came from disposable Alpine containers, with backend
 publication remapped to 18000. It verifies Docker inspect parsing, not application health
 or external network isolation. The lifecycle acceptance lab supplies that separate evidence.
+
+## Disposable lifecycle lab
+
+The required CI job builds application images from the PR and a utility node image.
+The runner consumes those prebuilt images; it never builds application images during
+deployment. For workstation use, prepare the same images before running the harness:
+
+```bash
+docker build -f postgres/Dockerfile -t familybudget-publication-postgres:ci .
+docker build -f redis/Dockerfile -t familybudget-publication-redis:ci .
+docker build -f backend/Dockerfile -t familybudget-publication-backend:ci .
+docker build -f tests/deployment/publication-node.Dockerfile -t familybudget-publication-node:ci .
+docker pull python:3.12-alpine
+bash tests/deployment/run_publication_lab.sh
+```
+
+Run these builds only in CI or on a development workstation. Never run them on the server.
+The harness requires Docker and permission to create a privileged disposable DinD node.
+Missing images, daemon access, or network capability fail the required check; they do not skip it.
+
+Every run creates a random `fb-publication-<id>` project, bridge, containers, temporary
+credentials, and independent Docker state volume. It mounts no host Docker socket or
+application directory. Its inner daemon runs the actual rendered PostgreSQL, Redis, and
+backend definitions. Only image selection, container identity, storage mounts, and network
+identity change for isolation. Existing production container names and application
+directories are rejected. Cleanup checks the unique ownership label before removing a
+resource. Only the disposable lab state volume is removed.
+
+Compose rendering receives generated fixture settings and only the caller's `PATH`,
+`DOCKER_HOST`, and `DOCKER_CONTEXT` connection selectors. It does not inherit application
+credentials. Sentinel regression checks verify this boundary in rendered and running
+container environments.
+
+The legacy wildcard snapshot publishes ports inside the disposable node namespace.
+A sibling probe container proves those ports reachable before migration and unreachable
+afterward. The workstation's network ports remain unchanged. Backend publication uses
+the nondefault port 18000. Authenticated database and Redis commands prove Docker-name
+connectivity, independently of host TCP and application-health probes.
+
+Acceptance covers fresh configuration, legacy upgrade, repeat deployment, a preserved
+database sentinel and volume creation identities, unchanged unrelated observer service,
+external-mode rejection, conflicting public mapping, missing image, unsafe runtime mapping,
+and failed-health recovery to the safe configuration. The repeat must retain container IDs.
+The harness emits image identities, check names, volume creation identities, repeat
+container IDs, and the fixed lab sentinel. It emits no configuration or credentials.
+CI retains this evidence.
+
+For local publication-only experiments, `FB_LAB_BACKEND_IMAGE`, `FB_LAB_POSTGRES_IMAGE`,
+`FB_LAB_REDIS_IMAGE`, `FB_LAB_NODE_IMAGE`, and `FB_LAB_PROBE_IMAGE` can select existing local
+images. Evidence names their actual IDs. An older backend image proves publication behavior
+for that image; it cannot prove current application-code regression coverage. CI uses its
+fresh builds, and final application-suite verification remains separate.
