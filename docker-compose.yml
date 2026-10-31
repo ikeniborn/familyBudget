@@ -34,11 +34,9 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - postgres_backups:/backups
-    # Port 5432 is exposed on host, but access is controlled by UFW firewall
-    # By default, UFW blocks all external connections to port 5432
-    # To enable access: run setup.sh and configure POSTGRES_EXTERNAL_ACCESS
+    # Host administration uses loopback or SSH forwarding; Docker peers use postgres.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     networks:
       - familybudget
     healthcheck:
@@ -101,10 +99,9 @@ services:
       --requirepass "${REDIS_PASSWORD}"
     volumes:
       - redis_data:/data
-    # Port 6379 is exposed on host, but access is controlled by UFW firewall
-    # By default, UFW blocks all external connections to port 6379
+    # Docker peers use redis; host publication stays on loopback.
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     networks:
       - familybudget
     healthcheck:
@@ -217,7 +214,7 @@ services:
       - ./uploads:/app/uploads
       - postgres_backups:/app/backups
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     networks:
       - familybudget
     healthcheck:

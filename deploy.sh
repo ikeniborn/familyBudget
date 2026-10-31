@@ -9,7 +9,7 @@
 # - Starts services (PostgreSQL uses Docker managed volume)
 # - Waits for healthy status
 # - Runs database migrations
-# - Configures UFW firewall rules for PostgreSQL/Traefik (automatic)
+# - Validates internal-service loopback bindings and preserves operator firewall rules
 # - Displays deployment status and URLs
 #
 # Usage:
@@ -187,8 +187,7 @@ CHECK_INTERVAL=5   # Interval between health checks (seconds)
 # =============================================================================
 # Note: compose_cmd() is loaded from scripts/lib/utils.sh
 
-# Note: Image building is now handled automatically by 'docker compose up --build'
-# which rebuilds only changed images using Docker's layer cache for speed
+# Images are prebuilt by CI and pulled before service startup.
 
 # =============================================================================
 # SERVICE FUNCTIONS (Loaded from scripts/lib/services.sh)
@@ -541,33 +540,7 @@ validate_firewall_rules() {
         warning "⚠ Port 80 (HTTP) is NOT open - Traefik HTTP-01 will fail"
     fi
 
-    # PostgreSQL (5432) - Check if restricted
-    if echo "$ufw_status" | grep -q "5432.*ALLOW"; then
-        local pg_rules=$(echo "$ufw_status" | grep "5432.*ALLOW")
-
-        # Check if rule has specific IP (not "Anywhere")
-        # Format: "5432  ALLOW  78.107.114.37" or "[1] 5432  ALLOW IN  78.107.114.37"
-        if echo "$pg_rules" | grep -qE "ALLOW.*(IN)?\s+[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+"; then
-            # Restricted access - extract IP address
-            local allowed_ip=$(echo "$pg_rules" | grep -oP 'ALLOW\s+(IN\s+)?\K[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
-            success "✓ PostgreSQL (5432) - restricted to IP: $allowed_ip"
-        else
-            # Open to all (Anywhere)!
-            error "✗ PostgreSQL (5432) - OPEN TO ALL IPs!"
-            echo ""
-            error "CRITICAL SECURITY ISSUE: PostgreSQL is accessible from anywhere!"
-            echo ""
-            warning "ACTION REQUIRED:"
-            echo "  1. sudo ufw delete allow 5432/tcp"
-            echo "  2. sudo ufw allow from <YOUR_IP> to any port 5432"
-            echo "  OR re-run: ./setup.sh (choose PostgreSQL external access)"
-            echo ""
-            has_errors=true
-        fi
-    else
-        success "✓ PostgreSQL (5432) - closed (most secure)"
-    fi
-
+    info "Internal-service safety is checked from rendered/runtime bindings, not UFW INPUT."
     echo ""
 
     # Show current status
@@ -809,6 +782,8 @@ main() {
         fi
     fi
 
+    validate_internal_service_settings || exit 1
+
     # Validate firewall rules before deployment
     validate_firewall_rules
 
@@ -870,6 +845,7 @@ main() {
 
     # Synchronize code from repository to /opt/budget
     sync_code_to_deploy
+    validate_internal_service_publication false || exit 1
     echo ""
 
     # VERIFICATION: Check critical files were synced correctly
@@ -1135,6 +1111,9 @@ main() {
     check_prerequisites_late
     echo ""
 
+    validate_internal_service_publication || exit 1
+    mark_internal_publication_recreation || exit 1
+
     # CRITICAL SAFEGUARD: Check PostgreSQL health BEFORE deployment
     # This prevents proceeding if PostgreSQL is already corrupted
     # If corrupted → auto-switch to Full cleanup mode for automatic repair
@@ -1272,8 +1251,7 @@ main() {
     # NOTE: PostgreSQL initialization and repair functions removed after migration to Docker managed volume
     # Docker managed volumes automatically handle directory creation and permissions
 
-    # Note: Image building now happens automatically in start_services()
-    # via 'docker compose up --build' which uses cache for unchanged images
+    # Service startup uses prebuilt images; server-side builds are prohibited.
 
     # stop_services removed - redundant after cleanup_old_deployment
 
@@ -1328,7 +1306,7 @@ main() {
     fi
     echo ""
 
-    if [[ "$DETACH_MODE" == "true" ]]; then
+    {
         # CRITICAL SAFEGUARD: Verify PostgreSQL health after start
         # This catches corruption early, before running migrations
         if ! verify_postgres_health_post_start; then
@@ -1412,30 +1390,7 @@ main() {
         # This optimization frees disk space BEFORE pulling new images
         # No need to cleanup again here - already done during image management phase
 
-        # Configure Docker firewall (DOCKER-USER chain)
-        # CRITICAL: Block exposed ports 5432 (PostgreSQL) and 8000 (Backend)
-        # Docker bypasses UFW by adding iptables rules before UFW chain
-        # Solution: Use DOCKER-USER chain to enforce firewall rules
-        info "Configuring Docker firewall..."
-        if configure_docker_firewall >> "$LOG_FILE" 2>&1; then
-            success "Docker firewall configured successfully"
-        else
-            warning "Failed to configure Docker firewall - ports may be exposed!"
-            warning "Run manually: source scripts/lib/firewall.sh && configure_docker_firewall"
-        fi
-        echo ""
-
-        # Configure UFW rules for PostgreSQL external access
-        # Automatically creates/deletes rules based on POSTGRES_EXTERNAL_ACCESS and POSTGRES_ALLOWED_IP
-        info "Configuring UFW rules for PostgreSQL..."
-        if configure_ufw_for_postgres >> "$LOG_FILE" 2>&1; then
-            success "PostgreSQL UFW rules configured successfully"
-        else
-            warning "Failed to configure PostgreSQL UFW rules"
-            warning "Run manually: source scripts/lib/firewall.sh && configure_ufw_for_postgres"
-        fi
-        echo ""
-
+        # Publication isolation does not mutate shared DOCKER-USER or operator UFW rules.
         setup_backup_cron
         echo ""
 
@@ -1460,7 +1415,7 @@ main() {
             smoke_test_failed=false
 
             # Test 1: Health endpoint
-            if curl -sf -o /dev/null http://localhost:8000/health; then
+            if curl -sf -o /dev/null http://127.0.0.1:${BACKEND_PORT:-8000}/health; then
                 success "✓ Health endpoint responding"
             else
                 warning "✗ Health endpoint failed"
@@ -1468,7 +1423,7 @@ main() {
             fi
 
             # Test 2: Manifest loads (public endpoint)
-            manifest_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/manifest.json 2>/dev/null || echo "000")
+            manifest_status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${BACKEND_PORT:-8000}/manifest.json 2>/dev/null || echo "000")
             if [[ "$manifest_status" == "200" ]]; then
                 success "✓ Manifest loads (HTTP $manifest_status)"
             else
@@ -1477,7 +1432,7 @@ main() {
             fi
 
             # Test 3: Manifest has proper version (not PLACEHOLDER)
-            manifest_json=$(curl -s http://localhost:8000/manifest.json 2>/dev/null)
+            manifest_json=$(curl -s http://127.0.0.1:${BACKEND_PORT:-8000}/manifest.json 2>/dev/null)
             if echo "$manifest_json" | grep -q "PLACEHOLDER"; then
                 warning "✗ Manifest contains PLACEHOLDER tokens"
                 smoke_test_failed=true
@@ -1486,7 +1441,7 @@ main() {
             fi
 
             # Test 4: Lists bundle loads (includes HierarchyView since ES Modules migration)
-            lists_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/static/js/lists.min.js 2>/dev/null || echo "000")
+            lists_status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${BACKEND_PORT:-8000}/static/js/lists.min.js 2>/dev/null || echo "000")
             if [[ "$lists_status" == "200" ]]; then
                 success "✓ Lists bundle available (HTTP $lists_status)"
             else
@@ -1496,12 +1451,12 @@ main() {
 
             # Test 5: Service Worker has version (check minified version)
             if [[ -f "$DEPLOY_DIR/sw.min.js" ]]; then
-                sw_status=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/sw.min.js 2>/dev/null || echo "000")
+                sw_status=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:${BACKEND_PORT:-8000}/sw.min.js 2>/dev/null || echo "000")
                 if [[ "$sw_status" != "200" ]]; then
                     warning "✗ Service Worker not accessible (HTTP $sw_status)"
                     smoke_test_failed=true
                 else
-                    sw_content=$(curl -s http://localhost:8000/sw.min.js 2>/dev/null)
+                    sw_content=$(curl -s http://127.0.0.1:${BACKEND_PORT:-8000}/sw.min.js 2>/dev/null)
                     if echo "$sw_content" | grep -q "CACHE_VERSION_PLACEHOLDER"; then
                         warning "✗ Service Worker contains PLACEHOLDER"
                         smoke_test_failed=true
@@ -1553,6 +1508,9 @@ main() {
             echo ""
         fi
 
+        wait_for_services
+        verify_internal_service_publication || exit 1
+
         # Save deployed version for next deployment comparison
         if [[ -n "${NEW_VERSION:-}" ]]; then
             save_deployed_version "$NEW_VERSION"
@@ -1565,10 +1523,10 @@ main() {
         rm -f /tmp/sync_changed_files_* 2>/dev/null || true
 
         print_status
-    else
-        info "Running in foreground mode (Ctrl+C to stop)"
-        info "Services will be stopped when you exit"
-        # Logs will be shown by docker compose up in foreground mode
+    }
+    if [[ "$DETACH_MODE" != "true" ]]; then
+        info "Following service logs (Ctrl+C stops log streaming; services remain running)"
+        compose_cmd logs -f
     fi
 }
 
