@@ -109,6 +109,16 @@ class ServiceBindingsTests(unittest.TestCase):
             result = self.run_validator("compose", self.valid_compose(), port)
             self.assertEqual(result.returncode, 1, result.stderr)
 
+    def test_network_mode_overrides_fail_before_runtime(self):
+        for service in ("postgres", "redis", "backend"):
+            for mode in ("host", "service:postgres", "container:other", "bridge"):
+                with self.subTest(service=service, network_mode=mode):
+                    candidate = self.valid_compose()
+                    candidate["services"][service]["network_mode"] = mode
+                    result = self.run_validator("compose", candidate)
+                    self.assertEqual(result.returncode, 1)
+                    self.assertIn(service, result.stderr)
+
     def test_malformed_input_does_not_disclose_values(self):
         for candidate in ({"secret": "private-value"}, None, ["private-value"]):
             result = self.run_validator("compose", candidate)

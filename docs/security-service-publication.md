@@ -41,7 +41,10 @@ configured port through SSH. Public frontend access continues through the full p
 
 `validate_internal_service_publication` validates the actual rendered Compose JSON.
 It rejects missing, additional, wildcard, or non-loopback mappings, invalid backend ports,
-build overrides, renderer errors, and missing prebuilt images. Image availability is checked
+build overrides, renderer errors, and missing prebuilt images.
+Protected services also reject every `network_mode` override before startup because
+host or shared-container networking can bypass the declared port bindings.
+Image availability is checked
 after the normal registry pull and before repair, cleanup, or container recreation.
 An earlier configuration-only check runs immediately after code synchronization.
 

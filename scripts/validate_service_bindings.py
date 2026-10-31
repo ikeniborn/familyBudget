@@ -56,6 +56,11 @@ def main():
     for service, target, host in (("postgres", 5432, 5432),
                                   ("redis", 6379, 6379), ("backend", 8000, backend_port)):
         try:
+            if args.mode == "compose" and "network_mode" in data["services"][service]:
+                print(f"{service}: network_mode overrides are unsupported; require Docker service networks",
+                      file=sys.stderr)
+                failed = True
+                continue
             actual = publications(data, args.mode, service)
             if actual != [("127.0.0.1", host, target, "tcp")]:
                 raise ValueError("unexpected publication")

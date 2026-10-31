@@ -260,15 +260,20 @@ for port in (5432,6379,18000):
 
     def assert_negative_preflights(self):
         before, volumes, observer = self.container_ids(), self.volume_ids(), self.observer_id()
-        for name in ("external-flag", "public-override", "missing-image"):
+        for name in ("external-flag", "public-override", "missing-image", "host-network-override"):
             candidate = copy.deepcopy(self.current)
             script = "validate_internal_service_publication"
             if name == "external-flag":
                 script = "POSTGRES_EXTERNAL_ACCESS=true validate_internal_service_publication"
             elif name == "public-override":
                 candidate["services"]["postgres"]["ports"].append({"host_ip": "0.0.0.0", "published": "15432", "target": 5432, "protocol": "tcp"})
-            else:
+            elif name == "missing-image":
                 candidate["services"]["backend"]["image"] = self.project + "-missing:required"
+            else:
+                override = self.workspace / "host-network.override.yml"
+                override.write_text("services:\n  backend:\n    network_mode: host\n    networks: !reset []\n")
+                self.run(["docker", "cp", str(override), f"{self.node}:/lab/host-network.override.yml"])
+                script = "COMPOSE_FILE=docker-compose.yml:host-network.override.yml validate_internal_service_publication"
             self.write_config(candidate)
             if self.shell(script, check=False).returncode == 0:
                 raise LabFailure(f"negative preflight unexpectedly passed: {name}")

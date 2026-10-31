@@ -155,6 +155,16 @@ main
         self.assertIn("postgres", result.stderr)
         self.assert_no_mutations(commands)
 
+    def test_network_mode_override_stops_all_deploy_startup(self):
+        for mode in ("host", "service:postgres", "container:other"):
+            candidate = bindings.ServiceBindingsTests().valid_compose()
+            candidate["services"]["backend"]["network_mode"] = mode
+            result, commands = self.run_workflow("main", candidate=candidate)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("backend", result.stderr)
+            self.assertFalse(any("call start_" in item for item in commands))
+            self.assert_no_mutations([item for item in commands if item.startswith("docker ")])
+
     def test_render_failure_cannot_pass(self):
         result, commands = self.run_workflow(FAIL_RENDER="1")
         self.assertNotEqual(result.returncode, 0)
