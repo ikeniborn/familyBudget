@@ -6,10 +6,10 @@
 # - Creates .env file from template in /opt/budget
 # - Generates secure secrets (JWT_SECRET, passwords)
 # - Prompts for required configuration (Telegram bot token, admin ID)
-# - Configures UFW firewall with IP restriction for PostgreSQL (CRITICAL SECURITY)
+# - Enforces local-only internal-service publication
 # - Generates nginx configuration (for full profile)
 # - Validates configuration
-# - Optionally builds Docker images
+# - Uses prebuilt CI images through deploy.sh
 #
 # NOTE: This script does NOT copy source code. Use deploy.sh for code synchronization.
 #
@@ -20,11 +20,10 @@
 #   -h, --help              Show this help message
 #   -y, --yes               Accept all defaults (non-interactive)
 #   --skip-ufw              Skip UFW configuration
-#   --skip-build            Skip Docker image building
+#   --skip-build            Deprecated compatibility option (images are built in CI)
 #
 # IMPORTANT SECURITY:
-#   This script configures UFW firewall to restrict PostgreSQL external access
-#   to a specific IP address. This is CRITICAL for production security.
+#   Internal services publish only on loopback. Use SSH forwarding for remote administration.
 #
 # Author: Family Budget Team
 # Version: 2.0.0
@@ -77,6 +76,8 @@ else
     echo "[ERROR] Could not find scripts/lib/utils.sh - required for setup"
     exit 1
 fi
+
+source "$SCRIPT_DIR/scripts/lib/firewall.sh"
 
 # =============================================================================
 # HELPER FUNCTIONS
@@ -359,14 +360,14 @@ Options:
   -h, --help              Show this help message
   -y, --yes               Accept all defaults (non-interactive)
   --skip-ufw              Skip UFW configuration
-  --skip-build            Skip Docker image building
+  --skip-build            Deprecated compatibility option (images are built in CI)
 
 What this script does:
   1. Creates .env configuration file in $DEPLOY_DIR
   2. Generates secure secrets (JWT_SECRET, passwords)
   3. Generates nginx config (if full profile)
-  4. Configures UFW firewall (if PostgreSQL external access enabled)
-  5. Optionally builds Docker images
+  4. Enforces local-only internal-service settings
+  5. Uses prebuilt images during deployment
 
 NOTE: This script does NOT copy source code.
       Use deploy.sh for code synchronization and deployment.
@@ -383,21 +384,12 @@ Interactive Prompts:
   - Admin Telegram ID
   - Deployment profile (basic/full)
   - Domain name (for full profile)
-  - PostgreSQL external access (with IP restriction)
   - S3 backup configuration (optional)
 
-UFW Configuration (CRITICAL SECURITY):
-  If PostgreSQL external access is enabled, this script configures
-  UFW firewall to allow connections ONLY from a specific IP address.
-
-  Example:
-    PostgreSQL external access: yes
-    Allowed IP: 203.0.113.50
-
-    UFW rule created:
-      ufw allow from 203.0.113.50 to any port 5432
-
-  This prevents unauthorized access to your database!
+Internal-service publication:
+  PostgreSQL, Redis, and backend publish only on 127.0.0.1.
+  Remote administration uses SSH forwarding.
+  UFW INPUT rules do not prove Docker publication safety.
 
 Prerequisites:
   - Docker and Docker Compose installed (run install.sh)
@@ -1115,123 +1107,13 @@ generate_nginx_config() {
     info "Configuration file: $DEPLOY_DIR/nginx/conf.d/app.conf"
 }
 
-# Configure PostgreSQL external access with UFW
+# Configure the local-only policy without changing operator firewall rules.
 configure_postgres_access() {
-    section "PostgreSQL External Access Configuration (CRITICAL SECURITY)"
-
-    if [[ "$SKIP_UFW" == "true" ]]; then
-        warning "UFW configuration skipped (--skip-ufw flag)"
-        CONFIG["POSTGRES_EXTERNAL_ACCESS"]="false"
-        CONFIG["POSTGRES_ALLOWED_IP"]=""
-        return
-    fi
-
-    echo ""
-    warning "SECURITY WARNING:"
-    echo "  By default, PostgreSQL is NOT accessible from outside the Docker network."
-    echo "  This is the most secure configuration."
-    echo ""
-    echo "  Enable external access ONLY if you need to:"
-    echo "  - Connect with pgAdmin from your local machine"
-    echo "  - Use external backup tools"
-    echo "  - Connect from other servers"
-    echo ""
-    echo "  If enabled, access will be restricted to a SPECIFIC IP address using UFW."
-    echo ""
-
-    prompt_yes_no "Enable PostgreSQL external access?" "POSTGRES_EXTERNAL_ACCESS_PROMPT" "n"
-
-    if [[ "${CONFIG[POSTGRES_EXTERNAL_ACCESS_PROMPT]}" == "y" ]]; then
-        CONFIG["POSTGRES_EXTERNAL_ACCESS"]="true"
-
-        echo ""
-        info "External access enabled. Configuring UFW IP restriction..."
-        echo ""
-
-        # Get allowed IP
-        while true; do
-            echo ""
-            info "Enter the IP address that should be allowed to access PostgreSQL"
-            info "Examples:"
-            echo "  - Your home IP: 203.0.113.50"
-            echo "  - Your office IP: 198.51.100.25"
-            echo "  - Another server: 192.0.2.100"
-            echo ""
-            info "To find your current IP, visit: https://ifconfig.me"
-            echo ""
-
-            prompt "Allowed IP address" "POSTGRES_ALLOWED_IP" ""
-
-            if [[ -z "${CONFIG[POSTGRES_ALLOWED_IP]}" ]]; then
-                error "IP address is required for external access!"
-                echo ""
-                continue
-            fi
-
-            if validate_ip "${CONFIG[POSTGRES_ALLOWED_IP]}"; then
-                break
-            else
-                error "Invalid IP address format!"
-                echo "  Valid format: 203.0.113.50"
-                echo ""
-            fi
-        done
-
-        # Confirm IP
-        echo ""
-        warning "CONFIRM CONFIGURATION:"
-        echo "  PostgreSQL will be accessible from: ${CONFIG[POSTGRES_ALLOWED_IP]}"
-        echo "  All other IPs will be BLOCKED"
-        echo ""
-
-        prompt_yes_no "Is this correct?" "CONFIRM_IP" "y"
-
-        if [[ "${CONFIG[CONFIRM_IP]}" != "y" ]]; then
-            error "Configuration cancelled. Please run setup.sh again."
-        fi
-
-        # Configure UFW
-        echo ""
-        info "Configuring UFW firewall..."
-
-        # Check if UFW rule already exists
-        if sudo ufw status | grep -q "5432.*${CONFIG[POSTGRES_ALLOWED_IP]}"; then
-            warning "UFW rule for PostgreSQL from ${CONFIG[POSTGRES_ALLOWED_IP]} already exists"
-        else
-            # Add UFW rule
-            if sudo ufw allow from "${CONFIG[POSTGRES_ALLOWED_IP]}" to any port 5432 comment "PostgreSQL from ${CONFIG[POSTGRES_ALLOWED_IP]}" >> "$LOG_FILE" 2>&1; then
-                success "UFW rule added: allow from ${CONFIG[POSTGRES_ALLOWED_IP]} to any port 5432"
-            else
-                error "Failed to add UFW rule. Check $LOG_FILE for details."
-            fi
-        fi
-
-        echo ""
-        success "PostgreSQL external access configured with IP restriction"
-        echo ""
-        info "Summary:"
-        echo "  ✓ External access: ENABLED"
-        echo "  ✓ Allowed IP: ${CONFIG[POSTGRES_ALLOWED_IP]}"
-        echo "  ✓ UFW rule: active"
-        echo "  ✓ Port 5432: exposed (docker-compose.yml)"
-        echo ""
-        warning "IMPORTANT:"
-        echo "  - Port 5432 is exposed on host by Docker"
-        echo "  - UFW allows access ONLY from ${CONFIG[POSTGRES_ALLOWED_IP]}"
-        echo "  - All other IPs are blocked by UFW firewall"
-        echo "  - Connection string: postgresql://familybudget:***@<server-ip>:5432/familybudget"
-        echo ""
-
-    else
-        CONFIG["POSTGRES_EXTERNAL_ACCESS"]="false"
-        CONFIG["POSTGRES_ALLOWED_IP"]=""
-
-        echo ""
-        success "PostgreSQL external access disabled (most secure)"
-        echo ""
-        info "Port 5432 is exposed on host, but blocked by UFW firewall"
-        info "PostgreSQL accessible only from within Docker network"
-    fi
+    section "Local-Only Internal Service Publication"
+    CONFIG["POSTGRES_EXTERNAL_ACCESS"]="false"
+    CONFIG["POSTGRES_ALLOWED_IP"]=""
+    info "PostgreSQL uses 127.0.0.1:5432; remote administration uses SSH forwarding."
+    info "Existing operator firewall rules are preserved."
 }
 
 # Configure S3 backup
@@ -1666,6 +1548,8 @@ validate_configuration() {
     source "$env_file"
     set +a
 
+    validate_internal_service_settings || exit 1
+
     # Check required variables
     local required_vars=(
         "POSTGRES_PASSWORD"
@@ -1716,44 +1600,12 @@ validate_configuration() {
     echo "  ✓ Environment: ${APP_ENV}"
     echo "  ✓ SSL Type: ${SSL_TYPE}"
 
-    if [[ "$POSTGRES_EXTERNAL_ACCESS" == "true" ]]; then
-        echo "  ✓ PostgreSQL external access: ENABLED (IP: ${POSTGRES_ALLOWED_IP})"
-    else
-        echo "  ✓ PostgreSQL external access: DISABLED (most secure)"
-    fi
+    echo "  ✓ Internal publications: loopback only (verified by deploy.sh)"
 }
 
-# Build Docker images
+# Application images are built in CI and pulled by deploy.sh.
 build_docker_images() {
-    if [[ "$SKIP_BUILD" == "true" ]]; then
-        warning "Docker image building skipped (--skip-build flag)"
-        return
-    fi
-
-    section "Building Docker Images"
-
-    echo ""
-    prompt_yes_no "Build Docker images now?" "BUILD_IMAGES" "y"
-
-    if [[ "${CONFIG[BUILD_IMAGES]}" == "y" ]]; then
-        info "Building Docker images (this may take several minutes)..."
-        info "Running docker compose build in $DEPLOY_DIR"
-        echo ""
-
-        if (cd "$DEPLOY_DIR" && docker compose build >> "$LOG_FILE" 2>&1); then
-            success "Docker images built successfully"
-        else
-            warning "Docker image build failed. Check $LOG_FILE for details."
-            info "You can build images later with:"
-            echo "  cd $DEPLOY_DIR"
-            echo "  docker compose build"
-        fi
-    else
-        info "Skipping Docker image build"
-        info "Build images later with:"
-        echo "  cd $DEPLOY_DIR"
-        echo "  docker compose build"
-    fi
+    info "Use prebuilt CI images. deploy.sh pulls and validates images before starting services."
 }
 
 # Print final instructions
@@ -1772,11 +1624,7 @@ print_final_instructions() {
         echo "✅ SSL configured (Let's Encrypt)"
     fi
 
-    if [[ "${CONFIG[POSTGRES_EXTERNAL_ACCESS]}" == "true" ]]; then
-        echo "✅ UFW configured for PostgreSQL (IP: ${CONFIG[POSTGRES_ALLOWED_IP]})"
-    else
-        echo "✅ PostgreSQL secured (no external access)"
-    fi
+    echo "✅ Internal services configured for loopback publication; deploy verification required"
 
     echo ""
     echo "Next steps:"
@@ -1796,32 +1644,20 @@ print_final_instructions() {
     elif [[ "${CONFIG[DEPLOYMENT_PROFILE]}" == "full" ]]; then
         echo "     http://${CONFIG[DOMAIN]}"
     else
-        echo "     http://${CONFIG[DOMAIN]}:${CONFIG[BACKEND_PORT]}"
+        echo "     http://127.0.0.1:${CONFIG[BACKEND_PORT]} (on server; use SSH forwarding remotely)"
     fi
     echo ""
 
-    if [[ "${CONFIG[POSTGRES_EXTERNAL_ACCESS]}" == "true" ]]; then
-        echo "  4. Connect to PostgreSQL from ${CONFIG[POSTGRES_ALLOWED_IP]}:"
-        echo "     Host: <your-server-ip>"
-        echo "     Port: 5432"
-        echo "     Database: ${CONFIG[POSTGRES_DB]}"
-        echo "     Username: ${CONFIG[POSTGRES_USER]}"
-        echo "     Password: <from .env file>"
-        echo ""
-        echo "     Connection string:"
-        echo "     postgresql://${CONFIG[POSTGRES_USER]}:<password>@<server-ip>:5432/${CONFIG[POSTGRES_DB]}"
-        echo ""
-    fi
+    echo "  Remote PostgreSQL administration:"
+    echo "     ssh -N -L 15432:127.0.0.1:5432 your-server"
+    echo "     Connect your database client to 127.0.0.1:15432."
+    echo ""
 
     echo "Security reminders:"
     echo "  • .env file permissions: 640 (owner read/write, group read)"
     echo "  • Never commit .env file to git"
     echo "  • Change secrets if .env is exposed"
 
-    if [[ "${CONFIG[POSTGRES_EXTERNAL_ACCESS]}" == "true" ]]; then
-        echo "  • PostgreSQL access restricted to: ${CONFIG[POSTGRES_ALLOWED_IP]}"
-        echo "  • Update UFW rule if IP changes: sudo ufw allow from <new-ip> to any port 5432"
-    fi
 
     echo ""
     echo "Logs: $LOG_FILE"
@@ -1862,6 +1698,12 @@ parse_args() {
 main() {
     # Parse arguments
     parse_args "$@"
+
+    # Reject legacy settings before overwriting configuration or touching services.
+    (
+        if [[ -f "$DEPLOY_DIR/.env" ]]; then source "$DEPLOY_DIR/.env"; fi
+        validate_internal_service_settings
+    ) || exit 1
 
     # Initialize log file
     mkdir -p "$(dirname "$LOG_FILE")"
