@@ -62,6 +62,19 @@ class MiniPcComposeTests(unittest.TestCase):
         self.assertEqual(model["volumes"]["postgres_data"]["name"],
                          "familybudget-test_postgres_data")
         self.assertIn("max_locks_per_transaction=256", model["services"]["postgres"]["command"])
+        proxy_override = CONFIG / "compose.telegram-proxy.yaml"
+        self.assertTrue(proxy_override.is_file())
+        proxy_model = json.loads(subprocess.run(
+            command + ["-f", str(CONFIG / "compose.yaml"), "-f", str(proxy_override),
+                       "config", "--format", "json"],
+            check=True, capture_output=True, text=True, env=environment,
+        ).stdout)
+        self.assertTrue(proxy_model["networks"]["minipc-outbound-proxy"]["external"])
+        for name, service in proxy_model["services"].items():
+            self.assertEqual("minipc-outbound-proxy" in service["networks"], name == "bot")
+        bot = proxy_model["services"]["bot"]
+        self.assertEqual(bot["environment"]["TELEGRAM_PROXY_URL"], "http://192.168.70.1:18888")
+        self.assertEqual(bot["networks"]["private"]["gw_priority"], 1)
         environment.pop("TEST_SUBNET")
         result = subprocess.run(invocation + ["--quiet"], capture_output=True, text=True,
                                 env=environment)

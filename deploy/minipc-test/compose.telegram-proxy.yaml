@@ -1,0 +1,12 @@
+services:
+  bot:
+    environment:
+      TELEGRAM_PROXY_URL: http://192.168.70.1:18888
+    networks:
+      private:
+        gw_priority: 1
+      minipc-outbound-proxy:
+
+networks:
+  minipc-outbound-proxy:
+    external: true

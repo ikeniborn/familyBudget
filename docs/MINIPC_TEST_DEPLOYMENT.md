@@ -34,9 +34,19 @@ backup path are temporary. Keep deployment recovery backups outside the containe
 2. Confirm that the fbd certificate is trusted and that `/health` returns
    HTTP 200. Repeat the existing-service checks and compare Traefik state.
 3. Configure the dedicated Telegram test bot for the fbd Mini App. Start the bot
-   service after its credentials and Mini App URL are ready.
-4. Use test accounts to verify passkey registration, sign-out, passkey sign-in,
-   and Mini App authentication from a phone.
+   service after its credentials and Mini App URL are ready. On Mini PC, install
+   the Telegram proxy override beside the base Compose file. Pass both files
+   when starting the bot.
+
+```bash
+docker-compose -f compose.yaml -f compose.telegram-proxy.yaml up -d --no-deps bot
+```
+
+The override grants only the bot access to the existing outbound proxy bridge.
+The bot sends Telegram API traffic through that proxy. The private project
+network retains its default gateway.
+Use test accounts to verify passkey registration, sign-out, passkey sign-in,
+and Mini App authentication from a phone.
 
 If activation regresses an existing service, remove the fbd dynamic file and
 repeat the baseline probes. If required, stop only the `familybudget-test`
