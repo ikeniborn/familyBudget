@@ -1,0 +1,13 @@
+http:
+  routers:
+    familybudget-test:
+      rule: "Host(`fbd.ikeniborn.ru`)"
+      entryPoints: [websecure]
+      service: familybudget-test
+      tls:
+        certResolver: letsencrypt
+  services:
+    familybudget-test:
+      loadBalancer:
+        servers:
+          - url: http://familybudget-test-backend:8000
