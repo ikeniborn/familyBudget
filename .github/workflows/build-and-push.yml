@@ -350,7 +350,7 @@ jobs:
       - name: Build and push backend
         id: image-backend
         if: steps.changes.outputs.backend == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: backend/Dockerfile
@@ -369,7 +369,7 @@ jobs:
       - name: Build and push bot
         id: image-bot
         if: steps.changes.outputs.bot == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: bot/Dockerfile
@@ -387,7 +387,7 @@ jobs:
       - name: Build and push redis
         id: image-redis
         if: steps.changes.outputs.redis == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./redis
           file: ./redis/Dockerfile
@@ -400,7 +400,7 @@ jobs:
       - name: Build and push postgresql
         id: image-postgresql
         if: steps.changes.outputs.postgresql == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: ./postgres
           file: ./postgres/Dockerfile
