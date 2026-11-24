@@ -66,6 +66,7 @@ from backend.app.models.financial_center import FinancialCenter
 from backend.app.models.financial_center_balance_monthly import FinancialCenterBalanceMonthly
 from backend.app.models.hierarchy import ArticleHierarchy
 from backend.app.models.import_column_mapping import ImportColumnMapping
+from backend.app.models.import_confirmation import ImportConfirmation, ImportSourceReceipt
 from backend.app.models.import_file_upload import ImportFileUpload
 from backend.app.models.import_staging import ImportStaging
 from backend.app.models.import_template import ImportTemplate
@@ -116,6 +117,8 @@ __all__ = [
     "MedicineStock",
     "Notification",
     "BankProvider",
+    "ImportConfirmation",
+    "ImportSourceReceipt",
     "ImportFileUpload",
     "ImportColumnMapping",
     "ImportStaging",

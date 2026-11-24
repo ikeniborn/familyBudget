@@ -306,3 +306,95 @@ test.describe('CSV Import - Error Handling', () => {
     expect(errorVisible || true).toBeTruthy();
   });
 });
+
+test('bank CSV integrity review shows rejects, excludes registry matches and binds retries', async ({ page }) => {
+  await page.setViewportSize(VIEWPORTS.desktop);
+  const fact = { id: 91, fact_date: '2026-11-01', amount: '840', account_name: 'Семейная карта' };
+  const staged = {
+    id: 21, bank_provider_id: 1, file_upload_id: 50, fact_date: fact.fact_date,
+    source_row: 2, amount_string: '-840.49', original_amount: '-840.49',
+    whole_amount: '-840', amount_difference: '0.49', description: 'Кафе',
+    article_id: 3, financial_center_id: 2, matches: [fact], already_imported: false,
+  };
+  const records = [
+    staged,
+    { ...staged, id: 22, source_row: 3, amount_string: '9007199254740993', original_amount: '9007199254740993', whole_amount: '9007199254740993', amount_difference: '0', matches: [] },
+    { ...staged, id: 23, file_upload_id: 49, source_row: 2, already_imported: true },
+  ];
+  let parsed = false;
+  let completed = false;
+  const attempts: Array<{
+    confirmation_id: string;
+    staging_ids: number[];
+    acknowledgments: Record<string, number[]>;
+  }> = [];
+  await page.route('**/api/v1/staging/21', route => route.fulfill({ json: { success: true } }));
+  await page.route('**/api/v1/financial-centers', route => route.fulfill({ json: [{ id: 2, name: 'Счёт' }, { id: 3, name: 'Кошелёк' }] }));
+  await page.route('**/api/v1/import/banks', route => route.fulfill({ json: [{ id: 1, name: 'Банк QA' }] }));
+  await page.route('**/api/v1/import/upload?*', route => route.fulfill({ json: { file_id: 50, prior_imported_count: 1 } }));
+  await page.route('**/api/v1/import/files/50/analyze', route => route.fulfill({ json: { headers: ['Date', 'Amount'], sample_rows: [], total_rows: 4 } }));
+  await page.route('**/api/v1/import/mappings/1', route => route.fulfill({ json: { mapping_id: 2, mapping: { amount: 'Amount', fact_date: 'Date' } } }));
+  await page.route('**/api/v1/import/files/50/parse', route => {
+    parsed = true;
+    return route.fulfill({ json: { total_rows: 4, total_inserted: 2, prior_imported_count: 1, rejected_rows: [{ source_row: 4, reason: 'zero_after_truncation' }, { source_row: 5, reason: 'invalid_date' }] } });
+  });
+  await page.route('**/api/v1/staging', route => route.fulfill({ json: parsed && !completed ? records : [] }));
+  await page.route('**/api/v1/staging/import', route => {
+    attempts.push(route.request().postDataJSON());
+    if (attempts.length === 1) {
+      return route.fulfill({ status: 409, json: { detail: { message: { code: 'matches_changed', matches: { 21: [fact, { ...fact, id: 92, account_name: 'Другой счёт' }] } } } } });
+    }
+    if (attempts.length === 2) return route.abort('failed');
+    completed = true;
+    return route.fulfill({ json: { success: true, total_imported: 2 } });
+  });
+  await page.route('**/api/v1/consent/status', route => route.fulfill({ json: { has_consented: true, consents: {} } }));
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto('/import');
+  const consent = page.getByRole('button', { name: 'Принять все', exact: true });
+  if (await consent.isVisible()) await consent.click();
+  await page.locator('#bank-selector').selectOption('1');
+  await page.locator('#upload-new-file-btn').click();
+  await expect(page.locator('#csv-file')).toBeVisible();
+  await page.locator('#csv-file').setInputFiles({
+    name: 'statement.csv', mimeType: 'text/csv',
+    buffer: Buffer.from('Date;Amount\n2026-11-01;-840.49\n2026-11-01;-840.49\n2026-11-01;0.25\nbad;12'),
+  });
+  await page.locator('#upload-btn').click();
+  await expect(page.locator('#statement-recognition')).toContainText('1');
+  await page.locator('#use-existing-mapping-btn').click();
+  const report = page.locator('#bank-parse-report');
+  await expect(report).toContainText('Принято: 2 из 4');
+  await expect(report).toContainText('Строка 4: после отсечения копеек сумма равна нулю');
+  await expect(report).toContainText('Строка 5: неверная дата');
+  const row = page.locator('#staging-row-21');
+  await expect(row).toContainText('Семейная карта');
+  await expect(row).toContainText('−840,49');
+  await expect(row).toContainText('После отсечения: −840 ₽');
+  await expect(page.locator('#staging-row-22')).toContainText('9007199254740993');
+  await expect(row).toContainText('+0,49');
+  const edited = page.waitForResponse(response => response.url().endsWith('/staging/21') && response.request().method() === 'PATCH');
+  await row.locator('#fc-21').selectOption('3');
+  await edited;
+  await expect(row).toContainText('Семейная карта');
+  await page.locator('#header-select-all').check();
+  await expect(page.locator('#select-21')).not.toBeChecked();
+  await expect(page.locator('#select-22')).toBeChecked();
+  await expect(page.locator('#select-23')).toBeDisabled();
+  await row.getByRole('button', { name: 'Это отдельная операция' }).click();
+  await page.locator('#execute-import-btn').click();
+  await expect(row).toContainText('Другой счёт');
+  await expect(page.locator('#select-21')).not.toBeChecked();
+  await expect(page.locator('#select-22')).toBeChecked();
+  await row.getByRole('button', { name: 'Это отдельная операция' }).click();
+  await page.locator('#execute-import-btn').click();
+  await expect(page.locator('#notification-toast')).toContainText(/fetch|связи|сети/i);
+  await page.locator('#execute-import-btn').click();
+  await expect(row).toHaveCount(0);
+  expect(attempts).toHaveLength(3);
+  expect(attempts[0].acknowledgments).toEqual({ 21: [91] });
+  expect(attempts[1].acknowledgments).toEqual({ 21: [91, 92] });
+  expect(attempts[1].staging_ids).toEqual([21, 22]);
+  expect(attempts[1].confirmation_id).toMatch(/^[a-f0-9-]{36}$/);
+  expect(attempts[2]).toEqual(attempts[1]);
+});

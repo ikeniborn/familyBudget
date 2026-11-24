@@ -1,4 +1,11 @@
 ---
+result_check:
+  verdict: OK
+  source: plan
+  plan_hash: "7a6e8780aded2185"
+  last_run: 2026-11-24
+  reviewed: true
+  docs_checked: true
 review:
   plan_hash: "7a6e8780aded2185"
   last_run: 2026-11-24
