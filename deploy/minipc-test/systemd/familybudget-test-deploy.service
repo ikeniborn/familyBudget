@@ -1,0 +1,9 @@
+[Unit]
+Description=Verify and apply FamilyBudget test releases
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/familybudget-test
+ExecStart=/usr/bin/python3 /opt/familybudget-test/bin/apply_release.py
+UMask=0077
+TimeoutStartSec=20min
