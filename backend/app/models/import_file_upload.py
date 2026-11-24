@@ -87,6 +87,8 @@ class ImportFileUpload(SQLModel, table=True):
         description="Temporary file path in /tmp (deleted after parsing)"
     )
 
+    fingerprint: str | None = Field(default=None, max_length=64)
+
     # CSV structure metadata (populated after analysis)
     csv_headers: dict | None = Field(
         default=None,

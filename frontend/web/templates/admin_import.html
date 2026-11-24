@@ -477,6 +477,7 @@ body.resizing-columns * {
             </div>
 
             <!-- Post-upload actions (показываются после загрузки файла) -->
+            <p id="statement-recognition" class="text-warning font-medium" aria-live="polite"></p>
             <div id="post-upload-actions" class="mt-4" style="display: none;">
                 <div class="flex gap-2">
                     <button type="button" class="btn btn-primary gap-2" id="create-mapping-btn" onclick="createMapping()" style="display: none;">
@@ -600,6 +601,7 @@ body.resizing-columns * {
     <!-- Step 4: Enrichment (Staging Table) -->
     <div class="card bg-base-100 shadow-lg lg:w-[95vw] lg:max-w-none lg:-mx-[calc((95vw-100%)/2)]" id="step-4-enrichment" style="display: none;">
         <div class="card-body">
+            <section id="bank-parse-report" aria-live="polite"></section>
             <!-- Header with stats -->
             <!-- BUG #9 FIX: flex-wrap + gap-2 prevent overflow on tablet; overflow-x-auto on stats block -->
             <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
@@ -796,9 +798,9 @@ body.resizing-columns * {
                             <thead>
                                 <tr>
                                     <th data-col="checkbox" style="width: 40px;"><input type="checkbox" class="checkbox checkbox-sm" id="header-select-all" onchange="toggleSelectAll(this)" /></th>
-                                    <th data-col="status" style="width: 50px;">Статус<div class="resize-handle"></div></th>
+                                    <th data-col="status" style="width: 215px;">Проверка<div class="resize-handle"></div></th>
                                     <th data-col="date" style="width: 100px;">Дата<div class="resize-handle"></div></th>
-                                    <th data-col="amount" style="width: 100px;">Сумма<div class="resize-handle"></div></th>
+                                    <th data-col="amount" style="width: 150px;">Сумма, ₽<div class="resize-handle"></div></th>
                                     <th data-col="description" style="width: 200px;">Описание<div class="resize-handle"></div></th>
                                     <th data-col="csv_category" class="text-xs text-base-content/60" style="width: 150px;">Категория (CSV)<div class="resize-handle"></div></th>
                                     <th data-col="comment" style="width: 150px;">Комментарий<div class="resize-handle"></div></th>
@@ -999,6 +1001,7 @@ let csvSampleRows = [];
 let csvDelimiter = null;  // Detected/selected delimiter
 let currentMapping = {};
 let stagingRecords = [];
+let pendingConfirmation = null;
 let filteredRecords = [];  // Отфильтрованные записи для Filter First UX
 let allArticles = [];
 let financialCenters = [];
@@ -1066,6 +1069,8 @@ function resetWorkflow() {
     document.getElementById('upload-form').reset();
     document.getElementById('upload-form-google-sheets').reset();
     document.getElementById('post-upload-actions').style.display = 'none';
+    document.getElementById('statement-recognition').textContent = '';
+    document.getElementById('bank-parse-report').replaceChildren();
 
     // 🔧 FIX: Reset upload source visibility (containers manage form visibility)
     document.getElementById('upload-source-csv').style.display = 'block';
@@ -1336,6 +1341,8 @@ async function proceedToUpload() {
     document.getElementById('upload-form').reset();
     document.getElementById('upload-form-google-sheets').reset();
     document.getElementById('post-upload-actions').style.display = 'none';
+    document.getElementById('statement-recognition').textContent = '';
+    document.getElementById('bank-parse-report').replaceChildren();
 
     // Reset upload source to default (CSV)
     document.querySelector('input[name="upload-source"][value="csv"]').checked = true;
@@ -1595,6 +1602,7 @@ async function uploadFromGoogleSheets(event) {
 
         const result = await response.json();
         uploadedFileId = result.file_id;
+        document.getElementById('statement-recognition').textContent = priorImportNotice(result);
 
         // Hide both upload forms
         document.getElementById('upload-source-csv').style.display = 'none';
@@ -1662,6 +1670,7 @@ async function uploadCSV(event) {
 
         const result = await response.json();
         uploadedFileId = result.file_id;
+        document.getElementById('statement-recognition').textContent = priorImportNotice(result);
 
         // Hide upload forms and radio buttons
         document.getElementById('upload-source-csv').style.display = 'none';
@@ -2289,6 +2298,45 @@ async function saveMapping() {
     }
 }
 
+const bankRowReasons = {
+    missing_column: 'нет обязательного столбца',
+    missing_value: 'не заполнено обязательное поле',
+    invalid_date: 'неверная дата',
+    invalid_amount: 'неверная сумма',
+    zero_after_truncation: 'после отсечения копеек сумма равна нулю',
+    amount_out_of_range: 'сумма вне допустимого диапазона',
+    already_imported: 'строка уже импортирована'
+};
+
+function priorImportNotice(result) {
+    return result.prior_imported_count > 0
+        ? `Эта выписка уже импортировалась. Ранее сохранено строк: ${result.prior_imported_count}.`
+        : '';
+}
+
+function renderParseReport(result) {
+    const report = document.getElementById('bank-parse-report');
+    const rejected = result.rejected_rows || [];
+    const summary = document.createElement('p');
+    summary.textContent = `Принято: ${result.total_inserted} из ${result.total_rows}. Отклонено: ${rejected.length}. ${priorImportNotice(result)}`;
+    report.replaceChildren(summary);
+    if (rejected.length) {
+        const details = document.createElement('details');
+        details.open = true;
+        const label = document.createElement('summary');
+        label.textContent = 'Отклонённые строки';
+        const list = document.createElement('ul');
+        list.className = 'max-h-48 overflow-auto';
+        for (const { source_row, reason } of rejected) {
+            const item = document.createElement('li');
+            item.textContent = `Строка ${source_row}: ${bankRowReasons[reason] || reason}`;
+            list.append(item);
+        }
+        details.append(label, list);
+        report.append(details);
+    }
+}
+
 async function parseWithMapping() {
     if (!savedMappingId) {
         // Try to save mapping first
@@ -2313,6 +2361,7 @@ async function parseWithMapping() {
         }
 
         const result = await response.json();
+        renderParseReport(result);
         showNotification(`Успешно разобрано ${result.total_inserted} записей`, 'success');
 
         // Load staging table
@@ -2354,6 +2403,7 @@ async function loadStagingTable() {
 
         renderStagingTable();
 
+        document.getElementById('step-2-upload').style.display = 'none';
         // Hide Step 3, Show Step 4 enrichment
         document.getElementById('step-3-mapping').style.display = 'none';
         document.getElementById('step-4-enrichment').style.display = 'block';
@@ -2397,6 +2447,11 @@ function renderStagingTable() {
     }, 10);
 }
 
+function bankAmountLabel(value, signed = false) {
+    const label = String(value).replace('.', ',').replace(/^-/, '−');
+    return signed && Number(value) > 0 ? '+' + label : label;
+}
+
 function createStagingRow(record, index) {
     const row = document.createElement('tr');
     row.id = `staging-row-${record.id}`;
@@ -2416,7 +2471,13 @@ function createStagingRow(record, index) {
     checkbox.type = 'checkbox';
     checkbox.className = 'checkbox checkbox-sm';
     checkbox.id = `select-${record.id}`;
-    checkbox.onchange = () => updateStats();
+    const matches = record.matches || [];
+    checkbox.disabled = Boolean(record.already_imported || record.amount_error || matches.length);
+    checkbox.setAttribute('aria-label', `Выбрать строку ${record.source_row ?? record.id}`);
+    checkbox.onchange = () => {
+        if (matches.length && !checkbox.checked) checkbox.disabled = true;
+        updateStats();
+    };
     checkboxCell.appendChild(checkbox);
 
     // Status indicator (Filter First feature)
@@ -2425,18 +2486,53 @@ function createStagingRow(record, index) {
     statusCell.dataset.col = 'status';
     statusCell.dataset.recordId = record.id;
     statusCell.innerHTML = getStatusIndicator(record);
+    if (record.already_imported || record.amount_error) {
+        statusCell.textContent = record.already_imported ? 'Строка уже импортирована'
+            : (bankRowReasons[record.amount_error] || record.amount_error);
+    } else if (matches.length) {
+        statusCell.classList.add('bg-warning/20');
+        statusCell.textContent = 'Возможный дубль в реестре';
+        for (const match of matches) {
+            const fact = document.createElement('div');
+            fact.className = 'text-xs';
+            fact.textContent = `#${match.id} · ${match.fact_date} · ${match.amount} ₽ · ${match.account_name || 'Без счёта'}`;
+            statusCell.append(fact);
+        }
+        const acknowledge = document.createElement('button');
+        acknowledge.type = 'button';
+        acknowledge.className = 'btn btn-xs btn-outline mt-1';
+        acknowledge.textContent = 'Это отдельная операция';
+        acknowledge.onclick = event => {
+            event.stopPropagation();
+            checkbox.disabled = false;
+            checkbox.checked = true;
+            updateStats();
+        };
+        statusCell.append(acknowledge);
+    }
 
     // Date
     const dateCell = document.createElement('td');
     setCellData(dateCell, 'date');
     dateCell.textContent = record.fact_date;
+    if (record.source_row != null) {
+        const source = document.createElement('div');
+        source.className = 'text-xs';
+        source.textContent = `Строка ${record.source_row}`;
+        dateCell.append(source);
+    }
 
     // Amount
     const amountCell = document.createElement('td');
     setCellData(amountCell, 'amount');
-    const amount = parseFloat(record.amount_string);
-    amountCell.textContent = formatAmount(amount);
-    amountCell.classList.add(amount < 0 ? 'text-error' : 'text-success');
+    amountCell.textContent = bankAmountLabel(record.original_amount ?? record.amount_string);
+    if (record.whole_amount != null) {
+        const conversion = document.createElement('div');
+        conversion.className = 'text-xs';
+        conversion.textContent = `После отсечения: ${bankAmountLabel(record.whole_amount)} ₽. Разница: ${bankAmountLabel(record.amount_difference, true)} ₽`;
+        amountCell.append(conversion);
+        amountCell.classList.add(record.whole_amount < 0 ? 'text-error' : 'text-success');
+    }
 
     // Description
     const descCell = document.createElement('td');
@@ -2788,8 +2884,9 @@ function toggleSelectAll(sourceCheckbox) {
 
     recordsToToggle.forEach(record => {
         const checkbox = document.getElementById(`select-${record.id}`);
-        if (checkbox) {
+        if (checkbox && !checkbox.disabled) {
             checkbox.checked = selectAll;
+            if (!selectAll && record.matches?.length) checkbox.disabled = true;
         }
     });
 
@@ -2853,7 +2950,7 @@ function updateRowStatusIndicator(recordId) {
 
     // Status is the second cell (index 1)
     const statusCell = row.cells[1];
-    if (statusCell) {
+    if (statusCell && !record.matches?.length && !record.already_imported && !record.amount_error) {
         statusCell.innerHTML = getStatusIndicator(record);
     }
 
@@ -2961,7 +3058,7 @@ async function updateStagingComment(stagingId, comment) {
 
 // ========== Execute Import ==========
 async function executeImport() {
-    const selectedIds = getSelectedIds();
+    const selectedIds = getSelectedIds().sort((a, b) => a - b);
     if (selectedIds.length === 0) {
         showNotification('Выберите записи для импорта', 'error');
         return;
@@ -2981,12 +3078,26 @@ async function executeImport() {
 
     if (!confirm(`Импортировать ${selectedIds.length} записей в бюджет?`)) return;
 
+    const selected = new Set(selectedIds);
+    const acknowledgments = {};
+    for (const record of stagingRecords) {
+        if (record.matches?.length && selected.has(record.id)) {
+            acknowledgments[record.id] = record.matches.map(match => match.id).sort((a, b) => a - b);
+        }
+    }
+    const payload = { staging_ids: selectedIds, acknowledgments };
+    const signature = JSON.stringify(payload);
+    if (pendingConfirmation?.signature !== signature) {
+        pendingConfirmation = { signature, id: crypto.randomUUID() };
+    }
+    const button = document.getElementById('execute-import-btn');
+    button.disabled = true;
     try {
         const response = await fetch('/api/v1/staging/import', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ staging_ids: selectedIds })
+            body: JSON.stringify({ ...payload, confirmation_id: pendingConfirmation.id })
         });
 
         if (!response.ok) {
@@ -2996,14 +3107,39 @@ async function executeImport() {
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
                     const errorData = await response.json();
+                    const detail = errorData.detail?.message ?? errorData.detail;
+                    if (response.status === 409 && detail?.code === 'source_already_imported') {
+                        await loadStagingTable();
+                        showNotification('Строка выписки уже сохранена или выбрана дважды. Проверьте выбор.', 'warning');
+                        return;
+                    }
+                    if (response.status === 409 && detail?.code === 'matches_changed') {
+                        for (const [id, matches] of Object.entries(detail.matches)) {
+                            const record = stagingRecords.find(row => row.id === Number(id));
+                            if (record) record.matches = matches;
+                        }
+                        renderStagingTable();
+                        // Keep unaffected choices, including previously reviewed registry matches.
+                        for (const id of selectedIds) {
+                            const checkbox = document.getElementById(`select-${id}`);
+                            if (checkbox && !Object.hasOwn(detail.matches, id)) {
+                                checkbox.disabled = false;
+                                checkbox.checked = true;
+                            }
+                        }
+                        updateStats();
+                        showNotification('Реестр изменился. Проверьте обновлённые совпадения.', 'warning');
+                        return;
+                    }
                     console.error('Import API error:', errorData);
 
-                    // Extract error message from different possible formats
-                    if (typeof errorData.detail === 'string') {
-                        errorMessage = errorData.detail;
-                    } else if (errorData.detail && errorData.detail.message) {
-                        errorMessage = errorData.detail.message;
-                    } else if (errorData.message) {
+                    if (typeof detail === 'string') {
+                        errorMessage = detail;
+                    } else if (detail?.code === 'confirmation_reused') {
+                        errorMessage = 'Идентификатор подтверждения уже использован. Обновите таблицу.';
+                    } else if (bankRowReasons[detail?.code]) {
+                        errorMessage = bankRowReasons[detail.code];
+                    } else if (typeof errorData.message === 'string') {
                         errorMessage = errorData.message;
                     }
 
@@ -3032,6 +3168,7 @@ async function executeImport() {
         }
 
         const result = await response.json();
+        pendingConfirmation = null;
         showNotification(`Успешно импортировано: ${result.total_imported} записей`, 'success');
 
         await loadStagingTable();
@@ -3039,6 +3176,8 @@ async function executeImport() {
     } catch (error) {
         console.error('Import error:', error);
         showNotification(error.message, 'error');
+    } finally {
+        button.disabled = false;
     }
 }
 
@@ -3085,15 +3224,27 @@ function translateImportError(message) {
 // ========== Helper Functions ==========
 function getSelectedIds() {
     return stagingRecords
-        .filter(record => document.getElementById(`select-${record.id}`)?.checked)
+        .filter(record => {
+            const checkbox = document.getElementById(`select-${record.id}`);
+            return checkbox?.checked && !checkbox.disabled;
+        })
         .map(record => record.id);
+}
+
+function isReadyForImport(record) {
+    return record.article_id && record.financial_center_id && !record.amount_error && !record.already_imported &&
+        (!record.matches?.length || document.getElementById(`select-${record.id}`)?.checked);
 }
 
 function updateStats() {
     const total = stagingRecords.length;
     const filtered = filteredRecords.length;
     const selected = getSelectedIds().length;
-    const ready = stagingRecords.filter(r => r.article_id && r.financial_center_id).length;
+    const ready = stagingRecords.filter(isReadyForImport).length;
+    const selectable = document.querySelectorAll('#staging-table tbody input[type="checkbox"]:enabled').length;
+    const header = document.getElementById('header-select-all');
+    header.checked = selectable > 0 && selected === selectable;
+    header.indeterminate = selected > 0 && selected < selectable;
 
     document.getElementById('stat-total').textContent = total;
     document.getElementById('stat-filtered').textContent = filtered;
@@ -4386,7 +4537,7 @@ function updateSpreadsheetStatusBar() {
         if (hasArticle) filledFields++;
         if (hasFC) filledFields++;
 
-        if (hasType && hasArticle && hasFC) readyCount++;
+        if (hasType && isReadyForImport(record)) readyCount++;
     });
 
     document.getElementById('status-filled-count').textContent = `${filledFields} / ${totalFields}`;

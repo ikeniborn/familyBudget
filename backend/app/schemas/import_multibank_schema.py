@@ -4,7 +4,10 @@ Multi-Bank Import Schemas
 Pydantic schemas for multi-bank import API endpoints.
 """
 
-from pydantic import BaseModel, Field
+from typing import Annotated
+from uuid import UUID
+
+from pydantic import BaseModel, Field, PlainSerializer
 
 
 class CreateBankRequest(BaseModel):
@@ -73,6 +76,7 @@ class FileUploadResponse(BaseModel):
     file_name: str = Field(description="Original filename")
     bank_provider_id: int = Field(description="Bank provider ID")
     status: str = Field(description="File status (uploaded, analyzed, parsed)")
+    prior_imported_count: int = 0
 
 
 class AnalyzeResponse(BaseModel):
@@ -157,6 +161,11 @@ class ParseRequest(BaseModel):
     mapping_id: int = Field(description="Column mapping ID to use for parsing")
 
 
+class RejectedImportRow(BaseModel):
+    source_row: int
+    reason: str
+
+
 class ParseResponse(BaseModel):
     """
     Response schema for parsing result.
@@ -173,6 +182,9 @@ class ParseResponse(BaseModel):
 
     success: bool = Field(description="Whether parsing succeeded")
     total_inserted: int = Field(description="Number of records inserted to staging")
+    total_rows: int = Field(description="Number of non-header CSV records")
+    rejected_rows: list[RejectedImportRow] = Field(default_factory=list)
+    prior_imported_count: int = 0
     message: str = Field(description="Success/error message")
 
 
@@ -202,6 +214,17 @@ class GoogleSheetsUploadRequest(BaseModel):
         gt=0,
         description="Bank provider ID for column mapping"
     )
+
+
+# Encode bigint rubles exactly for JavaScript clients.
+WholeRubles = Annotated[int, PlainSerializer(str, return_type=str, when_used="json")]
+
+
+class ImportFactMatch(BaseModel):
+    id: int
+    fact_date: str
+    amount: WholeRubles
+    account_name: str | None
 
 
 class StagingRecordResponse(BaseModel):
@@ -242,6 +265,13 @@ class StagingRecordResponse(BaseModel):
     cost_center_id: int | None
     is_selected: bool
     record_type: str = "fact"
+    source_row: int | None = None
+    original_amount: str | None = None
+    whole_amount: WholeRubles | None = None
+    amount_difference: str | None = None
+    amount_error: str | None = None
+    matches: list[ImportFactMatch] = Field(default_factory=list)
+    already_imported: bool = False
 
 
 class StagingUpdateRequest(BaseModel):
@@ -295,6 +325,8 @@ class ImportExecuteRequest(BaseModel):
     """
 
     staging_ids: list[int] = Field(description="List of staging record IDs to import")
+    confirmation_id: UUID | None = None
+    acknowledgments: dict[int, list[int]] = Field(default_factory=dict)
 
 
 class ImportExecuteResponse(BaseModel):
