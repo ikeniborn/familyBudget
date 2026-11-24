@@ -57,6 +57,7 @@ from backend.app.services import (
     vision_receipt_service,
 )
 from backend.app.services.ai_provider_client import AIProviderClient, AIProviderError
+from backend.app.services.bank_import_amount import normalize_bank_amount
 from backend.app.services.llm_parse_service import AIParseError
 from backend.app.services.speech_service import SpeechError
 
@@ -354,6 +355,30 @@ async def parse_list(
         raise ServiceUnavailableException(f"AI-провайдер недоступен: {exc}")
 
 
+def _staging_text(row: ImportStaging) -> str:
+    """Build the model input from the description, bank category and explicit internal transfer direction."""
+    parts = [
+        p
+        for p in (
+            (row.description or "").strip(),
+            (row.budget_description or "").strip(),
+        )
+        if p
+    ]
+    csv_category = str((row.csv_metadata or {}).get("category") or "").strip()
+    if csv_category:
+        parts.append(f"категория банка: {csv_category}")
+    description = " ".join((row.description or "").casefold().replace("ё", "е").split())
+    if "между своими счетами" in description or "между счетами" in description:
+        try:
+            amount = normalize_bank_amount(row.amount_string)
+        except ValueError:
+            pass  # Legacy staging rows can have an unusable amount.
+        else:
+            parts.append("списание" if amount.whole < 0 else "поступление")
+    return " · ".join(parts)
+
+
 @router.post(
     "/categorize-import",
     response_model=CategorizeImportResponse,
@@ -385,27 +410,10 @@ async def categorize_import(
         stmt = stmt.where(ImportStaging.id.in_(data.staging_ids))
     rows = (await session.execute(stmt.limit(100))).scalars().all()
 
-    def staging_text(row: ImportStaging) -> str:
-        """Description plus the bank's own CSV category — the strongest
-        classification signal the file carries («Оксана Т.» alone is
-        unclassifiable, with «категория банка: Переводы» it is not)."""
-        parts = [
-            p
-            for p in (
-                (row.description or "").strip(),
-                (row.budget_description or "").strip(),
-            )
-            if p
-        ]
-        csv_category = str((row.csv_metadata or {}).get("category") or "").strip()
-        if csv_category:
-            parts.append(f"категория банка: {csv_category}")
-        return " · ".join(parts)
-
     inputs = [
         {"id": row.id, "text": text}
         for row in rows
-        if (text := staging_text(row))
+        if (text := _staging_text(row))
     ]
     try:
         raw = await llm_parse_service.categorize_texts(session, settings, inputs)
