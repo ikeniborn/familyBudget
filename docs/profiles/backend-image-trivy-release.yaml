@@ -1,0 +1,20 @@
+schema_version: 1
+topic: backend-image-trivy-release
+status: approved
+registry:
+  authority: icodex-shared
+  path: profiles/registry.yaml
+  sha256: 7ef5c802e43fc96ecc23260e0460aa7a0df568c21dd369d86947d8e935d16a92
+context_inputs:
+  - docs/superpowers/intents/2026-11-24-backend-image-trivy-release-intent.md
+tasks:
+  - id: intent-profile-selection
+    requirements:
+      capability: strong
+      context: medium
+      latency: medium
+      cost: medium
+      throughput: medium
+    live_remaining_context: false
+    preferred_profiles:
+      - engineering
