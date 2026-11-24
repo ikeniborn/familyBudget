@@ -241,8 +241,8 @@ def poll(directory, tx, retry):
     mirror = directory / "source.git"
     if not mirror.exists():
         run("git", "init", "--bare", str(mirror))
-    run("git", "-C", str(mirror), "fetch", "--no-tags", REPO, "refs/heads/test")
-    snapshot = run("git", "-C", str(mirror), "rev-parse", "FETCH_HEAD", text=True, capture_output=True).stdout.strip()
+    run("git", "-C", str(mirror), "fetch", "--no-tags", REPO, "refs/heads/test:refs/remotes/origin/test")
+    snapshot = run("git", "-C", str(mirror), "rev-parse", "refs/remotes/origin/test^{commit}", text=True, capture_output=True).stdout.strip()
     args = [sys.executable, str(Path(__file__).with_name("release_metadata.py")),
             "--repo", str(mirror), "--snapshot", snapshot]
     applied = (tx.read()["current"] or {}).get("metadata_sha")
