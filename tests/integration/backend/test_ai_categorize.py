@@ -135,3 +135,58 @@ async def test_categorize_returns_validated_suggestions(
         )
     ).scalars().all()
     assert all(row.article_id is None for row in refreshed)
+
+
+async def test_categorize_internal_transfer_direction(authenticated_client, staging_rows, monkeypatch, db_session, test_user):
+    await enable_text(db_session, test_user.id)
+    outgoing, incoming = staging_rows["rows"]
+    for row, description, amount in (
+        (outgoing, "Перевод между своими счетами", "-1 200,50"),
+        (incoming, "Между счетами", "+800.00"),
+    ):
+        row.csv_metadata = {"category": "Переводы"}
+        row.description = description
+        row.amount_string = amount
+    ordinary = ImportStaging(
+        user_id=test_user.id, fact_date=outgoing.fact_date, amount_string="-15",
+        description="Перевод получателю", csv_metadata={"category": "Переводы"},
+    )
+    unknown_amount = ImportStaging(
+        user_id=test_user.id, fact_date=outgoing.fact_date, amount_string="?",
+        description="Между своими счетами",
+    )
+    db_session.add_all([ordinary, unknown_amount])
+    await db_session.commit()
+    captured = {}
+
+    async def fake_chat(self, model, messages, **kwargs):
+        captured.update({r["id"]: r["text"] for r in json.loads(messages[-1]["content"])})
+        return "[]"
+
+    monkeypatch.setattr(AIProviderClient, "chat_completions", fake_chat)
+    response = await authenticated_client.post("/api/v1/ai/categorize-import", json={})
+    assert response.status_code == 200
+    assert captured[outgoing.id].endswith(" · списание")
+    assert captured[incoming.id].endswith(" · поступление")
+    assert captured[ordinary.id] == "Перевод получателю · категория банка: Переводы"
+    assert captured[unknown_amount.id] == "Между своими счетами"
+
+
+async def test_categorize_retries_only_unreadable_batches_once(staging_rows, db_session, monkeypatch):
+    settings = await ai_settings_service.get_settings(db_session)
+    article_id = staging_rows["article"].id
+    calls = []
+
+    async def fake_chat(self, model, messages, **kwargs):
+        ids = [row["id"] for row in json.loads(messages[-1]["content"])]
+        calls.append(ids)
+        if len(ids) == 10 or ids == list(range(5, 10)):
+            return "incomplete JSON"
+        return json.dumps([{"id": i, "article_id": article_id, "confidence": 0.9} for i in ids if i != 12])
+
+    monkeypatch.setattr(AIProviderClient, "chat_completions", fake_chat)
+    result = await llm_parse_service.categorize_texts(
+        db_session, settings, [{"id": i, "text": "Кафе"} for i in range(13)]
+    )
+    assert calls == [list(range(10)), list(range(5)), list(range(5, 10)), [10, 11, 12]]
+    assert [r["id"] for r in result] == [0, 1, 2, 3, 4, 10, 11]
