@@ -109,6 +109,9 @@
     padding: 0.25rem 0.5rem;
 }
 .article-cell-picker .choices__list--dropdown {
+    position: fixed;
+    inset: auto;
+    margin: 0;
     z-index: 9999;
 }
 
@@ -125,11 +128,6 @@
     0% { background: oklch(var(--wa) / 0.3); }
     100% { background: transparent; }
 }
-
-/* Status indicators */
-.status-empty { color: oklch(var(--er)); }
-.status-partial { color: oklch(var(--wa)); }
-.status-complete { color: oklch(var(--su)); }
 
 /* Filter counter badge */
 .filter-count-badge {
@@ -606,9 +604,12 @@ body.resizing-columns * {
             <!-- BUG #9 FIX: flex-wrap + gap-2 prevent overflow on tablet; overflow-x-auto on stats block -->
             <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
                 <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📋 Шаг 4: Обогащение данных</h2>
-                <div class="flex items-center gap-2">
-                    <button type="button" id="ai-categorize-btn" class="btn btn-sm btn-outline btn-primary gap-1 hidden">🤖 Подобрать категории</button>
-                    <span id="ai-categorize-status" class="text-xs text-base-content/70"></span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="ai-categorize-btn" class="btn btn-sm btn-outline btn-primary gap-1" disabled>Подобрать категории с ИИ</button>
+                    <span id="ai-categorize-status" role="status" class="text-xs text-base-content/70">Проверяем доступность ИИ…</span>
+                    {% if user.is_admin %}
+                    <a id="ai-categorize-settings" href="/admin/ai-settings" class="link text-xs" hidden>Настройки ИИ</a>
+                    {% endif %}
                 </div>
                 <div id="staging-stats" class="stats shadow overflow-x-auto">
                     <div class="stat py-2 px-4">
@@ -1417,9 +1418,6 @@ async function loadStagingTableByBank() {
         const allStagingRecords = await response.json();
         stagingRecords = allStagingRecords.filter(r => r.bank_provider_id === selectedBankId);
 
-        // Initialize filteredRecords with all records
-        filteredRecords = [...stagingRecords];
-
         // Populate Filter First UI elements
         populateCsvCategoryFilter();
         populateBulkFilteredSelects();
@@ -1427,7 +1425,7 @@ async function loadStagingTableByBank() {
         // Initialize ChoicesCategoryTree for bulk filtered panel
         initBulkFilteredCategoryTree();
 
-        renderStagingTable();
+        applyFilters();
         updateProgressIndicator(4);
 
     } catch (error) {
@@ -2391,9 +2389,6 @@ async function loadStagingTable() {
             stagingRecords = allStagingRecords;
         }
 
-        // Initialize filteredRecords with all records (no filters active initially)
-        filteredRecords = [...stagingRecords];
-
         // Populate Filter First UI elements
         populateCsvCategoryFilter();
         populateBulkFilteredSelects();
@@ -2401,7 +2396,7 @@ async function loadStagingTable() {
         // Initialize ChoicesCategoryTree for bulk filtered panel
         initBulkFilteredCategoryTree();
 
-        renderStagingTable();
+        applyFilters();
 
         document.getElementById('step-2-upload').style.display = 'none';
         // Hide Step 3, Show Step 4 enrichment
@@ -2438,6 +2433,7 @@ function renderStagingTable() {
     });
 
     updateStats();
+    updateBulkPanel();
 
     // Reinitialize spreadsheet modules after render
     setTimeout(() => {
@@ -2445,6 +2441,12 @@ function renderStagingTable() {
         loadColumnWidths();
         updateSpreadsheetStatusBar();
     }, 10);
+}
+
+function getImportAiStagingIds() {
+    return filteredRecords
+        .filter(row => !row.article_id && !row.already_imported && !row.amount_error && !row.matches?.length)
+        .map(row => row.id);
 }
 
 function bankAmountLabel(value, signed = false) {
@@ -2485,7 +2487,7 @@ function createStagingRow(record, index) {
     statusCell.className = 'text-center cell';
     statusCell.dataset.col = 'status';
     statusCell.dataset.recordId = record.id;
-    statusCell.innerHTML = getStatusIndicator(record);
+    statusCell.textContent = getStatusIndicator(record);
     if (record.already_imported || record.amount_error) {
         statusCell.textContent = record.already_imported ? 'Строка уже импортирована'
             : (bankRowReasons[record.amount_error] || record.amount_error);
@@ -2525,13 +2527,12 @@ function createStagingRow(record, index) {
     // Amount
     const amountCell = document.createElement('td');
     setCellData(amountCell, 'amount');
-    amountCell.textContent = bankAmountLabel(record.original_amount ?? record.amount_string);
     if (record.whole_amount != null) {
-        const conversion = document.createElement('div');
-        conversion.className = 'text-xs';
-        conversion.textContent = `После отсечения: ${bankAmountLabel(record.whole_amount)} ₽. Разница: ${bankAmountLabel(record.amount_difference, true)} ₽`;
-        amountCell.append(conversion);
+        amountCell.textContent = bankAmountLabel(record.whole_amount) + ' ₽';
+        amountCell.title = `В выписке: ${bankAmountLabel(record.original_amount ?? record.amount_string)} ₽. Разница: ${bankAmountLabel(record.amount_difference, true)} ₽`;
         amountCell.classList.add(record.whole_amount < 0 ? 'text-error' : 'text-success');
+    } else {
+        amountCell.textContent = bankAmountLabel(record.amount_string);
     }
 
     // Description
@@ -2628,17 +2629,15 @@ function createArticleSelect(record) {
     wrapper.id = `article-${record.id}`;
     wrapper.className = 'article-cell-picker';
 
-    // Create hidden select element
-    const select = document.createElement('select');
-    select.id = `article-select-${record.id}`;
-    select.className = 'select select-bordered select-sm w-full';
-
-    wrapper.appendChild(select);
-
-    // Initialize ChoicesCategoryTree after appending to DOM
-    setTimeout(() => {
-        initCellCategoryPicker(record.id);
-    }, 50);
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'select select-bordered select-sm w-full text-left';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.textContent = record.article_id
+        ? (allArticles.find(article => article.id === record.article_id)?.name || `Категория #${record.article_id}`)
+        : 'Выберите категорию';
+    trigger.onclick = () => initCellCategoryPicker(record, trigger);
+    wrapper.append(trigger);
 
     return wrapper;
 }
@@ -2951,13 +2950,13 @@ function updateRowStatusIndicator(recordId) {
     // Status is the second cell (index 1)
     const statusCell = row.cells[1];
     if (statusCell && !record.matches?.length && !record.already_imported && !record.amount_error) {
-        statusCell.innerHTML = getStatusIndicator(record);
+        statusCell.textContent = getStatusIndicator(record);
     }
 
     // Update empty-field highlights
-    const typeCell = row.cells[9];  // Тип
-    const articleCell = row.cells[10];  // Категория
-    const fcCell = row.cells[11];  // Счет
+    const typeCell = row.querySelector('[data-col="type"]');
+    const articleCell = row.querySelector('[data-col="article"]');
+    const fcCell = row.querySelector('[data-col="fc"]');
 
     if (typeCell) {
         typeCell.classList.toggle('empty-field', !rowArticleTypes[recordId]);
@@ -3288,14 +3287,11 @@ function getRecordStatus(row) {
     return 'complete';
 }
 
-/**
- * Get status indicator icon for a row
- */
 function getStatusIndicator(row) {
-    const status = getRecordStatus(row);
-    if (status === 'complete') return '<span class="status-complete text-lg" title="Готово к импорту">●</span>';
-    if (status === 'partial') return '<span class="status-partial text-lg" title="Частично заполнено">◐</span>';
-    return '<span class="status-empty text-lg" title="Не заполнено">○</span>';
+    if (!row.article_id && !row.financial_center_id) return 'Нужны категория и счёт';
+    if (!row.article_id) return 'Нужна категория';
+    if (!row.financial_center_id) return 'Нужен счёт';
+    return 'Готово';
 }
 
 /**
@@ -3343,8 +3339,6 @@ function applyFilters() {
 
     renderStagingTable();
     updateActiveFilters();
-    updateBulkPanel();
-    updateStats();
 }
 
 /**
@@ -3445,8 +3439,9 @@ function populateCsvCategoryFilter() {
     const select = document.getElementById('filter-csv-cat');
     if (!select) return;
 
-    select.innerHTML = '<option value="">Все категории</option>' +
-        categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    const previous = select.value;
+    select.replaceChildren(new Option('Все категории', ''), ...categories.map(c => new Option(c, c)));
+    if (categories.includes(previous)) select.value = previous;
 }
 
 /**
@@ -4587,63 +4582,85 @@ document.addEventListener('DOMContentLoaded', function() {
 const cellCategoryPickers = new Map();
 let bulkFilteredCategoryTree = null;
 
-/**
- * Initialize ChoicesCategoryTree for a cell
- */
-function initCellCategoryPicker(recordId) {
-    const selectEl = document.getElementById(`article-select-${recordId}`);
-    if (!selectEl) return;
+function positionCategoryMenu(menu) {
+    const anchor = menu.closest('.choices').getBoundingClientRect();
+    const below = window.innerHeight - anchor.bottom;
+    const above = anchor.top;
+    const upwards = below < 260 && above > below;
+    const width = Math.min(anchor.width, document.documentElement.clientWidth);
+    menu.style.width = width + 'px';
+    menu.style.left = Math.max(0, Math.min(anchor.left, document.documentElement.clientWidth - width)) + 'px';
+    menu.style.top = upwards ? 'auto' : anchor.bottom + 'px';
+    menu.style.bottom = upwards ? window.innerHeight - anchor.top + 'px' : 'auto';
+    const searchHeight = menu.querySelector('input')?.offsetHeight || 0;
+    menu.querySelector('[role=listbox]').style.maxHeight = Math.max(0, Math.min(260, (upwards ? above : below) - searchHeight - 4)) + 'px';
+}
 
-    // Destroy existing instance if any (wrap in try/catch — element may already be detached)
-    if (cellCategoryPickers.has(recordId)) {
-        try { cellCategoryPickers.get(recordId).destroy(); } catch (e) { /* already detached */ }
-        cellCategoryPickers.delete(recordId);
-    }
-
-    const type = rowArticleTypes[recordId] || 'expense';
-    const record = stagingRecords.find(r => r.id === recordId);
-
-    const picker = new BudgetShared.ChoicesCategoryTree(
-        `#article-select-${recordId}`,
-        {
-            type: type,
-            showLeafOnly: true,
-            mode: 'edit',  // ✅ Edit mode - inline editing of import record
-            onCategoryChange: async (category) => {
-                if (category) {
-                    // Save selection to backend
-                    await updateStagingField(recordId, 'article_id', category.id);
-
-                    // Update local record
-                    const rec = stagingRecords.find(r => r.id === recordId);
-                    if (rec) {
-                        rec.article_id = category.id;
-                    }
-
-                    // Update stats
-                    updateStats();
-                }
-            }
-        }
-    );
-
-    cellCategoryPickers.set(recordId, picker);
-
-    // Pre-select current value if exists
-    if (record?.article_id) {
-        setTimeout(() => {
-            picker.setSelectedCategory(record.article_id);
-        }, 150);
+function repositionOpenCategoryMenu(event) {
+    const menu = document.querySelector('.article-cell-picker .is-open .choices__list--dropdown');
+    if (menu && !(event.target instanceof Node && menu.contains(event.target))) {
+        positionCategoryMenu(menu);
     }
 }
 
-/**
- * Update cell category picker type when row type changes
- */
+document.addEventListener('scroll', repositionOpenCategoryMenu, true);
+window.addEventListener('resize', repositionOpenCategoryMenu);
+
+async function initCellCategoryPicker(record, trigger) {
+    const recordId = record.id;
+    const select = document.createElement('select');
+    select.id = `article-select-${recordId}`;
+    select.setAttribute('aria-label', 'Категория');
+    trigger.before(select);
+    trigger.onclick = null;
+    const picker = new BudgetShared.ChoicesCategoryTree(
+        `#article-select-${recordId}`,
+        {
+            type: rowArticleTypes[recordId] || 'expense',
+            showLeafOnly: true,
+            mode: 'edit',
+            onCategoryChange: category => {
+                if (category) updateStagingField(recordId, 'article_id', category.id);
+            }
+        }
+    );
+    cellCategoryPickers.set(recordId, picker);
+    await picker.waitForReady();
+    if (!select.isConnected) {
+        picker.destroy();
+        return;
+    }
+    if (!picker.choices) {
+        select.remove();
+        cellCategoryPickers.delete(recordId);
+        trigger.onclick = () => initCellCategoryPicker(record, trigger);
+        showNotification('Не удалось открыть список категорий', 'error');
+        return;
+    }
+    const shouldOpen = document.activeElement === trigger || document.activeElement === document.body;
+    trigger.remove();
+    if (record.article_id) await picker.setSelectedCategory(record.article_id);
+    if (!select.isConnected) return;
+
+    const menu = select.closest('.choices').querySelector('.choices__list--dropdown');
+    if (menu.showPopover) menu.setAttribute('popover', 'manual');
+    select.addEventListener('showDropdown', () => {
+        if (!menu.isConnected) return;
+        menu.showPopover?.();
+        positionCategoryMenu(menu);
+        menu.querySelector('input')?.focus({ preventScroll: true });
+    });
+    select.addEventListener('hideDropdown', () => menu.hidePopover?.());
+    if (shouldOpen) picker.choices.showDropdown();
+}
+
 function updateCellCategoryType(recordId, newType) {
     const picker = cellCategoryPickers.get(recordId);
     if (picker) {
         picker.updateType(newType);
+    } else {
+        const trigger = document.querySelector(`#article-${recordId} button`);
+        if (trigger) trigger.textContent = 'Выберите категорию';
     }
 }
 
