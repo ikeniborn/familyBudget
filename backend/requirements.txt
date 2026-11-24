@@ -30,7 +30,7 @@ email-validator==2.2.0     # Email validation for Pydantic EmailStr
 webauthn==2.1.0            # WebAuthn biometric authentication (TouchID/FaceID)
 
 # Configuration
-pydantic-settings==2.7.0
+pydantic-settings==2.15.0
 python-dotenv==1.2.2
 
 # Logging
