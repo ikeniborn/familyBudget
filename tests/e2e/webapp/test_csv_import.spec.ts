@@ -369,10 +369,11 @@ test('bank CSV integrity review shows rejects, excludes registry matches and bin
   await expect(report).toContainText('Строка 5: неверная дата');
   const row = page.locator('#staging-row-21');
   await expect(row).toContainText('Семейная карта');
-  await expect(row).toContainText('−840,49');
-  await expect(row).toContainText('После отсечения: −840 ₽');
-  await expect(page.locator('#staging-row-22')).toContainText('9007199254740993');
-  await expect(row).toContainText('+0,49');
+  const amount = row.locator('[data-col=amount]');
+  await expect(amount).toHaveText('−840 ₽');
+  await expect(amount).toHaveAttribute('title', /−840,49 ₽.*\+0,49 ₽/);
+  await expect(page.locator('#staging-row-22 [data-col=amount]')).toHaveText('9007199254740993 ₽');
+  await expect(page.locator('#staging-row-22 [data-col=status]')).toHaveText('Готово');
   const edited = page.waitForResponse(response => response.url().endsWith('/staging/21') && response.request().method() === 'PATCH');
   await row.locator('#fc-21').selectOption('3');
   await edited;
@@ -397,4 +398,71 @@ test('bank CSV integrity review shows rejects, excludes registry matches and bin
   expect(attempts[1].staging_ids).toEqual([21, 22]);
   expect(attempts[1].confirmation_id).toMatch(/^[a-f0-9-]{36}$/);
   expect(attempts[2]).toEqual(attempts[1]);
+});
+
+test('filtered import preview opens the last category and scopes AI to eligible rows', async ({ page }) => {
+  const rows = Array.from({ length: 5 }, (_, index) => ({
+    id: index + 1, bank_provider_id: index === 4 ? 2 : 1, amount_string: '-659.85',
+    original_amount: '-659.85', whole_amount: '-659', amount_difference: '0.85',
+    fact_date: '2026-11-20', article_id: null as number | null, financial_center_id: null,
+    csv_metadata: { category: index === 0 ? 'Транспорт' : 'Покупки' },
+    matches: index === 2 ? [{ id: 90, amount: '659', fact_date: '2026-11-20' }] : [],
+  }));
+  const articles = [{ id: 11, name: 'Продукты', type: 'expense', is_active: true, parent_id: null }];
+  const aiCalls: number[][] = [];
+  let aiEnabled = false;
+  await page.route('**/api/v1/**', route => {
+    const url = new URL(route.request().url());
+    switch (url.pathname) {
+      case '/api/v1/consent/status': return route.fulfill({ json: { has_consented: true, consents: {} } });
+      case '/api/v1/import/banks': return route.fulfill({ json: [{ id: 1, name: 'Банк QA' }] });
+      case '/api/v1/ai/status': return route.fulfill({ json: { enabled: aiEnabled, text: aiEnabled } });
+      case '/api/v1/articles': return route.fulfill({ json: { articles } });
+      case '/api/v1/staging': return route.fulfill({ json: rows });
+      case '/api/v1/staging/2':
+      case '/api/v1/staging/4':
+        rows[Number(url.pathname.split('/').pop()) - 1].article_id = route.request().postDataJSON().article_id;
+        return route.fulfill({ json: { success: true } });
+      case '/api/v1/ai/categorize-import':
+        aiCalls.push(route.request().postDataJSON().staging_ids);
+        return route.fulfill({ json: { processed: 1, suggestions: [{ staging_id: 2, article_id: 11, article_path: 'Продукты', confidence: 'high' }], unmatched: 0 } });
+      default: return route.fulfill({ json: [] });
+    }
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const openPreview = async () => {
+    await page.goto('/import');
+    await page.locator('#bank-selector').selectOption('1');
+    await page.locator('#skip-to-enrichment-btn').click();
+    await expect(page.locator('#bulk-filtered-count')).toHaveText('4');
+  };
+  await openPreview();
+  const aiButton = page.getByRole('button', { name: 'Подобрать категории с ИИ' });
+  await expect(aiButton).toBeVisible();
+  await expect(aiButton).toBeDisabled();
+  await expect(page.locator('#ai-categorize-status')).toHaveText('ИИ выключен в настройках');
+  aiEnabled = true;
+  await openPreview();
+  await expect(aiButton).toBeEnabled();
+  await page.locator('#filter-csv-cat').selectOption('Покупки', { force: true });
+  await expect(page.locator('#bulk-filtered-count')).toHaveText('3');
+  await expect(page.locator('#staging-table-body .choices')).toHaveCount(0);
+  const last = page.locator('#staging-row-4');
+  await expect(last.locator('[data-col=status]')).toHaveText('Нужны категория и счёт');
+  await last.getByRole('button', { name: 'Выберите категорию' }).click();
+  const menu = last.locator('.choices__list--dropdown');
+  await menu.locator('input').fill('Продукты');
+  await menu.getByRole('option', { name: 'Продукты' }).click();
+  await expect(last.locator('[data-col=status]')).toHaveText('Нужен счёт');
+  await expect(last.locator('[data-col=article]')).not.toHaveClass(/empty-field/);
+  await expect(last.locator('[data-col=fc]')).toHaveClass(/empty-field/);
+  await aiButton.click();
+  await expect(page.locator('#ai-categorize-status')).toContainText('Рекомендации: 1 из 1 · применено: 1');
+  await expect(page.locator('#staging-row-2 button', { hasText: 'Продукты' })).toBeVisible();
+  await expect(page.locator('#bulk-filtered-count')).toHaveText('3');
+  await aiButton.click();
+  await expect(page.locator('#ai-categorize-status')).toContainText('нет строк');
+  expect(aiCalls).toEqual([[2]]);
+  await page.locator('#filter-csv-cat').selectOption('', { force: true });
+  await expect(last.getByRole('button', { name: 'Продукты' })).toBeVisible();
 });

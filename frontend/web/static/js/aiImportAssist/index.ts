@@ -1,9 +1,9 @@
 /**
  * AI import assist (phase 4 of ai-assisted-transaction-input).
  *
- * On the import page (/admin/import) the "🤖 Подобрать категории" button asks
+ * On the import page (/admin/import) the "Подобрать категории с ИИ" button asks
  * POST /api/v1/ai/categorize-import for article suggestions covering the
- * user's uncategorized staging rows, applies the high-confidence ones via
+ * eligible rows in the current preview, applies the high-confidence ones via
  * the normal PATCH /api/v1/staging/{id}, and reports the rest for manual
  * choice. Import itself still goes through the usual confirmation step, and
  * a missing/failed AI never blocks it.
@@ -20,6 +20,13 @@ interface CategorizeResponse {
     suggestions: CategorySuggestion[];
     processed: number;
     unmatched: number;
+}
+
+declare global {
+    interface Window {
+        getImportAiStagingIds(): number[];
+        loadStagingTable(): Promise<void>;
+    }
 }
 
 const STATUS_URL = '/api/v1/ai/status';
@@ -71,13 +78,18 @@ async function applySuggestion(suggestion: CategorySuggestion): Promise<boolean>
 }
 
 async function categorize(button: HTMLButtonElement): Promise<void> {
+    const stagingIds = window.getImportAiStagingIds();
+    if (stagingIds.length === 0) {
+        setStatus('В текущем отборе нет строк для подбора категории');
+        return;
+    }
     button.disabled = true;
     setStatus('Подбираю категории…');
     try {
         const response = await fetch(CATEGORIZE_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ staging_ids: null }),
+            body: JSON.stringify({ staging_ids: stagingIds }),
         });
         if (!response.ok) {
             const body: unknown = await response.json().catch(() => ({}));
@@ -99,7 +111,8 @@ async function categorize(button: HTMLButtonElement): Promise<void> {
             }
         }
 
-        const parts = [`применено: ${applied}`];
+        const parts = [`Рекомендации: ${data.suggestions.length} из ${data.processed}`, `применено: ${applied}`];
+        if (high.length > applied) parts.push(`не удалось сохранить: ${high.length - applied}`);
         if (low > 0) {
             parts.push(`неуверенных (проверь вручную): ${low}`);
         }
@@ -108,11 +121,7 @@ async function categorize(button: HTMLButtonElement): Promise<void> {
         }
         setStatus(parts.join(' · '));
 
-        const reload = (window as unknown as { loadStagingTable?: () => void })
-            .loadStagingTable;
-        if (applied > 0 && typeof reload === 'function') {
-            reload();
-        }
+        if (applied > 0) await window.loadStagingTable();
     } catch {
         setStatus('Сеть недоступна — попробуйте позже', true);
     } finally {
@@ -129,19 +138,20 @@ async function init(): Promise<void> {
     }
     try {
         const response = await fetch(STATUS_URL);
-        if (!response.ok) {
-            return;
-        }
-        const status = (await response.json()) as { text: boolean };
+        if (!response.ok) throw new Error('Status unavailable');
+        const status = (await response.json()) as { enabled: boolean; text: boolean };
         if (!status.text) {
+            setStatus(status.enabled ? 'Текстовая модель не настроена' : 'ИИ выключен в настройках');
+            document.getElementById('ai-categorize-settings')?.removeAttribute('hidden');
             return;
         }
-        button.classList.remove('hidden');
+        button.disabled = false;
+        setStatus('');
         button.addEventListener('click', () => {
             void categorize(button);
         });
     } catch {
-        // AI unavailable — button stays hidden, import works as before.
+        setStatus('Не удалось проверить доступность ИИ', true);
     }
 }
 
