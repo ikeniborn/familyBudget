@@ -1,15 +1,15 @@
 {
   "backend": {
-    "version": "0.8.81",
-    "hash": "c74860de",
-    "lastModified": "2026-11-24T15:34:51Z",
+    "version": "0.8.82",
+    "hash": "1f54aca1",
+    "lastModified": "2026-11-24T20:05:28Z",
     "paths": [
       "backend/",
       "frontend/",
       "package.json",
       "package-lock.json"
     ],
-    "digest": "sha256:1a22ac10c3759128777d27359970da6462ad144992e7a6a6be07d3764214feac"
+    "digest": "sha256:550ea6a7bbadd7583b181f57a737dcc6c046945d174b16b02b4d342d399b14ae"
   },
   "bot": {
     "version": "0.8.33",
