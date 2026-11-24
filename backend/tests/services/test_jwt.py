@@ -5,19 +5,19 @@ Tests JWT token creation, validation, expiration handling, and security properti
 This is a CRITICAL SECURITY module - comprehensive testing is essential.
 
 Functions tested:
-    - create_access_token(user_id: int) -> str
+    - create_access_token(user_id: int, telegram_id: int) -> str
     - decode_access_token(token: str) -> Optional[int]
 """
 
 from datetime import datetime, timedelta
 from unittest.mock import patch
 
-from jose import jwt
+import jwt
 
 from backend.app.services.jwt import (
+    ACCESS_TOKEN_EXPIRE_DAYS,
     ALGORITHM,
     SECRET_KEY,
-    TOKEN_EXPIRE_DAYS,
     create_access_token,
     decode_access_token,
 )
@@ -30,7 +30,7 @@ from backend.app.services.jwt import (
 def test_create_access_token_basic():
     """Test creating a basic access token with user_id."""
     user_id = 123
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, telegram_id=user_id)
 
     # Token should be a non-empty string
     assert isinstance(token, str)
@@ -44,7 +44,7 @@ def test_create_access_token_basic():
 def test_create_access_token_contains_user_id():
     """Test that created token contains correct user_id claim."""
     user_id = 456
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, telegram_id=user_id)
 
     # Decode token manually to verify claims
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -56,7 +56,7 @@ def test_create_access_token_contains_user_id():
 def test_create_access_token_contains_expiration():
     """Test that created token contains expiration claim."""
     user_id = 789
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, telegram_id=user_id)
 
     # Decode token to check expiration
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -64,9 +64,9 @@ def test_create_access_token_contains_expiration():
     assert "exp" in payload
     assert isinstance(payload["exp"], int)
 
-    # Expiration should be approximately TOKEN_EXPIRE_DAYS from now
+    # Expiration should be approximately ACCESS_TOKEN_EXPIRE_DAYS from now
     exp_datetime = datetime.utcfromtimestamp(payload["exp"])
-    expected_exp = datetime.utcnow() + timedelta(days=TOKEN_EXPIRE_DAYS)
+    expected_exp = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
 
     # Allow 5 seconds tolerance for test execution time
     time_diff = abs((exp_datetime - expected_exp).total_seconds())
@@ -76,7 +76,7 @@ def test_create_access_token_contains_expiration():
 def test_create_access_token_contains_issued_at():
     """Test that created token contains issued_at (iat) claim."""
     user_id = 101
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, telegram_id=user_id)
 
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
@@ -94,8 +94,8 @@ def test_create_access_token_contains_issued_at():
 
 def test_create_access_token_different_users():
     """Test creating tokens for different users produces different tokens."""
-    token1 = create_access_token(user_id=111)
-    token2 = create_access_token(user_id=222)
+    token1 = create_access_token(user_id=111, telegram_id=111)
+    token2 = create_access_token(user_id=222, telegram_id=222)
 
     # Tokens should be different
     assert token1 != token2
@@ -111,7 +111,7 @@ def test_create_access_token_different_users():
 def test_create_access_token_uses_correct_algorithm():
     """Test that token is signed with HS256 algorithm."""
     user_id = 333
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, telegram_id=user_id)
 
     # Decode token header to check algorithm
     header = jwt.get_unverified_header(token)
@@ -128,7 +128,7 @@ def test_create_access_token_uses_correct_algorithm():
 def test_decode_access_token_valid():
     """Test decoding a valid access token returns correct user_id."""
     user_id = 555
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, telegram_id=user_id)
 
     # Decode token
     decoded_user_id = decode_access_token(token)
@@ -160,10 +160,11 @@ def test_decode_access_token_expired():
 def test_decode_access_token_invalid_signature():
     """Test decoding token with invalid signature returns None."""
     user_id = 777
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, telegram_id=user_id)
 
-    # Tamper with token signature (change last character)
-    tampered_token = token[:-1] + ("X" if token[-1] != "X" else "Y")
+    header, payload, signature = token.split(".")
+    first = "A" if signature[0] != "A" else "B"
+    tampered_token = ".".join((header, payload, first + signature[1:]))
 
     # Should return None for invalid signature
     decoded_user_id = decode_access_token(tampered_token)
@@ -267,7 +268,7 @@ def test_create_and_decode_round_trip():
     user_id = 1234
 
     # Create token
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, telegram_id=user_id)
 
     # Decode token
     decoded_user_id = decode_access_token(token)
@@ -281,7 +282,7 @@ def test_create_and_decode_multiple_users():
     user_ids = [1, 100, 999, 10000, 999999]
 
     for user_id in user_ids:
-        token = create_access_token(user_id)
+        token = create_access_token(user_id, telegram_id=user_id)
         decoded_user_id = decode_access_token(token)
 
         assert decoded_user_id == user_id
@@ -293,12 +294,12 @@ def test_create_and_decode_multiple_users():
 
 
 def test_token_expiration_configurable():
-    """Test that token expiration uses TOKEN_EXPIRE_DAYS setting."""
+    """Test that token expiration uses ACCESS_TOKEN_EXPIRE_DAYS setting."""
     user_id = 1111
 
-    # Mock TOKEN_EXPIRE_DAYS to verify it's being used
-    with patch("backend.app.services.jwt.TOKEN_EXPIRE_DAYS", 14):  # 14 days
-        token = create_access_token(user_id)
+    # Mock ACCESS_TOKEN_EXPIRE_DAYS to verify it's being used
+    with patch("backend.app.services.jwt.ACCESS_TOKEN_EXPIRE_DAYS", 14):  # 14 days
+        token = create_access_token(user_id, telegram_id=user_id)
 
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         exp_datetime = datetime.utcfromtimestamp(payload["exp"])
@@ -321,15 +322,16 @@ def test_algorithm_is_hs256():
     assert ALGORITHM == "HS256"
 
 
-def test_token_not_replayable():
-    """Test that each token creation produces unique token (includes iat)."""
+def test_tokens_issued_in_different_seconds():
+    """Issued-at claims distinguish tokens created in different seconds."""
     user_id = 2222
+    now = datetime.utcnow()
+    with patch("backend.app.services.jwt.datetime") as clock:
+        clock.utcnow.return_value = now - timedelta(seconds=1)
+        token1 = create_access_token(user_id, telegram_id=user_id)
+        clock.utcnow.return_value = now
+        token2 = create_access_token(user_id, telegram_id=user_id)
 
-    # Create two tokens for same user
-    token1 = create_access_token(user_id)
-    token2 = create_access_token(user_id)
-
-    # Tokens should be different (different iat timestamps)
     assert token1 != token2
 
     # But both should decode to same user_id
@@ -354,7 +356,7 @@ def test_decode_access_token_very_long_token():
 def test_create_access_token_user_id_zero():
     """Test creating token with user_id=0 (edge case)."""
     user_id = 0
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, telegram_id=user_id)
 
     decoded_user_id = decode_access_token(token)
 
@@ -366,7 +368,7 @@ def test_create_access_token_large_user_id():
     """Test creating token with very large user_id."""
     user_id = 2**31 - 1  # Max 32-bit signed integer
 
-    token = create_access_token(user_id)
+    token = create_access_token(user_id, telegram_id=user_id)
     decoded_user_id = decode_access_token(token)
 
     assert decoded_user_id == user_id

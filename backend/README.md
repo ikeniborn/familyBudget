@@ -142,7 +142,7 @@ pytest tests/api/test_facts.py
 - **Framework:** FastAPI 0.109+
 - **ORM:** SQLModel 0.0.14
 - **Database:** PostgreSQL 16+ (async via asyncpg)
-- **Auth:** python-jose (JWT)
+- **Auth:** PyJWT (HS256 tokens)
 - **Telegram:** python-telegram-bot 20.7
 - **Testing:** pytest, pytest-asyncio, pytest-cov
 

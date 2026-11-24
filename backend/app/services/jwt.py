@@ -32,7 +32,8 @@ Security:
 import hashlib
 from datetime import datetime, timedelta
 
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import InvalidTokenError
 
 from backend.app.core.config import get_settings
 
@@ -176,7 +177,7 @@ def decode_ws_token(token: str) -> int | None:
         # Convert sub back to int (stored as string per JWT spec)
         sub = payload.get("sub")
         return int(sub) if sub else None
-    except (JWTError, ValueError, TypeError):
+    except (InvalidTokenError, ValueError, TypeError):
         return None
 
 
@@ -223,7 +224,7 @@ def decode_access_token(token: str) -> int | None:
         user_id: int | None = payload.get("user_id")
         return user_id
 
-    except JWTError:
+    except InvalidTokenError:
         # Token is invalid, expired, or malformed
         return None
 
@@ -270,7 +271,7 @@ def decode_access_token_full(token: str) -> tuple[int | None, int | None]:
 
         return user_id, telegram_id
 
-    except JWTError:
+    except InvalidTokenError:
         # Token is invalid, expired, or malformed
         return None, None
 
@@ -374,7 +375,7 @@ def decode_refresh_token(token: str) -> int | None:
 
         return user_id
 
-    except JWTError:
+    except InvalidTokenError:
         # Token is invalid, expired, or malformed
         return None
 
