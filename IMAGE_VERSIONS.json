@@ -1,14 +1,15 @@
 {
   "backend": {
-    "version": "0.8.79",
-    "hash": "ed77199c",
-    "lastModified": "2026-09-26T18:43:29Z",
+    "version": "0.8.81",
+    "hash": "c74860de",
+    "lastModified": "2026-11-24T15:34:51Z",
     "paths": [
       "backend/",
       "frontend/",
       "package.json",
       "package-lock.json"
-    ]
+    ],
+    "digest": "sha256:1a22ac10c3759128777d27359970da6462ad144992e7a6a6be07d3764214feac"
   },
   "bot": {
     "version": "0.8.33",
@@ -16,7 +17,8 @@
     "lastModified": "2026-09-15T12:10:52Z",
     "paths": [
       "bot/"
-    ]
+    ],
+    "digest": "sha256:f58c024ac2efd46bff8af872b8601d334f959df9eb22a0cc95aa05bcc663423d"
   },
   "redis": {
     "version": "0.7.10",
@@ -24,7 +26,8 @@
     "lastModified": "2026-06-07T19:21:03Z",
     "paths": [
       "redis/"
-    ]
+    ],
+    "digest": "sha256:b76f40bb70dc704d5aadad8c25ae0484f8999453fae8e29a5bd0888421b6ede0"
   },
   "postgresql": {
     "version": "0.7.9",
@@ -32,6 +35,7 @@
     "lastModified": "2026-06-07T18:24:24Z",
     "paths": [
       "postgres/"
-    ]
+    ],
+    "digest": "sha256:753727d9a22ab80feafb6f0035115e816c1edf91f4e0bce907d7670d61a646ee"
   }
 }
