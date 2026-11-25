@@ -13,17 +13,22 @@ Endpoints:
 - POST /import/mappings - Save/update mapping
 - POST /import/files/{file_id}/parse - Parse CSV with mapping → staging
 """
+import csv
+import hashlib
 import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from sqlalchemy import func
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from backend.app.core.dependencies import CurrentUser, get_session
 from backend.app.models.bank_provider import BankProvider
 from backend.app.models.import_column_mapping import ImportColumnMapping
+from backend.app.models.import_confirmation import ImportSourceReceipt
 from backend.app.models.import_file_upload import ImportFileUpload
 from backend.app.models.import_staging import ImportStaging
 from backend.app.schemas.import_multibank_schema import (
@@ -48,6 +53,7 @@ from backend.app.services.google_sheets_parser import (
 from backend.app.services.mapping_service import MappingService
 
 logger = logging.getLogger(__name__)
+UPLOAD_TEMP_DIR = Path("/app/uploads/temp")
 
 router = APIRouter(prefix="/import", tags=["Import Multi-Bank"])
 
@@ -216,6 +222,17 @@ async def delete_bank(
         raise HTTPException(404, str(e))
 
 
+def _statement_receipts(user_id: int, fingerprint: str):
+    return select(ImportSourceReceipt.source_row).where(
+        ImportSourceReceipt.user_id == user_id, ImportSourceReceipt.fingerprint == fingerprint
+    )
+
+
+async def _prior_imported_count(session: AsyncSession, upload: ImportFileUpload) -> int:
+    receipts = _statement_receipts(upload.user_id, upload.fingerprint)
+    return await session.scalar(select(func.count()).select_from(receipts.subquery()))
+
+
 @router.post("/upload", response_model=FileUploadResponse, status_code=201)
 async def upload_file(
     current_user: CurrentUser,
@@ -279,7 +296,7 @@ async def upload_file(
         raise HTTPException(404, "Bank provider not found")
 
     # Save file to /app/uploads/temp with unique filename
-    temp_dir = Path("/app/uploads/temp")
+    temp_dir = UPLOAD_TEMP_DIR
     temp_dir.mkdir(parents=True, exist_ok=True)  # Ensure directory exists
     temp_filename = f"import_{uuid.uuid4().hex}_{file.filename or 'unknown.csv'}"
     temp_file_path = temp_dir / temp_filename
@@ -297,6 +314,7 @@ async def upload_file(
         bank_provider_id=bank_provider_id,
         file_name=file.filename or "unknown.csv",
         file_size=len(content),
+        fingerprint=hashlib.sha256(content).hexdigest(),
         mime_type=file.content_type,
         temp_file_path=str(temp_file_path),
         status="uploaded"
@@ -345,7 +363,8 @@ async def upload_file(
         file_id=file_upload.id,
         file_name=file_upload.file_name,
         bank_provider_id=file_upload.bank_provider_id,
-        status=file_upload.status
+        status=file_upload.status,
+        prior_imported_count=await _prior_imported_count(session, file_upload),
     )
 
 
@@ -427,7 +446,7 @@ async def upload_from_google_sheets(
         raise HTTPException(400, str(e))
 
     # Save to temp file
-    temp_dir = Path("/app/uploads/temp")
+    temp_dir = UPLOAD_TEMP_DIR
     temp_dir.mkdir(parents=True, exist_ok=True)
     temp_filename = f"google_sheets_{spreadsheet_id}_{uuid.uuid4().hex[:8]}.csv"
     temp_file_path = temp_dir / temp_filename
@@ -445,6 +464,7 @@ async def upload_from_google_sheets(
         bank_provider_id=request.bank_provider_id,
         file_name=temp_filename,
         file_size=len(csv_bytes),
+        fingerprint=hashlib.sha256(csv_bytes).hexdigest(),
         mime_type="text/csv",
         temp_file_path=str(temp_file_path),
         status="uploaded"
@@ -493,7 +513,8 @@ async def upload_from_google_sheets(
         file_id=file_upload.id,
         file_name=file_upload.file_name,
         bank_provider_id=file_upload.bank_provider_id,
-        status=file_upload.status
+        status=file_upload.status,
+        prior_imported_count=await _prior_imported_count(session, file_upload),
     )
 
 
@@ -793,48 +814,18 @@ async def parse_file(
     current_user: CurrentUser,
     session: AsyncSession = Depends(get_session)
 ):
-    """
-    Parse CSV with mapping → insert to staging.
-
-    **IMPORTANT:** This endpoint requires file content to be re-uploaded or stored.
-    Current implementation assumes file content is available (TODO: implement temp storage).
-
-    **Workflow:**
-    1. Get file upload metadata
-    2. Get column mapping
-    3. Re-read file content (TODO: implement)
-    4. Parse CSV with mapping
-    5. Insert to ImportStaging
-    6. Update file status to "parsed"
-
-    **Parameters:**
-    - file_id: File upload ID
-    - request.mapping_id: Column mapping ID to use
-
-    **Returns:**
-    - success, total_inserted, message
-
-    **Example:**
-    ```
-    POST /api/v1/import/files/123/parse
-    Body: {"mapping_id": 1}
-    Response 200: {
-        "success": true,
-        "total_inserted": 152,
-        "message": "Successfully parsed 152 records to staging"
-    }
-    ```
-
-    **TODO:**
-    - Implement temp file storage (currently file content not persisted)
-    - Add error handling for parsing failures
-    """
+    """Parse the owned upload and commit its reportable staging rows and parse state together."""
     logger.info("Parsing file %s with mapping %s", file_id, request.mapping_id)
 
     # Get file upload
-    file_upload = await session.get(ImportFileUpload, file_id)
-    if not file_upload or file_upload.user_id != current_user.id:
+    file_upload = await session.scalar(select(ImportFileUpload).where(
+        ImportFileUpload.id == file_id, ImportFileUpload.user_id == current_user.id
+    ).with_for_update())
+    if not file_upload:
         raise HTTPException(404, "File not found")
+
+    if file_upload.status == "parsed":
+        raise HTTPException(409, "File already parsed")
 
     # Get mapping (shared per bank, any user can use)
     mapping_record = await session.get(ImportColumnMapping, request.mapping_id)
@@ -857,6 +848,10 @@ async def parse_file(
         logger.error("Failed to read temp file %s: %s", temp_file_path, e)
         raise HTTPException(500, f"Failed to read temporary file: {str(e)}")
 
+    fingerprint = hashlib.sha256(file_content).hexdigest()
+    if file_upload.fingerprint and file_upload.fingerprint != fingerprint:
+        raise HTTPException(409, "Statement contents changed. Upload the original file again.")
+
     # Get delimiter, date_format, number_format from mapping transformations (if set)
     # Otherwise fall back to file upload metadata
     transformations = mapping_record.transformations or {}
@@ -875,7 +870,7 @@ async def parse_file(
     )
 
     try:
-        staging_records = await GenericCSVParser.parse_with_mapping(
+        report = await GenericCSVParser.parse_report(
             file_content=file_content,
             mapping=mapping_record.mapping,
             user_id=current_user.id,
@@ -884,45 +879,46 @@ async def parse_file(
             encoding=encoding,
             date_format=date_format,
             number_format=number_format,
-            transformations=mapping_record.transformations
+            transformations=mapping_record.transformations,
         )
+        # Older uploads with surviving file bytes can acquire a verifiable identity here.
+        file_upload.fingerprint = fingerprint
+        prior_rows = set((await session.scalars(
+            _statement_receipts(current_user.id, file_upload.fingerprint)
+        )).all())
+        inserted = 0
+        for row in report.records:
+            if row["source_row"] in prior_rows:
+                report.rejected_rows.append({"source_row": row["source_row"], "reason": "already_imported"})
+                continue
+            session.add(ImportStaging(**row, bank_provider_id=file_upload.bank_provider_id))
+            inserted += 1
 
-        # Insert records to staging
-        for record_data in staging_records:
-            # Add bank_provider_id from file_upload
-            record_data['bank_provider_id'] = file_upload.bank_provider_id
-            staging = ImportStaging(**record_data)
-            session.add(staging)
-
-        await session.commit()
-
-        # Update file upload status
         file_upload.status = "parsed"
         file_upload.parsed_at = datetime.utcnow()
         file_upload.mapping_id = request.mapping_id
-        await session.commit()
-
-        # Clean up temp file after successful parsing
-        try:
-            temp_file_path.unlink()
-            logger.info("Deleted temp file %s after successful parsing", temp_file_path)
-        except Exception as cleanup_error:
-            logger.error("Failed to cleanup temp file %s: %s", temp_file_path, cleanup_error)
-
-        logger.info(
-            "Successfully parsed file %s: %s records inserted to staging",
-            file_upload.id, len(staging_records)
-        )
-
-        return ParseResponse(
+        response = ParseResponse(
             success=True,
-            total_inserted=len(staging_records),
-            message=f"Successfully parsed {len(staging_records)} records to staging"
+            total_rows=inserted + len(report.rejected_rows),
+            total_inserted=inserted,
+            rejected_rows=sorted(report.rejected_rows, key=lambda row: row["source_row"]),
+            prior_imported_count=len(prior_rows),
+            message=f"Successfully parsed {inserted} records to staging",
         )
-
-    except Exception as e:
-        file_upload.status = "error"
-        file_upload.error_message = f"Parsing failed: {str(e)}"
         await session.commit()
-        logger.error("Failed to parse file %s: %s", file_upload.id, e)
-        raise HTTPException(500, f"Failed to parse CSV: {str(e)}")
+    except (UnicodeError, csv.Error) as error:
+        # CSV decoding and parsing finish before any staging rows are added.
+        file_upload.status = "error"
+        file_upload.error_message = f"Parsing failed: {error}"
+        await session.commit()
+        raise HTTPException(400, "Invalid CSV file") from error
+    except Exception as error:
+        await session.rollback()
+        logger.exception("Failed to parse file %s", file_id)
+        raise HTTPException(500, "Failed to parse CSV") from error
+
+    try:
+        temp_file_path.unlink()
+    except OSError as error:
+        logger.warning("Could not remove parsed CSV file %s: %s", file_id, error)
+    return response

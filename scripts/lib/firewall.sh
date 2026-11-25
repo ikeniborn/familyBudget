@@ -116,229 +116,112 @@ validate_ufw_rules() {
         warning "  ⚠ HTTP port 80: CLOSED (Traefik HTTP-01 will fail)"
     fi
 
-    # Check PostgreSQL external access
-    info "Checking PostgreSQL access..."
-    if [[ "${POSTGRES_EXTERNAL_ACCESS:-false}" == "true" ]]; then
-        if echo "$ufw_numbered" | grep -q "5432.*ALLOW IN"; then
-            success "  ✓ PostgreSQL external access configured"
-            # Show which IP is allowed
-            local allowed_ip=$(echo "$ufw_numbered" | grep "5432.*ALLOW IN" | head -1)
-            info "    Rule: $allowed_ip"
-        else
-            warning "  ⚠ POSTGRES_EXTERNAL_ACCESS=true but UFW rule missing!"
-            warning "    Run: sudo ufw allow from <IP> to any port 5432"
-        fi
-    else
-        if echo "$ufw_numbered" | grep -q "5432.*ALLOW IN"; then
-            warning "  ⚠ PostgreSQL port 5432 is allowed in UFW but POSTGRES_EXTERNAL_ACCESS=false"
-            info "    This may indicate stale configuration"
-        else
-            success "  ✓ PostgreSQL access blocked (internal only)"
-        fi
-    fi
-
-    # Check that ports 8000 and 5432 are NOT publicly accessible (if exposed, should be blocked by UFW)
-    info "Checking security (ports should be protected by UFW)..."
-    if echo "$ufw_numbered" | grep -q "8000.*ALLOW IN"; then
-        warning "  ⚠ Backend port 8000 is ALLOWED in UFW (should use Traefik reverse proxy instead)"
-    else
-        success "  ✓ Backend port 8000: Protected by UFW (access via Traefik only)"
-    fi
-
-    echo ""
+    info "Internal-service isolation is checked from Compose and Docker inspect, not UFW INPUT."
     success "UFW validation completed"
     return 0
 }
 
-# Configure Docker firewall (DOCKER-USER chain)
-# CRITICAL: Docker bypasses UFW by adding iptables rules before UFW chain
-# Solution: Use DOCKER-USER chain to block ports before Docker's DOCKER chain
-configure_docker_firewall() {
-    step "Configuring Docker Firewall (DOCKER-USER chain)"
-
-    # Check if iptables is available
-    if ! command_exists iptables; then
-        warning "iptables is not available, skipping Docker firewall configuration"
-        return 0
-    fi
-
-    # Flush existing DOCKER-USER rules (clean slate)
-    info "Flushing existing DOCKER-USER rules..."
-    sudo iptables -F DOCKER-USER 2>/dev/null || true
-
-    # Rule 1: Allow established connections (required for Docker to work)
-    sudo iptables -I DOCKER-USER -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
-    success "✓ Allowed established connections"
-
-    # Rule 2: Allow internal Docker network traffic
-    sudo iptables -I DOCKER-USER -i br-+ -j ACCEPT
-    sudo iptables -I DOCKER-USER -i docker0 -j ACCEPT
-    success "✓ Allowed internal Docker network traffic"
-
-    # Rule 3: Block backend port 8000 from external access (must use Traefik reverse proxy)
-    # Note: Internal traffic (docker0/br-+) already ACCEPTED above, so no -i filter needed
-    sudo iptables -A DOCKER-USER -p tcp --dport 8000 -j DROP
-    success "✓ Blocked external access to backend port 8000 (use Traefik)"
-
-    # Rule 4: PostgreSQL external access control
+# Reject obsolete publication before any deployment mutation.
+validate_internal_service_settings() {
     if [[ "${POSTGRES_EXTERNAL_ACCESS:-false}" == "true" ]]; then
-        if [[ -n "${POSTGRES_ALLOWED_IP:-}" ]]; then
-            # Allow only specific IP
-            sudo iptables -A DOCKER-USER -p tcp --dport 5432 -s "${POSTGRES_ALLOWED_IP}" -j ACCEPT
-            # Note: Internal traffic (docker0/br-+) already ACCEPTED above, so no -i filter needed
-            sudo iptables -A DOCKER-USER -p tcp --dport 5432 -j DROP
-            success "✓ PostgreSQL: allowed from ${POSTGRES_ALLOWED_IP}, blocked from others"
-        else
-            warning "⚠ POSTGRES_EXTERNAL_ACCESS=true but POSTGRES_ALLOWED_IP not set!"
-            warning "  PostgreSQL is OPEN to the internet - set POSTGRES_ALLOWED_IP in .env"
-
-            # For safety, block by default and show warning
-            # Note: Internal traffic (docker0/br-+) already ACCEPTED above, so no -i filter needed
-            sudo iptables -A DOCKER-USER -p tcp --dport 5432 -j DROP
-            warning "  Blocked PostgreSQL external access for security (set POSTGRES_ALLOWED_IP to allow specific IP)"
-        fi
-    else
-        # Block PostgreSQL external access completely
-        # Note: Internal traffic (docker0/br-+) already ACCEPTED above, so no -i filter needed
-        sudo iptables -A DOCKER-USER -p tcp --dport 5432 -j DROP
-        success "✓ Blocked external access to PostgreSQL (internal only)"
+        echo 'POSTGRES_EXTERNAL_ACCESS=true is unsupported. Set it to false explicitly and use SSH forwarding.' >&2
+        return 1
     fi
-
-    # Rule 5: Allow all other traffic (return to DOCKER chain)
-    sudo iptables -A DOCKER-USER -j RETURN
-    success "✓ Return to Docker default rules for other ports"
-
-    echo ""
-    success "Docker firewall configured successfully"
-
-    # Show current DOCKER-USER rules
-    info "Current DOCKER-USER rules:"
-    sudo iptables -L DOCKER-USER -n -v --line-numbers | head -20
-
-    # Persist iptables rules across Docker/host restarts
-    info "Persisting iptables rules..."
-
-    # Ensure iptables-persistent is installed (provides netfilter-persistent restore on boot)
-    if ! dpkg -l iptables-persistent > /dev/null 2>&1; then
-        info "Installing iptables-persistent for rule persistence..."
-        if sudo DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent > /dev/null 2>&1; then
-            success "iptables-persistent installed"
-        else
-            warning "Could not install iptables-persistent — rules will not survive reboot"
-            warning "Manual install: sudo apt-get install iptables-persistent"
-            return 1
-        fi
+    local port="${BACKEND_PORT:-8000}"
+    if [[ ! "$port" =~ ^[0-9]{1,5}$ ]] || (( 10#$port < 1 || 10#$port > 65535 )); then
+        echo 'backend: invalid BACKEND_PORT; require numeric TCP port 1..65535' >&2
+        return 1
     fi
-
-    # Save current iptables rules (loaded on boot by netfilter-persistent)
-    if sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null 2>&1; then
-        success "iptables rules saved to /etc/iptables/rules.v4 (persistent across reboots)"
-    else
-        warning "Could not save iptables rules — rules will be lost on Docker/host restart"
-    fi
-
-    return 0
 }
 
-# Configure UFW rules for PostgreSQL external access
-# Automatically creates/deletes UFW rules based on POSTGRES_EXTERNAL_ACCESS and POSTGRES_ALLOWED_IP
-configure_ufw_for_postgres() {
-    step "Configuring UFW Rules for PostgreSQL"
-
-    # Check if UFW is available
-    if ! command_exists ufw; then
-        warning "UFW is not installed, skipping PostgreSQL firewall configuration"
-        return 0
+# Read rendered data through a private file so renderer failures cannot be masked.
+# Pass false before registry pull; default true requires prebuilt local images.
+validate_internal_service_publication() (
+    validate_internal_service_settings || exit 1
+    umask 077
+    local rendered
+    rendered=$(mktemp) || exit 1
+    trap 'rm -f "$rendered"' EXIT
+    if ! compose_cmd config --format json > "$rendered" 2>/dev/null; then
+        echo 'publication: Compose rendering failed; check selected files and configuration' >&2
+        exit 1
     fi
-
-    # Check UFW status
-    if ! sudo ufw status 2>/dev/null | grep -q "Status: active"; then
-        warning "UFW is not active, skipping PostgreSQL firewall configuration"
-        info "To enable UFW: sudo ufw enable"
-        return 0
-    fi
-
-    # Get current UFW rules for port 5432
-    local current_rules=$(sudo ufw status numbered 2>/dev/null | grep "5432" || true)
-
-    info "Current PostgreSQL UFW rules:"
-    if [[ -z "$current_rules" ]]; then
-        echo "  (no rules configured)"
-    else
-        echo "$current_rules" | sed 's/^/  /'
-    fi
-    echo ""
-
-    # Check configuration
-    if [[ "${POSTGRES_EXTERNAL_ACCESS:-false}" == "true" ]]; then
-        # External access enabled
-        if [[ -z "${POSTGRES_ALLOWED_IP:-}" ]]; then
-            error "POSTGRES_EXTERNAL_ACCESS=true but POSTGRES_ALLOWED_IP is not set!"
-            error "This would allow PostgreSQL access from ANY IP (security risk)."
-            error "Please set POSTGRES_ALLOWED_IP in .env to a specific IP address."
-            echo ""
-            warning "Skipping PostgreSQL UFW configuration for security."
-            warning "To fix: Add POSTGRES_ALLOWED_IP=<your-ip> to .env and re-run deploy"
-            return 1
-        fi
-
-        info "PostgreSQL external access: ENABLED"
-        info "Allowed IP: ${POSTGRES_ALLOWED_IP}"
-        echo ""
-
-        # Check if rule already exists for this IP
-        if echo "$current_rules" | grep -q "from ${POSTGRES_ALLOWED_IP}.*5432"; then
-            success "✓ UFW rule already exists for ${POSTGRES_ALLOWED_IP}"
-            return 0
-        fi
-
-        # Delete old rules (if any)
-        if [[ -n "$current_rules" ]]; then
-            info "Removing old PostgreSQL UFW rules..."
-            # Extract rule numbers in reverse order (to avoid shifting)
-            local rule_numbers=$(echo "$current_rules" | grep -oP '^\[\s*\K\d+' | sort -rn)
-            for rule_num in $rule_numbers; do
-                echo "yes" | sudo ufw delete "$rule_num" >> "$LOG_FILE" 2>&1 || true
-            done
-            success "✓ Old rules removed"
-        fi
-
-        # Create new rule
-        info "Creating UFW rule: allow from ${POSTGRES_ALLOWED_IP} to any port 5432..."
-        if sudo ufw allow from "${POSTGRES_ALLOWED_IP}" to any port 5432 comment "PostgreSQL external access" >> "$LOG_FILE" 2>&1; then
-            success "✓ UFW rule created successfully"
-
-            # Verify rule was created
-            local new_rule=$(sudo ufw status numbered 2>/dev/null | grep "5432" || true)
-            if [[ -n "$new_rule" ]]; then
-                info "Verified rule:"
-                echo "$new_rule" | sed 's/^/  /'
+    python3 "${SCRIPT_DIR}/scripts/validate_service_bindings.py" compose --backend-port "${BACKEND_PORT:-8000}" < "$rendered" || exit 1
+    # An override cannot introduce a server-side application build.
+    python3 -c 'import json,sys; data=json.load(open(sys.argv[1])); sys.exit(any("build" in s for s in data["services"].values()))' "$rendered" || {
+        echo 'publication: build configuration is unsupported; use CI-built images' >&2
+        exit 1
+    }
+    if [[ "${1:-true}" == true ]]; then
+        local images image
+        images=$(python3 -c 'import json,sys; d=json.load(open(sys.argv[1]))["services"]; names=["postgres","redis","backend"] + (["bot","traefik"] if sys.argv[2]=="full" else []); print("\n".join(d[n].get("image", "") for n in names))' "$rendered" "${DEPLOYMENT_PROFILE:-basic}") || exit 1
+        while IFS= read -r image; do
+            if [[ -z "$image" ]] || ! docker image inspect "$image" >/dev/null 2>&1; then
+                echo 'publication: required prebuilt image missing; pull CI images before deployment' >&2
+                exit 1
             fi
-        else
-            error "Failed to create UFW rule"
-            return 1
-        fi
-
-    else
-        # External access disabled
-        info "PostgreSQL external access: DISABLED (internal only)"
-        echo ""
-
-        # Remove all UFW rules for port 5432
-        if [[ -n "$current_rules" ]]; then
-            info "Removing all PostgreSQL UFW rules..."
-            # Extract rule numbers in reverse order (to avoid shifting)
-            local rule_numbers=$(echo "$current_rules" | grep -oP '^\[\s*\K\d+' | sort -rn)
-            for rule_num in $rule_numbers; do
-                echo "yes" | sudo ufw delete "$rule_num" >> "$LOG_FILE" 2>&1 || true
-            done
-            success "✓ All PostgreSQL UFW rules removed (internal access only)"
-        else
-            success "✓ No PostgreSQL UFW rules to remove (already internal only)"
-        fi
+        done <<< "$images"
     fi
+)
 
-    echo ""
-    success "PostgreSQL UFW configuration completed"
-    return 0
+# Request migration even when the ordinary image/change detector finds no change.
+mark_internal_publication_recreation() {
+    local ids inspected
+    ids=$(compose_cmd ps -q postgres redis backend) || return 1
+    [[ -n "$ids" ]] || return 0
+    inspected=$(mktemp) || return 1
+    chmod 600 "$inspected"
+    local -a containers
+    mapfile -t containers <<< "$ids"
+    if ! docker inspect "${containers[@]}" > "$inspected" 2>/dev/null; then
+        rm -f "$inspected"
+        echo 'publication: cannot inspect existing services before migration' >&2
+        return 1
+    fi
+    if ! python3 "${SCRIPT_DIR}/scripts/validate_service_bindings.py" runtime --backend-port "${BACKEND_PORT:-8000}" < "$inspected" >/dev/null 2>&1; then
+        export NEEDS_POSTGRES_RECREATE=true NEEDS_REDIS_RECREATE=true NEEDS_BACKEND_RECREATE=true
+        echo 'Publication migration requires internal-service recreation; volumes remain attached.'
+    fi
+    rm -f "$inspected"
+}
+
+# Inspect the selected containers, then prove host and Docker-name connectivity.
+verify_internal_service_publication() (
+    validate_internal_service_settings || exit 1
+    umask 077
+    local inspected ids
+    inspected=$(mktemp) || exit 1
+    trap 'rm -f "$inspected"' EXIT
+    ids=$(compose_cmd ps -q postgres redis backend) || exit 1
+    [[ -n "$ids" ]] || { echo 'publication: service containers missing' >&2; exit 1; }
+    local -a containers
+    mapfile -t containers <<< "$ids"
+    docker inspect "${containers[@]}" > "$inspected" 2>/dev/null || {
+        echo 'publication: container inspection failed' >&2; exit 1;
+    }
+    python3 "${SCRIPT_DIR}/scripts/validate_service_bindings.py" runtime --backend-port "${BACKEND_PORT:-8000}" < "$inspected" || exit 1
+    python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); sys.exit(any(c.get("State",{}).get("Health",{}).get("Status")!="healthy" for c in d))' "$inspected" || {
+        echo 'publication: internal service health check failed' >&2; exit 1;
+    }
+    python3 -c 'import socket,sys; ports=[5432,6379,int(sys.argv[1])]; [(socket.create_connection(("127.0.0.1",p),timeout=3).close()) for p in ports]' "${BACKEND_PORT:-8000}" 2>/dev/null || {
+        echo 'publication: host loopback TCP check failed' >&2; exit 1;
+    }
+    curl --fail --silent --output /dev/null --connect-timeout 3 --max-time 10 "http://127.0.0.1:${BACKEND_PORT:-8000}/health" || {
+        echo 'publication: backend loopback health request failed' >&2; exit 1;
+    }
+    compose_cmd exec -T backend python -c 'import socket; [(socket.create_connection((host,port),timeout=3).close()) for host,port in [("postgres",5432),("redis",6379)]]' >/dev/null 2>&1 || {
+        echo 'publication: backend Docker service-name connectivity failed' >&2; exit 1;
+    }
+    echo 'Internal publications verified: loopback, healthy services, host and Docker connectivity. External release probe remains required.'
+)
+
+# Preserve operator firewall rules. Loopback publication replaces global chain edits.
+configure_docker_firewall() {
+    validate_internal_service_settings || return 1
+    echo 'Docker firewall rules preserved; verify actual loopback publication.'
+}
+
+configure_ufw_for_postgres() {
+    validate_internal_service_settings || return 1
+    echo 'PostgreSQL UFW rules preserved; administration uses loopback or SSH forwarding.'
 }

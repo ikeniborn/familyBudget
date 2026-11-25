@@ -293,11 +293,9 @@ class WriteBehindService:
                 if item.entity_type == "fact":
                     await self._process_fact(session, item)
 
-                # Invalidate cache
-                await cache_service.invalidate_dashboard()
-
-                # Commit first — client fetches row-html after receiving WS event
+                # Dashboard readers must see the new rows when they refill the cache.
                 await session.commit()
+                await cache_service.invalidate_dashboard()
 
                 # Broadcast WebSocket event after commit
                 await self._broadcast_event(item)

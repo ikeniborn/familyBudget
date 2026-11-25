@@ -342,6 +342,7 @@ def _extract_json(content: str) -> dict[str, Any]:
 # the JSON answer inside the token budget (20 rows overflowed and lost the
 # whole chunk as unparseable output).
 CATEGORIZE_CHUNK_SIZE = 10
+CATEGORIZE_RETRY_SIZE = 5
 
 
 def _build_categorize_prompt(articles: list[dict[str, Any]]) -> str:
@@ -390,8 +391,8 @@ async def categorize_texts(
     client = AIProviderClient(settings.endpoint_url, settings.api_token)
 
     suggestions: list[dict[str, Any]] = []
-    for start in range(0, len(rows), CATEGORIZE_CHUNK_SIZE):
-        chunk = rows[start : start + CATEGORIZE_CHUNK_SIZE]
+
+    async def categorize_chunk(chunk: list[dict[str, Any]], *, retry_allowed: bool) -> None:
         content = await client.chat_completions(
             model=settings.model_text or "",
             messages=[
@@ -404,14 +405,12 @@ async def categorize_texts(
         try:
             payload = _extract_json_array(content)
         except AIParseError:
-            logger.warning(
-                "Categorize chunk of %d rows returned unparseable output "
-                "(len=%d): %.200s",
-                len(chunk),
-                len(content),
-                content,
-            )
-            continue
+            logger.warning("Unreadable category response for %d rows", len(chunk))
+            if retry_allowed:
+                for start in range(0, len(chunk), CATEGORIZE_RETRY_SIZE):
+                    smaller_chunk = chunk[start : start + CATEGORIZE_RETRY_SIZE]
+                    await categorize_chunk(smaller_chunk, retry_allowed=False)
+            return
 
         chunk_ids = {row["id"] for row in chunk}
         for item in payload:
@@ -436,6 +435,9 @@ async def categorize_texts(
                     "confidence_value": confidence_value,
                 }
             )
+
+    for start in range(0, len(rows), CATEGORIZE_CHUNK_SIZE):
+        await categorize_chunk(rows[start : start + CATEGORIZE_CHUNK_SIZE], retry_allowed=True)
     return suggestions
 
 

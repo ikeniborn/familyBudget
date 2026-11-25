@@ -9,24 +9,25 @@
 <style>
 /* Filter sidebar */
 .filter-sidebar {
-    width: 18rem;
-    min-width: 18rem;
+    flex: 0 0 clamp(12rem, 19vw, 17rem);
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
     background: oklch(var(--b1));
-    border-right: 1px solid oklch(var(--b3));
-    padding: 1rem;
+    border: 1px solid oklch(var(--b3));
+    padding: 0.75rem;
     position: sticky;
-    top: 0;
-    height: calc(100vh - 4rem);
+    top: calc(4.5rem + env(safe-area-inset-top));
+    max-height: calc(100dvh - 5rem - env(safe-area-inset-top));
     overflow-y: auto;
-    transition: all 0.3s ease;
 }
-
-/* Collapsible sidebar */
-.filter-sidebar.collapsed {
-    width: 3rem;
-    min-width: 3rem;
-    padding: 0.5rem;
-    overflow: hidden;
+.filter-sidebar .filter-content {
+    overflow-y: auto;
+    min-height: 0;
+}
+.filter-sidebar > :not(.filter-content) {
+    flex-shrink: 0;
 }
 .filter-sidebar.collapsed .filter-content {
     display: none;
@@ -35,27 +36,19 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
     cursor: pointer;
-    padding: 0.5rem;
-    margin: -0.5rem -0.5rem 0.5rem -0.5rem;
-    border-radius: 0.5rem;
-    transition: background 0.2s ease;
-}
-.filter-sidebar-header:hover {
-    background: oklch(var(--b2));
-}
-.filter-sidebar.collapsed .filter-sidebar-header {
-    justify-content: center;
-    margin: 0;
-}
-.filter-sidebar.collapsed .filter-title {
-    display: none;
-}
-.filter-toggle-icon {
-    transition: transform 0.3s ease;
+    padding: 0.25rem;
 }
 .filter-sidebar.collapsed .filter-toggle-icon {
-    transform: rotate(180deg);
+    transform: rotate(-90deg);
+}
+.enrichment-secondary {
+    border-top: 1px solid oklch(var(--b3));
+    padding-top: 0.5rem;
+}
+.enrichment-secondary summary {
+    cursor: pointer;
 }
 
 /* Filter chips */
@@ -99,7 +92,17 @@
 
 /* Inline category picker in table cells */
 .article-cell-picker {
-    min-width: 180px;
+    min-width: 0;
+    width: 100%;
+}
+.article-cell-picker > button,
+.article-cell-picker .choices__list--single,
+.article-cell-picker .choices__list--single [data-item] {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 .article-cell-picker .choices {
     margin: 0;
@@ -109,6 +112,9 @@
     padding: 0.25rem 0.5rem;
 }
 .article-cell-picker .choices__list--dropdown {
+    position: fixed;
+    inset: auto;
+    margin: 0;
     z-index: 9999;
 }
 
@@ -125,11 +131,6 @@
     0% { background: oklch(var(--wa) / 0.3); }
     100% { background: transparent; }
 }
-
-/* Status indicators */
-.status-empty { color: oklch(var(--er)); }
-.status-partial { color: oklch(var(--wa)); }
-.status-complete { color: oklch(var(--su)); }
 
 /* Filter counter badge */
 .filter-count-badge {
@@ -148,8 +149,7 @@
 /* Table layout for column resizing */
 .staging-table {
     table-layout: fixed;
-    min-width: 1740px;  /* Sum of all column widths */
-    width: max-content;
+    width: 100%;
     border-collapse: collapse;
 }
 
@@ -477,6 +477,7 @@ body.resizing-columns * {
             </div>
 
             <!-- Post-upload actions (показываются после загрузки файла) -->
+            <p id="statement-recognition" class="text-warning font-medium" aria-live="polite"></p>
             <div id="post-upload-actions" class="mt-4" style="display: none;">
                 <div class="flex gap-2">
                     <button type="button" class="btn btn-primary gap-2" id="create-mapping-btn" onclick="createMapping()" style="display: none;">
@@ -600,13 +601,17 @@ body.resizing-columns * {
     <!-- Step 4: Enrichment (Staging Table) -->
     <div class="card bg-base-100 shadow-lg lg:w-[95vw] lg:max-w-none lg:-mx-[calc((95vw-100%)/2)]" id="step-4-enrichment" style="display: none;">
         <div class="card-body">
+            <section id="bank-parse-report" aria-live="polite"></section>
             <!-- Header with stats -->
             <!-- BUG #9 FIX: flex-wrap + gap-2 prevent overflow on tablet; overflow-x-auto on stats block -->
             <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
                 <h2 class="text-lg sm:text-xl font-bold mb-1 sm:mb-2">📋 Шаг 4: Обогащение данных</h2>
-                <div class="flex items-center gap-2">
-                    <button type="button" id="ai-categorize-btn" class="btn btn-sm btn-outline btn-primary gap-1 hidden">🤖 Подобрать категории</button>
-                    <span id="ai-categorize-status" class="text-xs text-base-content/70"></span>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button type="button" id="ai-categorize-btn" class="btn btn-sm btn-outline btn-primary gap-1" disabled>Подобрать категории с ИИ</button>
+                    <span id="ai-categorize-status" role="status" class="text-xs text-base-content/70">Проверяем доступность ИИ…</span>
+                    {% if user.is_admin %}
+                    <a id="ai-categorize-settings" href="/admin/ai-settings" class="link text-xs" hidden>Настройки ИИ</a>
+                    {% endif %}
                 </div>
                 <div id="staging-stats" class="stats shadow overflow-x-auto">
                     <div class="stat py-2 px-4">
@@ -631,16 +636,18 @@ body.resizing-columns * {
             <!-- Main content: Sidebar + Table -->
             <div class="flex gap-4">
                 <!-- Filter Sidebar -->
-                <div class="filter-sidebar collapsed rounded-lg" id="filter-sidebar">
-                    <!-- Collapsible Header -->
-                    <div class="filter-sidebar-header" onclick="toggleFilterSidebar()">
-                        <!-- BUG #9 FIX: added filter-title class so the text hides when sidebar is collapsed -->
-                        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2 filter-title">🔍 Фильтры</h3>
-                        <span class="filter-toggle-icon text-lg">◀</span>
-                    </div>
-
-                    <!-- Filter Content (collapsible) -->
-                    <div class="filter-content">
+                <aside class="filter-sidebar collapsed rounded-lg" id="filter-sidebar" aria-label="Действия и фильтры импорта">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="sidebar-select-all" class="checkbox checkbox-sm" onchange="toggleSelectAll(this)">
+                        Выбрать все видимые
+                    </label>
+                    <button type="button" id="execute-import-btn" class="btn btn-success btn-sm w-full" onclick="executeImport()" disabled>
+                        <span>Импортировать (<span id="import-selection-count">0</span>)</span>
+                    </button>
+                    <button type="button" id="filter-toggle" class="filter-sidebar-header font-semibold" onclick="toggleFilterSidebar()" aria-controls="enrichment-filters" aria-expanded="false">
+                        Фильтры <span class="filter-toggle-icon" aria-hidden="true">▾</span>
+                    </button>
+                    <div class="filter-content" id="enrichment-filters">
                         <!-- Search by description -->
                         <div class="form-control mb-4">
                             <label class="label py-1">
@@ -738,7 +745,12 @@ body.resizing-columns * {
                             ✕ Сбросить фильтры
                         </button>
                     </div>
-                </div>
+                    <details class="enrichment-secondary text-sm">
+                        <summary>Другие действия</summary>
+                        <button type="button" class="btn btn-ghost btn-sm w-full" onclick="this.closest('details').open = false; resetWorkflow()">Начать заново</button>
+                        <button type="button" id="delete-selected-btn" class="btn btn-ghost btn-sm text-error w-full" onclick="this.closest('details').open = false; deleteFilteredRecords()" disabled>Удалить выбранные</button>
+                    </details>
+                </aside>
 
                 <!-- Main content area -->
                 <div class="flex-1 min-w-0">
@@ -781,9 +793,6 @@ body.resizing-columns * {
                                     <button class="btn btn-sm btn-accent" onclick="applyBulkToFiltered()">
                                         Применить
                                     </button>
-                                    <button class="btn btn-sm btn-error" onclick="deleteFilteredRecords()">
-                                        🗑️ Удалить
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -795,10 +804,10 @@ body.resizing-columns * {
                         <table class="table table-zebra table-sm staging-table" id="staging-table">
                             <thead>
                                 <tr>
-                                    <th data-col="checkbox" style="width: 40px;"><input type="checkbox" class="checkbox checkbox-sm" id="header-select-all" onchange="toggleSelectAll(this)" /></th>
-                                    <th data-col="status" style="width: 50px;">Статус<div class="resize-handle"></div></th>
+                                    <th data-col="checkbox" style="width: 40px;"><input type="checkbox" class="checkbox checkbox-sm" id="header-select-all" aria-label="Выбрать все видимые строки" onchange="toggleSelectAll(this)" /></th>
+                                    <th data-col="status" style="width: 215px;">Проверка<div class="resize-handle"></div></th>
                                     <th data-col="date" style="width: 100px;">Дата<div class="resize-handle"></div></th>
-                                    <th data-col="amount" style="width: 100px;">Сумма<div class="resize-handle"></div></th>
+                                    <th data-col="amount" style="width: 150px;">Сумма, ₽<div class="resize-handle"></div></th>
                                     <th data-col="description" style="width: 200px;">Описание<div class="resize-handle"></div></th>
                                     <th data-col="csv_category" class="text-xs text-base-content/60" style="width: 150px;">Категория (CSV)<div class="resize-handle"></div></th>
                                     <th data-col="comment" style="width: 150px;">Комментарий<div class="resize-handle"></div></th>
@@ -831,22 +840,6 @@ body.resizing-columns * {
                             <span class="value text-success" id="status-ready-count">0</span>
                         </div>
                         <div class="status-last-action" id="status-last-action"></div>
-                    </div>
-
-                    <!-- Execute Import Button -->
-                    <div class="mt-4 flex gap-2">
-                        <button class="btn btn-success gap-2" onclick="executeImport()" id="execute-import-btn">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                            Импортировать
-                        </button>
-                        <button type="button" class="btn btn-ghost gap-2" onclick="resetWorkflow()">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Начать заново
-                        </button>
                     </div>
 
                     <div id="import-result" class="mt-4"></div>
@@ -999,6 +992,7 @@ let csvSampleRows = [];
 let csvDelimiter = null;  // Detected/selected delimiter
 let currentMapping = {};
 let stagingRecords = [];
+let pendingConfirmation = null;
 let filteredRecords = [];  // Отфильтрованные записи для Filter First UX
 let allArticles = [];
 let financialCenters = [];
@@ -1066,6 +1060,8 @@ function resetWorkflow() {
     document.getElementById('upload-form').reset();
     document.getElementById('upload-form-google-sheets').reset();
     document.getElementById('post-upload-actions').style.display = 'none';
+    document.getElementById('statement-recognition').textContent = '';
+    document.getElementById('bank-parse-report').replaceChildren();
 
     // 🔧 FIX: Reset upload source visibility (containers manage form visibility)
     document.getElementById('upload-source-csv').style.display = 'block';
@@ -1336,6 +1332,8 @@ async function proceedToUpload() {
     document.getElementById('upload-form').reset();
     document.getElementById('upload-form-google-sheets').reset();
     document.getElementById('post-upload-actions').style.display = 'none';
+    document.getElementById('statement-recognition').textContent = '';
+    document.getElementById('bank-parse-report').replaceChildren();
 
     // Reset upload source to default (CSV)
     document.querySelector('input[name="upload-source"][value="csv"]').checked = true;
@@ -1410,9 +1408,6 @@ async function loadStagingTableByBank() {
         const allStagingRecords = await response.json();
         stagingRecords = allStagingRecords.filter(r => r.bank_provider_id === selectedBankId);
 
-        // Initialize filteredRecords with all records
-        filteredRecords = [...stagingRecords];
-
         // Populate Filter First UI elements
         populateCsvCategoryFilter();
         populateBulkFilteredSelects();
@@ -1420,7 +1415,7 @@ async function loadStagingTableByBank() {
         // Initialize ChoicesCategoryTree for bulk filtered panel
         initBulkFilteredCategoryTree();
 
-        renderStagingTable();
+        applyFilters();
         updateProgressIndicator(4);
 
     } catch (error) {
@@ -1595,6 +1590,7 @@ async function uploadFromGoogleSheets(event) {
 
         const result = await response.json();
         uploadedFileId = result.file_id;
+        document.getElementById('statement-recognition').textContent = priorImportNotice(result);
 
         // Hide both upload forms
         document.getElementById('upload-source-csv').style.display = 'none';
@@ -1662,6 +1658,7 @@ async function uploadCSV(event) {
 
         const result = await response.json();
         uploadedFileId = result.file_id;
+        document.getElementById('statement-recognition').textContent = priorImportNotice(result);
 
         // Hide upload forms and radio buttons
         document.getElementById('upload-source-csv').style.display = 'none';
@@ -2289,6 +2286,45 @@ async function saveMapping() {
     }
 }
 
+const bankRowReasons = {
+    missing_column: 'нет обязательного столбца',
+    missing_value: 'не заполнено обязательное поле',
+    invalid_date: 'неверная дата',
+    invalid_amount: 'неверная сумма',
+    zero_after_truncation: 'после отсечения копеек сумма равна нулю',
+    amount_out_of_range: 'сумма вне допустимого диапазона',
+    already_imported: 'строка уже импортирована'
+};
+
+function priorImportNotice(result) {
+    return result.prior_imported_count > 0
+        ? `Эта выписка уже импортировалась. Ранее сохранено строк: ${result.prior_imported_count}.`
+        : '';
+}
+
+function renderParseReport(result) {
+    const report = document.getElementById('bank-parse-report');
+    const rejected = result.rejected_rows || [];
+    const summary = document.createElement('p');
+    summary.textContent = `Принято: ${result.total_inserted} из ${result.total_rows}. Отклонено: ${rejected.length}. ${priorImportNotice(result)}`;
+    report.replaceChildren(summary);
+    if (rejected.length) {
+        const details = document.createElement('details');
+        details.open = true;
+        const label = document.createElement('summary');
+        label.textContent = 'Отклонённые строки';
+        const list = document.createElement('ul');
+        list.className = 'max-h-48 overflow-auto';
+        for (const { source_row, reason } of rejected) {
+            const item = document.createElement('li');
+            item.textContent = `Строка ${source_row}: ${bankRowReasons[reason] || reason}`;
+            list.append(item);
+        }
+        details.append(label, list);
+        report.append(details);
+    }
+}
+
 async function parseWithMapping() {
     if (!savedMappingId) {
         // Try to save mapping first
@@ -2313,6 +2349,7 @@ async function parseWithMapping() {
         }
 
         const result = await response.json();
+        renderParseReport(result);
         showNotification(`Успешно разобрано ${result.total_inserted} записей`, 'success');
 
         // Load staging table
@@ -2342,9 +2379,6 @@ async function loadStagingTable() {
             stagingRecords = allStagingRecords;
         }
 
-        // Initialize filteredRecords with all records (no filters active initially)
-        filteredRecords = [...stagingRecords];
-
         // Populate Filter First UI elements
         populateCsvCategoryFilter();
         populateBulkFilteredSelects();
@@ -2352,8 +2386,9 @@ async function loadStagingTable() {
         // Initialize ChoicesCategoryTree for bulk filtered panel
         initBulkFilteredCategoryTree();
 
-        renderStagingTable();
+        applyFilters();
 
+        document.getElementById('step-2-upload').style.display = 'none';
         // Hide Step 3, Show Step 4 enrichment
         document.getElementById('step-3-mapping').style.display = 'none';
         document.getElementById('step-4-enrichment').style.display = 'block';
@@ -2388,6 +2423,7 @@ function renderStagingTable() {
     });
 
     updateStats();
+    updateBulkPanel();
 
     // Reinitialize spreadsheet modules after render
     setTimeout(() => {
@@ -2395,6 +2431,17 @@ function renderStagingTable() {
         loadColumnWidths();
         updateSpreadsheetStatusBar();
     }, 10);
+}
+
+function getImportAiStagingIds() {
+    return filteredRecords
+        .filter(row => !row.article_id && !row.already_imported && !row.amount_error && !row.matches?.length)
+        .map(row => row.id);
+}
+
+function bankAmountLabel(value, signed = false) {
+    const label = String(value).replace('.', ',').replace(/^-/, '−');
+    return signed && Number(value) > 0 ? '+' + label : label;
 }
 
 function createStagingRow(record, index) {
@@ -2416,7 +2463,13 @@ function createStagingRow(record, index) {
     checkbox.type = 'checkbox';
     checkbox.className = 'checkbox checkbox-sm';
     checkbox.id = `select-${record.id}`;
-    checkbox.onchange = () => updateStats();
+    const matches = record.matches || [];
+    checkbox.disabled = Boolean(record.already_imported || record.amount_error || matches.length);
+    checkbox.setAttribute('aria-label', `Выбрать строку ${record.source_row ?? record.id}`);
+    checkbox.onchange = () => {
+        if (matches.length && !checkbox.checked) checkbox.disabled = true;
+        updateStats();
+    };
     checkboxCell.appendChild(checkbox);
 
     // Status indicator (Filter First feature)
@@ -2424,7 +2477,31 @@ function createStagingRow(record, index) {
     statusCell.className = 'text-center cell';
     statusCell.dataset.col = 'status';
     statusCell.dataset.recordId = record.id;
-    statusCell.innerHTML = getStatusIndicator(record);
+    statusCell.textContent = getStatusIndicator(record);
+    if (record.already_imported || record.amount_error) {
+        statusCell.textContent = record.already_imported ? 'Строка уже импортирована'
+            : (bankRowReasons[record.amount_error] || record.amount_error);
+    } else if (matches.length) {
+        statusCell.classList.add('bg-warning/20');
+        statusCell.textContent = 'Возможный дубль в реестре';
+        for (const match of matches) {
+            const fact = document.createElement('div');
+            fact.className = 'text-xs';
+            fact.textContent = `#${match.id} · ${match.fact_date} · ${match.amount} ₽ · ${match.account_name || 'Без счёта'}`;
+            statusCell.append(fact);
+        }
+        const acknowledge = document.createElement('button');
+        acknowledge.type = 'button';
+        acknowledge.className = 'btn btn-xs btn-outline mt-1';
+        acknowledge.textContent = 'Это отдельная операция';
+        acknowledge.onclick = event => {
+            event.stopPropagation();
+            checkbox.disabled = false;
+            checkbox.checked = true;
+            updateStats();
+        };
+        statusCell.append(acknowledge);
+    }
 
     // Date
     const dateCell = document.createElement('td');
@@ -2434,14 +2511,19 @@ function createStagingRow(record, index) {
     // Amount
     const amountCell = document.createElement('td');
     setCellData(amountCell, 'amount');
-    const amount = parseFloat(record.amount_string);
-    amountCell.textContent = formatAmount(amount);
-    amountCell.classList.add(amount < 0 ? 'text-error' : 'text-success');
+    if (record.whole_amount != null) {
+        amountCell.textContent = bankAmountLabel(record.whole_amount) + ' ₽';
+        amountCell.title = `В выписке: ${bankAmountLabel(record.original_amount ?? record.amount_string)} ₽. Разница: ${bankAmountLabel(record.amount_difference, true)} ₽`;
+        amountCell.classList.add(record.whole_amount < 0 ? 'text-error' : 'text-success');
+    } else {
+        amountCell.textContent = bankAmountLabel(record.amount_string);
+    }
 
     // Description
     const descCell = document.createElement('td');
     setCellData(descCell, 'description');
     descCell.textContent = record.description || '';
+    descCell.title = descCell.textContent;
     descCell.classList.add('max-w-xs', 'truncate');
 
     // CSV Metadata: Category
@@ -2532,17 +2614,15 @@ function createArticleSelect(record) {
     wrapper.id = `article-${record.id}`;
     wrapper.className = 'article-cell-picker';
 
-    // Create hidden select element
-    const select = document.createElement('select');
-    select.id = `article-select-${record.id}`;
-    select.className = 'select select-bordered select-sm w-full';
-
-    wrapper.appendChild(select);
-
-    // Initialize ChoicesCategoryTree after appending to DOM
-    setTimeout(() => {
-        initCellCategoryPicker(record.id);
-    }, 50);
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'select select-bordered select-sm w-full text-left';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.textContent = record.article_id
+        ? (allArticles.find(article => article.id === record.article_id)?.name || `Категория #${record.article_id}`)
+        : 'Выберите категорию';
+    trigger.onclick = () => initCellCategoryPicker(record, trigger);
+    wrapper.append(trigger);
 
     return wrapper;
 }
@@ -2788,13 +2868,11 @@ function toggleSelectAll(sourceCheckbox) {
 
     recordsToToggle.forEach(record => {
         const checkbox = document.getElementById(`select-${record.id}`);
-        if (checkbox) {
+        if (checkbox && !checkbox.disabled) {
             checkbox.checked = selectAll;
+            if (!selectAll && record.matches?.length) checkbox.disabled = true;
         }
     });
-
-    // Reset header checkbox state
-    document.getElementById('header-select-all').checked = selectAll;
 
     updateStats();
 }
@@ -2853,14 +2931,14 @@ function updateRowStatusIndicator(recordId) {
 
     // Status is the second cell (index 1)
     const statusCell = row.cells[1];
-    if (statusCell) {
-        statusCell.innerHTML = getStatusIndicator(record);
+    if (statusCell && !record.matches?.length && !record.already_imported && !record.amount_error) {
+        statusCell.textContent = getStatusIndicator(record);
     }
 
     // Update empty-field highlights
-    const typeCell = row.cells[9];  // Тип
-    const articleCell = row.cells[10];  // Категория
-    const fcCell = row.cells[11];  // Счет
+    const typeCell = row.querySelector('[data-col="type"]');
+    const articleCell = row.querySelector('[data-col="article"]');
+    const fcCell = row.querySelector('[data-col="fc"]');
 
     if (typeCell) {
         typeCell.classList.toggle('empty-field', !rowArticleTypes[recordId]);
@@ -2925,7 +3003,6 @@ async function deleteSelectedRecords() {
         const result = await response.json();
         showNotification(result.message || `Удалено ${selectedIds.length} записей`, 'success');
         await loadStagingTable();
-        document.getElementById('header-select-all').checked = false;
 
     } catch (error) {
         console.error('Bulk delete error:', error);
@@ -2961,7 +3038,7 @@ async function updateStagingComment(stagingId, comment) {
 
 // ========== Execute Import ==========
 async function executeImport() {
-    const selectedIds = getSelectedIds();
+    const selectedIds = getSelectedIds().sort((a, b) => a - b);
     if (selectedIds.length === 0) {
         showNotification('Выберите записи для импорта', 'error');
         return;
@@ -2981,12 +3058,27 @@ async function executeImport() {
 
     if (!confirm(`Импортировать ${selectedIds.length} записей в бюджет?`)) return;
 
+    const selected = new Set(selectedIds);
+    const acknowledgments = {};
+    for (const record of stagingRecords) {
+        if (record.matches?.length && selected.has(record.id)) {
+            acknowledgments[record.id] = record.matches.map(match => match.id).sort((a, b) => a - b);
+        }
+    }
+    const payload = { staging_ids: selectedIds, acknowledgments };
+    const signature = JSON.stringify(payload);
+    if (pendingConfirmation?.signature !== signature) {
+        pendingConfirmation = { signature, id: crypto.randomUUID() };
+    }
+    const button = document.getElementById('execute-import-btn');
+    button.setAttribute('aria-busy', 'true');
+    button.disabled = true;
     try {
         const response = await fetch('/api/v1/staging/import', {
             method: 'POST',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ staging_ids: selectedIds })
+            body: JSON.stringify({ ...payload, confirmation_id: pendingConfirmation.id })
         });
 
         if (!response.ok) {
@@ -2996,14 +3088,39 @@ async function executeImport() {
                 const contentType = response.headers.get('content-type');
                 if (contentType && contentType.includes('application/json')) {
                     const errorData = await response.json();
+                    const detail = errorData.detail?.message ?? errorData.detail;
+                    if (response.status === 409 && detail?.code === 'source_already_imported') {
+                        await loadStagingTable();
+                        showNotification('Строка выписки уже сохранена или выбрана дважды. Проверьте выбор.', 'warning');
+                        return;
+                    }
+                    if (response.status === 409 && detail?.code === 'matches_changed') {
+                        for (const [id, matches] of Object.entries(detail.matches)) {
+                            const record = stagingRecords.find(row => row.id === Number(id));
+                            if (record) record.matches = matches;
+                        }
+                        renderStagingTable();
+                        // Keep unaffected choices, including previously reviewed registry matches.
+                        for (const id of selectedIds) {
+                            const checkbox = document.getElementById(`select-${id}`);
+                            if (checkbox && !Object.hasOwn(detail.matches, id)) {
+                                checkbox.disabled = false;
+                                checkbox.checked = true;
+                            }
+                        }
+                        updateStats();
+                        showNotification('Реестр изменился. Проверьте обновлённые совпадения.', 'warning');
+                        return;
+                    }
                     console.error('Import API error:', errorData);
 
-                    // Extract error message from different possible formats
-                    if (typeof errorData.detail === 'string') {
-                        errorMessage = errorData.detail;
-                    } else if (errorData.detail && errorData.detail.message) {
-                        errorMessage = errorData.detail.message;
-                    } else if (errorData.message) {
+                    if (typeof detail === 'string') {
+                        errorMessage = detail;
+                    } else if (detail?.code === 'confirmation_reused') {
+                        errorMessage = 'Идентификатор подтверждения уже использован. Обновите таблицу.';
+                    } else if (bankRowReasons[detail?.code]) {
+                        errorMessage = bankRowReasons[detail.code];
+                    } else if (typeof errorData.message === 'string') {
                         errorMessage = errorData.message;
                     }
 
@@ -3032,6 +3149,7 @@ async function executeImport() {
         }
 
         const result = await response.json();
+        pendingConfirmation = null;
         showNotification(`Успешно импортировано: ${result.total_imported} записей`, 'success');
 
         await loadStagingTable();
@@ -3039,6 +3157,9 @@ async function executeImport() {
     } catch (error) {
         console.error('Import error:', error);
         showNotification(error.message, 'error');
+    } finally {
+        button.removeAttribute('aria-busy');
+        updateStats();
     }
 }
 
@@ -3085,15 +3206,34 @@ function translateImportError(message) {
 // ========== Helper Functions ==========
 function getSelectedIds() {
     return stagingRecords
-        .filter(record => document.getElementById(`select-${record.id}`)?.checked)
+        .filter(record => {
+            const checkbox = document.getElementById(`select-${record.id}`);
+            return checkbox?.checked && !checkbox.disabled;
+        })
         .map(record => record.id);
+}
+
+function isReadyForImport(record) {
+    return record.article_id && record.financial_center_id && !record.amount_error && !record.already_imported &&
+        (!record.matches?.length || document.getElementById(`select-${record.id}`)?.checked);
 }
 
 function updateStats() {
     const total = stagingRecords.length;
     const filtered = filteredRecords.length;
     const selected = getSelectedIds().length;
-    const ready = stagingRecords.filter(r => r.article_id && r.financial_center_id).length;
+    const ready = stagingRecords.filter(isReadyForImport).length;
+    const selectable = document.querySelectorAll('#staging-table tbody input[type="checkbox"]:enabled').length;
+    for (const id of ['header-select-all', 'sidebar-select-all']) {
+        const checkbox = document.getElementById(id);
+        checkbox.disabled = selectable === 0;
+        checkbox.checked = selectable > 0 && selected === selectable;
+        checkbox.indeterminate = selected > 0 && selected < selectable;
+    }
+    document.getElementById('import-selection-count').textContent = selected;
+    const importButton = document.getElementById('execute-import-btn');
+    importButton.disabled = selected === 0 || importButton.hasAttribute('aria-busy');
+    document.getElementById('delete-selected-btn').disabled = selected === 0;
 
     document.getElementById('stat-total').textContent = total;
     document.getElementById('stat-filtered').textContent = filtered;
@@ -3137,14 +3277,11 @@ function getRecordStatus(row) {
     return 'complete';
 }
 
-/**
- * Get status indicator icon for a row
- */
 function getStatusIndicator(row) {
-    const status = getRecordStatus(row);
-    if (status === 'complete') return '<span class="status-complete text-lg" title="Готово к импорту">●</span>';
-    if (status === 'partial') return '<span class="status-partial text-lg" title="Частично заполнено">◐</span>';
-    return '<span class="status-empty text-lg" title="Не заполнено">○</span>';
+    if (!row.article_id && !row.financial_center_id) return 'Нужны категория и счёт';
+    if (!row.article_id) return 'Нужна категория';
+    if (!row.financial_center_id) return 'Нужен счёт';
+    return 'Готово';
 }
 
 /**
@@ -3192,8 +3329,6 @@ function applyFilters() {
 
     renderStagingTable();
     updateActiveFilters();
-    updateBulkPanel();
-    updateStats();
 }
 
 /**
@@ -3201,7 +3336,8 @@ function applyFilters() {
  */
 function toggleFilterSidebar() {
     const sidebar = document.getElementById('filter-sidebar');
-    sidebar.classList.toggle('collapsed');
+    const collapsed = sidebar.classList.toggle('collapsed');
+    document.getElementById('filter-toggle').setAttribute('aria-expanded', String(!collapsed));
     // Save state to localStorage
     localStorage.setItem('filterSidebarCollapsed', sidebar.classList.contains('collapsed'));
 }
@@ -3212,6 +3348,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sidebar is collapsed by default (in HTML), expand only if user previously expanded it
     if (sidebar && localStorage.getItem('filterSidebarCollapsed') === 'false') {
         sidebar.classList.remove('collapsed');
+        document.getElementById('filter-toggle').setAttribute('aria-expanded', 'true');
     }
 });
 
@@ -3294,8 +3431,9 @@ function populateCsvCategoryFilter() {
     const select = document.getElementById('filter-csv-cat');
     if (!select) return;
 
-    select.innerHTML = '<option value="">Все категории</option>' +
-        categories.map(c => `<option value="${c}">${c}</option>`).join('');
+    const previous = select.value;
+    select.replaceChildren(new Option('Все категории', ''), ...categories.map(c => new Option(c, c)));
+    if (categories.includes(previous)) select.value = previous;
 }
 
 /**
@@ -3436,9 +3574,6 @@ async function applyBulkToFiltered() {
     setTimeout(() => {
         renderStagingTable();
         updateStats();
-
-        // Reset header checkbox after bulk operation
-        document.getElementById('header-select-all').checked = false;
 
         // Highlight updated rows
         ids.forEach(id => {
@@ -4386,7 +4521,7 @@ function updateSpreadsheetStatusBar() {
         if (hasArticle) filledFields++;
         if (hasFC) filledFields++;
 
-        if (hasType && hasArticle && hasFC) readyCount++;
+        if (hasType && isReadyForImport(record)) readyCount++;
     });
 
     document.getElementById('status-filled-count').textContent = `${filledFields} / ${totalFields}`;
@@ -4436,63 +4571,85 @@ document.addEventListener('DOMContentLoaded', function() {
 const cellCategoryPickers = new Map();
 let bulkFilteredCategoryTree = null;
 
-/**
- * Initialize ChoicesCategoryTree for a cell
- */
-function initCellCategoryPicker(recordId) {
-    const selectEl = document.getElementById(`article-select-${recordId}`);
-    if (!selectEl) return;
+function positionCategoryMenu(menu) {
+    const anchor = menu.closest('.choices').getBoundingClientRect();
+    const below = window.innerHeight - anchor.bottom;
+    const above = anchor.top;
+    const upwards = below < 260 && above > below;
+    const width = Math.min(Math.max(anchor.width, 180), document.documentElement.clientWidth);
+    menu.style.width = width + 'px';
+    menu.style.left = Math.max(0, Math.min(anchor.left, document.documentElement.clientWidth - width)) + 'px';
+    menu.style.top = upwards ? 'auto' : anchor.bottom + 'px';
+    menu.style.bottom = upwards ? window.innerHeight - anchor.top + 'px' : 'auto';
+    const searchHeight = menu.querySelector('input')?.offsetHeight || 0;
+    menu.querySelector('[role=listbox]').style.maxHeight = Math.max(0, Math.min(260, (upwards ? above : below) - searchHeight - 4)) + 'px';
+}
 
-    // Destroy existing instance if any (wrap in try/catch — element may already be detached)
-    if (cellCategoryPickers.has(recordId)) {
-        try { cellCategoryPickers.get(recordId).destroy(); } catch (e) { /* already detached */ }
-        cellCategoryPickers.delete(recordId);
-    }
-
-    const type = rowArticleTypes[recordId] || 'expense';
-    const record = stagingRecords.find(r => r.id === recordId);
-
-    const picker = new BudgetShared.ChoicesCategoryTree(
-        `#article-select-${recordId}`,
-        {
-            type: type,
-            showLeafOnly: true,
-            mode: 'edit',  // ✅ Edit mode - inline editing of import record
-            onCategoryChange: async (category) => {
-                if (category) {
-                    // Save selection to backend
-                    await updateStagingField(recordId, 'article_id', category.id);
-
-                    // Update local record
-                    const rec = stagingRecords.find(r => r.id === recordId);
-                    if (rec) {
-                        rec.article_id = category.id;
-                    }
-
-                    // Update stats
-                    updateStats();
-                }
-            }
-        }
-    );
-
-    cellCategoryPickers.set(recordId, picker);
-
-    // Pre-select current value if exists
-    if (record?.article_id) {
-        setTimeout(() => {
-            picker.setSelectedCategory(record.article_id);
-        }, 150);
+function repositionOpenCategoryMenu(event) {
+    const menu = document.querySelector('.article-cell-picker .is-open .choices__list--dropdown');
+    if (menu && !(event.target instanceof Node && menu.contains(event.target))) {
+        positionCategoryMenu(menu);
     }
 }
 
-/**
- * Update cell category picker type when row type changes
- */
+document.addEventListener('scroll', repositionOpenCategoryMenu, true);
+window.addEventListener('resize', repositionOpenCategoryMenu);
+
+async function initCellCategoryPicker(record, trigger) {
+    const recordId = record.id;
+    const select = document.createElement('select');
+    select.id = `article-select-${recordId}`;
+    select.setAttribute('aria-label', 'Категория');
+    trigger.before(select);
+    trigger.onclick = null;
+    const picker = new BudgetShared.ChoicesCategoryTree(
+        `#article-select-${recordId}`,
+        {
+            type: rowArticleTypes[recordId] || 'expense',
+            showLeafOnly: true,
+            mode: 'edit',
+            onCategoryChange: category => {
+                if (category) updateStagingField(recordId, 'article_id', category.id);
+            }
+        }
+    );
+    cellCategoryPickers.set(recordId, picker);
+    await picker.waitForReady();
+    if (!select.isConnected) {
+        picker.destroy();
+        return;
+    }
+    if (!picker.choices) {
+        select.remove();
+        cellCategoryPickers.delete(recordId);
+        trigger.onclick = () => initCellCategoryPicker(record, trigger);
+        showNotification('Не удалось открыть список категорий', 'error');
+        return;
+    }
+    const shouldOpen = document.activeElement === trigger || document.activeElement === document.body;
+    trigger.remove();
+    if (record.article_id) await picker.setSelectedCategory(record.article_id);
+    if (!select.isConnected) return;
+
+    const menu = select.closest('.choices').querySelector('.choices__list--dropdown');
+    if (menu.showPopover) menu.setAttribute('popover', 'manual');
+    select.addEventListener('showDropdown', () => {
+        if (!menu.isConnected) return;
+        menu.showPopover?.();
+        positionCategoryMenu(menu);
+        menu.querySelector('input')?.focus({ preventScroll: true });
+    });
+    select.addEventListener('hideDropdown', () => menu.hidePopover?.());
+    if (shouldOpen) picker.choices.showDropdown();
+}
+
 function updateCellCategoryType(recordId, newType) {
     const picker = cellCategoryPickers.get(recordId);
     if (picker) {
         picker.updateType(newType);
+    } else {
+        const trigger = document.querySelector(`#article-${recordId} button`);
+        if (trigger) trigger.textContent = 'Выберите категорию';
     }
 }
 

@@ -77,6 +77,8 @@ class ImportStaging(SQLModel, table=True):
         description="Bank provider ID (for filtering staging records by bank)"
     )
 
+    source_row: int | None = Field(default=None, description="Physical starting line in the uploaded statement")
+
     # Generic CSV fields (mapped from any bank's CSV)
     fact_date: date = Field(
         nullable=False,

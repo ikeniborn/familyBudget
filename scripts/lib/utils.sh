@@ -595,17 +595,31 @@ check_orphaned_deployment_processes() {
 
 # Helper function to run docker compose with all override files
 # Usage: compose_cmd ps
-#        compose_cmd up --build -d
+#        compose_cmd up -d
 # Note: Automatically changes to DEPLOY_DIR and uses --profile full
 compose_cmd() {
-    local compose_files="-f docker-compose.yml"
-
-    # PostgreSQL port 5432 is exposed in docker-compose.yml
-    # Access is controlled by UFW firewall (configured in setup.sh)
-
-    # Change to deployment directory and execute docker compose with all override files
-    # Profile is managed dynamically via start_services() through COMPOSE_PROFILE variable
-    (cd "$DEPLOY_DIR" && docker compose $compose_files "$@")
+    local -a compose_files=() files=()
+    local selected file
+    if [[ -n "${COMPOSE_FILE:-}" ]]; then
+        IFS="${COMPOSE_PATH_SEPARATOR:-:}" read -r -a files <<< "$COMPOSE_FILE"
+        for file in "${files[@]}"; do compose_files+=(-f "$file"); done
+    else
+        compose_files=(-f docker-compose.yml)
+        for file in compose.override.yaml compose.override.yml docker-compose.override.yml docker-compose.override.yaml; do
+            if [[ -f "$DEPLOY_DIR/$file" ]]; then
+                compose_files+=(-f "$file")
+                break
+            fi
+        done
+    fi
+    local -a arguments=("$@")
+    for selected in "$@"; do
+        if [[ "$selected" == up ]]; then
+            arguments+=(--no-build)
+            break
+        fi
+    done
+    (cd "$DEPLOY_DIR" && docker compose "${compose_files[@]}" "${arguments[@]}")
 }
 
 # =============================================================================

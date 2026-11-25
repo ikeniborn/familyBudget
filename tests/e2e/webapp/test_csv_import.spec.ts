@@ -306,3 +306,245 @@ test.describe('CSV Import - Error Handling', () => {
     expect(errorVisible || true).toBeTruthy();
   });
 });
+
+test('bank CSV integrity review shows rejects, excludes registry matches and binds retries', async ({ page }) => {
+  await page.setViewportSize(VIEWPORTS.desktop);
+  const fact = { id: 91, fact_date: '2026-11-01', amount: '840', account_name: 'Семейная карта' };
+  const staged = {
+    id: 21, bank_provider_id: 1, file_upload_id: 50, fact_date: fact.fact_date,
+    source_row: 2, amount_string: '-840.49', original_amount: '-840.49',
+    whole_amount: '-840', amount_difference: '0.49', description: 'Кафе',
+    article_id: 3, financial_center_id: 2, matches: [fact], already_imported: false,
+  };
+  const records = [
+    staged,
+    { ...staged, id: 22, source_row: 3, amount_string: '9007199254740993', original_amount: '9007199254740993', whole_amount: '9007199254740993', amount_difference: '0', matches: [] },
+    { ...staged, id: 23, file_upload_id: 49, source_row: 2, already_imported: true },
+  ];
+  let parsed = false;
+  let completed = false;
+  const attempts: Array<{
+    confirmation_id: string;
+    staging_ids: number[];
+    acknowledgments: Record<string, number[]>;
+  }> = [];
+  await page.route('**/api/v1/staging/21', route => route.fulfill({ json: { success: true } }));
+  await page.route('**/api/v1/financial-centers', route => route.fulfill({ json: [{ id: 2, name: 'Счёт' }, { id: 3, name: 'Кошелёк' }] }));
+  await page.route('**/api/v1/import/banks', route => route.fulfill({ json: [{ id: 1, name: 'Банк QA' }] }));
+  await page.route('**/api/v1/import/upload?*', route => route.fulfill({ json: { file_id: 50, prior_imported_count: 1 } }));
+  await page.route('**/api/v1/import/files/50/analyze', route => route.fulfill({ json: { headers: ['Date', 'Amount'], sample_rows: [], total_rows: 4 } }));
+  await page.route('**/api/v1/import/mappings/1', route => route.fulfill({ json: { mapping_id: 2, mapping: { amount: 'Amount', fact_date: 'Date' } } }));
+  await page.route('**/api/v1/import/files/50/parse', route => {
+    parsed = true;
+    return route.fulfill({ json: { total_rows: 4, total_inserted: 2, prior_imported_count: 1, rejected_rows: [{ source_row: 4, reason: 'zero_after_truncation' }, { source_row: 5, reason: 'invalid_date' }] } });
+  });
+  await page.route('**/api/v1/staging', route => route.fulfill({ json: parsed && !completed ? records : [] }));
+  await page.route('**/api/v1/staging/import', route => {
+    attempts.push(route.request().postDataJSON());
+    if (attempts.length === 1) {
+      return route.fulfill({ status: 409, json: { detail: { message: { code: 'matches_changed', matches: { 21: [fact, { ...fact, id: 92, account_name: 'Другой счёт' }] } } } } });
+    }
+    if (attempts.length === 2) return route.abort('failed');
+    completed = true;
+    return route.fulfill({ json: { success: true, total_imported: 2 } });
+  });
+  await page.route('**/api/v1/consent/status', route => route.fulfill({ json: { has_consented: true, consents: {} } }));
+  page.on('dialog', dialog => dialog.accept());
+  await page.goto('/import');
+  const consent = page.getByRole('button', { name: 'Принять все', exact: true });
+  if (await consent.isVisible()) await consent.click();
+  await page.locator('#bank-selector').selectOption('1');
+  await page.locator('#upload-new-file-btn').click();
+  await expect(page.locator('#csv-file')).toBeVisible();
+  await page.locator('#csv-file').setInputFiles({
+    name: 'statement.csv', mimeType: 'text/csv',
+    buffer: Buffer.from('Date;Amount\n2026-11-01;-840.49\n2026-11-01;-840.49\n2026-11-01;0.25\nbad;12'),
+  });
+  await page.locator('#upload-btn').click();
+  await expect(page.locator('#statement-recognition')).toContainText('1');
+  await page.locator('#use-existing-mapping-btn').click();
+  const report = page.locator('#bank-parse-report');
+  await expect(report).toContainText('Принято: 2 из 4');
+  await expect(report).toContainText('Строка 4: после отсечения копеек сумма равна нулю');
+  await expect(report).toContainText('Строка 5: неверная дата');
+  const row = page.locator('#staging-row-21');
+  await expect(row).toContainText('Семейная карта');
+  const amount = row.locator('[data-col=amount]');
+  await expect(amount).toHaveText('−840 ₽');
+  await expect(amount).toHaveAttribute('title', /−840,49 ₽.*\+0,49 ₽/);
+  await expect(page.locator('#staging-row-22 [data-col=amount]')).toHaveText('9007199254740993 ₽');
+  await expect(page.locator('#staging-row-22 [data-col=status]')).toHaveText('Готово');
+  const edited = page.waitForResponse(response => response.url().endsWith('/staging/21') && response.request().method() === 'PATCH');
+  await row.locator('#fc-21').selectOption('3');
+  await edited;
+  await expect(row).toContainText('Семейная карта');
+  await page.locator('#header-select-all').check();
+  await expect(page.locator('#select-21')).not.toBeChecked();
+  await expect(page.locator('#select-22')).toBeChecked();
+  await expect(page.locator('#select-23')).toBeDisabled();
+  await row.getByRole('button', { name: 'Это отдельная операция' }).click();
+  await page.locator('#execute-import-btn').click();
+  await expect(row).toContainText('Другой счёт');
+  await expect(page.locator('#select-21')).not.toBeChecked();
+  await expect(page.locator('#select-22')).toBeChecked();
+  await row.getByRole('button', { name: 'Это отдельная операция' }).click();
+  await page.locator('#execute-import-btn').click();
+  await expect(page.locator('#notification-toast')).toContainText(/fetch|связи|сети/i);
+  await page.locator('#execute-import-btn').click();
+  await expect(row).toHaveCount(0);
+  expect(attempts).toHaveLength(3);
+  expect(attempts[0].acknowledgments).toEqual({ 21: [91] });
+  expect(attempts[1].acknowledgments).toEqual({ 21: [91, 92] });
+  expect(attempts[1].staging_ids).toEqual([21, 22]);
+  expect(attempts[1].confirmation_id).toMatch(/^[a-f0-9-]{36}$/);
+  expect(attempts[2]).toEqual(attempts[1]);
+});
+
+test('filtered import preview opens the last category and scopes AI to eligible rows', async ({ page }) => {
+  const rows = Array.from({ length: 5 }, (_, index) => ({
+    id: index + 1, bank_provider_id: index === 4 ? 2 : 1, amount_string: '-659.85',
+    original_amount: '-659.85', whole_amount: '-659', amount_difference: '0.85',
+    fact_date: '2026-11-20', article_id: null as number | null, financial_center_id: null,
+    csv_metadata: { category: index === 0 ? 'Транспорт' : 'Покупки' },
+    matches: index === 2 ? [{ id: 90, amount: '659', fact_date: '2026-11-20' }] : [],
+  }));
+  const articles = [{ id: 11, name: 'Продукты', type: 'expense', is_active: true, parent_id: null }];
+  const aiCalls: number[][] = [];
+  let aiEnabled = false;
+  await page.route('**/api/v1/**', route => {
+    const url = new URL(route.request().url());
+    switch (url.pathname) {
+      case '/api/v1/consent/status': return route.fulfill({ json: { has_consented: true, consents: {} } });
+      case '/api/v1/import/banks': return route.fulfill({ json: [{ id: 1, name: 'Банк QA' }] });
+      case '/api/v1/ai/status': return route.fulfill({ json: { enabled: aiEnabled, text: aiEnabled } });
+      case '/api/v1/articles': return route.fulfill({ json: { articles } });
+      case '/api/v1/staging': return route.fulfill({ json: rows });
+      case '/api/v1/staging/2':
+      case '/api/v1/staging/4':
+        rows[Number(url.pathname.split('/').pop()) - 1].article_id = route.request().postDataJSON().article_id;
+        return route.fulfill({ json: { success: true } });
+      case '/api/v1/ai/categorize-import':
+        aiCalls.push(route.request().postDataJSON().staging_ids);
+        return route.fulfill({ json: { processed: 1, suggestions: [{ staging_id: 2, article_id: 11, article_path: 'Продукты', confidence: 'high' }], unmatched: 0 } });
+      default: return route.fulfill({ json: [] });
+    }
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  const openPreview = async () => {
+    await page.goto('/import');
+    await page.locator('#bank-selector').selectOption('1');
+    await page.locator('#skip-to-enrichment-btn').click();
+    await expect(page.locator('#bulk-filtered-count')).toHaveText('4');
+  };
+  await openPreview();
+  const aiButton = page.getByRole('button', { name: 'Подобрать категории с ИИ' });
+  await expect(aiButton).toBeVisible();
+  await expect(aiButton).toBeDisabled();
+  await expect(page.locator('#ai-categorize-status')).toHaveText('ИИ выключен в настройках');
+  aiEnabled = true;
+  await openPreview();
+  await expect(aiButton).toBeEnabled();
+  await page.locator('#filter-csv-cat').selectOption('Покупки', { force: true });
+  await expect(page.locator('#bulk-filtered-count')).toHaveText('3');
+  await expect(page.locator('#staging-table-body .choices')).toHaveCount(0);
+  const last = page.locator('#staging-row-4');
+  await expect(last.locator('[data-col=status]')).toHaveText('Нужны категория и счёт');
+  await last.getByRole('button', { name: 'Выберите категорию' }).click();
+  const menu = last.locator('.choices__list--dropdown');
+  await menu.locator('input').fill('Продукты');
+  await menu.getByRole('option', { name: 'Продукты' }).click();
+  await expect(last.locator('[data-col=status]')).toHaveText('Нужен счёт');
+  await expect(last.locator('[data-col=article]')).not.toHaveClass(/empty-field/);
+  await expect(last.locator('[data-col=fc]')).toHaveClass(/empty-field/);
+  await aiButton.click();
+  await expect(page.locator('#ai-categorize-status')).toContainText('Рекомендации: 1 из 1 · применено: 1');
+  await expect(page.locator('#staging-row-2 button', { hasText: 'Продукты' })).toBeVisible();
+  await expect(page.locator('#bulk-filtered-count')).toHaveText('3');
+  await aiButton.click();
+  await expect(page.locator('#ai-categorize-status')).toContainText('нет строк');
+  expect(aiCalls).toEqual([[2]]);
+  await page.locator('#filter-csv-cat').selectOption('', { force: true });
+  await expect(last.getByRole('button', { name: 'Продукты' })).toBeVisible();
+});
+
+test('enrichment sidebar keeps selection and import reachable at the last row', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 700 });
+  const category = 'Продукты и повседневные покупки для всей семьи';
+  const description = 'Длинное описание покупки со всеми подробностями из банковской выписки';
+  const rows = Array.from({ length: 45 }, (_, index) => ({
+    id: index + 1, bank_provider_id: 1, source_row: index + 2, fact_date: '2026-11-20',
+    amount_string: '-300', whole_amount: '-300', original_amount: '-300', amount_difference: '0',
+    article_id: 11, financial_center_id: 1, description,
+    csv_metadata: { category: index < 3 ? 'Магазин' : 'Прочее' },
+    already_imported: index === 44, matches: index === 2 ? [{ id: 90, amount: '300', fact_date: '2026-11-20' }] : [],
+  }));
+  const imported: number[][] = [];
+  const deleted: number[][] = [];
+  await page.route('**/api/v1/**', route => {
+    switch (new URL(route.request().url()).pathname) {
+      case '/api/v1/consent/status': return route.fulfill({ json: { has_consented: true, consents: {} } });
+      case '/api/v1/import/banks': return route.fulfill({ json: [{ id: 1, name: 'Банк' }] });
+      case '/api/v1/articles': return route.fulfill({ json: { articles: [{ id: 11, name: category, type: 'expense', is_active: true, parent_id: null }] } });
+      case '/api/v1/staging': return route.fulfill({ json: imported.length ? [] : rows });
+      case '/api/v1/staging/bulk-delete':
+        deleted.push(route.request().postDataJSON().staging_ids);
+        return route.fulfill({ json: { success: true } });
+      case '/api/v1/staging/import':
+        imported.push(route.request().postDataJSON().staging_ids);
+        return route.fulfill({ json: { success: true, total_imported: 2 } });
+      default: return route.fulfill({ json: [] });
+    }
+  });
+  await page.addInitScript(() => localStorage.setItem('staging-column-widths', JSON.stringify({ article: 80 })));
+  await page.goto('/import');
+  await page.locator('#bank-selector').selectOption('1');
+  await page.locator('#skip-to-enrichment-btn').click();
+  const first = page.locator('#staging-row-1');
+  await expect(first.locator('[data-col=date]')).toHaveText('2026-11-20');
+  await expect(first.locator('[data-col=description]')).toHaveAttribute('title', description);
+  const article = first.locator('[data-col=article]');
+  const trigger = article.getByRole('button', { name: category });
+  const clipped = (el: HTMLElement) => {
+    const cell = el.closest('td')!.getBoundingClientRect();
+    const item = el.getBoundingClientRect();
+    const css = getComputedStyle(el);
+    return cell.width <= 81 && item.left >= cell.left && item.right <= cell.right
+      && el.scrollWidth > el.clientWidth && css.textOverflow === 'ellipsis' && css.whiteSpace === 'nowrap';
+  };
+  await expect.poll(() => trigger.evaluate(clipped)).toBe(true);
+  await trigger.click();
+  await article.locator('.choices__input--cloned').press('Escape');
+  await expect.poll(() => article.locator('.choices__list--single [data-item]:visible').evaluate(clipped)).toBe(true);
+
+  const sidebar = page.locator('#filter-sidebar');
+  const selectAll = sidebar.getByLabel('Выбрать все видимые');
+  const submit = sidebar.locator('#execute-import-btn');
+  await page.locator('#staging-row-45').scrollIntoViewIfNeeded();
+  await expect(page.locator('#header-select-all')).not.toBeInViewport();
+  await expect(selectAll).toBeInViewport({ ratio: 1 });
+  await expect(submit).toBeInViewport({ ratio: 1 });
+  await expect(submit).toBeDisabled();
+  await selectAll.check();
+  await expect(submit).toHaveText('Импортировать (43)');
+  await expect(page.locator('#header-select-all')).toBeChecked();
+  await expect(sidebar.getByText('Удалить выбранные')).toBeHidden();
+  await sidebar.getByText('Другие действия').click();
+  await sidebar.getByRole('button', { name: 'Удалить выбранные' }).click();
+  await expect(page.locator('#confirm-dialog-message')).toContainText('43');
+  await page.locator('#confirm-dialog-no').click();
+  expect(deleted).toEqual([]);
+
+  await sidebar.getByRole('button', { name: 'Фильтры' }).click();
+  await page.locator('#filter-csv-cat').selectOption('Магазин');
+  await expect(submit).toBeDisabled();
+  await page.locator('#select-1').check();
+  await expect(selectAll).toHaveJSProperty('indeterminate', true);
+  await selectAll.check();
+  await expect(submit).toHaveText('Импортировать (2)');
+  await expect(page.locator('#select-3')).not.toBeChecked();
+  page.once('dialog', dialog => dialog.accept());
+  await submit.click();
+  await expect(submit).toBeDisabled();
+  await expect(first).toHaveCount(0);
+  expect(imported).toEqual([[1, 2]]);
+});

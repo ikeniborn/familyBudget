@@ -20,7 +20,7 @@ redis>=5.0.0
 orjson>=3.10.0  # High-performance JSON serialization (3-10x faster)
 
 # Authentication & Security
-python-jose[cryptography]==3.5.0
+PyJWT==2.15.1
 cryptography==50.0.1  # direct dep: AI provider token encryption (token_crypto); >=50.0.0 fixes CVE-2026-69247/-69249, wheel OpenSSL GHSA-537c-gmf6-5ccf
 python-multipart==0.0.30  # Security fix for CVE-2026-53539 (quadratic-time querystring DoS)
 slowapi==0.1.9             # Rate limiting for API endpoints (brute-force protection)

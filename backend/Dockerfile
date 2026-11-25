@@ -1,69 +1,11 @@
-# Multi-stage build for Family Budget Backend
-# Stage 1: Python dependencies builder
-FROM python:3.11-slim-bookworm as python-builder
+# Resolve wheels on glibc for the same CPython ABI as the runtime.
+FROM python:3.11-slim-bookworm AS python-builder
 
-ARG PYTHON_VERSION=3.11
-# BUILD_DATE invalidates apt layer cache each CI run so security patches
-# (e.g. krb5 u4 -> u5 for CVE-2026-40356) are picked up promptly.
-ARG BUILD_DATE=unknown
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-RUN echo "apt refresh: ${BUILD_DATE}" && \
-    apt-get update && \
-    apt-get dist-upgrade -y && \
-    apt-get install -y --no-install-recommends \
-    build-essential \
-    libpq-dev \
-    libpq5 \
-    curl \
-    libexpat1 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Regenerate distroless-format dpkg metadata for packages whose .so files we
-# copy into the runtime image. Distroless ships stale /var/lib/dpkg/status.d/*
-# files that mismatch the upgraded libraries we copy, producing false-positive
-# Trivy reports (e.g. CVE-2026-40356 krb5 u4→u5).
-RUN mkdir -p /opt/dpkg-status && \
-    for pkg in libgssapi-krb5-2 libk5crypto3 libkrb5-3 libkrb5support0 \
-               libldap-2.5-0 liblber-2.5-0 libsasl2-2 \
-               libgnutls30 libcom-err2 libkeyutils1 \
-               libp11-kit0 libidn2-0 libunistring2 libtasn1-6 \
-               libnettle8 libhogweed6 libgmp10 libffi8 libpq5 \
-               libexpat1; do \
-        dpkg-query -W -f='Package: ${Package}\nStatus: ${Status}\nPriority: ${Priority}\nSection: ${Section}\nInstalled-Size: ${Installed-Size}\nMaintainer: ${Maintainer}\nArchitecture: ${Architecture}\nMulti-Arch: ${Multi-Arch}\nSource: ${Source}\nVersion: ${Version}\nDepends: ${Depends}\nDescription: ${Description}\n' "$pkg" > "/opt/dpkg-status/$pkg" 2>/dev/null || true ; \
-    done
-
-# Remove vulnerable system Python packages before creating venv
-RUN pip uninstall -y wheel jaraco.context setuptools 2>/dev/null || true
-
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 WORKDIR /build
 COPY backend/requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --upgrade pip setuptools wheel && \
-    pip install -r requirements.txt && \
-    pip install --upgrade 'jaraco.context>=6.1.0' 'wheel>=0.46.2'
-
-# Drop pip from the venv that ships to the runtime image.
-#
-# pip bundles its own dependencies under pip/_vendor and records their versions
-# in pip/_vendor/vendor.txt, which Trivy reads as installed packages. pip 26.2.1
-# pins msgpack==1.1.2 and setuptools==70.3.0 there, so the image reports
-# GHSA-6v7p-g79w-8964 and CVE-2025-47273 no matter what requirements.txt says —
-# those numbers are pip's internals, not what we installed.
-#
-# The runtime is distroless and installs nothing, and neither backend/ nor bot/
-# imports pip, setuptools or pkg_resources, so removing pip costs nothing.
-# setuptools itself stays: 84.0.0 is clean and some libraries still import
-# pkg_resources lazily.
-RUN rm -rf /opt/venv/lib/python3.11/site-packages/pip \
-           /opt/venv/lib/python3.11/site-packages/pip-*.dist-info \
-           /opt/venv/bin/pip /opt/venv/bin/pip3 /opt/venv/bin/pip3.11
+    pip install --target=/opt/packages -r requirements.txt
 
 # Stage 2: Frontend builder
 FROM node:18-alpine as frontend-builder
@@ -119,55 +61,26 @@ RUN ls -lh frontend/web/static/css/ && \
     ls -lh frontend/web/static/sw.min.js* && \
     echo "Frontend build complete with CACHE_VERSION=${CACHE_VERSION}"
 
-# Stage 3: Runtime image (Distroless for security and size optimization)
-FROM gcr.io/distroless/python3-debian12:latest
+# Install signed Wolfi packages into an empty root. APK retains the package
+# database for Trivy. The installer and its shell stay in the build stage.
+FROM cgr.dev/chainguard/wolfi-base@sha256:6ab86c5e059da41ff1454b6f69ecd7422b94af41969f4e231aa23244e47d4a81 AS runtime-packages
+ARG BUILD_DATE=local
+RUN echo "Resolving runtime packages for ${BUILD_DATE}" && \
+    mkdir -p /runtime/etc/apk/keys && \
+    cp /etc/apk/keys/wolfi-signing.rsa.pub /runtime/etc/apk/keys/ && \
+    echo https://packages.wolfi.dev/os > /runtime/etc/apk/repositories && \
+    apk --root /runtime --initdb --no-cache add busybox wolfi-baselayout ca-certificates-bundle python-3.11 tzdata libstdc++ && \
+    apk --root /runtime --no-cache --no-commit-hooks del busybox && \
+    chroot /runtime /usr/bin/ldconfig && \
+    chroot /runtime /usr/bin/python3.11 -c "import ssl, sqlite3; from zoneinfo import ZoneInfo; ZoneInfo('Europe/Moscow')"
 
+FROM scratch
+COPY --from=runtime-packages /runtime/ /
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONPATH="/opt/venv/lib/python3.11/site-packages:${PYTHONPATH}" \
+    PYTHONPATH=/opt/venv/lib/python3.11/site-packages:/app \
     APP_HOME=/app
-
-# Copy runtime libraries from builder (distroless doesn't have package manager)
-# PostgreSQL client library (required by asyncpg)
-COPY --from=python-builder /usr/lib/x86_64-linux-gnu/libpq.so.5* /usr/lib/x86_64-linux-gnu/
-# Copy all libpq dependencies from /lib/x86_64-linux-gnu/ (Kerberos, LDAP, SASL, GnuTLS, etc.)
-# This includes: libgssapi_krb5, libldap-2.5, liblber-2.5, libsasl2, libgnutls, libkrb5, libk5crypto, libcom_err, libkrb5support, libkeyutils
-COPY --from=python-builder /lib/x86_64-linux-gnu/libgssapi_krb5.so.2* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libldap-2.5.so.0* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/liblber-2.5.so.0* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libsasl2.so.2* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libgnutls.so.30* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libkrb5.so.3* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libk5crypto.so.3* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libcom_err.so.2* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libkrb5support.so.0* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libkeyutils.so.1* /lib/x86_64-linux-gnu/
-# Transitive dependencies (required by GnuTLS and libpq)
-COPY --from=python-builder /lib/x86_64-linux-gnu/libresolv.so.2* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libp11-kit.so.0* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libidn2.so.0* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libunistring.so.2* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libtasn1.so.6* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libnettle.so.8* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libhogweed.so.6* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libgmp.so.10* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libffi.so.8* /lib/x86_64-linux-gnu/
-# XML parser: distroless ships expat deb12u2. The slim base carries no expat at
-# all, so the builder installs libexpat1 explicitly and gets deb12u3, which
-# fixes CVE-2026-56408 (integer overflow in copyString).
-COPY --from=python-builder /lib/x86_64-linux-gnu/libexpat.so.1* /lib/x86_64-linux-gnu/
-# SSL/TLS libraries (already in distroless, but copy for consistency)
-COPY --from=python-builder /lib/x86_64-linux-gnu/libssl.so.3* /lib/x86_64-linux-gnu/
-COPY --from=python-builder /lib/x86_64-linux-gnu/libcrypto.so.3* /lib/x86_64-linux-gnu/
-# CA certificates (required for TLS verification)
-COPY --from=python-builder /etc/ssl/certs /etc/ssl/certs
-
-# Refresh dpkg metadata for upgraded libraries so Trivy reports match the
-# actual binaries we just copied (overrides stale distroless status.d).
-COPY --from=python-builder /opt/dpkg-status/ /var/lib/dpkg/status.d/
-
-# Copy Python venv from builder (changes when dependencies change)
-COPY --from=python-builder /opt/venv /opt/venv
+COPY --from=python-builder /opt/packages/ /opt/venv/lib/python3.11/site-packages/
 
 WORKDIR $APP_HOME
 
@@ -190,7 +103,6 @@ COPY backend/healthcheck.py $APP_HOME/healthcheck.py
 COPY --from=frontend-builder /build/frontend/ $APP_HOME/frontend/
 
 # Note: Runtime directories (/app/logs, /app/uploads) will be created via volume mounts in docker-compose.yml
-# Distroless runs as nonroot user (UID 65532) - no RUN commands available
 
 # OCI Image Labels (OpenContainer Initiative metadata standard)
 LABEL org.opencontainers.image.title="Family Budget Backend" \
@@ -210,13 +122,10 @@ LABEL org.opencontainers.image.version="${VERSION}" \
 
 EXPOSE 8000
 
-# Python-based healthcheck (no curl in distroless)
-# Use distroless system Python + venv packages via PYTHONPATH
+# The Mini PC poller also invokes this interpreter path directly.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD ["/usr/bin/python3.11", "/app/healthcheck.py"]
 
-# Use distroless system Python (no venv binary issues)
-# Packages loaded from /opt/venv/lib/python3.11/site-packages via PYTHONPATH
 ENTRYPOINT ["/usr/bin/python3.11"]
 
 # Start server via Python script (supports WORKERS env var)

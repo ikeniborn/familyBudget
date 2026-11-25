@@ -16,7 +16,7 @@ refresh path itself must keep working.
 
 from datetime import datetime, timedelta
 
-from jose import jwt
+import jwt
 
 from backend.app.services.jwt import (
     ALGORITHM,
@@ -135,3 +135,28 @@ class TestOtherTokenContractsUnchanged:
         token = create_access_token(user_id=USER_ID, telegram_id=TELEGRAM_ID)
 
         assert decode_refresh_token(token) is None
+
+
+def test_tokens_issued_by_previous_release(monkeypatch):
+    """Read HS256 fixtures signed by python-jose 3.5.0 using a synthetic key."""
+    monkeypatch.setattr("backend.app.services.jwt.SECRET_KEY", "compatibility-fixture-only-not-an-application-key")
+    access = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo0MjQyLCJ0ZWxlZ3JhbV9pZC"
+        "I6NzQwNzc1ODAyLCJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiaWF0IjoxNzAwMDAwMDAwLCJleHAiO"
+        "jQxMDI0NDQ4MDB9.0gR6BkvdGSiEuDM94SrWMuRERJyG31W4SR7hSoxsoJo"
+    )
+    refresh = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjo0MjQyLCJ0b2tlbl90eXBlIj"
+        "oicmVmcmVzaCIsImlhdCI6MTcwMDAwMDAwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.FVB1g35xO4q_Eg"
+        "hQcDY7bsld5n_7vVB7v2IPINGZngQ"
+    )
+    websocket = (
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0MjQyIiwidHlwZSI6IndzIiwiaW"
+        "F0IjoxNzAwMDAwMDAwLCJleHAiOjQxMDI0NDQ4MDB9.-B85ciL3Y-8Di_3rxK2uznUuqpv67Rej"
+        "V1oA1kZP5Z0"
+    )
+    assert decode_access_token_full(access) == (USER_ID, TELEGRAM_ID)
+    assert decode_refresh_token(refresh) == USER_ID
+    assert decode_ws_token(websocket) == USER_ID
+    assert decode_access_token(refresh) is None
+    assert decode_refresh_token(access) is None
