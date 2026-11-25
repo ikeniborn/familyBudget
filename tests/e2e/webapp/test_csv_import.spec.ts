@@ -466,3 +466,85 @@ test('filtered import preview opens the last category and scopes AI to eligible 
   await page.locator('#filter-csv-cat').selectOption('', { force: true });
   await expect(last.getByRole('button', { name: 'Продукты' })).toBeVisible();
 });
+
+test('enrichment sidebar keeps selection and import reachable at the last row', async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 700 });
+  const category = 'Продукты и повседневные покупки для всей семьи';
+  const description = 'Длинное описание покупки со всеми подробностями из банковской выписки';
+  const rows = Array.from({ length: 45 }, (_, index) => ({
+    id: index + 1, bank_provider_id: 1, source_row: index + 2, fact_date: '2026-11-20',
+    amount_string: '-300', whole_amount: '-300', original_amount: '-300', amount_difference: '0',
+    article_id: 11, financial_center_id: 1, description,
+    csv_metadata: { category: index < 3 ? 'Магазин' : 'Прочее' },
+    already_imported: index === 44, matches: index === 2 ? [{ id: 90, amount: '300', fact_date: '2026-11-20' }] : [],
+  }));
+  const imported: number[][] = [];
+  const deleted: number[][] = [];
+  await page.route('**/api/v1/**', route => {
+    switch (new URL(route.request().url()).pathname) {
+      case '/api/v1/consent/status': return route.fulfill({ json: { has_consented: true, consents: {} } });
+      case '/api/v1/import/banks': return route.fulfill({ json: [{ id: 1, name: 'Банк' }] });
+      case '/api/v1/articles': return route.fulfill({ json: { articles: [{ id: 11, name: category, type: 'expense', is_active: true, parent_id: null }] } });
+      case '/api/v1/staging': return route.fulfill({ json: imported.length ? [] : rows });
+      case '/api/v1/staging/bulk-delete':
+        deleted.push(route.request().postDataJSON().staging_ids);
+        return route.fulfill({ json: { success: true } });
+      case '/api/v1/staging/import':
+        imported.push(route.request().postDataJSON().staging_ids);
+        return route.fulfill({ json: { success: true, total_imported: 2 } });
+      default: return route.fulfill({ json: [] });
+    }
+  });
+  await page.addInitScript(() => localStorage.setItem('staging-column-widths', JSON.stringify({ article: 80 })));
+  await page.goto('/import');
+  await page.locator('#bank-selector').selectOption('1');
+  await page.locator('#skip-to-enrichment-btn').click();
+  const first = page.locator('#staging-row-1');
+  await expect(first.locator('[data-col=date]')).toHaveText('2026-11-20');
+  await expect(first.locator('[data-col=description]')).toHaveAttribute('title', description);
+  const article = first.locator('[data-col=article]');
+  const trigger = article.getByRole('button', { name: category });
+  const clipped = (el: HTMLElement) => {
+    const cell = el.closest('td')!.getBoundingClientRect();
+    const item = el.getBoundingClientRect();
+    const css = getComputedStyle(el);
+    return cell.width <= 81 && item.left >= cell.left && item.right <= cell.right
+      && el.scrollWidth > el.clientWidth && css.textOverflow === 'ellipsis' && css.whiteSpace === 'nowrap';
+  };
+  await expect.poll(() => trigger.evaluate(clipped)).toBe(true);
+  await trigger.click();
+  await article.locator('.choices__input--cloned').press('Escape');
+  await expect.poll(() => article.locator('.choices__list--single [data-item]:visible').evaluate(clipped)).toBe(true);
+
+  const sidebar = page.locator('#filter-sidebar');
+  const selectAll = sidebar.getByLabel('Выбрать все видимые');
+  const submit = sidebar.locator('#execute-import-btn');
+  await page.locator('#staging-row-45').scrollIntoViewIfNeeded();
+  await expect(page.locator('#header-select-all')).not.toBeInViewport();
+  await expect(selectAll).toBeInViewport({ ratio: 1 });
+  await expect(submit).toBeInViewport({ ratio: 1 });
+  await expect(submit).toBeDisabled();
+  await selectAll.check();
+  await expect(submit).toHaveText('Импортировать (43)');
+  await expect(page.locator('#header-select-all')).toBeChecked();
+  await expect(sidebar.getByText('Удалить выбранные')).toBeHidden();
+  await sidebar.getByText('Другие действия').click();
+  await sidebar.getByRole('button', { name: 'Удалить выбранные' }).click();
+  await expect(page.locator('#confirm-dialog-message')).toContainText('43');
+  await page.locator('#confirm-dialog-no').click();
+  expect(deleted).toEqual([]);
+
+  await sidebar.getByRole('button', { name: 'Фильтры' }).click();
+  await page.locator('#filter-csv-cat').selectOption('Магазин');
+  await expect(submit).toBeDisabled();
+  await page.locator('#select-1').check();
+  await expect(selectAll).toHaveJSProperty('indeterminate', true);
+  await selectAll.check();
+  await expect(submit).toHaveText('Импортировать (2)');
+  await expect(page.locator('#select-3')).not.toBeChecked();
+  page.once('dialog', dialog => dialog.accept());
+  await submit.click();
+  await expect(submit).toBeDisabled();
+  await expect(first).toHaveCount(0);
+  expect(imported).toEqual([[1, 2]]);
+});

@@ -9,24 +9,25 @@
 <style>
 /* Filter sidebar */
 .filter-sidebar {
-    width: 18rem;
-    min-width: 18rem;
+    flex: 0 0 clamp(12rem, 19vw, 17rem);
+    align-self: flex-start;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
     background: oklch(var(--b1));
-    border-right: 1px solid oklch(var(--b3));
-    padding: 1rem;
+    border: 1px solid oklch(var(--b3));
+    padding: 0.75rem;
     position: sticky;
-    top: 0;
-    height: calc(100vh - 4rem);
+    top: calc(4.5rem + env(safe-area-inset-top));
+    max-height: calc(100dvh - 5rem - env(safe-area-inset-top));
     overflow-y: auto;
-    transition: all 0.3s ease;
 }
-
-/* Collapsible sidebar */
-.filter-sidebar.collapsed {
-    width: 3rem;
-    min-width: 3rem;
-    padding: 0.5rem;
-    overflow: hidden;
+.filter-sidebar .filter-content {
+    overflow-y: auto;
+    min-height: 0;
+}
+.filter-sidebar > :not(.filter-content) {
+    flex-shrink: 0;
 }
 .filter-sidebar.collapsed .filter-content {
     display: none;
@@ -35,27 +36,19 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    width: 100%;
     cursor: pointer;
-    padding: 0.5rem;
-    margin: -0.5rem -0.5rem 0.5rem -0.5rem;
-    border-radius: 0.5rem;
-    transition: background 0.2s ease;
-}
-.filter-sidebar-header:hover {
-    background: oklch(var(--b2));
-}
-.filter-sidebar.collapsed .filter-sidebar-header {
-    justify-content: center;
-    margin: 0;
-}
-.filter-sidebar.collapsed .filter-title {
-    display: none;
-}
-.filter-toggle-icon {
-    transition: transform 0.3s ease;
+    padding: 0.25rem;
 }
 .filter-sidebar.collapsed .filter-toggle-icon {
-    transform: rotate(180deg);
+    transform: rotate(-90deg);
+}
+.enrichment-secondary {
+    border-top: 1px solid oklch(var(--b3));
+    padding-top: 0.5rem;
+}
+.enrichment-secondary summary {
+    cursor: pointer;
 }
 
 /* Filter chips */
@@ -99,7 +92,17 @@
 
 /* Inline category picker in table cells */
 .article-cell-picker {
-    min-width: 180px;
+    min-width: 0;
+    width: 100%;
+}
+.article-cell-picker > button,
+.article-cell-picker .choices__list--single,
+.article-cell-picker .choices__list--single [data-item] {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 .article-cell-picker .choices {
     margin: 0;
@@ -146,8 +149,7 @@
 /* Table layout for column resizing */
 .staging-table {
     table-layout: fixed;
-    min-width: 1740px;  /* Sum of all column widths */
-    width: max-content;
+    width: 100%;
     border-collapse: collapse;
 }
 
@@ -634,16 +636,18 @@ body.resizing-columns * {
             <!-- Main content: Sidebar + Table -->
             <div class="flex gap-4">
                 <!-- Filter Sidebar -->
-                <div class="filter-sidebar collapsed rounded-lg" id="filter-sidebar">
-                    <!-- Collapsible Header -->
-                    <div class="filter-sidebar-header" onclick="toggleFilterSidebar()">
-                        <!-- BUG #9 FIX: added filter-title class so the text hides when sidebar is collapsed -->
-                        <h3 class="text-base sm:text-lg font-semibold mb-1 sm:mb-2 filter-title">🔍 Фильтры</h3>
-                        <span class="filter-toggle-icon text-lg">◀</span>
-                    </div>
-
-                    <!-- Filter Content (collapsible) -->
-                    <div class="filter-content">
+                <aside class="filter-sidebar collapsed rounded-lg" id="filter-sidebar" aria-label="Действия и фильтры импорта">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" id="sidebar-select-all" class="checkbox checkbox-sm" onchange="toggleSelectAll(this)">
+                        Выбрать все видимые
+                    </label>
+                    <button type="button" id="execute-import-btn" class="btn btn-success btn-sm w-full" onclick="executeImport()" disabled>
+                        <span>Импортировать (<span id="import-selection-count">0</span>)</span>
+                    </button>
+                    <button type="button" id="filter-toggle" class="filter-sidebar-header font-semibold" onclick="toggleFilterSidebar()" aria-controls="enrichment-filters" aria-expanded="false">
+                        Фильтры <span class="filter-toggle-icon" aria-hidden="true">▾</span>
+                    </button>
+                    <div class="filter-content" id="enrichment-filters">
                         <!-- Search by description -->
                         <div class="form-control mb-4">
                             <label class="label py-1">
@@ -741,7 +745,12 @@ body.resizing-columns * {
                             ✕ Сбросить фильтры
                         </button>
                     </div>
-                </div>
+                    <details class="enrichment-secondary text-sm">
+                        <summary>Другие действия</summary>
+                        <button type="button" class="btn btn-ghost btn-sm w-full" onclick="this.closest('details').open = false; resetWorkflow()">Начать заново</button>
+                        <button type="button" id="delete-selected-btn" class="btn btn-ghost btn-sm text-error w-full" onclick="this.closest('details').open = false; deleteFilteredRecords()" disabled>Удалить выбранные</button>
+                    </details>
+                </aside>
 
                 <!-- Main content area -->
                 <div class="flex-1 min-w-0">
@@ -784,9 +793,6 @@ body.resizing-columns * {
                                     <button class="btn btn-sm btn-accent" onclick="applyBulkToFiltered()">
                                         Применить
                                     </button>
-                                    <button class="btn btn-sm btn-error" onclick="deleteFilteredRecords()">
-                                        🗑️ Удалить
-                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -798,7 +804,7 @@ body.resizing-columns * {
                         <table class="table table-zebra table-sm staging-table" id="staging-table">
                             <thead>
                                 <tr>
-                                    <th data-col="checkbox" style="width: 40px;"><input type="checkbox" class="checkbox checkbox-sm" id="header-select-all" onchange="toggleSelectAll(this)" /></th>
+                                    <th data-col="checkbox" style="width: 40px;"><input type="checkbox" class="checkbox checkbox-sm" id="header-select-all" aria-label="Выбрать все видимые строки" onchange="toggleSelectAll(this)" /></th>
                                     <th data-col="status" style="width: 215px;">Проверка<div class="resize-handle"></div></th>
                                     <th data-col="date" style="width: 100px;">Дата<div class="resize-handle"></div></th>
                                     <th data-col="amount" style="width: 150px;">Сумма, ₽<div class="resize-handle"></div></th>
@@ -834,22 +840,6 @@ body.resizing-columns * {
                             <span class="value text-success" id="status-ready-count">0</span>
                         </div>
                         <div class="status-last-action" id="status-last-action"></div>
-                    </div>
-
-                    <!-- Execute Import Button -->
-                    <div class="mt-4 flex gap-2">
-                        <button class="btn btn-success gap-2" onclick="executeImport()" id="execute-import-btn">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                            </svg>
-                            Импортировать
-                        </button>
-                        <button type="button" class="btn btn-ghost gap-2" onclick="resetWorkflow()">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                            </svg>
-                            Начать заново
-                        </button>
                     </div>
 
                     <div id="import-result" class="mt-4"></div>
@@ -2517,12 +2507,6 @@ function createStagingRow(record, index) {
     const dateCell = document.createElement('td');
     setCellData(dateCell, 'date');
     dateCell.textContent = record.fact_date;
-    if (record.source_row != null) {
-        const source = document.createElement('div');
-        source.className = 'text-xs';
-        source.textContent = `Строка ${record.source_row}`;
-        dateCell.append(source);
-    }
 
     // Amount
     const amountCell = document.createElement('td');
@@ -2539,6 +2523,7 @@ function createStagingRow(record, index) {
     const descCell = document.createElement('td');
     setCellData(descCell, 'description');
     descCell.textContent = record.description || '';
+    descCell.title = descCell.textContent;
     descCell.classList.add('max-w-xs', 'truncate');
 
     // CSV Metadata: Category
@@ -2889,9 +2874,6 @@ function toggleSelectAll(sourceCheckbox) {
         }
     });
 
-    // Reset header checkbox state
-    document.getElementById('header-select-all').checked = selectAll;
-
     updateStats();
 }
 
@@ -3021,7 +3003,6 @@ async function deleteSelectedRecords() {
         const result = await response.json();
         showNotification(result.message || `Удалено ${selectedIds.length} записей`, 'success');
         await loadStagingTable();
-        document.getElementById('header-select-all').checked = false;
 
     } catch (error) {
         console.error('Bulk delete error:', error);
@@ -3090,6 +3071,7 @@ async function executeImport() {
         pendingConfirmation = { signature, id: crypto.randomUUID() };
     }
     const button = document.getElementById('execute-import-btn');
+    button.setAttribute('aria-busy', 'true');
     button.disabled = true;
     try {
         const response = await fetch('/api/v1/staging/import', {
@@ -3176,7 +3158,8 @@ async function executeImport() {
         console.error('Import error:', error);
         showNotification(error.message, 'error');
     } finally {
-        button.disabled = false;
+        button.removeAttribute('aria-busy');
+        updateStats();
     }
 }
 
@@ -3241,9 +3224,16 @@ function updateStats() {
     const selected = getSelectedIds().length;
     const ready = stagingRecords.filter(isReadyForImport).length;
     const selectable = document.querySelectorAll('#staging-table tbody input[type="checkbox"]:enabled').length;
-    const header = document.getElementById('header-select-all');
-    header.checked = selectable > 0 && selected === selectable;
-    header.indeterminate = selected > 0 && selected < selectable;
+    for (const id of ['header-select-all', 'sidebar-select-all']) {
+        const checkbox = document.getElementById(id);
+        checkbox.disabled = selectable === 0;
+        checkbox.checked = selectable > 0 && selected === selectable;
+        checkbox.indeterminate = selected > 0 && selected < selectable;
+    }
+    document.getElementById('import-selection-count').textContent = selected;
+    const importButton = document.getElementById('execute-import-btn');
+    importButton.disabled = selected === 0 || importButton.hasAttribute('aria-busy');
+    document.getElementById('delete-selected-btn').disabled = selected === 0;
 
     document.getElementById('stat-total').textContent = total;
     document.getElementById('stat-filtered').textContent = filtered;
@@ -3346,7 +3336,8 @@ function applyFilters() {
  */
 function toggleFilterSidebar() {
     const sidebar = document.getElementById('filter-sidebar');
-    sidebar.classList.toggle('collapsed');
+    const collapsed = sidebar.classList.toggle('collapsed');
+    document.getElementById('filter-toggle').setAttribute('aria-expanded', String(!collapsed));
     // Save state to localStorage
     localStorage.setItem('filterSidebarCollapsed', sidebar.classList.contains('collapsed'));
 }
@@ -3357,6 +3348,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Sidebar is collapsed by default (in HTML), expand only if user previously expanded it
     if (sidebar && localStorage.getItem('filterSidebarCollapsed') === 'false') {
         sidebar.classList.remove('collapsed');
+        document.getElementById('filter-toggle').setAttribute('aria-expanded', 'true');
     }
 });
 
@@ -3582,9 +3574,6 @@ async function applyBulkToFiltered() {
     setTimeout(() => {
         renderStagingTable();
         updateStats();
-
-        // Reset header checkbox after bulk operation
-        document.getElementById('header-select-all').checked = false;
 
         // Highlight updated rows
         ids.forEach(id => {
@@ -4587,7 +4576,7 @@ function positionCategoryMenu(menu) {
     const below = window.innerHeight - anchor.bottom;
     const above = anchor.top;
     const upwards = below < 260 && above > below;
-    const width = Math.min(anchor.width, document.documentElement.clientWidth);
+    const width = Math.min(Math.max(anchor.width, 180), document.documentElement.clientWidth);
     menu.style.width = width + 'px';
     menu.style.left = Math.max(0, Math.min(anchor.left, document.documentElement.clientWidth - width)) + 'px';
     menu.style.top = upwards ? 'auto' : anchor.bottom + 'px';
