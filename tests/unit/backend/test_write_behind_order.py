@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 
 @pytest.mark.asyncio
-async def test_broadcast_called_after_commit():
+@pytest.mark.parametrize("commit_fails", [False, True])
+async def test_dashboard_invalidation_and_broadcast_follow_commit(commit_fails):
     """
     _process_item() must call session.commit() before _broadcast_event().
     Order matters: client fetches row-html after receiving WS event.
@@ -16,6 +17,8 @@ async def test_broadcast_called_after_commit():
 
     async def fake_commit():
         call_order.append("commit")
+        if commit_fails:
+            raise RuntimeError("commit failed")
 
     async def fake_flush():
         pass
@@ -39,7 +42,7 @@ async def test_broadcast_called_after_commit():
         pass
 
     async def fake_invalidate():
-        pass
+        call_order.append("invalidate")
 
     service._broadcast_event = fake_broadcast
     service._process_fact = fake_process_fact
@@ -54,8 +57,7 @@ async def test_broadcast_called_after_commit():
     with patch("backend.app.db.session.get_session", side_effect=lambda: fake_session_gen()), \
          patch("backend.app.services.cache_service.cache_service") as mock_cache:
         mock_cache.invalidate_dashboard = fake_invalidate
-        await service._process_item(item)
+        processed = await service._process_item(item)
 
-    assert call_order == ["commit", "broadcast"], (
-        f"Expected commit before broadcast, got: {call_order}"
-    )
+    assert processed is (not commit_fails)
+    assert call_order == (["commit"] if commit_fails else ["commit", "invalidate", "broadcast"])

@@ -13,6 +13,7 @@ from backend.app.models.budget_fact_history import BudgetFactHistory
 from backend.app.models.fact import BudgetFact
 from backend.app.models.financial_center import FinancialCenter
 from backend.app.schemas.transfer import TransferCreate, TransferResponse
+from backend.app.services.cache_service import cache_service
 from backend.app.services.partition_service import ensure_partitions_for_dates
 
 logger = logging.getLogger(__name__)
@@ -222,6 +223,7 @@ async def create_transfer(
         session.add(expense_fact)
         session.add(income_fact)
         await session.commit()
+        await cache_service.invalidate_dashboard()
         await session.refresh(expense_fact)
         await session.refresh(income_fact)
     except Exception as e:
